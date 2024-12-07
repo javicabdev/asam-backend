@@ -1,0 +1,41 @@
+# Binarios y ejecutables
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+
+# Archivos de test
+*.test
+*.tmp
+
+# Output de coverage
+*.out
+
+# Dependencias
+vendor/
+
+# GoLand
+.idea/
+*.iml
+*.iws
+.idea_modules/
+
+# VSCode
+.vscode/
+
+# Archivos de sistema Windows
+Thumbs.db
+Desktop.ini
+
+# Archivos de entorno
+.env
+.env.local
+
+# Logs
+*.log
+
+# Directorios de build
+build/
+dist/
