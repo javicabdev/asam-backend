@@ -1,0 +1,44 @@
+# Etapa 1: Construcción
+FROM golang:1.20-alpine AS builder
+
+# Variables de entorno para evitar el uso del cache de compilación
+ENV GO111MODULE=on \
+    CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=amd64
+
+# Directorio de trabajo dentro del contenedor
+WORKDIR /app
+
+# Copiar el go.mod y go.sum primero para aprovechar la caché de Docker
+COPY go.mod go.sum ./
+
+# Descargar las dependencias
+RUN go mod download
+
+# Copiar el resto del código fuente
+COPY . .
+
+# Compilar la aplicación
+RUN go build -o asam-backend ./cmd/asam-backend
+
+# Etapa 2: Imagen Final
+FROM alpine:latest
+
+# Instalar ca-certificates para HTTPS
+RUN apk --no-cache add ca-certificates
+
+# Directorio de trabajo dentro del contenedor final
+WORKDIR /root/
+
+# Copiar el binario desde la etapa de construcción
+COPY --from=builder /app/asam-backend .
+
+# Variables de entorno para producción (pueden ser sobreescritas en docker-compose)
+ENV PORT=8080
+
+# Exponer el puerto en el que la aplicación correrá
+EXPOSE 8080
+
+# Comando para ejecutar la aplicación
+CMD ["./asam-backend"]

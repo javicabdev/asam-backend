@@ -1,0 +1,31 @@
+# Archivos y directorios que Docker ignorará al construir la imagen
+
+# Ignorar el directorio de módulos de Go
+/vendor
+/pkg
+
+# Ignorar archivos binarios
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Ignorar archivos de configuración locales
+.env.development
+
+# Ignorar directorios de prueba
+/test
+
+# Ignorar archivos de logs y temporales
+*.log
+*.tmp
+
+# Ignorar el directorio .git
+.git
+.gitignore
+
+# Ignorar Dockerfile y docker-compose.yml si no se necesita dentro del contenedor
+# (opcional)
+Dockerfile.dev
+docker-compose.yml

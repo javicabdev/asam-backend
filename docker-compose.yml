@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: asam-backend-api-dev
+    ports:
+      - "${PORT}:8080"
+    environment:
+      - APP_ENV=development
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_SSL_MODE=${DB_SSL_MODE}
+      - DB_MAX_IDLE_CONNS=${DB_MAX_IDLE_CONNS}
+      - DB_MAX_OPEN_CONNS=${DB_MAX_OPEN_CONNS}
+      - DB_CONN_MAX_LIFETIME=${DB_CONN_MAX_LIFETIME}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - asam-network
+    volumes:
+      - .:/app # Montar el código fuente para desarrollo
+      - /app/tmp # Montar el directorio binario
+      - /go/pkg/mod # Montar el cache de módulos de Go
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:14-alpine
+    container_name: asam-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - asam-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d $POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  asam-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+    driver: local

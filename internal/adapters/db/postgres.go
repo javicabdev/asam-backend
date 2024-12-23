@@ -48,10 +48,18 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 		return nil, fmt.Errorf("error getting database instance: %w", err)
 	}
 
-	// Ejemplo de configuración fija (podrías extraer esto también desde cfg si lo deseas)
-	sqlDB.SetMaxIdleConns(cfg.DBMaxIdleConns)
-	sqlDB.SetMaxOpenConns(cfg.DBMaxOpenConns)
-	sqlDB.SetConnMaxLifetime(cfg.DBConnMaxLifetime)
+	sqlDB.SetMaxIdleConns(cfg.DBMaxIdleConns)       // Mantener conexiones inactivas
+	sqlDB.SetMaxOpenConns(cfg.DBMaxOpenConns)       // Máximo de conexiones simultáneas
+	sqlDB.SetConnMaxLifetime(cfg.DBConnMaxLifetime) // Tiempo de vida de las conexiones
+
+	// Configurar statement cache
+	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+		PrepareStmt: true, // Habilitar cache de prepared statements
+		NowFunc: func() time.Time {
+			return time.Now().UTC() // Use UTC for all timestamps
+		},
+		Logger: logger.Default.LogMode(logger.Silent), // Reducir logging en producción
+	})
 
 	// Test connection
 	if err := sqlDB.Ping(); err != nil {
