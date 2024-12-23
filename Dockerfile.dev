@@ -1,5 +1,5 @@
 # Etapa 1: Construcción
-FROM golang:1.20-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # Variables de entorno para evitar el uso del cache de compilación
 ENV GO111MODULE=on \
@@ -20,8 +20,7 @@ RUN go mod download
 COPY . .
 
 # Compilar la aplicación
-RUN go build -o asam-backend ./cmd/asam-backend
-
+RUN go build -o asam-backend ./cmd/api
 # Etapa 2: Imagen Final
 FROM alpine:latest
 
