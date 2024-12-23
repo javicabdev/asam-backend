@@ -12,7 +12,7 @@
 *.dylib
 
 # Ignorar archivos de configuración locales
-.env.development
+.env
 
 # Ignorar directorios de prueba
 /test
