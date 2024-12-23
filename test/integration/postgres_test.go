@@ -14,6 +14,11 @@ import (
 
 // TestInitDB verifica la conexión a la base de datos con diferentes escenarios.
 func TestInitDB(t *testing.T) {
+	_ = os.Setenv("APP_ENV", "test")
+	defer func() {
+		_ = os.Unsetenv("APP_ENV")
+	}()
+
 	tests := []struct {
 		name    string
 		envVars map[string]string

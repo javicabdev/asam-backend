@@ -31,7 +31,7 @@ Desktop.ini
 
 # Archivos de entorno
 .env
-.env.local
+.env.*
 
 # Logs
 *.log
@@ -39,3 +39,4 @@ Desktop.ini
 # Directorios de build
 build/
 dist/
+/tmp/asam-backend

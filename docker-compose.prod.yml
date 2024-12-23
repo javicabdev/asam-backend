@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: asam-backend-api-prod
+    ports:
+      - "${PORT}:8080"
+    environment:
+      - APP_ENV=production
+      - GOMEMLIMIT=256MiB
+      - GOMAXPROCS=2
+    env_file:
+      - .env.production
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 512M
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - asam-network
+    restart: always
+
+  postgres:
+    image: postgres:14-alpine
+    container_name: asam-postgres-prod
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=200"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "effective_cache_size=768MB"
+      - "-c"
+      - "maintenance_work_mem=64MB"
+      - "-c"
+      - "checkpoint_completion_target=0.9"
+      - "-c"
+      - "wal_buffers=16MB"
+      - "-c"
+      - "default_statistics_target=100"
+    env_file:
+      - .env.production
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - asam-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d $POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+networks:
+  asam-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+    driver: local

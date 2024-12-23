@@ -1,0 +1,14 @@
+# .air.toml
+
+root = "."
+tmp_dir = "tmp"
+
+[build]
+# Agregar la extensión .exe al binario
+cmd = "go build -o tmp/asam-backend.exe ./cmd/api"
+bin = "tmp/asam-backend.exe"
+include_ext = ["go", "tpl", "tmpl", "html"]
+exclude_dir = ["assets", "tmp", "vendor", "scripts"]
+
+[log]
+time = true
