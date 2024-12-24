@@ -65,7 +65,7 @@ func createValidMember() *models.Member {
 		Provincia:       "Barcelona",
 		Pais:            "España",
 		Estado:          models.EstadoActivo,
-		FechaAlta:       time.Now(),
+		FechaAlta:       time.Now().Add(-24 * time.Hour), // 1 día antes
 		Nacionalidad:    "Senegal",
 	}
 }
@@ -130,11 +130,15 @@ func TestCreateMember(t *testing.T) {
 }
 
 func TestDeactivateMember(t *testing.T) {
+	// Crear una fecha de alta en el pasado
+	fechaAlta := time.Now().Add(-24 * time.Hour) // 1 día antes
+
 	tests := []struct {
-		name     string
-		memberID uint
-		mockFn   func(*mockMemberRepository)
-		wantErr  bool
+		name      string
+		memberID  uint
+		fechaBaja *time.Time
+		mockFn    func(*mockMemberRepository)
+		wantErr   bool
 	}{
 		{
 			name:     "successful deactivation",
@@ -142,6 +146,7 @@ func TestDeactivateMember(t *testing.T) {
 			mockFn: func(repo *mockMemberRepository) {
 				member := createValidMember()
 				member.ID = 1
+				member.FechaAlta = fechaAlta // Usar la fecha de alta anterior
 				repo.On("GetByID", mock.Anything, uint(1)).Return(member, nil)
 				repo.On("Update", mock.Anything, mock.AnythingOfType("*models.Member")).Return(nil)
 			},
@@ -176,7 +181,8 @@ func TestDeactivateMember(t *testing.T) {
 			service := services.NewMemberService(repo)
 
 			// Execute
-			err := service.DeactivateMember(context.Background(), tt.memberID, nil)
+			// Si se proporciona una fecha específica, usarla
+			err := service.DeactivateMember(context.Background(), tt.memberID, tt.fechaBaja)
 
 			// Assert
 			if tt.wantErr {
