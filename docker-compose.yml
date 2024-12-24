@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    container_name: asam-backend-api-dev
+    container_name: asam-backend-api
     ports:
       - "${PORT}:8080"
     depends_on:
