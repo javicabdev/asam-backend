@@ -18,11 +18,26 @@ func NewPaymentRepository(db *gorm.DB) output.PaymentRepository {
 	return &paymentRepository{db: db}
 }
 
+// Create crea un nuevo pago y su correspondiente movimiento en el flujo de caja
 func (r *paymentRepository) Create(ctx context.Context, payment *models.Payment) error {
-	if err := payment.Validate(); err != nil {
-		return err
-	}
-	return r.db.WithContext(ctx).Create(payment).Error
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 1. Crear el pago
+		if err := tx.Create(payment).Error; err != nil {
+			return err
+		}
+
+		// 2. Crear el movimiento de caja correspondiente
+		cashFlow, err := models.NewFromPayment(payment)
+		if err != nil {
+			return err
+		}
+
+		if err := tx.Create(cashFlow).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 func (r *paymentRepository) Update(ctx context.Context, payment *models.Payment) error {
