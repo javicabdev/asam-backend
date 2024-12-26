@@ -28,6 +28,7 @@ type Payment struct {
 	Notes           string
 	MembershipFeeID *uint
 	MembershipFee   *MembershipFee `gorm:"foreignKey:MembershipFeeID"`
+	CashFlow        *CashFlow      `gorm:"foreignKey:PaymentID"` // Relación inversa
 }
 
 type MembershipFee struct {
