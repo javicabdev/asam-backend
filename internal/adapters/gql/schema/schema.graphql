@@ -1,0 +1,53 @@
+# Scalares personalizados
+scalar Time
+
+# Enums
+enum MembershipType {
+    INDIVIDUAL
+    FAMILY
+}
+
+enum MemberStatus {
+    ACTIVE
+    INACTIVE
+}
+
+enum OperationType {
+    MEMBERSHIP_FEE
+    CURRENT_EXPENSE
+    FUND_DELIVERY
+    OTHER_INCOME
+}
+
+# Tipos base
+type Member {
+    miembro_id: ID!
+    numero_socio: String!
+    tipo_membresia: MembershipType!
+    nombre: String!
+    apellidos: String!
+    calle_numero_piso: String!
+    codigo_postal: String!
+    poblacion: String!
+    provincia: String!
+    pais: String!
+    estado: MemberStatus!
+    fecha_alta: Time!
+    fecha_baja: Time
+    fecha_nacimiento: Time
+    documento_identidad: String
+    correo_electronico: String
+    profesion: String
+    nacionalidad: String
+    observaciones: String
+}
+
+# Query inicial de prueba
+type Query {
+    hello: String!
+}
+
+# Mutation inicial de prueba
+type Mutation {
+    ping: String!
+}
