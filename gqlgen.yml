@@ -1,0 +1,30 @@
+schema:
+  - internal/adapters/gql/schema/*.graphql
+
+exec:
+  filename: internal/adapters/gql/generated/generated.go
+  package: generated
+
+model:
+  filename: internal/adapters/gql/model/models_gen.go
+  package: model
+
+resolver:
+  layout: follow-schema
+  dir: internal/adapters/gql/resolvers
+  package: resolvers
+  filename_template: "{name}.resolvers.go"
+
+autobind:
+  - "github.com/javicabdev/asam-backend/internal/domain/models"
+
+models:
+  ID:
+    model:
+      - github.com/99designs/gqlgen/graphql.ID
+  Int:
+    model:
+      - github.com/99designs/gqlgen/graphql.Int
+  Time:
+    model:
+      - github.com/99designs/gqlgen/graphql.Time
