@@ -34,6 +34,7 @@ type MemberFilters struct {
 	SearchTerm    *string
 	Page          int
 	PageSize      int
+	OrderBy       string
 }
 
 // CreateMemberRequest representa los datos necesarios para crear un nuevo miembro

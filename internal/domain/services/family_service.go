@@ -3,9 +3,11 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/internal/ports/output"
+	"strings"
 )
 
 var (
@@ -124,9 +126,40 @@ func (s *familyService) GetByNumeroSocio(ctx context.Context, numeroSocio string
 }
 
 // List obtiene una lista paginada de familias
-func (s *familyService) List(ctx context.Context, page, pageSize int) ([]*models.Family, int, error) {
-	offset := (page - 1) * pageSize
-	return s.familyRepo.List(ctx, offset, pageSize)
+func (s *familyService) List(ctx context.Context, page, pageSize int, searchTerm *string, orderBy string) ([]*models.Family, int, error) {
+	// Validaciones básicas
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+
+	// Validar ordenamiento si se proporciona
+	if orderBy != "" {
+		// Validar que el campo de ordenamiento sea válido
+		validFields := map[string]bool{
+			"numero_socio":     true,
+			"esposo_nombre":    true,
+			"esposo_apellidos": true,
+			"esposa_nombre":    true,
+			"esposa_apellidos": true,
+		}
+
+		// Extraer el campo de ordenamiento (quitando el ASC/DESC)
+		parts := strings.Fields(orderBy)
+		if !validFields[strings.ToLower(parts[0])] {
+			return nil, 0, fmt.Errorf("campo de ordenamiento inválido: %s", parts[0])
+		}
+	}
+
+	// Llamar al repositorio con los parámetros validados
+	families, total, err := s.familyRepo.List(ctx, page, pageSize, searchTerm, orderBy)
+	if err != nil {
+		return nil, 0, fmt.Errorf("error al listar familias: %w", err)
+	}
+
+	return families, total, nil
 }
 
 // AddFamiliar añade un nuevo familiar a una familia

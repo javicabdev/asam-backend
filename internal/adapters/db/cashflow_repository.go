@@ -66,6 +66,7 @@ func (r *CashFlowRepository) Delete(ctx context.Context, id uint) error {
 }
 
 // List implementa la obtención de movimientos con filtros
+// List implementa la obtención de movimientos con filtros
 func (r *CashFlowRepository) List(ctx context.Context, filter output.CashFlowFilter) ([]*models.CashFlow, error) {
 	var cashFlows []*models.CashFlow
 
@@ -91,6 +92,14 @@ func (r *CashFlowRepository) List(ctx context.Context, filter output.CashFlowFil
 		query = query.Where("date <= ?", filter.EndDate)
 	}
 
+	// Aplicar ordenamiento
+	if filter.OrderBy != "" {
+		query = query.Order(filter.OrderBy)
+	} else {
+		// Orden por defecto
+		query = query.Order("date DESC")
+	}
+
 	// Aplicar paginación
 	if filter.PageSize > 0 {
 		offset := (filter.Page - 1) * filter.PageSize
@@ -101,9 +110,6 @@ func (r *CashFlowRepository) List(ctx context.Context, filter output.CashFlowFil
 	query = query.Preload("Payment").
 		Preload("Member").
 		Preload("Family")
-
-	// Ordenar por fecha descendente
-	query = query.Order("date DESC")
 
 	result := query.Find(&cashFlows)
 	return cashFlows, result.Error

@@ -19,6 +19,37 @@ enum OperationType {
     OTHER_INCOME
 }
 
+enum PaymentStatus {
+    PENDING
+    PAID
+    CANCELLED
+}
+
+enum SortDirection {
+    ASC
+    DESC
+}
+
+enum MemberSortField {
+    NUMERO_SOCIO
+    NOMBRE
+    APELLIDOS
+    FECHA_ALTA
+    ESTADO
+}
+
+enum FamilySortField {
+    NUMERO_SOCIO
+    ESPOSO_NOMBRE
+    ESPOSA_NOMBRE
+}
+
+enum TransactionSortField {
+    DATE
+    AMOUNT
+    OPERATION_TYPE
+}
+
 # Tipos base
 type Member {
     miembro_id: ID!
@@ -42,12 +73,131 @@ type Member {
     observaciones: String
 }
 
-# Query inicial de prueba
-type Query {
-    hello: String!
+type Family {
+    id: ID!
+    numero_socio: String!
+    miembro_origen: Member
+    esposo_nombre: String!
+    esposo_apellidos: String!
+    esposa_nombre: String!
+    esposa_apellidos: String!
+    familiares: [Familiar!]
 }
 
-# Mutation inicial de prueba
+type Familiar {
+    id: ID!
+    nombre: String!
+    apellidos: String!
+    fecha_nacimiento: Time
+    dni_nie: String
+    correo_electronico: String
+}
+
+type Payment {
+    id: ID!
+    member: Member
+    family: Family
+    amount: Float!
+    payment_date: Time!
+    status: PaymentStatus!
+    payment_method: String!
+    notes: String
+}
+
+type CashFlow {
+    id: ID!
+    amount: Float!
+    date: Time!
+    operation_type: OperationType!
+    detail: String!
+    member: Member
+    family: Family
+    payment: Payment
+}
+
+# Inputs para filtros
+input PaginationInput {
+    page: Int! = 1
+    pageSize: Int! = 10
+}
+
+input SortInput {
+    field: String!
+    direction: SortDirection!
+}
+
+input MemberFilter {
+    estado: MemberStatus
+    tipo_membresia: MembershipType
+    search_term: String
+    pagination: PaginationInput
+    sort: SortInput     # Añadido
+}
+
+input FamilyFilter {
+    search_term: String
+    pagination: PaginationInput
+    sort: SortInput     # Añadido
+}
+
+input TransactionFilter {
+    start_date: Time
+    end_date: Time
+    operation_type: OperationType
+    pagination: PaginationInput
+    sort: SortInput     # Añadido
+}
+
+# Tipos para paginación
+type PageInfo {
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+    totalCount: Int!
+}
+
+type MemberConnection {
+    nodes: [Member!]!
+    pageInfo: PageInfo!
+}
+
+type FamilyConnection {
+    nodes: [Family!]!
+    pageInfo: PageInfo!
+}
+
+type TransactionConnection {
+    nodes: [CashFlow!]!
+    pageInfo: PageInfo!
+}
+
+# Query principal
+type Query {
+    # Query inicial de prueba
+    hello: String!
+
+    # Member Queries
+    getMember(id: ID!): Member
+    listMembers(filter: MemberFilter): MemberConnection!
+    searchMembers(criteria: String!): [Member!]!
+
+    # Family Queries
+    getFamily(id: ID!): Family
+    listFamilies(filter: FamilyFilter): FamilyConnection!
+    getFamilyMembers(familyId: ID!): [Familiar!]!
+
+    # Payment Queries
+    getPayment(id: ID!): Payment
+    getMemberPayments(memberId: ID!): [Payment!]!
+    getFamilyPayments(familyId: ID!): [Payment!]!
+    getPaymentStatus(id: ID!): PaymentStatus!
+
+    # CashFlow Queries
+    getCashFlow(id: ID!): CashFlow
+    getBalance: Float!
+    getTransactions(filter: TransactionFilter): TransactionConnection!
+}
+
+# Mutation principal (mantenemos la de prueba por ahora)
 type Mutation {
     ping: String!
 }

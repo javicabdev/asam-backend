@@ -14,6 +14,7 @@ type CashFlowService interface {
 	GetMovement(ctx context.Context, id uint) (*models.CashFlow, error)
 	UpdateMovement(ctx context.Context, movement *models.CashFlow) error
 	DeleteMovement(ctx context.Context, id uint) error
+	GetMovementsByPeriod(ctx context.Context, filter CashFlowFilter) ([]*models.CashFlow, error)
 
 	// GetCurrentBalance Gestión de balance
 	GetCurrentBalance(ctx context.Context) (*BalanceReport, error)
@@ -133,4 +134,13 @@ type FinancialAlert struct {
 	Threshold    float64
 	CurrentValue float64
 	CreatedAt    time.Time
+}
+
+type CashFlowFilter struct {
+	StartDate     *time.Time
+	EndDate       *time.Time
+	OperationType *models.OperationType
+	Page          int
+	PageSize      int
+	OrderBy       string
 }

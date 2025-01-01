@@ -81,23 +81,41 @@ func (r *familyRepository) Delete(ctx context.Context, id uint) error {
 }
 
 // List obtiene una lista paginada de familias
-func (r *familyRepository) List(ctx context.Context, offset, limit int) ([]*models.Family, int, error) {
+// List obtiene una lista paginada de familias
+func (r *familyRepository) List(ctx context.Context, page, pageSize int, searchTerm *string, orderBy string) ([]*models.Family, int, error) {
 	var families []*models.Family
 	var total int64
 
+	query := r.db.WithContext(ctx).Model(&models.Family{})
+
+	// Aplicar búsqueda si se proporciona
+	if searchTerm != nil && *searchTerm != "" {
+		searchQuery := "%" + *searchTerm + "%"
+		query = query.Where(
+			"numero_socio ILIKE ? OR esposo_nombre ILIKE ? OR esposo_apellidos ILIKE ? OR esposa_nombre ILIKE ? OR esposa_apellidos ILIKE ?",
+			searchQuery, searchQuery, searchQuery, searchQuery, searchQuery,
+		)
+	}
+
 	// Obtener el total de registros
-	if err := r.db.WithContext(ctx).Model(&models.Family{}).Count(&total).Error; err != nil {
+	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// Obtener los registros paginados
-	result := r.db.WithContext(ctx).
-		Preload("Familiares").
-		Preload("Telefonos").
-		Offset(offset).
-		Limit(limit).
-		Find(&families)
+	// Aplicar ordenamiento si se proporciona
+	if orderBy != "" {
+		query = query.Order(orderBy)
+	}
 
+	// Aplicar paginación
+	query = query.Offset((page - 1) * pageSize).Limit(pageSize)
+
+	// Cargar relaciones
+	query = query.Preload("Familiares").
+		Preload("Telefonos")
+
+	// Ejecutar la consulta
+	result := query.Find(&families)
 	if result.Error != nil {
 		return nil, 0, result.Error
 	}

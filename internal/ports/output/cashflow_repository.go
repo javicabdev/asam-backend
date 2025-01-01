@@ -40,4 +40,5 @@ type CashFlowFilter struct {
 	EndDate       *time.Time
 	Page          int
 	PageSize      int
+	OrderBy       string // Añadido
 }

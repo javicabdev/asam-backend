@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/javicabdev/asam-backend/internal/domain/models"
@@ -42,6 +43,52 @@ func (s *CashFlowService) RegisterMovement(ctx context.Context, movement *models
 // GetMovement implementa la obtención de un movimiento por ID
 func (s *CashFlowService) GetMovement(ctx context.Context, id uint) (*models.CashFlow, error) {
 	return s.repository.GetByID(ctx, id)
+}
+
+// GetMovementsByPeriod obtiene los movimientos de caja en un período específico
+// GetMovementsByPeriod obtiene los movimientos de caja en un período específico
+func (s *CashFlowService) GetMovementsByPeriod(ctx context.Context, filter input.CashFlowFilter) ([]*models.CashFlow, error) {
+	// Validaciones básicas
+	if filter.PageSize < 1 {
+		filter.PageSize = 10
+	}
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+
+	// Validar ordenamiento si se proporciona
+	if filter.OrderBy != "" {
+		// Validar que el campo de ordenamiento sea válido
+		validFields := map[string]bool{
+			"date":           true,
+			"amount":         true,
+			"operation_type": true,
+		}
+
+		// Extraer el campo de ordenamiento (quitando el ASC/DESC)
+		parts := strings.Fields(filter.OrderBy)
+		if !validFields[strings.ToLower(parts[0])] {
+			return nil, fmt.Errorf("campo de ordenamiento inválido: %s", parts[0])
+		}
+	}
+
+	// Convertir el filtro de input a output
+	repoFilter := output.CashFlowFilter{
+		StartDate:     filter.StartDate,
+		EndDate:       filter.EndDate,
+		OperationType: filter.OperationType,
+		Page:          filter.Page,
+		PageSize:      filter.PageSize,
+		OrderBy:       filter.OrderBy,
+	}
+
+	// Obtener los movimientos usando el repositorio
+	movements, err := s.repository.List(ctx, repoFilter)
+	if err != nil {
+		return nil, fmt.Errorf("error obteniendo movimientos del período: %w", err)
+	}
+
+	return movements, nil
 }
 
 // UpdateMovement implementa la actualización de un movimiento
