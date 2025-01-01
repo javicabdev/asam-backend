@@ -93,6 +93,11 @@ func (r *memberRepository) List(ctx context.Context, filters output.MemberFilter
 		)
 	}
 
+	// Aplicar ordenamiento
+	if filters.OrderBy != "" {
+		query = query.Order(filters.OrderBy)
+	}
+
 	// Aplicar paginación
 	if filters.Page > 0 && filters.PageSize > 0 {
 		offset := (filters.Page - 1) * filters.PageSize

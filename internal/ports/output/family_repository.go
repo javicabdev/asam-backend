@@ -15,11 +15,18 @@ type FamilyRepository interface {
 
 	// Operaciones de búsqueda
 	GetByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Family, error)
-	List(ctx context.Context, offset, limit int) ([]*models.Family, int, error)
+	List(ctx context.Context, page, pageSize int, searchTerm *string, orderBy string) ([]*models.Family, int, error)
 
 	// Operaciones de familiares
 	AddFamiliar(ctx context.Context, familyID uint, familiar *models.Familiar) error
 	UpdateFamiliar(ctx context.Context, familiar *models.Familiar) error
 	RemoveFamiliar(ctx context.Context, familiarID uint) error
 	GetFamiliares(ctx context.Context, familyID uint) ([]*models.Familiar, error)
+}
+
+type FamilyFilters struct {
+	SearchTerm *string
+	Page       int
+	PageSize   int
+	OrderBy    string // Añadido
 }

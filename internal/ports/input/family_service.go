@@ -13,7 +13,7 @@ type FamilyService interface {
 	Delete(ctx context.Context, id uint) error
 	GetByID(ctx context.Context, id uint) (*models.Family, error)
 	GetByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Family, error)
-	List(ctx context.Context, page, pageSize int) ([]*models.Family, int, error)
+	List(ctx context.Context, page, pageSize int, searchTerm *string, orderBy string) ([]*models.Family, int, error)
 
 	// Operaciones de familiares
 	AddFamiliar(ctx context.Context, familyID uint, familiar *models.Familiar) error

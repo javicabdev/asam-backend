@@ -22,4 +22,5 @@ type MemberFilters struct {
 	SearchTerm    *string // Para búsqueda por nombre, apellidos o número de socio
 	Page          int
 	PageSize      int
+	OrderBy       string
 }

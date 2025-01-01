@@ -42,3 +42,4 @@ dist/
 /tmp/asam-backend
 /internal/adapters/gql/model/
 /internal/adapters/gql/generated/
+/internal/adapters/gql/resolvers/schema.resolvers.go
