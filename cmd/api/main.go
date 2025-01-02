@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"github.com/javicabdev/asam-backend/pkg/logger"
 	"log"
 	"net/http"
 	"os"
@@ -14,7 +16,39 @@ import (
 	"github.com/javicabdev/asam-backend/internal/config"
 )
 
+func initLogging() error {
+	// Asegurar que existe el directorio de logs
+	logDir := "logs"
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		return fmt.Errorf("failed to create log directory: %w", err)
+	}
+
+	// Configurar el logger
+	config := logger.DefaultConfig()
+
+	// En desarrollo, podemos ajustar algunos valores
+	if os.Getenv("GO_ENV") == "development" {
+		config.Development = true
+		config.Level = logger.DebugLevel
+		config.MaxSize = 10   // 10 MB en desarrollo
+		config.MaxAge = 7     // 7 días en desarrollo
+		config.MaxBackups = 3 // 3 backups en desarrollo
+	}
+
+	// Inicializar el logger
+	if err := logger.InitLogger(config); err != nil {
+		return fmt.Errorf("failed to initialize logger: %w", err)
+	}
+
+	return nil
+}
+
 func main() {
+	// Inicializar el logger al inicio de la aplicación
+	if err := initLogging(); err != nil {
+		log.Fatalf("Failed to initialize logging: %v", err)
+	}
+
 	log.Println("ASAM Backend starting...")
 
 	cfg, err := config.LoadConfig()
