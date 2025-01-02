@@ -6,6 +6,9 @@ import (
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/internal/ports/output"
+	"github.com/javicabdev/asam-backend/pkg/logger"
+	"github.com/javicabdev/asam-backend/pkg/logger/audit"
+	"go.uber.org/zap"
 	"time"
 )
 
@@ -22,12 +25,26 @@ func NewMemberService(repository output.MemberRepository) input.MemberService {
 
 // CreateMember implementa la lógica de creación de un nuevo miembro
 func (s *memberService) CreateMember(ctx context.Context, member *models.Member) error {
+	// Logging al inicio de la operación
+	logger.Info("Creating new member",
+		zap.String("numero_socio", member.NumeroSocio),
+		zap.String("tipo_membresia", member.TipoMembresia))
+
 	// Verificar si ya existe un miembro con el mismo número de socio
 	existing, err := s.repository.GetByNumeroSocio(ctx, member.NumeroSocio)
 	if err != nil {
+		logger.Error("Error checking existing member",
+			zap.String("numero_socio", member.NumeroSocio),
+			zap.Error(err))
+		audit.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.NumeroSocio,
+			"Error al verificar miembro existente", err)
 		return fmt.Errorf("error checking existing member: %w", err)
 	}
 	if existing != nil {
+		logger.Warn("Attempted to create duplicate member",
+			zap.String("numero_socio", member.NumeroSocio))
+		audit.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.NumeroSocio,
+			"Intento de crear miembro duplicado", fmt.Errorf("miembro ya existe"))
 		return fmt.Errorf("ya existe un miembro con el número de socio %s", member.NumeroSocio)
 	}
 
@@ -47,11 +64,36 @@ func (s *memberService) CreateMember(ctx context.Context, member *models.Member)
 
 	// Validar el miembro antes de crear
 	if err := member.Validate(); err != nil {
+		logger.Error("Member validation failed",
+			zap.String("numero_socio", member.NumeroSocio),
+			zap.Error(err))
+		audit.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.NumeroSocio,
+			"Error en la validación del miembro", err)
 		return fmt.Errorf("error validating member: %w", err)
 	}
 
 	// Crear el miembro en la base de datos
-	return s.repository.Create(ctx, member)
+	if err := s.repository.Create(ctx, member); err != nil {
+		logger.Error("Failed to create member",
+			zap.String("numero_socio", member.NumeroSocio),
+			zap.Error(err))
+		audit.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.NumeroSocio,
+			"Error al crear miembro en base de datos", err)
+		return fmt.Errorf("error creating member: %w", err)
+	}
+
+	// Registrar la acción en el log de auditoría
+	audit.LogAction(ctx,
+		audit.ActionCreate,
+		audit.EntityMember,
+		fmt.Sprintf("%d", member.ID),
+		fmt.Sprintf("Created new member with numero_socio %s", member.NumeroSocio))
+
+	logger.Info("Member created successfully",
+		zap.String("numero_socio", member.NumeroSocio),
+		zap.Uint("member_id", member.ID))
+
+	return nil
 }
 
 // GetMemberByID obtiene un miembro por su ID
@@ -77,9 +119,20 @@ func (s *memberService) UpdateMember(ctx context.Context, member *models.Member)
 	// Verificar que el miembro existe
 	existing, err := s.repository.GetByID(ctx, member.ID)
 	if err != nil {
+		logger.Error("Error checking existing member",
+			zap.Uint("id", member.ID),
+			zap.Error(err))
+		audit.LogError(ctx, audit.ActionUpdate, audit.EntityMember,
+			fmt.Sprintf("%d", member.ID),
+			"Error al verificar existencia del miembro", err)
 		return fmt.Errorf("error checking existing member: %w", err)
 	}
 	if existing == nil {
+		logger.Error("Member not found",
+			zap.Uint("id", member.ID))
+		audit.LogError(ctx, audit.ActionUpdate, audit.EntityMember,
+			fmt.Sprintf("%d", member.ID),
+			"Miembro no encontrado", fmt.Errorf("no existe un miembro con el ID %d", member.ID))
 		return fmt.Errorf("no existe un miembro con el ID %d", member.ID)
 	}
 
@@ -89,10 +142,38 @@ func (s *memberService) UpdateMember(ctx context.Context, member *models.Member)
 
 	// Validar el miembro antes de actualizar
 	if err := member.Validate(); err != nil {
+		logger.Error("Member validation failed",
+			zap.Uint("id", member.ID),
+			zap.Error(err))
+		audit.LogError(ctx, audit.ActionUpdate, audit.EntityMember,
+			fmt.Sprintf("%d", member.ID),
+			"Error en la validación del miembro", err)
 		return fmt.Errorf("error validating member: %w", err)
 	}
 
-	return s.repository.Update(ctx, member)
+	// Actualizar el miembro
+	if err := s.repository.Update(ctx, member); err != nil {
+		logger.Error("Failed to update member",
+			zap.Uint("id", member.ID),
+			zap.Error(err))
+		audit.LogError(ctx, audit.ActionUpdate, audit.EntityMember,
+			fmt.Sprintf("%d", member.ID),
+			"Error al actualizar miembro en base de datos", err)
+		return fmt.Errorf("error updating member: %w", err)
+	}
+
+	// Log de auditoría con los cambios
+	audit.LogChange(ctx, audit.ActionUpdate, audit.EntityMember,
+		fmt.Sprintf("%d", member.ID),
+		existing, // datos anteriores
+		member,   // datos nuevos
+		fmt.Sprintf("Updated member with numero_socio %s", member.NumeroSocio))
+
+	logger.Info("Member updated successfully",
+		zap.String("numero_socio", member.NumeroSocio),
+		zap.Uint("member_id", member.ID))
+
+	return nil
 }
 
 // DeactivateMember implementa la lógica de baja de un miembro
@@ -100,16 +181,35 @@ func (s *memberService) DeactivateMember(ctx context.Context, id uint, fechaBaja
 	// Obtener el miembro
 	member, err := s.repository.GetByID(ctx, id)
 	if err != nil {
+		logger.Error("Error getting member",
+			zap.Uint("id", id),
+			zap.Error(err))
+		audit.LogError(ctx, audit.ActionUpdate, audit.EntityMember,
+			fmt.Sprintf("%d", id),
+			"Error al obtener miembro para desactivación", err)
 		return fmt.Errorf("error getting member: %w", err)
 	}
 	if member == nil {
+		logger.Error("Member not found",
+			zap.Uint("id", id))
+		audit.LogError(ctx, audit.ActionUpdate, audit.EntityMember,
+			fmt.Sprintf("%d", id),
+			"Miembro no encontrado", fmt.Errorf("no existe un miembro con el ID %d", id))
 		return fmt.Errorf("no existe un miembro con el ID %d", id)
 	}
 
 	// Verificar que no esté ya inactivo
 	if member.Estado == models.EstadoInactivo {
+		logger.Warn("Member already inactive",
+			zap.Uint("id", id))
+		audit.LogError(ctx, audit.ActionUpdate, audit.EntityMember,
+			fmt.Sprintf("%d", id),
+			"Intento de desactivar miembro ya inactivo", fmt.Errorf("el miembro ya está dado de baja"))
 		return fmt.Errorf("el miembro ya está dado de baja")
 	}
+
+	// Guardar estado anterior para el log de auditoría
+	previousState := *member
 
 	// Establecer fecha de baja
 	if fechaBaja == nil {
@@ -121,10 +221,37 @@ func (s *memberService) DeactivateMember(ctx context.Context, id uint, fechaBaja
 
 	// Validar y guardar cambios
 	if err := member.Validate(); err != nil {
+		logger.Error("Member validation failed",
+			zap.Uint("id", id),
+			zap.Error(err))
+		audit.LogError(ctx, audit.ActionUpdate, audit.EntityMember,
+			fmt.Sprintf("%d", id),
+			"Error en la validación del miembro", err)
 		return fmt.Errorf("error validating member: %w", err)
 	}
 
-	return s.repository.Update(ctx, member)
+	if err := s.repository.Update(ctx, member); err != nil {
+		logger.Error("Failed to deactivate member",
+			zap.Uint("id", id),
+			zap.Error(err))
+		audit.LogError(ctx, audit.ActionUpdate, audit.EntityMember,
+			fmt.Sprintf("%d", id),
+			"Error al desactivar miembro en base de datos", err)
+		return fmt.Errorf("error deactivating member: %w", err)
+	}
+
+	// Log de auditoría con los cambios
+	audit.LogChange(ctx, audit.ActionUpdate, audit.EntityMember,
+		fmt.Sprintf("%d", id),
+		&previousState,
+		member,
+		fmt.Sprintf("Deactivated member with numero_socio %s", member.NumeroSocio))
+
+	logger.Info("Member deactivated successfully",
+		zap.String("numero_socio", member.NumeroSocio),
+		zap.Uint("member_id", member.ID))
+
+	return nil
 }
 
 // ListMembers obtiene una lista de miembros según los criterios especificados
