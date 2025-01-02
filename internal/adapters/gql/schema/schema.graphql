@@ -172,9 +172,6 @@ type TransactionConnection {
 
 # Query principal
 type Query {
-    # Query inicial de prueba
-    hello: String!
-
     # Member Queries
     getMember(id: ID!): Member
     listMembers(filter: MemberFilter): MemberConnection!
@@ -197,7 +194,119 @@ type Query {
     getTransactions(filter: TransactionFilter): TransactionConnection!
 }
 
-# Mutation principal (mantenemos la de prueba por ahora)
+# Input Types para mutations
+input CreateMemberInput {
+    numero_socio: String!
+    tipo_membresia: MembershipType!
+    nombre: String!
+    apellidos: String!
+    calle_numero_piso: String!
+    codigo_postal: String!
+    poblacion: String!
+    provincia: String
+    pais: String
+    fecha_nacimiento: Time
+    documento_identidad: String
+    correo_electronico: String
+    profesion: String
+    nacionalidad: String
+    observaciones: String
+}
+
+input UpdateMemberInput {
+    miembro_id: ID!
+    calle_numero_piso: String
+    codigo_postal: String
+    poblacion: String
+    provincia: String
+    pais: String
+    documento_identidad: String
+    correo_electronico: String
+    profesion: String
+    observaciones: String
+}
+
+input CreateFamilyInput {
+    numero_socio: String!
+    miembro_origen_id: ID
+    esposo_nombre: String!
+    esposo_apellidos: String!
+    esposa_nombre: String!
+    esposa_apellidos: String!
+    esposo_fecha_nacimiento: Time
+    esposo_documento_identidad: String
+    esposo_correo_electronico: String
+    esposa_fecha_nacimiento: Time
+    esposa_documento_identidad: String
+    esposa_correo_electronico: String
+}
+
+input UpdateFamilyInput {
+    familia_id: ID!
+    esposo_nombre: String
+    esposo_apellidos: String
+    esposa_nombre: String
+    esposa_apellidos: String
+    esposo_documento_identidad: String
+    esposo_correo_electronico: String
+    esposa_documento_identidad: String
+    esposa_correo_electronico: String
+}
+
+input FamiliarInput {
+    nombre: String!
+    apellidos: String!
+    fecha_nacimiento: Time
+    dni_nie: String
+    correo_electronico: String
+    parentesco: String!
+}
+
+input PaymentInput {
+    member_id: ID
+    family_id: ID
+    amount: Float!
+    payment_method: String!
+    notes: String
+}
+
+input TransactionInput {
+    member_id: ID
+    family_id: ID
+    operation_type: OperationType!
+    amount: Float!
+    date: Time!
+    detail: String!
+}
+
+# Mutation Types
+type MutationResponse {
+    success: Boolean!
+    message: String
+    error: String
+}
+
 type Mutation {
-    ping: String!
+    # Member Mutations
+    createMember(input: CreateMemberInput!): Member!
+    updateMember(input: UpdateMemberInput!): Member!
+    deleteMember(id: ID!): MutationResponse!
+    changeMemberStatus(id: ID!, status: MemberStatus!): Member!
+
+    # Family Mutations
+    createFamily(input: CreateFamilyInput!): Family!
+    updateFamily(input: UpdateFamilyInput!): Family!
+    addFamilyMember(family_id: ID!, familiar: FamiliarInput!): Family!
+    removeFamilyMember(familiar_id: ID!): MutationResponse!
+
+    # Payment Mutations
+    registerPayment(input: PaymentInput!): Payment!
+    updatePayment(id: ID!, input: PaymentInput!): Payment!
+    cancelPayment(id: ID!, reason: String!): MutationResponse!
+    registerFee(year: Int!, month: Int!, base_amount: Float!): MutationResponse!
+
+    # CashFlow Mutations
+    registerTransaction(input: TransactionInput!): CashFlow!
+    updateTransaction(id: ID!, input: TransactionInput!): CashFlow!
+    adjustBalance(amount: Float!, reason: String!): MutationResponse!
 }

@@ -88,6 +88,48 @@ func (s *paymentService) GetPayment(ctx context.Context, paymentID uint) (*model
 	return payment, nil
 }
 
+func (s *paymentService) GetMemberPayments(ctx context.Context, memberID uint) ([]*models.Payment, error) {
+	// Define un rango de fechas
+	from := time.Time{}
+	to := time.Now()
+
+	// Reutiliza tu repositorio para buscar pagos por memberID
+	payments, err := s.paymentRepo.FindByMember(ctx, memberID, from, to)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convertir []models.Payment a []*models.Payment
+	paymentPtrs := make([]*models.Payment, len(payments))
+	for i, payment := range payments {
+		payment := payment // Crear una copia del elemento original para evitar problemas con referencias
+		paymentPtrs[i] = &payment
+	}
+
+	return paymentPtrs, nil
+}
+
+func (s *paymentService) GetFamilyPayments(ctx context.Context, familyID uint) ([]*models.Payment, error) {
+	// Define un rango de fechas
+	from := time.Time{}
+	to := time.Now()
+
+	// Reutiliza tu repositorio para buscar pagos por memberID
+	payments, err := s.paymentRepo.FindByFamily(ctx, familyID, from, to)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convertir []models.Payment a []*models.Payment
+	paymentPtrs := make([]*models.Payment, len(payments))
+	for i, payment := range payments {
+		payment := payment // Crear una copia del elemento original para evitar problemas con referencias
+		paymentPtrs[i] = &payment
+	}
+
+	return paymentPtrs, nil
+}
+
 func (s *paymentService) GenerateMonthlyFees(ctx context.Context, year, month int, baseAmount float64) error {
 	// Generar cuota base
 	fee := &models.MembershipFee{
