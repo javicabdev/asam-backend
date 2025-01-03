@@ -11,6 +11,7 @@ type Resolver struct {
 	familyService   input.FamilyService
 	paymentService  input.PaymentService
 	cashFlowService input.CashFlowService
+	authService     input.AuthService // Añadimos authService
 }
 
 func NewResolver(
@@ -18,12 +19,14 @@ func NewResolver(
 	familyService input.FamilyService,
 	paymentService input.PaymentService,
 	cashFlowService input.CashFlowService,
+	authService input.AuthService, // Añadimos el parámetro
 ) *Resolver {
 	return &Resolver{
 		memberService:   memberService,
 		familyService:   familyService,
 		paymentService:  paymentService,
 		cashFlowService: cashFlowService,
+		authService:     authService, // Asignamos el servicio
 	}
 }
 

@@ -2,6 +2,8 @@ package gql
 
 import (
 	"github.com/99designs/gqlgen/graphql/handler/transport"
+	"github.com/javicabdev/asam-backend/internal/ports/input"
+	"github.com/javicabdev/asam-backend/pkg/auth"
 	"net/http"
 
 	"github.com/99designs/gqlgen/graphql/handler"
@@ -11,9 +13,9 @@ import (
 )
 
 // NewHandler crea un nuevo handler de GraphQL
-func NewHandler() http.Handler {
+func NewHandler(authService input.AuthService, resolver *resolvers.Resolver) http.Handler {
 	schema := generated.NewExecutableSchema(generated.Config{
-		Resolvers: &resolvers.Resolver{},
+		Resolvers: resolver, // Usar el resolver que nos pasan
 	})
 
 	srv := handler.New(schema)
@@ -23,6 +25,9 @@ func NewHandler() http.Handler {
 	srv.AddTransport(transport.GET{})
 	srv.AddTransport(transport.POST{})
 	srv.AddTransport(transport.MultipartForm{})
+
+	// Crear middleware de autenticación
+	authMiddleware := auth.NewAuthMiddleware(authService)
 
 	// Middleware para manejar CORS y headers
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -44,7 +49,8 @@ func NewHandler() http.Handler {
 			return
 		}
 
-		srv.ServeHTTP(w, r)
+		// Aplicar middleware de autenticación
+		authMiddleware.Handler(srv).ServeHTTP(w, r)
 	})
 }
 
