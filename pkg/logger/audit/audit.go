@@ -41,20 +41,20 @@ const (
 )
 
 // Metadata representa información adicional para el log de auditoría
-type Metadata map[string]interface{}
+type Metadata map[string]any
 
 // Entry representa una entrada en el log de auditoría
 type Entry struct {
-	Timestamp    time.Time   `json:"timestamp"`
-	Action       ActionType  `json:"action"`
-	Entity       EntityType  `json:"entity"`
-	EntityID     string      `json:"entity_id"`
-	UserID       string      `json:"user_id"`
-	Description  string      `json:"description"`
-	PreviousData interface{} `json:"previous_data,omitempty"`
-	NewData      interface{} `json:"new_data,omitempty"`
-	Metadata     Metadata    `json:"metadata,omitempty"`
-	Status       string      `json:"status"`
+	Timestamp    time.Time  `json:"timestamp"`
+	Action       ActionType `json:"action"`
+	Entity       EntityType `json:"entity"`
+	EntityID     string     `json:"entity_id"`
+	UserID       string     `json:"user_id"`
+	Description  string     `json:"description"`
+	PreviousData any        `json:"previous_data,omitempty"`
+	NewData      any        `json:"new_data,omitempty"`
+	Metadata     Metadata   `json:"metadata,omitempty"`
+	Status       string     `json:"status"`
 }
 
 // LogAction registra una acción simple en el log de auditoría
@@ -73,7 +73,7 @@ func LogAction(ctx context.Context, action ActionType, entity EntityType, entity
 }
 
 // LogChange registra un cambio en una entidad, incluyendo los datos anteriores y nuevos
-func LogChange(ctx context.Context, action ActionType, entity EntityType, entityID string, previous, new interface{}, description string) {
+func LogChange(ctx context.Context, action ActionType, entity EntityType, entityID string, previous, new any, description string) {
 	entry := Entry{
 		Timestamp:    time.Now().UTC(),
 		Action:       action,

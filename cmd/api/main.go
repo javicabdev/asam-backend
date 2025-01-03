@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
+	"github.com/javicabdev/asam-backend/internal/domain/services"
+	"github.com/javicabdev/asam-backend/pkg/auth"
 	"github.com/javicabdev/asam-backend/pkg/logger"
 	"log"
 	"net/http"
@@ -24,19 +27,19 @@ func initLogging() error {
 	}
 
 	// Configurar el logger
-	config := logger.DefaultConfig()
+	cfg := logger.DefaultConfig()
 
 	// En desarrollo, podemos ajustar algunos valores
 	if os.Getenv("GO_ENV") == "development" {
-		config.Development = true
-		config.Level = logger.DebugLevel
-		config.MaxSize = 10   // 10 MB en desarrollo
-		config.MaxAge = 7     // 7 días en desarrollo
-		config.MaxBackups = 3 // 3 backups en desarrollo
+		cfg.Development = true
+		cfg.Level = logger.DebugLevel
+		cfg.MaxSize = 10   // 10 MB en desarrollo
+		cfg.MaxAge = 7     // 7 días en desarrollo
+		cfg.MaxBackups = 3 // 3 backups en desarrollo
 	}
 
 	// Inicializar el logger
-	if err := logger.InitLogger(config); err != nil {
+	if err := logger.InitLogger(cfg); err != nil {
 		return fmt.Errorf("failed to initialize logger: %w", err)
 	}
 
@@ -76,8 +79,43 @@ func main() {
 
 	log.Println("Successfully connected to database!")
 
+	// Inicializar repositorios
+	memberRepo := db.NewMemberRepository(database)
+	familyRepo := db.NewFamilyRepository(database)
+	paymentRepo := db.NewPaymentRepository(database)
+	membershipFeeRepo := db.NewMembershipFeeRepository(database)
+	cashFlowRepo := db.NewCashFlowRepository(database)
+	userRepo := db.NewUserRepository(database)
+	tokenRepo := db.NewTokenRepository(database)
+
+	// Inicializar JWT Util
+	jwtUtil := auth.NewJWTUtil(
+		cfg.JWTAccessSecret,
+		cfg.JWTRefreshSecret,
+		cfg.JWTAccessTTL,
+		cfg.JWTRefreshTTL,
+	)
+
+	// Inicializar services
+	memberService := services.NewMemberService(memberRepo)
+	familyService := services.NewFamilyService(familyRepo, memberRepo)
+	notificationService := services.NewEmailNotificationService("", 0, "", "")
+	feeCalculator := services.NewFeeCalculator(30.0, 10.0, 1.0, 1.0)
+	paymentService := services.NewPaymentService(paymentRepo, membershipFeeRepo, memberRepo, notificationService, feeCalculator)
+	cashFlowService := services.NewCashFlowService(cashFlowRepo)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo)
+
+	// Inicializar Resolver con las dependencias necesarias
+	resolver := resolvers.NewResolver(
+		memberService,
+		familyService,
+		paymentService,
+		cashFlowService,
+		authService,
+	)
+
 	// Configurar servidor GraphQL
-	graphqlHandler := gql.NewHandler()
+	graphqlHandler := gql.NewHandler(authService, resolver)
 	playgroundHandler := gql.NewPlaygroundHandler()
 
 	// Configurar rutas

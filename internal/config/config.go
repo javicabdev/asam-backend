@@ -22,6 +22,12 @@ type Config struct {
 	DBMaxIdleConns    int           `env:"DB_MAX_IDLE_CONNS,default=10"`
 	DBMaxOpenConns    int           `env:"DB_MAX_OPEN_CONNS,default=100"`
 	DBConnMaxLifetime time.Duration `env:"DB_CONN_MAX_LIFETIME,default=1h"`
+
+	// JWT Configuration
+	JWTAccessSecret  string        `env:"JWT_ACCESS_SECRET,required"`
+	JWTRefreshSecret string        `env:"JWT_REFRESH_SECRET,required"`
+	JWTAccessTTL     time.Duration `env:"JWT_ACCESS_TTL,default=15m"`
+	JWTRefreshTTL    time.Duration `env:"JWT_REFRESH_TTL,default=7d"`
 }
 
 // LoadConfig carga las variables de entorno y las mapea a la estructura Config.
