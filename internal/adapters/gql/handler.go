@@ -38,6 +38,8 @@ func NewHandler(authService input.AuthService, resolver *resolvers.Resolver, cfg
 		cfg.RateLimitCleanup,
 	)
 
+	securityHeaders := auth.NewSecurityHeadersMiddleware()
+
 	// Middleware para manejar CORS y headers
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Headers necesarios
@@ -58,9 +60,14 @@ func NewHandler(authService input.AuthService, resolver *resolvers.Resolver, cfg
 			return
 		}
 
-		// Aplicar rate limiter y luego autenticación
-		rateLimiter.Middleware(
-			authMiddleware.Handler(srv),
+		// Aplicar middlewares en cadena:
+		// 1. Security Headers (más externo)
+		// 2. Rate Limiter
+		// 3. Auth (más interno)
+		securityHeaders.Middleware(
+			rateLimiter.Middleware(
+				authMiddleware.Handler(srv),
+			),
 		).ServeHTTP(w, r)
 	})
 }
