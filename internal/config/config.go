@@ -28,6 +28,11 @@ type Config struct {
 	JWTRefreshSecret string        `env:"JWT_REFRESH_SECRET,required"`
 	JWTAccessTTL     time.Duration `env:"JWT_ACCESS_TTL,default=15m"`
 	JWTRefreshTTL    time.Duration `env:"JWT_REFRESH_TTL,default=7d"`
+
+	// Rate Limiting
+	RateLimitRPS     float64       `env:"RATE_LIMIT_RPS,default=10"`
+	RateLimitBurst   int           `env:"RATE_LIMIT_BURST,default=20"`
+	RateLimitCleanup time.Duration `env:"RATE_LIMIT_CLEANUP,default=1h"`
 }
 
 // LoadConfig carga las variables de entorno y las mapea a la estructura Config.
