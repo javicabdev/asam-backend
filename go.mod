@@ -12,6 +12,7 @@ require (
 	github.com/vektah/gqlparser/v2 v2.5.20
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.31.0
+	golang.org/x/time v0.8.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gorm.io/driver/postgres v1.5.11
 	gorm.io/gorm v1.25.12

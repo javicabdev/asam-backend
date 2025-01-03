@@ -4,18 +4,20 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/pkg/auth"
+	"golang.org/x/time/rate"
 	"net/http"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/generated"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
+	"github.com/javicabdev/asam-backend/internal/config"
 )
 
 // NewHandler crea un nuevo handler de GraphQL
-func NewHandler(authService input.AuthService, resolver *resolvers.Resolver) http.Handler {
+func NewHandler(authService input.AuthService, resolver *resolvers.Resolver, cfg *config.Config) http.Handler {
 	schema := generated.NewExecutableSchema(generated.Config{
-		Resolvers: resolver, // Usar el resolver que nos pasan
+		Resolvers: resolver,
 	})
 
 	srv := handler.New(schema)
@@ -28,6 +30,13 @@ func NewHandler(authService input.AuthService, resolver *resolvers.Resolver) htt
 
 	// Crear middleware de autenticación
 	authMiddleware := auth.NewAuthMiddleware(authService)
+
+	// Crear rate limiter con configuración
+	rateLimiter := auth.NewRateLimiter(
+		rate.Limit(cfg.RateLimitRPS),
+		cfg.RateLimitBurst,
+		cfg.RateLimitCleanup,
+	)
 
 	// Middleware para manejar CORS y headers
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -49,8 +58,10 @@ func NewHandler(authService input.AuthService, resolver *resolvers.Resolver) htt
 			return
 		}
 
-		// Aplicar middleware de autenticación
-		authMiddleware.Handler(srv).ServeHTTP(w, r)
+		// Aplicar rate limiter y luego autenticación
+		rateLimiter.Middleware(
+			authMiddleware.Handler(srv),
+		).ServeHTTP(w, r)
 	})
 }
 

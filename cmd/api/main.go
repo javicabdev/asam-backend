@@ -115,7 +115,7 @@ func main() {
 	)
 
 	// Configurar servidor GraphQL
-	graphqlHandler := gql.NewHandler(authService, resolver)
+	graphqlHandler := gql.NewHandler(authService, resolver, cfg)
 	playgroundHandler := gql.NewPlaygroundHandler()
 
 	// Configurar rutas
