@@ -3,12 +3,15 @@ package services
 import (
 	"context"
 	"fmt"
+	"go.uber.org/zap"
 	"time"
 
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/internal/ports/output"
 	"github.com/javicabdev/asam-backend/pkg/auth"
+	"github.com/javicabdev/asam-backend/pkg/constants"
+	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
 type authService struct {
@@ -29,44 +32,88 @@ func NewAuthService(
 	}
 }
 
+// Helper functions
+func getIPFromContext(ctx context.Context) string {
+	if ip, ok := ctx.Value(constants.IPContextKey).(string); ok {
+		return ip
+	}
+	return "unknown"
+}
+
+func getUserAgentFromContext(ctx context.Context) string {
+	if ua, ok := ctx.Value(constants.UserAgentContextKey).(string); ok {
+		return ua
+	}
+	return "unknown"
+}
+
 func (s *authService) Login(ctx context.Context, username, password string) (*input.TokenDetails, error) {
-	// 1. Buscar usuario por username
+	// Registrar intento de login
+	logger.Info("Login attempt",
+		zap.String("username", username),
+		zap.String("ip", getIPFromContext(ctx)),
+		zap.String("user_agent", getUserAgentFromContext(ctx)),
+	)
+
+	// Buscar usuario por username
 	user, err := s.userRepo.FindByUsername(ctx, username)
 	if err != nil {
+		logger.Error("Login failed: database error",
+			zap.String("username", username),
+			zap.Error(err),
+		)
 		return nil, fmt.Errorf("error buscando usuario: %w", err)
 	}
 	if user == nil {
+		logger.Warn("Login failed: user not found",
+			zap.String("username", username),
+		)
 		return nil, fmt.Errorf("credenciales inválidas")
 	}
 
-	// 2. Verificar contraseña
+	// Verificar contraseña
 	if !user.CheckPassword(password) {
+		logger.Warn("Login failed: invalid password",
+			zap.String("username", username),
+			zap.Uint("user_id", user.ID),
+		)
 		return nil, fmt.Errorf("credenciales inválidas")
 	}
 
-	// 3. Verificar que el usuario esté activo
+	// Verificar que el usuario esté activo
 	if !user.IsActive {
+		logger.Warn("Login failed: inactive user",
+			zap.String("username", username),
+			zap.Uint("user_id", user.ID),
+		)
 		return nil, fmt.Errorf("usuario inactivo")
 	}
 
-	// 4. Generar tokens
+	// Generar tokens
 	td, err := s.jwtUtil.GenerateTokenPair(user.ID, string(user.Role))
 	if err != nil {
 		return nil, fmt.Errorf("error generando tokens: %w", err)
 	}
 
-	// 5. Guardar refresh token
+	// Guardar refresh token
 	err = s.tokenRepo.SaveRefreshToken(ctx, td.RefreshUuid, user.ID, td.RtExpires)
 	if err != nil {
 		return nil, fmt.Errorf("error guardando refresh token: %w", err)
 	}
 
-	// 6. Actualizar último login
+	// Actualizar último login
 	user.LastLogin = time.Now()
 	err = s.userRepo.Update(ctx, user)
 	if err != nil {
 		return nil, fmt.Errorf("error actualizando último login: %w", err)
 	}
+
+	// Al final del login exitoso:
+	logger.Info("Login successful",
+		zap.String("username", username),
+		zap.Uint("user_id", user.ID),
+		zap.String("role", string(user.Role)),
+	)
 
 	// Convertir auth.TokenDetails a input.TokenDetails
 	return &input.TokenDetails{
