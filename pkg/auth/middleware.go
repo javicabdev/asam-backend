@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
+	"github.com/javicabdev/asam-backend/pkg/constants"
 	"net/http"
 	"strings"
 )
@@ -20,6 +21,16 @@ func NewAuthMiddleware(authService input.AuthService) *Middleware {
 
 func (m *Middleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		// Añadir IP y User-Agent al contexto
+		ip := r.RemoteAddr
+		if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+			ip = forwarded
+		}
+
+		ctx := context.WithValue(r.Context(), constants.IPContextKey, ip)
+		ctx = context.WithValue(ctx, constants.UserAgentContextKey, r.UserAgent())
+
 		// Si es una operación de introspección de GraphQL, permitir sin auth
 		if r.Method == http.MethodGet {
 			next.ServeHTTP(w, r)
@@ -48,14 +59,10 @@ func (m *Middleware) Handler(next http.Handler) http.Handler {
 		}
 
 		// Añadir usuario al contexto
-		ctx := context.WithValue(r.Context(), UserContextKey, user)
+		ctx = context.WithValue(r.Context(), constants.UserContextKey, user)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
-
-type contextKey string
-
-const UserContextKey contextKey = "user"
 
 type errorResponse struct {
 	Error string `json:"error"`
