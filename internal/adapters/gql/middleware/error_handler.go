@@ -6,16 +6,17 @@ import (
 	"context"
 	"errors"
 	domainErrors "github.com/javicabdev/asam-backend/pkg/errors"
+	"github.com/javicabdev/asam-backend/pkg/logger"
 	"go.uber.org/zap"
 	"net/http"
 )
 
 type ErrorMiddleware struct {
-	logger *zap.Logger
+	logger logger.Logger
 	next   http.Handler
 }
 
-func NewErrorMiddleware(logger *zap.Logger) *ErrorMiddleware {
+func NewErrorMiddleware(logger logger.Logger) *ErrorMiddleware {
 	return &ErrorMiddleware{
 		logger: logger,
 	}

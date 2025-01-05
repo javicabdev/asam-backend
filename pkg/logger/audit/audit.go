@@ -57,62 +57,22 @@ type Entry struct {
 	Status       string     `json:"status"`
 }
 
-// LogAction registra una acción simple en el log de auditoría
-func LogAction(ctx context.Context, action ActionType, entity EntityType, entityID string, description string) {
-	entry := Entry{
-		Timestamp:   time.Now().UTC(),
-		Action:      action,
-		Entity:      entity,
-		EntityID:    entityID,
-		UserID:      getUserFromContext(ctx),
-		Description: description,
-		Status:      "success",
-	}
-
-	logAuditEntry(entry)
+type Audit struct {
+	Logger logger.Logger
 }
 
-// LogChange registra un cambio en una entidad, incluyendo los datos anteriores y nuevos
-func LogChange(ctx context.Context, action ActionType, entity EntityType, entityID string, previous, new any, description string) {
-	entry := Entry{
-		Timestamp:    time.Now().UTC(),
-		Action:       action,
-		Entity:       entity,
-		EntityID:     entityID,
-		UserID:       getUserFromContext(ctx),
-		Description:  description,
-		PreviousData: previous,
-		NewData:      new,
-		Status:       "success",
+func NewAudit(logger logger.Logger) *Audit {
+	return &Audit{
+		Logger: logger,
 	}
-
-	logAuditEntry(entry)
-}
-
-// LogError registra una acción fallida en el log de auditoría
-func LogError(ctx context.Context, action ActionType, entity EntityType, entityID string, description string, err error) {
-	entry := Entry{
-		Timestamp:   time.Now().UTC(),
-		Action:      action,
-		Entity:      entity,
-		EntityID:    entityID,
-		UserID:      getUserFromContext(ctx),
-		Description: description,
-		Metadata: Metadata{
-			"error": err.Error(),
-		},
-		Status: "error",
-	}
-
-	logAuditEntry(entry)
 }
 
 // logAuditEntry registra la entrada de auditoría usando el logger principal
-func logAuditEntry(entry Entry) {
+func (a *Audit) logAuditEntry(entry Entry) {
 	// Convertir la entrada a JSON para un logging estructurado
 	jsonData, err := json.Marshal(entry)
 	if err != nil {
-		logger.Error("Failed to marshal audit entry",
+		a.Logger.Error("Failed to marshal audit entry",
 			zap.Error(err),
 			zap.String("action", string(entry.Action)),
 			zap.String("entity", string(entry.Entity)),
@@ -131,7 +91,57 @@ func logAuditEntry(entry Entry) {
 		zap.ByteString("audit_data", jsonData),
 	}
 
-	logger.Info(entry.Description, fields...)
+	a.Logger.Info(entry.Description, fields...)
+}
+
+// LogAction registra una acción simple en el log de auditoría
+func (a *Audit) LogAction(ctx context.Context, action ActionType, entity EntityType, entityID string, description string) {
+	entry := Entry{
+		Timestamp:   time.Now().UTC(),
+		Action:      action,
+		Entity:      entity,
+		EntityID:    entityID,
+		UserID:      getUserFromContext(ctx),
+		Description: description,
+		Status:      "success",
+	}
+
+	a.logAuditEntry(entry)
+}
+
+// LogChange registra un cambio en una entidad, incluyendo los datos anteriores y nuevos
+func (a *Audit) LogChange(ctx context.Context, action ActionType, entity EntityType, entityID string, previous, new any, description string) {
+	entry := Entry{
+		Timestamp:    time.Now().UTC(),
+		Action:       action,
+		Entity:       entity,
+		EntityID:     entityID,
+		UserID:       getUserFromContext(ctx),
+		Description:  description,
+		PreviousData: previous,
+		NewData:      new,
+		Status:       "success",
+	}
+
+	a.logAuditEntry(entry)
+}
+
+// LogError registra una acción fallida en el log de auditoría
+func (a *Audit) LogError(ctx context.Context, action ActionType, entity EntityType, entityID string, description string, err error) {
+	entry := Entry{
+		Timestamp:   time.Now().UTC(),
+		Action:      action,
+		Entity:      entity,
+		EntityID:    entityID,
+		UserID:      getUserFromContext(ctx),
+		Description: description,
+		Metadata: Metadata{
+			"error": err.Error(),
+		},
+		Status: "error",
+	}
+
+	a.logAuditEntry(entry)
 }
 
 // getUserFromContext obtiene el ID del usuario del contexto
