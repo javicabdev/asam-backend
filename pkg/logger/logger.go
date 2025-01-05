@@ -7,8 +7,7 @@ import (
 	"os"
 )
 
-var log *zap.Logger
-var initialized bool
+// Movemos tus tipos y structs aquí (Config, Level, etc.):
 
 type Level string
 
@@ -18,26 +17,20 @@ const (
 	WarnLevel  Level = "warn"
 	ErrorLevel Level = "error"
 	FatalLevel Level = "fatal"
+	PanicLevel Level = "panic"
 )
 
 // Config contiene la configuración del logger
 type Config struct {
-	// Configuración general
-	Level      Level  `json:"level"`
-	OutputPath string `json:"output_path"`
-
-	// Configuración de desarrollo
-	Development bool `json:"development"`
-
-	// Configuración de rotación de archivos
-	MaxSize    int  `json:"max_size"`    // megabytes
-	MaxAge     int  `json:"max_age"`     // días
-	MaxBackups int  `json:"max_backups"` // número de archivos de backup
-	Compress   bool `json:"compress"`    // comprimir logs antiguos
-
-	// Configuración de consola
-	ConsoleOutput bool  `json:"console_output"`
-	ConsoleLevel  Level `json:"console_level"`
+	Level         Level  `json:"level"`
+	OutputPath    string `json:"output_path"`
+	Development   bool   `json:"development"`
+	MaxSize       int    `json:"max_size"`
+	MaxAge        int    `json:"max_age"`
+	MaxBackups    int    `json:"max_backups"`
+	Compress      bool   `json:"compress"`
+	ConsoleOutput bool   `json:"console_output"`
+	ConsoleLevel  Level  `json:"console_level"`
 }
 
 // DefaultConfig retorna una configuración por defecto
@@ -46,18 +39,50 @@ func DefaultConfig() Config {
 		Level:         InfoLevel,
 		OutputPath:    "logs/asam.log",
 		Development:   false,
-		MaxSize:       100,  // 100 MB
-		MaxAge:        30,   // 30 días
-		MaxBackups:    10,   // 10 archivos de backup
-		Compress:      true, // comprimir logs antiguos
-		ConsoleOutput: true, // mostrar logs en consola también
+		MaxSize:       100, // 100 MB
+		MaxAge:        30,  // 30 días
+		MaxBackups:    10,  // 10 backups
+		Compress:      true,
+		ConsoleOutput: true,
 		ConsoleLevel:  InfoLevel,
 	}
 }
 
-// InitLogger inicializa el logger con rotación de archivos
-func InitLogger(cfg Config) error {
-	// Configurar encoder común
+// zapLogger implementa nuestra interfaz Logger
+type zapLogger struct {
+	logger *zap.Logger
+}
+
+func (zl *zapLogger) Debug(msg string, fields ...zap.Field) {
+	zl.logger.Debug(msg, fields...)
+}
+
+func (zl *zapLogger) Info(msg string, fields ...zap.Field) {
+	zl.logger.Info(msg, fields...)
+}
+
+func (zl *zapLogger) Warn(msg string, fields ...zap.Field) {
+	zl.logger.Warn(msg, fields...)
+}
+
+func (zl *zapLogger) Error(msg string, fields ...zap.Field) {
+	zl.logger.Error(msg, fields...)
+}
+
+func (zl *zapLogger) Fatal(msg string, fields ...zap.Field) {
+	zl.logger.Fatal(msg, fields...)
+}
+
+func (zl *zapLogger) Panic(msg string, fields ...zap.Field) {
+	zl.logger.Panic(msg, fields...)
+}
+
+func (zl *zapLogger) Sync() error {
+	return zl.logger.Sync()
+}
+
+// InitLogger crea un *zap.Logger según la config, y retorna nuestra interfaz Logger
+func InitLogger(cfg Config) (Logger, error) {
 	encoderConfig := zapcore.EncoderConfig{
 		TimeKey:        "timestamp",
 		LevelKey:       "level",
@@ -73,7 +98,6 @@ func InitLogger(cfg Config) error {
 		EncodeCaller:   zapcore.ShortCallerEncoder,
 	}
 
-	// Crear el core para el archivo con rotación
 	fileCore := zapcore.NewCore(
 		zapcore.NewJSONEncoder(encoderConfig),
 		zapcore.AddSync(&lumberjack.Logger{
@@ -86,11 +110,9 @@ func InitLogger(cfg Config) error {
 		getZapLevel(cfg.Level),
 	)
 
-	// Slice para almacenar todos los cores
 	var cores []zapcore.Core
 	cores = append(cores, fileCore)
 
-	// Agregar salida por consola si está habilitada
 	if cfg.ConsoleOutput {
 		consoleEncoder := zapcore.NewConsoleEncoder(encoderConfig)
 		consoleCore := zapcore.NewCore(
@@ -101,32 +123,22 @@ func InitLogger(cfg Config) error {
 		cores = append(cores, consoleCore)
 	}
 
-	// Crear el logger con todos los cores
 	core := zapcore.NewTee(cores...)
 
-	// Agregar las opciones según la configuración
 	opts := []zap.Option{
 		zap.AddCaller(),
 		zap.AddStacktrace(zapcore.ErrorLevel),
 	}
-
-	// Agregar opción de desarrollo si está habilitada
 	if cfg.Development {
 		opts = append(opts, zap.Development())
 	}
 
-	// Crear el logger con las opciones
-	logger := zap.New(core, opts...)
+	zapLog := zap.New(core, opts...)
 
-	// Reemplazar el logger global de zap
-	zap.ReplaceGlobals(logger)
-	log = logger
-	initialized = true
-
-	return nil
+	// ya no hacemos zap.ReplaceGlobals, ni guardamos en variable global
+	return &zapLogger{logger: zapLog}, nil
 }
 
-// getZapLevel convierte nuestro Level a zapcore.Level
 func getZapLevel(level Level) zapcore.Level {
 	switch level {
 	case DebugLevel:
@@ -139,52 +151,9 @@ func getZapLevel(level Level) zapcore.Level {
 		return zapcore.ErrorLevel
 	case FatalLevel:
 		return zapcore.FatalLevel
+	case PanicLevel:
+		return zapcore.PanicLevel
 	default:
 		return zapcore.InfoLevel
 	}
-}
-
-// Sync fuerza la escritura de cualquier log en buffer
-func Sync() error {
-	if !initialized {
-		return nil
-	}
-	return log.Sync()
-}
-
-// Métodos para logging
-
-func Debug(msg string, fields ...zap.Field) {
-	if !initialized {
-		return
-	}
-	log.Debug(msg, fields...)
-}
-
-func Info(msg string, fields ...zap.Field) {
-	if !initialized {
-		return
-	}
-	log.Info(msg, fields...)
-}
-
-func Warn(msg string, fields ...zap.Field) {
-	if !initialized {
-		return
-	}
-	log.Warn(msg, fields...)
-}
-
-func Error(msg string, fields ...zap.Field) {
-	if !initialized {
-		return
-	}
-	log.Error(msg, fields...)
-}
-
-func Fatal(msg string, fields ...zap.Field) {
-	if !initialized {
-		os.Exit(1)
-	}
-	log.Fatal(msg, fields...)
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/javicabdev/asam-backend/internal/config"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/pkg/auth"
-	"go.uber.org/zap"
+	"github.com/javicabdev/asam-backend/pkg/logger"
 	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 	"net/http"
@@ -20,7 +20,7 @@ import (
 // NewHandler crea un nuevo handler de GraphQL
 // internal/adapters/gql/handler.go
 
-func NewHandler(authService input.AuthService, resolver *resolvers.Resolver, cfg *config.Config, logger *zap.Logger, db *gorm.DB) http.Handler {
+func NewHandler(authService input.AuthService, resolver *resolvers.Resolver, cfg *config.Config, logger logger.Logger, db *gorm.DB) http.Handler {
 	schema := generated.NewExecutableSchema(generated.Config{
 		Resolvers: resolver,
 	})

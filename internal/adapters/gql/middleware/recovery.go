@@ -6,17 +6,18 @@ import (
 	"context"
 	"fmt"
 	"github.com/javicabdev/asam-backend/pkg/errors"
+	"github.com/javicabdev/asam-backend/pkg/logger"
 	"go.uber.org/zap"
 	"net/http"
 	"runtime/debug"
 )
 
 type RecoveryMiddleware struct {
-	logger *zap.Logger
+	logger logger.Logger
 	next   http.Handler
 }
 
-func NewRecoveryMiddleware(logger *zap.Logger) *RecoveryMiddleware {
+func NewRecoveryMiddleware(logger logger.Logger) *RecoveryMiddleware {
 	return &RecoveryMiddleware{
 		logger: logger,
 	}

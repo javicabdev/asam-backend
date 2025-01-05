@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/javicabdev/asam-backend/pkg/logger/audit"
 	"net/http"
 	"os"
 	"os/signal"
@@ -20,11 +21,11 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
-func initLogging() error {
+func initLogging() (logger.Logger, *audit.Audit, error) {
 	// Asegurar que existe el directorio de logs
 	logDir := "logs"
 	if err := os.MkdirAll(logDir, 0755); err != nil {
-		return fmt.Errorf("failed to create log directory: %w", err)
+		return nil, nil, fmt.Errorf("failed to create log directory: %w", err)
 	}
 
 	// Configurar el logger
@@ -39,56 +40,56 @@ func initLogging() error {
 		cfg.MaxBackups = 3 // 3 backups en desarrollo
 	}
 
-	// Inicializar el logger zap
-	if err := logger.InitLogger(cfg); err != nil {
-		return fmt.Errorf("failed to initialize logger: %w", err)
+	// Inicializar app logger
+	appLogger, err := logger.InitLogger(cfg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to initialize app logger: %w", err)
 	}
 
-	return nil
+	// Inicializar audit logger
+	auditLogger := audit.NewAudit(appLogger)
+
+	return appLogger, auditLogger, nil
 }
 
 func main() {
+
 	// 1) Inicializar logger zap al inicio de la aplicación
-	if err := initLogging(); err != nil {
-		// Como aún no tenemos logger inicializado, usamos fmt o un panic
-		_, err := fmt.Fprintf(os.Stderr, "Failed to initialize logging: %v\n", err)
-		if err != nil {
-			return
-		}
+	appLogger, auditLogger, err := initLogging()
+	// Como aún no tenemos logger inicializado, usamos fmt o un panic
+	if err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, "Error init logging:", err)
 		os.Exit(1)
 	}
 
-	// 2) Obtener la instancia global de zap (ya reemplazada por pkg/logger)
-	zapLogger := zap.L()
-
 	// 3) Mensaje de arranque
-	logger.Info("ASAM Backend starting...")
+	appLogger.Info("ASAM Backend starting...")
 
 	// 4) Cargar configuración
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		logger.Fatal("Failed to load configuration", zap.Error(err))
+		appLogger.Fatal("Failed to load configuration", zap.Error(err))
 	}
 
 	// 5) Iniciar la DB pasándole la configuración
 	database, err := db.InitDB(cfg)
 	if err != nil {
-		logger.Fatal("Failed to initialize database", zap.Error(err))
+		appLogger.Fatal("Failed to initialize database", zap.Error(err))
 	}
 
 	// 6) Obtener instancia de SQL DB para cierre posterior
 	sqlDB, err := database.DB()
 	if err != nil {
-		logger.Fatal("Failed to get SQL DB instance", zap.Error(err))
+		appLogger.Fatal("Failed to get SQL DB instance", zap.Error(err))
 	}
 	defer func() {
-		logger.Info("Closing database connection...")
+		appLogger.Info("Closing database connection...")
 		if err := sqlDB.Close(); err != nil {
-			logger.Error("Error closing database connection", zap.Error(err))
+			appLogger.Error("Error closing database connection", zap.Error(err))
 		}
 	}()
 
-	logger.Info("Successfully connected to database!")
+	appLogger.Info("Successfully connected to database!")
 
 	// 7) Inicializar repositorios
 	memberRepo := db.NewMemberRepository(database)
@@ -108,7 +109,7 @@ func main() {
 	)
 
 	// 9) Inicializar servicios (domain layer)
-	memberService := services.NewMemberService(memberRepo)
+	memberService := services.NewMemberService(memberRepo, appLogger, auditLogger)
 	familyService := services.NewFamilyService(familyRepo, memberRepo)
 	notificationService := services.NewEmailNotificationService("", 0, "", "")
 	feeCalculator := services.NewFeeCalculator(30.0, 10.0, 1.0, 1.0)
@@ -133,7 +134,7 @@ func main() {
 		authService,
 		resolver,
 		cfg,
-		zapLogger,
+		appLogger,
 		database,
 	)
 	playgroundHandler := gql.NewPlaygroundHandler()
@@ -154,7 +155,7 @@ func main() {
 
 	// 15) Iniciar servidor en una goroutine
 	go func() {
-		logger.Info("Server starting...", zap.String("url", "http://localhost"+server.Addr))
+		appLogger.Info("Server starting...", zap.String("url", "http://localhost"+server.Addr))
 		serverErrors <- server.ListenAndServe()
 	}()
 
@@ -165,9 +166,9 @@ func main() {
 	// 17) Esperar señal de apagado o error del servidor
 	select {
 	case err := <-serverErrors:
-		logger.Fatal("Server error", zap.Error(err))
+		appLogger.Fatal("Server error", zap.Error(err))
 	case sig := <-shutdown:
-		logger.Info("Starting shutdown...", zap.Any("signal", sig))
+		appLogger.Info("Starting shutdown...", zap.Any("signal", sig))
 
 		// 18) Crear contexto con timeout para el apagado
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -175,12 +176,12 @@ func main() {
 
 		// 19) Intentar apagado graceful
 		if err := server.Shutdown(ctx); err != nil {
-			logger.Warn("Could not stop server gracefully", zap.Error(err))
+			appLogger.Warn("Could not stop server gracefully", zap.Error(err))
 			if err := server.Close(); err != nil {
-				logger.Warn("Could not close server", zap.Error(err))
+				appLogger.Warn("Could not close server", zap.Error(err))
 			}
 		}
 	}
 
-	logger.Info("Server stopped")
+	appLogger.Info("Server stopped")
 }
