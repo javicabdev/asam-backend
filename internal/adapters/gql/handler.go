@@ -26,6 +26,7 @@ func NewHandler(authService input.AuthService, resolver *resolvers.Resolver, cfg
 	})
 
 	srv := handler.New(schema)
+	srv.SetErrorPresenter(CustomErrorPresenter)
 
 	// Configurar opciones básicas del servidor
 	srv.AddTransport(transport.Options{})
