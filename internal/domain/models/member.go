@@ -4,6 +4,8 @@ import (
 	"errors"
 	"gorm.io/gorm"
 	"time"
+
+	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 )
 
 // Member representa un miembro individual de ASAM
@@ -78,31 +80,37 @@ func (m *Member) Validate() error {
 // validateBasicFields valida los campos básicos obligatorios
 func (m *Member) validateBasicFields() error {
 	if m.NumeroSocio == "" {
-		return errors.New("el número de socio es obligatorio")
+		return appErrors.NewValidationError(
+			"El número de socio es obligatorio",
+			map[string]string{"numero_socio": "campo requerido"},
+		)
 	}
 
 	if m.TipoMembresia != TipoMembresiaPIndividual && m.TipoMembresia != TipoMembresiaPFamiliar {
-		return errors.New("tipo de membresía no válido")
+		return appErrors.NewValidationError(
+			"tipo de membresía no válido",
+			map[string]string{"tipo_membresia": "debe ser 'individual' o 'familiar'"},
+		)
 	}
 
 	if m.Nombre == "" {
-		return errors.New("el nombre es obligatorio")
+		return appErrors.NewValidationError("el nombre es obligatorio", nil)
 	}
 
 	if m.Apellidos == "" {
-		return errors.New("los apellidos son obligatorios")
+		return appErrors.NewValidationError("los apellidos son obligatorios", nil)
 	}
 
 	if m.CalleNumeroPiso == "" {
-		return errors.New("la dirección es obligatoria")
+		return appErrors.NewValidationError("la dirección es obligatoria", nil)
 	}
 
 	if m.CodigoPostal == "" {
-		return errors.New("el código postal es obligatorio")
+		return appErrors.NewValidationError("el código postal es obligatorio", nil)
 	}
 
 	if m.Poblacion == "" {
-		return errors.New("la población es obligatoria")
+		return appErrors.NewValidationError("la población es obligatoria", nil)
 	}
 
 	return nil
@@ -111,15 +119,15 @@ func (m *Member) validateBasicFields() error {
 // validateDates valida las fechas del miembro
 func (m *Member) validateDates() error {
 	if m.FechaAlta.IsZero() {
-		return errors.New("la fecha de alta es obligatoria")
+		return appErrors.NewValidationError("la fecha de alta es obligatoria", nil)
 	}
 
 	if m.FechaBaja != nil {
 		if m.FechaBaja.Before(m.FechaAlta) {
-			return errors.New("la fecha de baja no puede ser anterior a la fecha de alta")
+			return appErrors.NewValidationError("la fecha de baja no puede ser anterior a la fecha de alta", nil)
 		}
 		if !m.FechaBaja.After(m.FechaAlta) {
-			return errors.New("la fecha de baja debe ser posterior a la fecha de alta")
+			return appErrors.NewValidationError("la fecha de baja debe ser posterior a la fecha de alta", nil)
 		}
 	}
 

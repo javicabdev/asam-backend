@@ -3,20 +3,21 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
-	"github.com/javicabdev/asam-backend/internal/domain/services"
-	"github.com/javicabdev/asam-backend/pkg/auth"
-	"github.com/javicabdev/asam-backend/pkg/logger"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/javicabdev/asam-backend/internal/adapters/db"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql"
+	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
 	"github.com/javicabdev/asam-backend/internal/config"
+	"github.com/javicabdev/asam-backend/internal/domain/services"
+	"github.com/javicabdev/asam-backend/pkg/auth"
+	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
 func initLogging() error {
@@ -38,7 +39,7 @@ func initLogging() error {
 		cfg.MaxBackups = 3 // 3 backups en desarrollo
 	}
 
-	// Inicializar el logger
+	// Inicializar el logger zap
 	if err := logger.InitLogger(cfg); err != nil {
 		return fmt.Errorf("failed to initialize logger: %w", err)
 	}
@@ -47,39 +48,49 @@ func initLogging() error {
 }
 
 func main() {
-	// Inicializar el logger al inicio de la aplicación
+	// 1) Inicializar logger zap al inicio de la aplicación
 	if err := initLogging(); err != nil {
-		log.Fatalf("Failed to initialize logging: %v", err)
+		// Como aún no tenemos logger inicializado, usamos fmt o un panic
+		_, err := fmt.Fprintf(os.Stderr, "Failed to initialize logging: %v\n", err)
+		if err != nil {
+			return
+		}
+		os.Exit(1)
 	}
 
-	log.Println("ASAM Backend starting...")
+	// 2) Obtener la instancia global de zap (ya reemplazada por pkg/logger)
+	zapLogger := zap.L()
 
+	// 3) Mensaje de arranque
+	logger.Info("ASAM Backend starting...")
+
+	// 4) Cargar configuración
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		logger.Fatal("Failed to load configuration", zap.Error(err))
 	}
 
-	// Iniciar la DB pasándole la configuración
+	// 5) Iniciar la DB pasándole la configuración
 	database, err := db.InitDB(cfg)
 	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+		logger.Fatal("Failed to initialize database", zap.Error(err))
 	}
 
-	// Obtener instancia de SQL DB para el cierre posterior
+	// 6) Obtener instancia de SQL DB para cierre posterior
 	sqlDB, err := database.DB()
 	if err != nil {
-		log.Fatalf("Failed to get SQL DB instance: %v", err)
+		logger.Fatal("Failed to get SQL DB instance", zap.Error(err))
 	}
 	defer func() {
-		log.Println("Closing database connection...")
+		logger.Info("Closing database connection...")
 		if err := sqlDB.Close(); err != nil {
-			log.Printf("Error closing database connection: %v", err)
+			logger.Error("Error closing database connection", zap.Error(err))
 		}
 	}()
 
-	log.Println("Successfully connected to database!")
+	logger.Info("Successfully connected to database!")
 
-	// Inicializar repositorios
+	// 7) Inicializar repositorios
 	memberRepo := db.NewMemberRepository(database)
 	familyRepo := db.NewFamilyRepository(database)
 	paymentRepo := db.NewPaymentRepository(database)
@@ -88,7 +99,7 @@ func main() {
 	userRepo := db.NewUserRepository(database)
 	tokenRepo := db.NewTokenRepository(database)
 
-	// Inicializar JWT Util
+	// 8) Inicializar JWT Util
 	jwtUtil := auth.NewJWTUtil(
 		cfg.JWTAccessSecret,
 		cfg.JWTRefreshSecret,
@@ -96,16 +107,19 @@ func main() {
 		cfg.JWTRefreshTTL,
 	)
 
-	// Inicializar services
+	// 9) Inicializar servicios (domain layer)
 	memberService := services.NewMemberService(memberRepo)
 	familyService := services.NewFamilyService(familyRepo, memberRepo)
 	notificationService := services.NewEmailNotificationService("", 0, "", "")
 	feeCalculator := services.NewFeeCalculator(30.0, 10.0, 1.0, 1.0)
-	paymentService := services.NewPaymentService(paymentRepo, membershipFeeRepo, memberRepo, notificationService, feeCalculator)
+	paymentService := services.NewPaymentService(
+		paymentRepo, membershipFeeRepo, memberRepo,
+		notificationService, feeCalculator,
+	)
 	cashFlowService := services.NewCashFlowService(cashFlowRepo)
 	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo)
 
-	// Inicializar Resolver con las dependencias necesarias
+	// 10) Inicializar Resolver con las dependencias necesarias
 	resolver := resolvers.NewResolver(
 		memberService,
 		familyService,
@@ -114,53 +128,59 @@ func main() {
 		authService,
 	)
 
-	// Configurar servidor GraphQL
-	graphqlHandler := gql.NewHandler(authService, resolver, cfg)
+	// 11) Configurar servidor GraphQL
+	graphqlHandler := gql.NewHandler(
+		authService,
+		resolver,
+		cfg,
+		zapLogger,
+		database,
+	)
 	playgroundHandler := gql.NewPlaygroundHandler()
 
-	// Configurar rutas
+	// 12) Configurar rutas
 	mux := http.NewServeMux()
 	mux.Handle("/playground", playgroundHandler)
 	mux.Handle("/graphql", graphqlHandler)
 
-	// Crear servidor HTTP
+	// 13) Crear servidor HTTP
 	server := &http.Server{
 		Addr:    ":8080",
 		Handler: mux,
 	}
 
-	// Canal para errores del servidor
+	// 14) Canal para errores del servidor
 	serverErrors := make(chan error, 1)
 
-	// Iniciar servidor en una goroutine
+	// 15) Iniciar servidor en una goroutine
 	go func() {
-		log.Printf("Server starting on http://localhost%s", server.Addr)
+		logger.Info("Server starting...", zap.String("url", "http://localhost"+server.Addr))
 		serverErrors <- server.ListenAndServe()
 	}()
 
-	// Canal para señales de apagado
+	// 16) Canal para señales de apagado
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
 
-	// Esperar señal de apagado o error del servidor
+	// 17) Esperar señal de apagado o error del servidor
 	select {
 	case err := <-serverErrors:
-		log.Fatalf("Server error: %v", err)
+		logger.Fatal("Server error", zap.Error(err))
 	case sig := <-shutdown:
-		log.Printf("Starting shutdown... (signal: %v)", sig)
+		logger.Info("Starting shutdown...", zap.Any("signal", sig))
 
-		// Crear contexto con timeout para el apagado
+		// 18) Crear contexto con timeout para el apagado
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		// Intentar apagado graceful
+		// 19) Intentar apagado graceful
 		if err := server.Shutdown(ctx); err != nil {
-			log.Printf("Could not stop server gracefully: %v", err)
+			logger.Warn("Could not stop server gracefully", zap.Error(err))
 			if err := server.Close(); err != nil {
-				log.Printf("Could not close server: %v", err)
+				logger.Warn("Could not close server", zap.Error(err))
 			}
 		}
 	}
 
-	log.Println("Server stopped")
+	logger.Info("Server stopped")
 }

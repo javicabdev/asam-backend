@@ -1,10 +1,11 @@
-// family_resolver.go
 package resolvers
 
 import (
 	"context"
+	stdErrors "errors"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/pkg/errors"
 )
 
 func (r *familyResolver) mapCreateInputToFamily(input *model.CreateFamilyInput) *models.Family {
@@ -30,7 +31,7 @@ func (r *familyResolver) mapCreateInputToFamily(input *model.CreateFamilyInput) 
 	}
 }
 
-func (r *familyResolver) mapUpdateInputToFamily(id uint, input *model.UpdateFamilyInput, existing *models.Family) *models.Family {
+func (r *familyResolver) mapUpdateInputToFamily(input *model.UpdateFamilyInput, existing *models.Family) *models.Family {
 	family := *existing
 
 	if input.EsposoNombre != nil {
@@ -81,35 +82,140 @@ func (r *familyResolver) mapFamiliarInputToModel(input *model.FamiliarInput) *mo
 }
 
 func (r *familyResolver) handleFamilyMutation(ctx context.Context, family *models.Family) (*models.Family, error) {
+	// Validar la familia
 	if err := family.Validate(); err != nil {
-		return nil, err
+		var appErr *errors.AppError
+		if stdErrors.As(err, &appErr) {
+			return nil, appErr
+		}
+		return nil, errors.NewValidationError(err.Error(), nil)
 	}
 
+	// Si hay miembro origen, verificar que existe
+	if family.MiembroOrigenID != nil {
+		member, err := r.memberService.GetMemberByID(ctx, *family.MiembroOrigenID)
+		if err != nil {
+			return nil, errors.NewBusinessError(
+				errors.ErrDatabaseError,
+				"Failed to verify origin member",
+			)
+		}
+		if member == nil {
+			return nil, errors.NewNotFoundError("origin member")
+		}
+	}
+
+	// Crear o actualizar
+	var err error
 	if family.ID == 0 {
-		err := r.familyService.Create(ctx, family)
-		if err != nil {
-			return nil, err
-		}
+		err = r.familyService.Create(ctx, family)
 	} else {
-		err := r.familyService.Update(ctx, family)
-		if err != nil {
-			return nil, err
-		}
+		err = r.familyService.Update(ctx, family)
+	}
+
+	if err != nil {
+		return nil, errors.NewBusinessError(
+			errors.ErrInternalError,
+			"Failed to process family operation",
+		)
 	}
 
 	return family, nil
 }
 
-func (r *familyResolver) validateCreateFamilyInput(input *model.CreateFamilyInput) error {
-	if input.NumeroSocio == "" {
-		return NewValidationError("numero_socio is required")
+func (r *familyResolver) handleFamiliarMutation(ctx context.Context, familyID uint, familiar *models.Familiar) (*models.Family, error) {
+	// Verificar que la familia existe
+	family, err := r.familyService.GetByID(ctx, familyID)
+	if err != nil {
+		return nil, errors.NewBusinessError(
+			errors.ErrDatabaseError,
+			"Failed to fetch family",
+		)
 	}
+	if family == nil {
+		return nil, errors.NewNotFoundError("family")
+	}
+
+	// Validar datos del familiar
+	if err := familiar.Validate(); err != nil {
+		return nil, errors.NewValidationError("Invalid familiar data", map[string]string{
+			"details": err.Error(),
+		})
+	}
+
+	// Añadir el familiar
+	err = r.familyService.AddFamiliar(ctx, familyID, familiar)
+	if err != nil {
+		return nil, errors.NewBusinessError(
+			errors.ErrInternalError,
+			"Failed to add familiar",
+		)
+	}
+
+	// Recargar la familia con los familiares actualizados
+	return r.familyService.GetByID(ctx, familyID)
+}
+
+func (r *familyResolver) validateCreateFamilyInput(input *model.CreateFamilyInput) error {
+	fields := make(map[string]string)
+
+	if input.NumeroSocio == "" {
+		fields["numero_socio"] = "Family number is required"
+	}
+
+	if input.EsposoNombre == "" {
+		fields["esposo_nombre"] = "Husband's name is required"
+	}
+
+	if input.EsposoApellidos == "" {
+		fields["esposo_apellidos"] = "Husband's last name is required"
+	}
+
+	if input.EsposaNombre == "" {
+		fields["esposa_nombre"] = "Wife's name is required"
+	}
+
+	if input.EsposaApellidos == "" {
+		fields["esposa_apellidos"] = "Wife's last name is required"
+	}
+
+	if input.EsposoDocumentoIdentidad == nil {
+		fields["esposo_documento_identidad"] = "Husband's ID document is required"
+	}
+
+	if input.EsposaDocumentoIdentidad == nil {
+		fields["esposa_documento_identidad"] = "Wife's ID document is required"
+	}
+
+	if len(fields) > 0 {
+		return errors.NewValidationError("Invalid family input", fields)
+	}
+
 	return nil
 }
 
 func (r *familyResolver) validateUpdateFamilyInput(input *model.UpdateFamilyInput) error {
 	if input.FamiliaID == "" {
-		return NewValidationError("familia_id is required")
+		return errors.NewValidationError("Invalid input data", map[string]string{
+			"familia_id": "Family ID is required",
+		})
 	}
+
+	// Al menos un campo debe ser proporcionado para actualizar
+	hasUpdates := input.EsposoNombre != nil ||
+		input.EsposoApellidos != nil ||
+		input.EsposaNombre != nil ||
+		input.EsposaApellidos != nil ||
+		input.EsposoDocumentoIdentidad != nil ||
+		input.EsposoCorreoElectronico != nil ||
+		input.EsposaDocumentoIdentidad != nil ||
+		input.EsposaCorreoElectronico != nil
+
+	if !hasUpdates {
+		return errors.NewValidationError("Invalid input data", map[string]string{
+			"update": "At least one field must be provided for update",
+		})
+	}
+
 	return nil
 }

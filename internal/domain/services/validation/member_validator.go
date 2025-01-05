@@ -1,5 +1,3 @@
-// internal/domain/services/validation/member_validator.go
-
 package validation
 
 import (
@@ -7,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 )
 
 type DefaultMemberValidator struct{}
@@ -18,10 +18,10 @@ func NewMemberValidator() MemberValidator {
 // ValidateDocumentID valida el formato del documento de identidad (DNI/NIE)
 func (v *DefaultMemberValidator) ValidateDocumentID(documentID string) error {
 	if documentID == "" {
-		return &ValidationError{
-			Field:   "document_id",
-			Message: "document ID is required",
-		}
+		return appErrors.NewValidationError(
+			"document ID is required",
+			map[string]string{"document_id": "documento requerido"},
+		)
 	}
 
 	// Limpiamos el documento de espacios
@@ -33,10 +33,10 @@ func (v *DefaultMemberValidator) ValidateDocumentID(documentID string) error {
 	nieRegex := regexp.MustCompile(`^[XYZ][0-9]{7}[A-Z]$`)
 
 	if !dniRegex.MatchString(documentID) && !nieRegex.MatchString(documentID) {
-		return &ValidationError{
-			Field:   "document_id",
-			Message: "invalid document ID format",
-		}
+		return appErrors.NewValidationError(
+			"invalid document ID format",
+			map[string]string{"document_id": "Formato inválido (DNI/NIE)"},
+		)
 	}
 
 	// Aquí podríamos añadir la validación del dígito de control
@@ -49,10 +49,10 @@ func (v *DefaultMemberValidator) ValidateContactInfo(email, phone, address strin
 	if email != "" {
 		emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 		if !emailRegex.MatchString(email) {
-			return &ValidationError{
-				Field:   "email",
-				Message: "invalid email format",
-			}
+			return appErrors.NewValidationError(
+				"invalid email format",
+				map[string]string{"email": "Formato inválido"},
+			)
 		}
 	}
 
@@ -60,19 +60,19 @@ func (v *DefaultMemberValidator) ValidateContactInfo(email, phone, address strin
 	if phone != "" {
 		phoneRegex := regexp.MustCompile(`^(?:(?:\+|00)?34)?[6789]\d{8}$`)
 		if !phoneRegex.MatchString(phone) {
-			return &ValidationError{
-				Field:   "phone",
-				Message: "invalid phone number format",
-			}
+			return appErrors.NewValidationError(
+				"invalid phone number format",
+				map[string]string{"phone": "Formato inválido"},
+			)
 		}
 	}
 
 	// Validar que la dirección no esté vacía si se proporciona
 	if address != "" && strings.TrimSpace(address) == "" {
-		return &ValidationError{
-			Field:   "address",
-			Message: "address cannot be empty if provided",
-		}
+		return appErrors.NewValidationError(
+			"address cannot be empty if provided",
+			map[string]string{"address": "empty"},
+		)
 	}
 
 	return nil
@@ -86,10 +86,10 @@ func (v *DefaultMemberValidator) ValidateMemberStatus(status string, currentStat
 	}
 
 	if !validStatuses[status] {
-		return &ValidationError{
-			Field:   "status",
-			Message: "invalid status",
-		}
+		return appErrors.NewValidationError(
+			"invalid status",
+			map[string]string{"status": "Formato inválido"},
+		)
 	}
 
 	// Validar transiciones de estado
@@ -104,10 +104,10 @@ func (v *DefaultMemberValidator) ValidateMemberStatus(status string, currentStat
 		}
 
 		if !validTransitions[currentStatus][status] {
-			return &ValidationError{
-				Field:   "status",
-				Message: fmt.Sprintf("invalid status transition from %s to %s", currentStatus, status),
-			}
+			return appErrors.NewValidationError(
+				fmt.Sprintf("invalid status transition from %s to %s", currentStatus, status),
+				map[string]string{"status": "Invalid transition"},
+			)
 		}
 	}
 
@@ -121,26 +121,26 @@ func (v *DefaultMemberValidator) ValidateDates(registrationDate, cancellationDat
 	// Validar fecha de alta
 	if registrationDate != nil {
 		if registrationDate.After(now) {
-			return &ValidationError{
-				Field:   "registration_date",
-				Message: "registration date cannot be in the future",
-			}
+			return appErrors.NewValidationError(
+				"registration date cannot be in the future",
+				map[string]string{"registration_date": "Invalid registration date"},
+			)
 		}
 	}
 
 	// Validar fecha de baja
 	if cancellationDate != nil {
 		if registrationDate != nil && cancellationDate.Before(*registrationDate) {
-			return &ValidationError{
-				Field:   "cancellation_date",
-				Message: "cancellation date cannot be before registration date",
-			}
+			return appErrors.NewValidationError(
+				"cancellation date cannot be before registration date",
+				map[string]string{"cancellation_date": "Invalid cancellation date"},
+			)
 		}
 		if cancellationDate.After(now) {
-			return &ValidationError{
-				Field:   "cancellation_date",
-				Message: "cancellation date cannot be in the future",
-			}
+			return appErrors.NewValidationError(
+				"cancellation date cannot be in the future",
+				map[string]string{"cancellation_date": "Invalid cancellation date"},
+			)
 		}
 	}
 

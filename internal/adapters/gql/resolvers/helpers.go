@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
+	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 	"gorm.io/gorm"
 	"strconv"
 )
@@ -16,19 +17,25 @@ func parseID(id string) uint {
 	return uint(parsed)
 }
 
-func validateAmount(amount float64, operationType models.OperationType) error {
+func validateAmount(amount float64, operationType models.OperationType) *appErrors.AppError {
 	if amount == 0 {
-		return fmt.Errorf("amount cannot be zero")
+		return appErrors.NewValidationError(
+			"amount cannot be zero",
+			map[string]string{"amount": "cannot be zero"},
+		)
 	}
-
 	if operationType.IsIncome() && amount < 0 {
-		return fmt.Errorf("income amount must be positive")
+		return appErrors.NewValidationError(
+			"income amount must be positive",
+			map[string]string{"amount": "must be positive for income"},
+		)
 	}
-
 	if operationType.IsExpense() && amount > 0 {
-		return fmt.Errorf("expense amount must be negative")
+		return appErrors.NewValidationError(
+			"expense amount must be negative",
+			map[string]string{"amount": "must be negative for expense"},
+		)
 	}
-
 	return nil
 }
 

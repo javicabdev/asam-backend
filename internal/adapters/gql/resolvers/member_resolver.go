@@ -1,16 +1,23 @@
-// member_resolver.go
 package resolvers
 
 import (
 	"context"
+	stdErrors "errors"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/pkg/errors"
 	"time"
 )
 
 func (r *memberResolver) handleMemberMutation(ctx context.Context, member *models.Member) (*models.Member, error) {
 	if err := member.Validate(); err != nil {
-		return nil, NewValidationError(err.Error())
+		// Si ya es un AppError, devuélvelo tal cual
+		var appErr *errors.AppError
+		if stdErrors.As(err, &appErr) {
+			return nil, appErr
+		}
+		// Si fuera un error genérico, entonces lo convertimos:
+		return nil, errors.NewValidationError(err.Error(), nil)
 	}
 
 	if member.ID == 0 {
@@ -117,10 +124,13 @@ func (r *memberResolver) mapUpdateInputToMember(id uint, input *model.UpdateMemb
 func (r *memberResolver) handleMemberStatus(ctx context.Context, memberID uint, status model.MemberStatus) (*models.Member, error) {
 	member, err := r.memberService.GetMemberByID(ctx, memberID)
 	if err != nil {
-		return nil, err
+		return nil, errors.NewBusinessError(
+			errors.ErrDatabaseError,
+			"Failed to fetch member",
+		)
 	}
 	if member == nil {
-		return nil, NewNotFoundError("member not found")
+		return nil, errors.NewNotFoundError("member")
 	}
 
 	switch status {
@@ -133,9 +143,11 @@ func (r *memberResolver) handleMemberStatus(ctx context.Context, memberID uint, 
 		member.FechaBaja = &now
 	}
 
-	err = r.memberService.UpdateMember(ctx, member)
-	if err != nil {
-		return nil, err
+	if err = r.memberService.UpdateMember(ctx, member); err != nil {
+		return nil, errors.NewBusinessError(
+			errors.ErrInternalError,
+			"Failed to update member status",
+		)
 	}
 
 	return member, nil
@@ -143,30 +155,40 @@ func (r *memberResolver) handleMemberStatus(ctx context.Context, memberID uint, 
 
 // Funciones auxiliares para las validaciones específicas de miembro
 func (r *memberResolver) validateCreateInput(input *model.CreateMemberInput) error {
+	fields := make(map[string]string)
+
 	if input.NumeroSocio == "" {
-		return NewValidationError("numero_socio is required")
+		fields["numero_socio"] = "Member number is required"
 	}
 	if input.Nombre == "" {
-		return NewValidationError("nombre is required")
+		fields["nombre"] = "Name is required"
 	}
 	if input.Apellidos == "" {
-		return NewValidationError("apellidos is required")
+		fields["apellidos"] = "Last name is required"
 	}
 	if input.CalleNumeroPiso == "" {
-		return NewValidationError("direccion is required")
+		fields["direccion"] = "Address is required"
 	}
 	if input.CodigoPostal == "" {
-		return NewValidationError("codigo_postal is required")
+		fields["codigo_postal"] = "Postal code is required"
 	}
 	if input.Poblacion == "" {
-		return NewValidationError("poblacion is required")
+		fields["poblacion"] = "City is required"
 	}
+
+	if len(fields) > 0 {
+		return errors.NewValidationError("Invalid input data", fields)
+	}
+
 	return nil
 }
 
 func (r *memberResolver) validateUpdateInput(input *model.UpdateMemberInput) error {
 	if input.MiembroID == "" {
-		return NewValidationError("miembro_id is required")
+		return errors.NewValidationError(
+			"Invalid input data",
+			map[string]string{"miembro_id": "Member ID is required"},
+		)
 	}
 	return nil
 }

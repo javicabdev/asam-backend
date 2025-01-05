@@ -52,14 +52,14 @@ func (m *Middleware) Handler(next http.Handler) http.Handler {
 		}
 
 		// Validar token
-		user, err := m.authService.ValidateToken(r.Context(), parts[1])
+		user, err := m.authService.ValidateToken(ctx, parts[1])
 		if err != nil {
 			sendError(w, "Invalid token", http.StatusUnauthorized)
 			return
 		}
 
 		// Añadir usuario al contexto
-		ctx = context.WithValue(r.Context(), constants.UserContextKey, user)
+		ctx = context.WithValue(ctx, constants.UserContextKey, user)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
