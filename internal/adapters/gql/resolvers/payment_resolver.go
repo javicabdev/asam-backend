@@ -1,11 +1,13 @@
-// payment_resolver.go
 package resolvers
 
 import (
 	"context"
+	stdErr "errors"
+	"time"
+
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
-	"time"
+	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 )
 
 func (r *paymentResolver) mapPaymentInputToModel(input *model.PaymentInput) *models.Payment {
@@ -34,20 +36,35 @@ func (r *paymentResolver) mapPaymentInputToModel(input *model.PaymentInput) *mod
 }
 
 func (r *paymentResolver) validatePayment(ctx context.Context, payment *models.Payment) error {
-	if payment.MemberID == 0 && payment.FamilyID == nil {
-		return NewValidationError("either member_id or family_id must be provided")
+	if err := payment.Validate(); err != nil {
+		// Chequear si es AppError
+		var appErr *appErrors.AppError
+		if stdErr.As(err, &appErr) {
+			return appErr
+		}
+		// Sino, convertirlo (caso excepcional)
+		return appErrors.NewValidationError(err.Error(), nil)
 	}
 
 	if payment.MemberID != 0 {
 		member, err := r.memberService.GetMemberByID(ctx, payment.MemberID)
 		if err != nil {
-			return err
+			var appErr *appErrors.AppError
+			if stdErr.As(err, &appErr) {
+				return appErr
+			}
+			return appErrors.NewValidationError(err.Error(), nil)
 		}
 		if member == nil {
-			return NewNotFoundError("member not found")
+			return appErrors.NewNotFoundError("member")
 		}
 		if member.Estado != models.EstadoActivo {
-			return NewValidationError("cannot register payment for inactive member")
+			return appErrors.NewValidationError(
+				"cannot register payment for inactive member",
+				map[string]string{
+					"Member": "Inactive",
+				},
+			)
 		}
 	}
 
@@ -57,7 +74,7 @@ func (r *paymentResolver) validatePayment(ctx context.Context, payment *models.P
 			return err
 		}
 		if family == nil {
-			return NewNotFoundError("family not found")
+			return appErrors.NewNotFoundError("family")
 		}
 	}
 
@@ -81,7 +98,12 @@ func (r *paymentResolver) handlePaymentMutation(ctx context.Context, payment *mo
 			return nil, err
 		}
 		if existingPayment.Status == models.PaymentStatusCancelled {
-			return nil, NewValidationError("cannot update cancelled payment")
+			return nil, appErrors.NewValidationError(
+				"cannot update cancelled payment",
+				map[string]string{
+					"Payment": "Cancelled",
+				},
+			)
 		}
 
 		err = r.paymentService.RegisterPayment(ctx, payment)

@@ -1,10 +1,10 @@
 package models
 
 import (
-	"errors"
+	"gorm.io/gorm"
 	"time"
 
-	"gorm.io/gorm"
+	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 )
 
 type PaymentStatus string
@@ -45,11 +45,24 @@ type MembershipFee struct {
 
 func (p *Payment) Validate() error {
 	if p.MemberID == 0 && p.FamilyID == nil {
-		return errors.New("payment must be associated with either a member or family")
+		return appErrors.NewValidationError(
+			"payment must be associated with either a member or family",
+			map[string]string{
+				"MemberID": "cannot be 0 if FamilyID is nil",
+				"FamilyID": "cannot be nil if MemberID is 0",
+			},
+		)
 	}
+
 	if p.Amount <= 0 {
-		return errors.New("payment amount must be greater than 0")
+		return appErrors.NewValidationError(
+			"payment amount must be greater than 0",
+			map[string]string{
+				"Amount": "must be > 0",
+			},
+		)
 	}
+
 	return nil
 }
 
@@ -59,4 +72,12 @@ func (mf *MembershipFee) Calculate(isFamily bool) float64 {
 		amount += mf.FamilyFeeExtra
 	}
 	return amount
+}
+
+func (p *Payment) BeforeCreate(tx *gorm.DB) error {
+	return p.Validate()
+}
+
+func (p *Payment) BeforeUpdate(tx *gorm.DB) error {
+	return p.Validate()
 }

@@ -1,21 +1,26 @@
 package gql
 
 import (
-	"github.com/99designs/gqlgen/graphql/handler/transport"
-	"github.com/javicabdev/asam-backend/internal/ports/input"
-	"github.com/javicabdev/asam-backend/pkg/auth"
-	"golang.org/x/time/rate"
-	"net/http"
-
 	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/generated"
+	"github.com/javicabdev/asam-backend/internal/adapters/gql/middleware"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
 	"github.com/javicabdev/asam-backend/internal/config"
+	"github.com/javicabdev/asam-backend/internal/ports/input"
+	"github.com/javicabdev/asam-backend/pkg/auth"
+	"go.uber.org/zap"
+	"golang.org/x/time/rate"
+	"gorm.io/gorm"
+	"net/http"
+
+	"github.com/99designs/gqlgen/graphql/playground"
 )
 
 // NewHandler crea un nuevo handler de GraphQL
-func NewHandler(authService input.AuthService, resolver *resolvers.Resolver, cfg *config.Config) http.Handler {
+// internal/adapters/gql/handler.go
+
+func NewHandler(authService input.AuthService, resolver *resolvers.Resolver, cfg *config.Config, logger *zap.Logger, db *gorm.DB) http.Handler {
 	schema := generated.NewExecutableSchema(generated.Config{
 		Resolvers: resolver,
 	})
@@ -28,19 +33,19 @@ func NewHandler(authService input.AuthService, resolver *resolvers.Resolver, cfg
 	srv.AddTransport(transport.POST{})
 	srv.AddTransport(transport.MultipartForm{})
 
-	// Crear middleware de autenticación
+	// Crear middlewares
 	authMiddleware := auth.NewAuthMiddleware(authService)
-
-	// Crear rate limiter con configuración
+	errorMiddleware := middleware.NewErrorMiddleware(logger)
+	validationMiddleware := middleware.NewValidationMiddleware()
+	recoveryMiddleware := middleware.NewRecoveryMiddleware(logger)
+	transactionMiddleware := middleware.NewTransactionMiddleware(db) // Nuevo
 	rateLimiter := auth.NewRateLimiter(
 		rate.Limit(cfg.RateLimitRPS),
 		cfg.RateLimitBurst,
 		cfg.RateLimitCleanup,
 	)
-
 	securityHeaders := auth.NewSecurityHeadersMiddleware()
 
-	// Middleware para manejar CORS y headers
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Headers necesarios
 		w.Header().Set("Content-Type", "application/json")
@@ -61,12 +66,24 @@ func NewHandler(authService input.AuthService, resolver *resolvers.Resolver, cfg
 		}
 
 		// Aplicar middlewares en cadena:
-		// 1. Security Headers (más externo)
-		// 2. Rate Limiter
-		// 3. Auth (más interno)
+		// 1. Security Headers
+		// 2. Recovery (para capturar panics)
+		// 3. Rate Limiter
+		// 4. Validation
+		// 5. Transaction
+		// 6. Error Handling
+		// 7. Auth
 		securityHeaders.Middleware(
-			rateLimiter.Middleware(
-				authMiddleware.Handler(srv),
+			recoveryMiddleware.Handler(
+				rateLimiter.Middleware(
+					validationMiddleware.Handler(
+						transactionMiddleware.Handler(
+							errorMiddleware.Handler(
+								authMiddleware.Handler(srv),
+							),
+						),
+					),
+				),
 			),
 		).ServeHTTP(w, r)
 	})

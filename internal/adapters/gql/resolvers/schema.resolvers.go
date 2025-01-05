@@ -13,6 +13,7 @@ import (
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
+	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 )
 
 // ID is the resolver for the id field.
@@ -44,7 +45,11 @@ func (r *memberResolver) TipoMembresia(ctx context.Context, obj *models.Member) 
 	case models.TipoMembresiaPFamiliar: // "familiar"
 		return model.MembershipTypeFamily, nil
 	default:
-		return "", fmt.Errorf("tipo_membresia desconocido: %s", obj.TipoMembresia)
+		return "",
+			appErrors.NewValidationError(
+				fmt.Sprintf("tipo_membresia desconocido: %s", obj.TipoMembresia),
+				map[string]string{"tipo_membresia": "desconocido"},
+			)
 	}
 }
 
@@ -56,7 +61,11 @@ func (r *memberResolver) Estado(ctx context.Context, obj *models.Member) (model.
 	case models.EstadoInactivo: // "inactivo"
 		return model.MemberStatusInactive, nil
 	default:
-		return "", fmt.Errorf("estado desconocido: %s", obj.Estado)
+		return "",
+			appErrors.NewValidationError(
+				fmt.Sprintf("estado desconocido: %s", obj.TipoMembresia),
+				map[string]string{"estado": "desconocido"},
+			)
 	}
 }
 
@@ -91,7 +100,7 @@ func (r *mutationResolver) UpdateMember(ctx context.Context, input model.UpdateM
 	}
 	// Opcionalmente, manejar el caso de "no encontrado"
 	if existing == nil {
-		return nil, NewNotFoundError("Member not found")
+		return nil, appErrors.NewNotFoundError("Member")
 	}
 
 	// 4) Mapear los campos de UpdateMemberInput a la entidad
@@ -157,11 +166,11 @@ func (r *mutationResolver) UpdateFamily(ctx context.Context, input model.UpdateF
 		return nil, err
 	}
 	if existing == nil {
-		return nil, NewNotFoundError("Family not found")
+		return nil, appErrors.NewNotFoundError("Family")
 	}
 
 	// 4) Mapear los campos actualizables al modelo
-	updated := r.Family().(*familyResolver).mapUpdateInputToFamily(id, &input, existing)
+	updated := r.Family().(*familyResolver).mapUpdateInputToFamily(&input, existing)
 
 	// 5) Manejar la mutación / persistir cambios
 	return r.Family().(*familyResolver).handleFamilyMutation(ctx, updated)
@@ -178,7 +187,7 @@ func (r *mutationResolver) AddFamilyMember(ctx context.Context, familyID string,
 		return nil, err
 	}
 	if existing == nil {
-		return nil, NewNotFoundError("Family not found")
+		return nil, appErrors.NewNotFoundError("Family")
 	}
 
 	// 3) mapear el FamiliarInput a *models.Familiar
@@ -240,7 +249,7 @@ func (r *mutationResolver) UpdatePayment(ctx context.Context, id string, input m
 		return nil, err
 	}
 	if existing == nil {
-		return nil, NewNotFoundError("Payment not found")
+		return nil, appErrors.NewNotFoundError("Payment")
 	}
 
 	// 2) mapear input a Payment
@@ -263,7 +272,7 @@ func (r *mutationResolver) CancelPayment(ctx context.Context, id string, reason 
 		return &model.MutationResponse{Success: false, Error: &errMsg}, nil
 	}
 	if existing == nil {
-		return &model.MutationResponse{Success: false, Error: stringPtr("Payment not found")}, nil
+		return &model.MutationResponse{Success: false, Error: stringPtr("Payment")}, nil
 	}
 
 	// 2) si ya está cancelado, devuelves error o idempotencia
@@ -325,7 +334,7 @@ func (r *mutationResolver) UpdateTransaction(ctx context.Context, id string, inp
 		return nil, err
 	}
 	if existing == nil {
-		return nil, NewNotFoundError("Transaction not found")
+		return nil, appErrors.NewNotFoundError("Transaction")
 	}
 
 	// mapear input a un *nuevo* CashFlow
@@ -356,7 +365,7 @@ func (r *queryResolver) GetMember(ctx context.Context, id string) (*models.Membe
 		return nil, err
 	}
 	if member == nil {
-		return nil, NewNotFoundError("Member not found")
+		return nil, appErrors.NewNotFoundError("Member")
 	}
 
 	return member, nil
@@ -426,7 +435,7 @@ func (r *queryResolver) ListMembers(ctx context.Context, filter *model.MemberFil
 		return nil, err
 	}
 
-	// 9) Tu servicio, por ahora, retorna ( []models.Member, error ).
+	// 9) Tu servicio, por ahora, retorna ([]models.Member, error).
 	//    No veo un 'totalCount' en la firma, así que no sabremos cuántas hay en total.
 	//    Si lo necesitas, deberías cambiar tu servicio para que devuelva también un total (p.ej. (members []models.Member, total int, err error)).
 
@@ -490,7 +499,7 @@ func (r *queryResolver) GetFamily(ctx context.Context, id string) (*models.Famil
 
 	// 3) si no existe, retornar un error de "no encontrado"
 	if family == nil {
-		return nil, NewNotFoundError("Family not found")
+		return nil, appErrors.NewNotFoundError("Family")
 	}
 
 	// 4) retornar la familia
@@ -553,7 +562,7 @@ func (r *queryResolver) GetFamilyMembers(ctx context.Context, familyID string) (
 		return nil, err
 	}
 	if family == nil {
-		return nil, NewNotFoundError("Family not found")
+		return nil, appErrors.NewNotFoundError("Family")
 	}
 
 	// 3) Obtener la lista de familiares
@@ -579,7 +588,7 @@ func (r *queryResolver) GetPayment(ctx context.Context, id string) (*models.Paym
 
 	// 3) si no se encuentra, retornar un error "not found"
 	if payment == nil {
-		return nil, NewNotFoundError("Payment not found")
+		return nil, appErrors.NewNotFoundError("Payment")
 	}
 
 	// 4) retornar el payment
@@ -612,7 +621,7 @@ func (r *queryResolver) GetFamilyPayments(ctx context.Context, familyID string) 
 		return nil, err
 	}
 	if family == nil {
-		return nil, NewNotFoundError("Family not found")
+		return nil, appErrors.NewNotFoundError("Family")
 	}
 
 	// 3) buscar los pagos de la familia
@@ -636,7 +645,7 @@ func (r *queryResolver) GetPaymentStatus(ctx context.Context, id string) (models
 		return "", err
 	}
 	if payment == nil {
-		return "", NewNotFoundError("Payment not found")
+		return "", appErrors.NewNotFoundError("Payment")
 	}
 
 	// 3) retornar el status (ej. PaymentStatusPaid, PaymentStatusCancelled, etc.)
@@ -656,7 +665,7 @@ func (r *queryResolver) GetCashFlow(ctx context.Context, id string) (*models.Cas
 
 	// 3) Verificar si no se encontró
 	if cashFlow == nil {
-		return nil, NewNotFoundError("CashFlow not found")
+		return nil, appErrors.NewNotFoundError("CashFlo")
 	}
 
 	// 4) Retornar el objeto CashFlow

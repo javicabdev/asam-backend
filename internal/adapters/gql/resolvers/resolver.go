@@ -1,4 +1,3 @@
-// resolver.go
 package resolvers
 
 import (

@@ -1,6 +1,7 @@
 package validation
 
 import (
+	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 	"regexp"
 	"strings"
 	"time"
@@ -23,20 +24,20 @@ func NewFamilyValidator() FamilyValidator {
 // ValidateNumeroSocio valida el formato del número de socio
 func (v *DefaultFamilyValidator) ValidateNumeroSocio(numeroSocio string) error {
 	if numeroSocio == "" {
-		return &ValidationError{
-			Field:   "numero_socio",
-			Message: "número de socio es requerido",
-		}
+		return appErrors.NewValidationError(
+			"número de socio es requerido",
+			map[string]string{"numero_socio": "requerido"},
+		)
 	}
 
 	numeroSocio = strings.TrimSpace(strings.ToUpper(numeroSocio))
 	socioRegex := regexp.MustCompile(`^[A-Z]\d{4}$`)
 
 	if !socioRegex.MatchString(numeroSocio) {
-		return &ValidationError{
-			Field:   "numero_socio",
-			Message: "formato de número de socio inválido (debe ser letra mayúscula seguida de 4 dígitos)",
-		}
+		return appErrors.NewValidationError(
+			"formato de número de socio inválido (debe ser letra mayúscula seguida de 4 dígitos)",
+			map[string]string{"numero_socio": "formato inválido"},
+		)
 	}
 
 	return nil
@@ -46,11 +47,12 @@ func (v *DefaultFamilyValidator) ValidateNumeroSocio(numeroSocio string) error {
 func (v *DefaultFamilyValidator) ValidateConyuges(esposoNombre, esposoApellidos, esposaNombre, esposaApellidos string) error {
 	if (esposoNombre == "" && esposoApellidos == "") &&
 		(esposaNombre == "" && esposaApellidos == "") {
-		return &ValidationError{
-			Field:   "conyuges",
-			Message: "se requiere información de al menos un cónyuge",
-		}
+		return appErrors.NewValidationError(
+			"se requiere información de al menos un cónyuge",
+			map[string]string{"conyuges": "requerido"},
+		)
 	}
+
 	return nil
 }
 
@@ -61,19 +63,19 @@ func (v *DefaultFamilyValidator) ValidateDocumentIDs(esposoDoc, esposaDoc string
 
 	if esposoDoc != "" {
 		if err := memberValidator.ValidateDocumentID(esposoDoc); err != nil {
-			return &ValidationError{
-				Field:   "esposo_documento",
-				Message: "documento de identidad del esposo inválido",
-			}
+			return appErrors.NewValidationError(
+				"documento de identidad del esposo inválido",
+				map[string]string{"esposo_documento": "formato inválido"},
+			)
 		}
 	}
 
 	if esposaDoc != "" {
 		if err := memberValidator.ValidateDocumentID(esposaDoc); err != nil {
-			return &ValidationError{
-				Field:   "esposa_documento",
-				Message: "documento de identidad de la esposa inválido",
-			}
+			return appErrors.NewValidationError(
+				"documento de identidad de la esposa inválido",
+				map[string]string{"esposa_documento": "formato inválido"},
+			)
 		}
 	}
 
@@ -87,19 +89,19 @@ func (v *DefaultFamilyValidator) ValidateContactInfo(esposoEmail, esposaEmail st
 
 	if esposoEmail != "" {
 		if err := memberValidator.ValidateContactInfo(esposoEmail, "", ""); err != nil {
-			return &ValidationError{
-				Field:   "esposo_email",
-				Message: "correo electrónico del esposo inválido",
-			}
+			return appErrors.NewValidationError(
+				"correo electrónico del esposo inválido",
+				map[string]string{"esposo_email": "formato inválido"},
+			)
 		}
 	}
 
 	if esposaEmail != "" {
 		if err := memberValidator.ValidateContactInfo(esposaEmail, "", ""); err != nil {
-			return &ValidationError{
-				Field:   "esposa_email",
-				Message: "correo electrónico de la esposa inválido",
-			}
+			return appErrors.NewValidationError(
+				"correo electrónico de la esposa inválido",
+				map[string]string{"esposa_email": "formato inválido"},
+			)
 		}
 	}
 
@@ -111,17 +113,17 @@ func (v *DefaultFamilyValidator) ValidateDates(esposoFechaNac, esposaFechaNac *t
 	now := time.Now()
 
 	if esposoFechaNac != nil && esposoFechaNac.After(now) {
-		return &ValidationError{
-			Field:   "esposo_fecha_nacimiento",
-			Message: "fecha de nacimiento del esposo no puede ser futura",
-		}
+		return appErrors.NewValidationError(
+			"fecha de nacimiento del esposo no puede ser futura",
+			map[string]string{"esposo_fecha_nacimiento": "formato inválido"},
+		)
 	}
 
 	if esposaFechaNac != nil && esposaFechaNac.After(now) {
-		return &ValidationError{
-			Field:   "esposa_fecha_nacimiento",
-			Message: "fecha de nacimiento de la esposa no puede ser futura",
-		}
+		return appErrors.NewValidationError(
+			"fecha de nacimiento de la esposa no puede ser futura",
+			map[string]string{"esposa_fecha_nacimiento": "formato inválido"},
+		)
 	}
 
 	return nil

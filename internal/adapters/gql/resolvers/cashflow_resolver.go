@@ -1,16 +1,16 @@
-// cashflow_resolver.go
 package resolvers
 
 import (
 	"context"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
+	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 	"time"
 )
 
 func (r *cashFlowResolver) mapTransactionInputToModel(input *model.TransactionInput) *models.CashFlow {
 	transaction := &models.CashFlow{
-		OperationType: models.OperationType(input.OperationType),
+		OperationType: input.OperationType,
 		Amount:        input.Amount,
 		Date:          input.Date,
 		Detail:        input.Detail,
@@ -31,7 +31,10 @@ func (r *cashFlowResolver) mapTransactionInputToModel(input *model.TransactionIn
 
 func (r *cashFlowResolver) validateTransaction(ctx context.Context, transaction *models.CashFlow) error {
 	if err := transaction.Validate(); err != nil {
-		return NewValidationError(err.Error())
+		return appErrors.NewValidationError(
+			"El monto es inválido",
+			map[string]string{"amount": "Debe ser distinto de 0, y positivo o negativo según el tipo de operación"},
+		)
 	}
 
 	if transaction.MemberID != nil {
@@ -40,7 +43,7 @@ func (r *cashFlowResolver) validateTransaction(ctx context.Context, transaction 
 			return err
 		}
 		if member == nil {
-			return NewNotFoundError("member not found")
+			return appErrors.NewNotFoundError("member")
 		}
 	}
 
@@ -50,11 +53,15 @@ func (r *cashFlowResolver) validateTransaction(ctx context.Context, transaction 
 			return err
 		}
 		if family == nil {
-			return NewNotFoundError("family not found")
+			return appErrors.NewNotFoundError("family")
 		}
 	}
 
-	return validateAmount(transaction.Amount, transaction.OperationType)
+	if appErr := validateAmount(transaction.Amount, transaction.OperationType); appErr != nil {
+		return appErr
+	}
+
+	return nil
 }
 
 func (r *cashFlowResolver) handleTransactionMutation(ctx context.Context, transaction *models.CashFlow) (*models.CashFlow, error) {

@@ -7,16 +7,6 @@ import (
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 )
 
-// PaymentError representa errores específicos del dominio de pagos
-type PaymentError struct {
-	Code    string
-	Message string
-}
-
-func (e *PaymentError) Error() string {
-	return e.Message
-}
-
 // AccountStatement representa el estado de cuenta de un miembro o familia
 type AccountStatement struct {
 	TotalPaid       float64

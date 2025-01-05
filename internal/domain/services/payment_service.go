@@ -2,7 +2,8 @@ package services
 
 import (
 	"context"
-	"fmt"
+	stdErr "errors"
+	"github.com/javicabdev/asam-backend/pkg/errors"
 	"time"
 
 	"github.com/javicabdev/asam-backend/internal/domain/models"
@@ -36,37 +37,64 @@ func NewPaymentService(
 
 func (s *paymentService) RegisterPayment(ctx context.Context, payment *models.Payment) error {
 	if err := payment.Validate(); err != nil {
-		return &input.PaymentError{
-			Code:    "INVALID_PAYMENT",
-			Message: err.Error(),
+		// Si `payment.Validate()` ya retorna un *AppError`, devuélvelo tal cual:
+		var appErr *errors.AppError
+		if stdErr.As(err, &appErr) {
+			return appErr
 		}
+		// Si fuese un error normal, lo convertimos a VALIDATION_FAILED
+		return errors.NewValidationError(err.Error(), nil)
 	}
 
 	// Si es un pago de cuota, actualizar el estado de la cuota
 	if payment.MembershipFeeID != nil {
 		fee, err := s.membershipFeeRepo.FindByYearMonth(ctx, time.Now().Year(), int(time.Now().Month()))
 		if err != nil {
-			return fmt.Errorf("error finding membership fee: %w", err)
+			var appErr *errors.AppError
+			if stdErr.As(err, &appErr) {
+				return appErr
+			}
+			return errors.NewDatabaseError("error finding membership fee", err)
 		}
+
+		if fee == nil {
+			return errors.NewNotFoundError("membership fee")
+		}
+
 		fee.Status = models.PaymentStatusPaid
 		if err := s.membershipFeeRepo.Update(ctx, fee); err != nil {
-			return fmt.Errorf("error updating membership fee: %w", err)
+			var appErr *errors.AppError
+			if stdErr.As(err, &appErr) {
+				return appErr
+			}
+			return errors.NewDatabaseError("error updating membership fee", err)
 		}
 	}
 
-	return s.paymentRepo.Create(ctx, payment)
+	// Finalmente, crear el payment
+	if err := s.paymentRepo.Create(ctx, payment); err != nil {
+		var appErr *errors.AppError
+		if stdErr.As(err, &appErr) {
+			return appErr
+		}
+		return errors.NewDatabaseError("error creating payment in DB", err)
+	}
+
+	return nil
 }
 
 func (s *paymentService) CancelPayment(ctx context.Context, paymentID uint, reason string) error {
 	payment, err := s.paymentRepo.FindByID(ctx, paymentID)
 	if err != nil {
-		return fmt.Errorf("error finding payment: %w", err)
-	}
-	if payment == nil {
-		return &input.PaymentError{
-			Code:    "PAYMENT_NOT_FOUND",
-			Message: "payment not found",
+		var appErr *errors.AppError
+		if stdErr.As(err, &appErr) {
+			return appErr
 		}
+		return errors.NewDatabaseError("error finding payment", err)
+	}
+
+	if payment == nil {
+		return errors.NewNotFoundError("payment")
 	}
 
 	payment.Status = models.PaymentStatusCancelled
@@ -77,14 +105,17 @@ func (s *paymentService) CancelPayment(ctx context.Context, paymentID uint, reas
 func (s *paymentService) GetPayment(ctx context.Context, paymentID uint) (*models.Payment, error) {
 	payment, err := s.paymentRepo.FindByID(ctx, paymentID)
 	if err != nil {
-		return nil, fmt.Errorf("error finding payment: %w", err)
-	}
-	if payment == nil {
-		return nil, &input.PaymentError{
-			Code:    "PAYMENT_NOT_FOUND",
-			Message: "payment not found",
+		var appErr *errors.AppError
+		if stdErr.As(err, &appErr) {
+			return nil, appErr
 		}
+		return nil, errors.NewDatabaseError("error finding payment", err)
 	}
+
+	if payment == nil {
+		return nil, errors.NewNotFoundError("payment")
+	}
+
 	return payment, nil
 }
 
@@ -147,27 +178,32 @@ func (s *paymentService) GenerateMonthlyFees(ctx context.Context, year, month in
 func (s *paymentService) GetMembershipFee(ctx context.Context, year, month int) (*models.MembershipFee, error) {
 	fee, err := s.membershipFeeRepo.FindByYearMonth(ctx, year, month)
 	if err != nil {
-		return nil, fmt.Errorf("error finding membership fee: %w", err)
-	}
-	if fee == nil {
-		return nil, &input.PaymentError{
-			Code:    "FEE_NOT_FOUND",
-			Message: "membership fee not found",
+		var appErr *errors.AppError
+		if stdErr.As(err, &appErr) {
+			return nil, appErr
 		}
+		return nil, errors.NewDatabaseError("error finding membership fee", err)
 	}
+
+	if fee == nil {
+		return nil, errors.NewNotFoundError("membership fee")
+	}
+
 	return fee, nil
 }
 
 func (s *paymentService) UpdateFeeAmount(ctx context.Context, feeID uint, newAmount float64) error {
 	fee, err := s.membershipFeeRepo.FindByYearMonth(ctx, time.Now().Year(), int(time.Now().Month()))
 	if err != nil {
-		return fmt.Errorf("error finding membership fee: %w", err)
-	}
-	if fee == nil {
-		return &input.PaymentError{
-			Code:    "FEE_NOT_FOUND",
-			Message: "membership fee not found",
+		var appErr *errors.AppError
+		if stdErr.As(err, &appErr) {
+			return appErr
 		}
+		return errors.NewDatabaseError("error finding membership fee", err)
+	}
+
+	if fee == nil {
+		return errors.NewNotFoundError("membership fee")
 	}
 
 	fee.BaseFeeAmount = newAmount
@@ -179,13 +215,21 @@ func (s *paymentService) GetMemberStatement(ctx context.Context, memberID uint) 
 	from := time.Now().AddDate(-1, 0, 0)
 	payments, err := s.paymentRepo.FindByMember(ctx, memberID, from, time.Now())
 	if err != nil {
-		return nil, fmt.Errorf("error finding member payments: %w", err)
+		var appErr *errors.AppError
+		if stdErr.As(err, &appErr) {
+			return nil, appErr
+		}
+		return nil, errors.NewDatabaseError("error finding member payments", err)
 	}
 
 	// Obtener cuotas pendientes
 	pendingFees, err := s.membershipFeeRepo.FindPendingByMember(ctx, memberID)
 	if err != nil {
-		return nil, fmt.Errorf("error finding pending fees: %w", err)
+		var appErr *errors.AppError
+		if stdErr.As(err, &appErr) {
+			return nil, appErr
+		}
+		return nil, errors.NewDatabaseError("error finding pending fees", err)
 	}
 
 	// Calcular total pagado
@@ -224,7 +268,11 @@ func (s *paymentService) GetFamilyStatement(ctx context.Context, familyID uint) 
 	from := time.Now().AddDate(-1, 0, 0)
 	payments, err := s.paymentRepo.FindByFamily(ctx, familyID, from, time.Now())
 	if err != nil {
-		return nil, fmt.Errorf("error finding family payments: %w", err)
+		var appErr *errors.AppError
+		if stdErr.As(err, &appErr) {
+			return nil, appErr
+		}
+		return nil, errors.NewDatabaseError("error finding family payments", err)
 	}
 
 	var totalPaid float64
