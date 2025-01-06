@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
+	"github.com/javicabdev/asam-backend/pkg/health"
 	"github.com/javicabdev/asam-backend/pkg/logger/audit"
 	"github.com/javicabdev/asam-backend/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
@@ -240,11 +241,30 @@ func main() {
 	)
 	playgroundHandler := gql.NewPlaygroundHandler()
 
+	// Crear health check handler
+	healthHandler := health.NewHandler(database)
+
 	// 12) Configurar rutas
 	mux := http.NewServeMux()
 	mux.Handle("/playground", playgroundHandler)
 	mux.Handle("/graphql", graphqlHandler)
 	mux.Handle("/metrics", promhttp.Handler())
+
+	// Añadir endpoint de health
+	mux.Handle("/health", healthHandler)
+	mux.Handle("/health/live", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Liveness probe - verifica si el servidor está vivo
+		w.WriteHeader(http.StatusOK)
+	}))
+	mux.Handle("/health/ready", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Readiness probe - verifica si el servidor está listo para recibir tráfico
+		healthCheck := healthHandler.CheckHealth(r.Context())
+		if healthCheck.Status == health.StatusDown {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
 
 	// Registrar el collector de métricas de Go
 	if err := prometheus.Register(collectors.NewGoCollector()); err != nil {
