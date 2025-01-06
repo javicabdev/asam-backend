@@ -1,0 +1,34 @@
+package health
+
+import (
+	"context"
+	"runtime"
+)
+
+type SystemChecker struct{}
+
+func (c *SystemChecker) Check(ctx context.Context) ComponentHealth {
+	// Verificar si el contexto está cancelado antes de ejecutar la lógica
+	select {
+	case <-ctx.Done():
+		return ComponentHealth{
+			Status:  StatusDown,
+			Message: "Context canceled or deadline exceeded",
+		}
+	default:
+		// Continuar si el contexto está activo
+	}
+
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	// Ejemplo de umbral: 90% de uso de memoria
+	if float64(m.Alloc)/float64(m.Sys) > 0.9 {
+		return ComponentHealth{
+			Status:  StatusDown,
+			Message: "High memory usage",
+		}
+	}
+
+	return ComponentHealth{Status: StatusUp}
+}
