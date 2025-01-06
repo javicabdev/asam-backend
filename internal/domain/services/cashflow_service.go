@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"github.com/javicabdev/asam-backend/pkg/metrics"
 	"math"
 	"sort"
 	"strings"
@@ -35,6 +36,18 @@ func (s *CashFlowService) RegisterMovement(ctx context.Context, movement *models
 	// Registrar el movimiento
 	if err := s.repository.Create(ctx, movement); err != nil {
 		return fmt.Errorf("error al registrar movimiento: %w", err)
+	}
+
+	// Actualizar métricas de flujo de caja
+	metrics.CashFlowMetrics.WithLabelValues(
+		string(movement.OperationType),
+	).Add(movement.Amount)
+
+	// Si es un gasto, el amount ya viene negativo
+	if movement.OperationType.IsIncome() {
+		metrics.PaymentMetrics.WithLabelValues("income", "completed").Add(movement.Amount)
+	} else {
+		metrics.PaymentMetrics.WithLabelValues("expense", "completed").Add(math.Abs(movement.Amount))
 	}
 
 	return nil
@@ -157,6 +170,9 @@ func (s *CashFlowService) GetCurrentBalance(ctx context.Context) (*input.Balance
 	for _, summary := range summaryMap {
 		summaries = append(summaries, *summary)
 	}
+
+	// Actualizar métrica de balance actual
+	metrics.CashFlowMetrics.WithLabelValues("balance").Set(currentBalance)
 
 	return &input.BalanceReport{
 		CurrentBalance:   currentBalance,

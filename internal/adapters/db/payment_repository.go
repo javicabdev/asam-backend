@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/javicabdev/asam-backend/internal/domain/models"
@@ -115,4 +116,19 @@ func (r *membershipFeeRepository) FindPendingByMember(ctx context.Context, membe
 			memberID, models.PaymentStatusPending).
 		Find(&fees).Error
 	return fees, err
+}
+
+func (r *membershipFeeRepository) FindByID(ctx context.Context, id uint) (*models.MembershipFee, error) {
+	var fee models.MembershipFee
+
+	result := r.db.WithContext(ctx).First(&fee, id)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil // Retorna nil si no se encuentra la cuota
+		}
+		return nil, fmt.Errorf("error finding membership fee: %w", result.Error)
+	}
+
+	return &fee, nil
 }

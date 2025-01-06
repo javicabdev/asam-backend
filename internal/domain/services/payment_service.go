@@ -3,7 +3,9 @@ package services
 import (
 	"context"
 	stdErr "errors"
+	"fmt"
 	"github.com/javicabdev/asam-backend/pkg/errors"
+	"github.com/javicabdev/asam-backend/pkg/metrics"
 	"time"
 
 	"github.com/javicabdev/asam-backend/internal/domain/models"
@@ -37,12 +39,10 @@ func NewPaymentService(
 
 func (s *paymentService) RegisterPayment(ctx context.Context, payment *models.Payment) error {
 	if err := payment.Validate(); err != nil {
-		// Si `payment.Validate()` ya retorna un *AppError`, devuélvelo tal cual:
 		var appErr *errors.AppError
 		if stdErr.As(err, &appErr) {
 			return appErr
 		}
-		// Si fuese un error normal, lo convertimos a VALIDATION_FAILED
 		return errors.NewValidationError(err.Error(), nil)
 	}
 
@@ -71,7 +71,7 @@ func (s *paymentService) RegisterPayment(ctx context.Context, payment *models.Pa
 		}
 	}
 
-	// Finalmente, crear el payment
+	// Crear el payment
 	if err := s.paymentRepo.Create(ctx, payment); err != nil {
 		var appErr *errors.AppError
 		if stdErr.As(err, &appErr) {
@@ -80,7 +80,38 @@ func (s *paymentService) RegisterPayment(ctx context.Context, payment *models.Pa
 		return errors.NewDatabaseError("error creating payment in DB", err)
 	}
 
+	// Registrar métricas del pago
+	metrics.PaymentMetrics.WithLabelValues(
+		paymentTypeToString(payment.MembershipFeeID != nil),
+		string(payment.Status),
+	).Set(payment.Amount)
+
+	// Si es un pago atrasado, registrar la latencia
+	if payment.PaymentDate.Before(payment.PaymentDate) {
+		daysLate := payment.PaymentDate.Sub(payment.PaymentDate).Hours() / 24
+		metrics.PaymentLatency.WithLabelValues(
+			s.memberTypeToString(ctx, payment.MemberID),
+		).Observe(daysLate)
+	}
+
 	return nil
+}
+
+// Funciones auxiliares para las métricas
+func paymentTypeToString(isMembershipFee bool) string {
+	if isMembershipFee {
+		return "cuota"
+	}
+	return "otros"
+}
+
+func (s *paymentService) memberTypeToString(ctx context.Context, memberID uint) string {
+	member, err := s.memberRepo.GetByID(ctx, memberID)
+	if err != nil || member == nil {
+		// Si hay error o no encontramos el miembro, retornamos un valor por defecto
+		return models.TipoMembresiaPIndividual
+	}
+	return member.TipoMembresia
 }
 
 func (s *paymentService) CancelPayment(ctx context.Context, paymentID uint, reason string) error {
@@ -193,7 +224,8 @@ func (s *paymentService) GetMembershipFee(ctx context.Context, year, month int) 
 }
 
 func (s *paymentService) UpdateFeeAmount(ctx context.Context, feeID uint, newAmount float64) error {
-	fee, err := s.membershipFeeRepo.FindByYearMonth(ctx, time.Now().Year(), int(time.Now().Month()))
+	// Get the specific fee by ID
+	fee, err := s.membershipFeeRepo.FindByID(ctx, feeID)
 	if err != nil {
 		var appErr *errors.AppError
 		if stdErr.As(err, &appErr) {
@@ -206,6 +238,7 @@ func (s *paymentService) UpdateFeeAmount(ctx context.Context, feeID uint, newAmo
 		return errors.NewNotFoundError("membership fee")
 	}
 
+	// Update the fee amount
 	fee.BaseFeeAmount = newAmount
 	return s.membershipFeeRepo.Update(ctx, fee)
 }
@@ -324,16 +357,72 @@ func (s *paymentService) GetDefaulters(ctx context.Context) ([]input.AccountStat
 }
 
 func (s *paymentService) SendPaymentReminder(ctx context.Context, memberID uint) error {
-	// Implementación pendiente del sistema de notificaciones
+	// Get member information
+	member, err := s.memberRepo.GetByID(ctx, memberID)
+	if err != nil {
+		return errors.NewDatabaseError("error fetching member", err)
+	}
+	if member == nil {
+		return errors.NewNotFoundError("member")
+	}
+
+	// Send notification using notification service
+	if member.CorreoElectronico != nil {
+		return s.notificationService.SendEmail(
+			ctx,
+			*member.CorreoElectronico,
+			"Recordatorio de Pago ASAM",
+			"Este es un recordatorio para realizar su pago pendiente.",
+		)
+	}
 	return nil
 }
 
 func (s *paymentService) SendPaymentConfirmation(ctx context.Context, paymentID uint) error {
-	// Implementación pendiente del sistema de notificaciones
+	// Get payment and member information
+	payment, err := s.paymentRepo.FindByID(ctx, paymentID)
+	if err != nil {
+		return errors.NewDatabaseError("error fetching payment", err)
+	}
+	if payment == nil {
+		return errors.NewNotFoundError("payment")
+	}
+
+	member, err := s.memberRepo.GetByID(ctx, payment.MemberID)
+	if err != nil {
+		return errors.NewDatabaseError("error fetching member", err)
+	}
+
+	// Send confirmation email
+	if member != nil && member.CorreoElectronico != nil {
+		return s.notificationService.SendEmail(
+			ctx,
+			*member.CorreoElectronico,
+			"Confirmación de Pago ASAM",
+			fmt.Sprintf("Se ha registrado su pago por %.2f€", payment.Amount),
+		)
+	}
 	return nil
 }
 
 func (s *paymentService) SendDefaulterNotification(ctx context.Context, memberID uint, days int) error {
-	// Implementación pendiente del sistema de notificaciones
+	// Get member information
+	member, err := s.memberRepo.GetByID(ctx, memberID)
+	if err != nil {
+		return errors.NewDatabaseError("error fetching member", err)
+	}
+	if member == nil {
+		return errors.NewNotFoundError("member")
+	}
+
+	// Send notification with days of delay
+	if member.CorreoElectronico != nil {
+		return s.notificationService.SendEmail(
+			ctx,
+			*member.CorreoElectronico,
+			"Aviso de Pago Atrasado ASAM",
+			fmt.Sprintf("Su pago está atrasado %d días. Por favor, regularice su situación.", days),
+		)
+	}
 	return nil
 }

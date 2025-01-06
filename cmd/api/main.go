@@ -3,7 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/pkg/logger/audit"
+	"github.com/javicabdev/asam-backend/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	"os"
 	"os/signal"
@@ -52,9 +58,104 @@ func initLogging() (logger.Logger, *audit.Audit, error) {
 	return appLogger, auditLogger, nil
 }
 
+// updateBusinessMetrics actualiza periódicamente las métricas de negocio
+func updateBusinessMetrics(ctx context.Context,
+	memberService input.MemberService,
+	paymentService input.PaymentService,
+	cashFlowService input.CashFlowService) error {
+
+	// Actualizar métricas de miembros
+	members, err := memberService.ListMembers(ctx, input.MemberFilters{})
+	if err != nil {
+		return fmt.Errorf("error getting members metrics: %w", err)
+	}
+
+	var (
+		active           int
+		inactive         int
+		individualActive int
+		familyActive     int
+	)
+
+	for _, m := range members {
+		if m.Estado == models.EstadoActivo {
+			active++
+			if m.TipoMembresia == models.TipoMembresiaPIndividual {
+				individualActive++
+			} else {
+				familyActive++
+			}
+		} else {
+			inactive++
+		}
+	}
+
+	metrics.UpdateMemberMetrics(active, inactive, individualActive, familyActive)
+
+	// Actualizar métricas de morosos
+	defaulters, err := paymentService.GetDefaulters(ctx)
+	if err != nil {
+		return fmt.Errorf("error getting defaulters metrics: %w", err)
+	}
+
+	defaultersByDays := make(map[int]int)
+	for _, d := range defaulters {
+		days := d.DefaultDays
+		bucket := (days / 30) * 30 // Redondear a múltiplos de 30
+		if bucket > 90 {
+			bucket = 90
+		}
+		defaultersByDays[bucket]++
+	}
+
+	for days, count := range defaultersByDays {
+		metrics.UpdateDefaulterMetrics(days, count)
+	}
+
+	// Actualizar métricas de flujo de caja
+	balance, err := cashFlowService.GetCurrentBalance(ctx)
+	if err != nil {
+		return fmt.Errorf("error getting cash flow metrics: %w", err)
+	}
+
+	metrics.UpdateCashFlowMetrics(
+		balance.CurrentBalance,
+		balance.TotalIncome,
+		balance.TotalExpenses,
+	)
+
+	return nil
+}
+
+// updateMetricsPeriodically actualiza las métricas de negocio cada minuto
+func updateMetricsPeriodically(ctx context.Context,
+	logger logger.Logger,
+	memberService input.MemberService,
+	paymentService input.PaymentService,
+	cashFlowService input.CashFlowService) {
+
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := updateBusinessMetrics(ctx, memberService, paymentService, cashFlowService); err != nil {
+				logger.Error("Error updating business metrics", zap.Error(err))
+			}
+		}
+	}
+}
+
 func main() {
 
-	// 1) Inicializar logger zap al inicio de la aplicación
+	// 1) Crear contexto base con cancelación
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// 2) Inicializar logger zap al inicio de la aplicación
 	appLogger, auditLogger, err := initLogging()
 	// Como aún no tenemos logger inicializado, usamos fmt o un panic
 	if err != nil {
@@ -143,6 +244,29 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/playground", playgroundHandler)
 	mux.Handle("/graphql", graphqlHandler)
+	mux.Handle("/metrics", promhttp.Handler())
+
+	// Registrar el collector de métricas de Go
+	if err := prometheus.Register(collectors.NewGoCollector()); err != nil {
+		appLogger.Error("Could not register Go metrics collector", zap.Error(err))
+	}
+
+	// Registrar métricas de proceso
+	if err := prometheus.Register(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})); err != nil {
+		appLogger.Error("Could not register process metrics collector", zap.Error(err))
+	}
+
+	// Inicializar actualización periódica de métricas de negocio
+	go func() {
+		ticker := time.NewTicker(1 * time.Minute)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			if err := updateBusinessMetrics(ctx, memberService, paymentService, cashFlowService); err != nil {
+				appLogger.Error("Error updating business metrics", zap.Error(err))
+			}
+		}
+	}()
 
 	// 13) Crear servidor HTTP
 	server := &http.Server{
@@ -158,6 +282,9 @@ func main() {
 		appLogger.Info("Server starting...", zap.String("url", "http://localhost"+server.Addr))
 		serverErrors <- server.ListenAndServe()
 	}()
+
+	// Iniciar actualización periódica de métricas
+	go updateMetricsPeriodically(ctx, appLogger, memberService, paymentService, cashFlowService)
 
 	// 16) Canal para señales de apagado
 	shutdown := make(chan os.Signal, 1)

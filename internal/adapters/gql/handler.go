@@ -10,6 +10,8 @@ import (
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/pkg/auth"
 	"github.com/javicabdev/asam-backend/pkg/logger"
+	"github.com/javicabdev/asam-backend/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 	"net/http"
@@ -17,8 +19,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/playground"
 )
 
-// NewHandler crea un nuevo handler de GraphQL
-// internal/adapters/gql/handler.go
+// En internal/adapters/gql/handler.go
 
 func NewHandler(authService input.AuthService, resolver *resolvers.Resolver, cfg *config.Config, logger logger.Logger, db *gorm.DB) http.Handler {
 	schema := generated.NewExecutableSchema(generated.Config{
@@ -39,13 +40,19 @@ func NewHandler(authService input.AuthService, resolver *resolvers.Resolver, cfg
 	errorMiddleware := middleware.NewErrorMiddleware(logger)
 	validationMiddleware := middleware.NewValidationMiddleware()
 	recoveryMiddleware := middleware.NewRecoveryMiddleware(logger)
-	transactionMiddleware := middleware.NewTransactionMiddleware(db) // Nuevo
+	transactionMiddleware := middleware.NewTransactionMiddleware(db)
 	rateLimiter := auth.NewRateLimiter(
 		rate.Limit(cfg.RateLimitRPS),
 		cfg.RateLimitBurst,
 		cfg.RateLimitCleanup,
 	)
 	securityHeaders := auth.NewSecurityHeadersMiddleware()
+
+	// Aquí iría el nuevo middleware de métricas
+	metricsMiddleware := metrics.NewMetricsMiddleware()
+
+	// Configurar métricas de base de datos
+	metrics.RegisterMetrics(db)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Headers necesarios
@@ -62,6 +69,11 @@ func NewHandler(authService input.AuthService, resolver *resolvers.Resolver, cfg
 
 		// Solo permitir POST para queries/mutations
 		if r.Method != http.MethodPost {
+			// Excepción para el endpoint de métricas
+			if r.URL.Path == "/metrics" {
+				promhttp.Handler().ServeHTTP(w, r)
+				return
+			}
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
@@ -74,13 +86,16 @@ func NewHandler(authService input.AuthService, resolver *resolvers.Resolver, cfg
 		// 5. Transaction
 		// 6. Error Handling
 		// 7. Auth
+		// 8. Metrics (nuevo)
 		securityHeaders.Middleware(
 			recoveryMiddleware.Handler(
 				rateLimiter.Middleware(
 					validationMiddleware.Handler(
 						transactionMiddleware.Handler(
 							errorMiddleware.Handler(
-								authMiddleware.Handler(srv),
+								authMiddleware.Handler(
+									metricsMiddleware(srv),
+								),
 							),
 						),
 					),
