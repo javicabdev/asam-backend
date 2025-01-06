@@ -8,6 +8,7 @@ import (
 	"github.com/javicabdev/asam-backend/internal/ports/output"
 	"github.com/javicabdev/asam-backend/pkg/logger"
 	"github.com/javicabdev/asam-backend/pkg/logger/audit"
+	"github.com/javicabdev/asam-backend/pkg/metrics"
 	"go.uber.org/zap"
 	"time"
 )
@@ -85,6 +86,12 @@ func (s *memberService) CreateMember(ctx context.Context, member *models.Member)
 			"Error al crear miembro en base de datos", err)
 		return fmt.Errorf("error creating member: %w", err)
 	}
+
+	// Actualizar métricas de miembros
+	metrics.MembersByStatus.WithLabelValues(
+		member.Estado,
+		member.TipoMembresia,
+	).Inc()
 
 	// Registrar la acción en el log de auditoría
 	s.auditLogger.LogAction(ctx,
@@ -202,6 +209,10 @@ func (s *memberService) DeactivateMember(ctx context.Context, id uint, fechaBaja
 		return fmt.Errorf("no existe un miembro con el ID %d", id)
 	}
 
+	// Guardar estado anterior para métricas
+	previousStatus := member.Estado
+	previousType := member.TipoMembresia
+
 	// Verificar que no esté ya inactivo
 	if member.Estado == models.EstadoInactivo {
 		s.appLogger.Warn("Member already inactive",
@@ -254,6 +265,17 @@ func (s *memberService) DeactivateMember(ctx context.Context, id uint, fechaBaja
 	s.appLogger.Info("Member deactivated successfully",
 		zap.String("numero_socio", member.NumeroSocio),
 		zap.Uint("member_id", member.ID))
+
+	// Actualizar métricas
+	metrics.MembersByStatus.WithLabelValues(
+		previousStatus,
+		previousType,
+	).Dec()
+
+	metrics.MembersByStatus.WithLabelValues(
+		member.Estado,
+		member.TipoMembresia,
+	).Inc()
 
 	return nil
 }
