@@ -1,0 +1,70 @@
+package gql_test
+
+import (
+	"context"
+	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
+	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/test"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/mock"
+)
+
+var _ = Describe("CashFlow", func() {
+	var (
+		resolver        *resolvers.Resolver
+		memberService   *test.MockMemberService
+		familyService   *test.MockFamilyService
+		paymentService  *test.MockPaymentService
+		cashFlowService *test.MockCashFlowService
+		authService     *test.MockAuthService
+	)
+
+	BeforeEach(func() {
+		memberService = new(test.MockMemberService)
+		familyService = new(test.MockFamilyService)
+		paymentService = new(test.MockPaymentService)
+		cashFlowService = new(test.MockCashFlowService)
+		authService = new(test.MockAuthService)
+
+		resolver = resolvers.NewResolver(
+			memberService,
+			familyService,
+			paymentService,
+			cashFlowService,
+			authService,
+		)
+	})
+
+	Describe("AdjustBalance", func() {
+		When("amount is valid", func() {
+			It("succeeds with correct response", func() {
+				amount := 100.0
+				reason := "Test adjustment"
+
+				cashFlowService.On("RegisterMovement", mock.Anything, mock.MatchedBy(func(m *models.CashFlow) bool {
+					return m.Amount == amount && m.Detail == reason
+				})).Return(nil)
+
+				response, err := resolver.Mutation().AdjustBalance(context.Background(), amount, reason)
+
+				Expect(err).NotTo(HaveOccurred())
+				Expect(response).NotTo(BeNil())
+				Expect(response.Success).To(BeTrue())
+				Expect(response.Message).NotTo(BeNil())
+				Expect(*response.Message).To(Equal("Balance adjusted successfully"))
+				Expect(response.Error).To(BeNil())
+			})
+		})
+
+		When("amount is zero", func() {
+			It("returns validation error", func() {
+				response, err := resolver.Mutation().AdjustBalance(context.Background(), 0.0, "Invalid adjustment")
+
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("amount cannot be zero"))
+				Expect(response).To(BeNil())
+			})
+		})
+	})
+})

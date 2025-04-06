@@ -33,7 +33,7 @@ $connectionString = "postgresql://{0}:{1}@{2}:{3}/{4}?sslmode={5}" -f `
 
 # Ejecutar migrate
 Write-Host "Ejecutando migraciones para el entorno '$Env'..." -ForegroundColor Green
-migrate -database $connectionString -path "$projectRoot/migrations" $Command
+migrate -database $connectionString -path "migrations" $Command
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "Migraciones completadas exitosamente." -ForegroundColor Green

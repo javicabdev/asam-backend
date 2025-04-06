@@ -65,17 +65,14 @@ func (r *cashFlowResolver) validateTransaction(ctx context.Context, transaction 
 }
 
 func (r *cashFlowResolver) handleTransactionMutation(ctx context.Context, transaction *models.CashFlow) (*models.CashFlow, error) {
-	if err := r.validateTransaction(ctx, transaction); err != nil {
-		return nil, err
+	if transaction.Amount == 0 {
+		return nil, appErrors.NewValidationError(
+			"El monto no puede ser cero",
+			map[string]string{"amount": "must be non-zero"},
+		)
 	}
 
-	var err error
-	if transaction.ID == 0 {
-		err = r.cashFlowService.RegisterMovement(ctx, transaction)
-	} else {
-		err = r.cashFlowService.UpdateMovement(ctx, transaction)
-	}
-
+	err := r.cashFlowService.UpdateMovement(ctx, transaction)
 	if err != nil {
 		return nil, err
 	}
@@ -84,6 +81,14 @@ func (r *cashFlowResolver) handleTransactionMutation(ctx context.Context, transa
 }
 
 func (r *cashFlowResolver) handleBalanceAdjustment(ctx context.Context, amount float64, reason string) (*model.MutationResponse, error) {
+	// Validar monto cero antes de crear el ajuste
+	if amount == 0 {
+		return nil, appErrors.NewValidationError(
+			"amount cannot be zero",
+			map[string]string{"amount": "must be non-zero"},
+		)
+	}
+
 	adjustment := &models.CashFlow{
 		OperationType: models.OperationTypeOtherIncome,
 		Amount:        amount,

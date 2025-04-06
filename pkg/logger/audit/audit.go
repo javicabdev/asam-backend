@@ -9,6 +9,12 @@ import (
 	"go.uber.org/zap"
 )
 
+type Logger interface {
+	LogAction(ctx context.Context, action ActionType, entity EntityType, entityID string, description string)
+	LogChange(ctx context.Context, action ActionType, entity EntityType, entityID string, previous, new any, description string)
+	LogError(ctx context.Context, action ActionType, entity EntityType, entityID string, description string, err error)
+}
+
 // ActionType define los tipos de acciones que se pueden auditar
 type ActionType string
 
@@ -57,18 +63,18 @@ type Entry struct {
 	Status       string     `json:"status"`
 }
 
-type Audit struct {
+type AuditLogger struct {
 	Logger logger.Logger
 }
 
-func NewAudit(logger logger.Logger) *Audit {
-	return &Audit{
+func NewAudit(logger logger.Logger) Logger {
+	return &AuditLogger{
 		Logger: logger,
 	}
 }
 
 // logAuditEntry registra la entrada de auditoría usando el logger principal
-func (a *Audit) logAuditEntry(entry Entry) {
+func (a *AuditLogger) logAuditEntry(entry Entry) {
 	// Convertir la entrada a JSON para un logging estructurado
 	jsonData, err := json.Marshal(entry)
 	if err != nil {
@@ -95,7 +101,7 @@ func (a *Audit) logAuditEntry(entry Entry) {
 }
 
 // LogAction registra una acción simple en el log de auditoría
-func (a *Audit) LogAction(ctx context.Context, action ActionType, entity EntityType, entityID string, description string) {
+func (a *AuditLogger) LogAction(ctx context.Context, action ActionType, entity EntityType, entityID string, description string) {
 	entry := Entry{
 		Timestamp:   time.Now().UTC(),
 		Action:      action,
@@ -110,7 +116,7 @@ func (a *Audit) LogAction(ctx context.Context, action ActionType, entity EntityT
 }
 
 // LogChange registra un cambio en una entidad, incluyendo los datos anteriores y nuevos
-func (a *Audit) LogChange(ctx context.Context, action ActionType, entity EntityType, entityID string, previous, new any, description string) {
+func (a *AuditLogger) LogChange(ctx context.Context, action ActionType, entity EntityType, entityID string, previous, new any, description string) {
 	entry := Entry{
 		Timestamp:    time.Now().UTC(),
 		Action:       action,
@@ -127,7 +133,7 @@ func (a *Audit) LogChange(ctx context.Context, action ActionType, entity EntityT
 }
 
 // LogError registra una acción fallida en el log de auditoría
-func (a *Audit) LogError(ctx context.Context, action ActionType, entity EntityType, entityID string, description string, err error) {
+func (a *AuditLogger) LogError(ctx context.Context, action ActionType, entity EntityType, entityID string, description string, err error) {
 	entry := Entry{
 		Timestamp:   time.Now().UTC(),
 		Action:      action,

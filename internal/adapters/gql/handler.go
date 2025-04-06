@@ -1,65 +1,34 @@
 package gql
 
 import (
+	"context"
+	"encoding/json"
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/99designs/gqlgen/graphql/handler/transport"
+	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/generated"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/middleware"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
 	"github.com/javicabdev/asam-backend/internal/config"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/pkg/auth"
+	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/pkg/logger"
 	"github.com/javicabdev/asam-backend/pkg/metrics"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/vektah/gqlparser/v2/gqlerror"
+	"go.uber.org/zap"
 	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 	"net/http"
-
-	"github.com/99designs/gqlgen/graphql/playground"
 )
 
-// En internal/adapters/gql/handler.go
-
-func NewHandler(authService input.AuthService, resolver *resolvers.Resolver, cfg *config.Config, logger logger.Logger, db *gorm.DB) http.Handler {
-	schema := generated.NewExecutableSchema(generated.Config{
-		Resolvers: resolver,
-	})
-
-	srv := handler.New(schema)
-	srv.SetErrorPresenter(CustomErrorPresenter)
-
-	// Configurar opciones básicas del servidor
-	srv.AddTransport(transport.Options{})
-	srv.AddTransport(transport.GET{})
-	srv.AddTransport(transport.POST{})
-	srv.AddTransport(transport.MultipartForm{})
-
-	// Crear middlewares
-	authMiddleware := auth.NewAuthMiddleware(authService)
-	errorMiddleware := middleware.NewErrorMiddleware(logger)
-	validationMiddleware := middleware.NewValidationMiddleware()
-	recoveryMiddleware := middleware.NewRecoveryMiddleware(logger)
-	transactionMiddleware := middleware.NewTransactionMiddleware(db)
-	rateLimiter := auth.NewRateLimiter(
-		rate.Limit(cfg.RateLimitRPS),
-		cfg.RateLimitBurst,
-		cfg.RateLimitCleanup,
-	)
-	securityHeaders := auth.NewSecurityHeadersMiddleware()
-
-	// Aquí iría el nuevo middleware de métricas
-	metricsMiddleware := metrics.NewMetricsMiddleware()
-
-	// Configurar métricas de base de datos
-	metrics.RegisterMetrics(db)
-
+// corsMiddleware es un middleware simple para CORS
+func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Headers necesarios
-		w.Header().Set("Content-Type", "application/json")
+		// Configurar headers CORS
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")
 
 		// Manejar preflighted requests
 		if r.Method == http.MethodOptions {
@@ -67,58 +36,125 @@ func NewHandler(authService input.AuthService, resolver *resolvers.Resolver, cfg
 			return
 		}
 
-		// Solo permitir POST para queries/mutations
-		if r.Method != http.MethodPost {
-			// Excepción para el endpoint de métricas
-			if r.URL.Path == "/metrics" {
-				promhttp.Handler().ServeHTTP(w, r)
-				return
-			}
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-
-		// Aplicar middlewares en cadena:
-		// 1. Security Headers
-		// 2. Recovery (para capturar panics)
-		// 3. Rate Limiter
-		// 4. Validation
-		// 5. Transaction
-		// 6. Error Handling
-		// 7. Auth
-		// 8. Metrics (nuevo)
-		securityHeaders.Middleware(
-			recoveryMiddleware.Handler(
-				rateLimiter.Middleware(
-					validationMiddleware.Handler(
-						transactionMiddleware.Handler(
-							errorMiddleware.Handler(
-								authMiddleware.Handler(
-									metricsMiddleware(srv),
-								),
-							),
-						),
-					),
-				),
-			),
-		).ServeHTTP(w, r)
+		next.ServeHTTP(w, r)
 	})
 }
 
-// NewPlaygroundHandler crea un nuevo handler para el playground de GraphQL
-func NewPlaygroundHandler() http.Handler {
-	h := playground.Handler("ASAM GraphQL Playground", "/graphql")
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Configurar headers CORS
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")
+// NewHandler configura y retorna un nuevo handler GraphQL
+func NewHandler(
+	authService input.AuthService,
+	resolver *resolvers.Resolver,
+	cfg *config.Config,
+	appLogger logger.Logger,
+	db *gorm.DB,
+) http.Handler {
+	// Crear un errorHandler compartido
+	errorHandler := middleware.NewErrorMiddleware(appLogger)
 
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
+	// Crear el schema GraphQL
+	schema := generated.NewExecutableSchema(generated.Config{
+		Resolvers: resolver,
+	})
+
+	// Configurar el servidor GraphQL
+	srv := handler.New(schema)
+
+	// Configurar error presenter que usa el mismo errorHandler
+	srv.SetErrorPresenter(func(ctx context.Context, err error) *gqlerror.Error {
+		// Asegurar que se guarde el errorHandler en el contexto para uso posterior
+		ctx = context.WithValue(ctx, middleware.ErrorHandlerKey{}, errorHandler)
+		return errorHandler.HandleError(ctx, err)
+	})
+
+	// Configurar función de recuperación que también usa el errorHandler
+	srv.SetRecoverFunc(func(ctx context.Context, err interface{}) error {
+		// Asegurar que se guarde el errorHandler en el contexto para uso posterior
+		ctx = context.WithValue(ctx, middleware.ErrorHandlerKey{}, errorHandler)
+
+		appLogger.Error("GraphQL panic recovered",
+			zap.Any("error", err),
+			zap.String("path", graphql.GetPath(ctx).String()))
+
+		return &gqlerror.Error{
+			Path:    graphql.GetPath(ctx),
+			Message: "Internal server error",
+			Extensions: map[string]interface{}{
+				"code": appErrors.ErrInternalError,
+			},
+		}
+	})
+
+	// Registrar métricas para la base de datos
+	metrics.RegisterMetrics(db)
+
+	// Crear middlewares individuales
+	authMiddleware := auth.NewAuthMiddleware(authService)
+	validationMiddleware := middleware.NewValidationMiddleware()
+	recoveryMiddleware := middleware.NewRecoveryMiddleware(appLogger)
+	transactionMiddleware := middleware.NewTransactionMiddleware(db)
+	rateLimiter := auth.NewRateLimiter(
+		rate.Limit(cfg.RateLimitRPS),
+		cfg.RateLimitBurst,
+		cfg.RateLimitCleanup,
+		appLogger,
+	)
+	securityHeaders := auth.NewSecurityHeadersMiddleware()
+	metricsMiddleware := metrics.NewMetricsMiddleware()
+
+	// Construir la cadena de middleware con manejo de errores coherente
+	var handler http.Handler = srv
+
+	// Orden de middleware revisado para manejo de errores coherente:
+	handler = transactionMiddleware.Handler(handler) // Transacciones (más interno)
+	handler = metricsMiddleware(handler)             // Métricas después de las transacciones
+
+	// El middleware de errores debe ir ANTES de middlewares que pueden generar errores
+	// pero después de middlewares que modifican el flujo (como transacciones)
+	handler = errorHandler.Handler(handler) // *** Error handling aquí ***
+
+	handler = authMiddleware.Handler(handler)       // Autenticación - errores manejados por errorHandler
+	handler = validationMiddleware.Handler(handler) // Validación
+	handler = rateLimiter.Middleware(handler)       // Rate limiting
+	handler = recoveryMiddleware.Handler(handler)   // Recuperación de pánicos - alimenta a errorHandler
+	handler = securityHeaders.Middleware(handler)   // Headers de seguridad
+
+	// Aplicar filtrado de métodos HTTP usando el sistema de errores
+	handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost && r.Method != http.MethodOptions {
+			// Construir un error estructurado en lugar de simplemente retornar un código HTTP
+			ctx := context.WithValue(r.Context(), middleware.ErrorHandlerKey{}, errorHandler)
+			err := appErrors.New(appErrors.ErrInvalidOperation, "Method not allowed")
+			gqlErr := errorHandler.HandleError(ctx, err)
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			writeJSON(w, map[string]interface{}{
+				"errors": []*gqlerror.Error{gqlErr},
+			})
 			return
 		}
-
-		h.ServeHTTP(w, r)
+		handler.ServeHTTP(w, r)
 	})
+
+	// Aplicar CORS como la capa más externa
+	handler = corsMiddleware(handler)
+
+	// Establecer Content-Type
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		handler.ServeHTTP(w, r)
+	})
+}
+
+// writeJSON es un helper para escribir JSON en la respuesta
+func writeJSON(w http.ResponseWriter, data interface{}) {
+	json.NewEncoder(w).Encode(data)
+}
+
+// NewPlaygroundHandler crea un nuevo handler para el playground GraphQL
+func NewPlaygroundHandler() http.Handler {
+	playground := playground.Handler("ASAM GraphQL Playground", "/graphql")
+
+	// Aplicar CORS al playground para consistencia
+	return corsMiddleware(playground)
 }

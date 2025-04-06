@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"github.com/javicabdev/asam-backend/internal/domain/services/validation"
 	"gorm.io/gorm"
 	"time"
@@ -90,4 +91,14 @@ func (f *Family) BeforeCreate(tx *gorm.DB) error {
 // BeforeUpdate hook de GORM para validaciones antes de actualizar
 func (f *Family) BeforeUpdate(tx *gorm.DB) error {
 	return f.Validate()
+}
+
+// NombreCompletoEsposo retorna el nombre completo del esposo
+func (f *Family) NombreCompletoEsposo() string {
+	return fmt.Sprintf("%s %s", f.EsposoNombre, f.EsposoApellidos)
+}
+
+// NombreCompletoEsposa retorna el nombre completo de la esposa
+func (f *Family) NombreCompletoEsposa() string {
+	return fmt.Sprintf("%s %s", f.EsposaNombre, f.EsposaApellidos)
 }

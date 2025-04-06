@@ -12,6 +12,7 @@ import (
 type RateLimiter struct {
 	visitors map[string]*visitor
 	mtx      sync.RWMutex
+	logger   logger.Logger
 	// Límites configurables
 	limit           rate.Limit // Peticiones por segundo
 	burst           int        // Máximo de peticiones en burst
@@ -23,9 +24,10 @@ type visitor struct {
 	lastSeen time.Time
 }
 
-func NewRateLimiter(rps rate.Limit, burst int, cleanup time.Duration) *RateLimiter {
+func NewRateLimiter(rps rate.Limit, burst int, cleanup time.Duration, log logger.Logger) *RateLimiter {
 	rl := &RateLimiter{
 		visitors:        make(map[string]*visitor),
+		logger:          log,
 		limit:           rps,
 		burst:           burst,
 		cleanupInterval: cleanup,
@@ -65,7 +67,7 @@ func (rl *RateLimiter) cleanupVisitors() {
 		}
 		cleaned := initial - len(rl.visitors)
 		if cleaned > 0 {
-			logger.Debug("Rate limiter cleanup completed",
+			rl.logger.Debug("Rate limiter cleanup completed",
 				zap.Int("cleaned", cleaned),
 				zap.Int("remaining", len(rl.visitors)),
 			)
@@ -86,7 +88,7 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 		limiter := rl.getVisitor(ip)
 
 		if !limiter.Allow() {
-			logger.Error("Rate limit exceeded",
+			rl.logger.Error("Rate limit exceeded",
 				zap.String("ip", ip),
 				zap.String("uri", r.RequestURI),
 				zap.String("method", r.Method),

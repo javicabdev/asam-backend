@@ -28,7 +28,7 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
-func initLogging() (logger.Logger, *audit.Audit, error) {
+func initLogging() (logger.Logger, audit.Logger, error) {
 	// Asegurar que existe el directorio de logs
 	logDir := "logs"
 	if err := os.MkdirAll(logDir, 0755); err != nil {
@@ -150,6 +150,36 @@ func updateMetricsPeriodically(ctx context.Context,
 	}
 }
 
+// createNotificationService crea un servicio de notificación basado en el entorno
+func createNotificationService(cfg *config.Config, logger logger.Logger) input.NotificationService {
+	// En desarrollo, usar un servicio de notificación mock o con valores por defecto
+	if cfg.Environment == "development" {
+		logger.Warn("Using development notification service with placeholder values")
+		return services.NewEmailNotificationService(
+			"smtp.example.com",
+			587,
+			"dev-user",
+			"dev-password",
+			false,
+			"noreply-dev@asam.org",
+		)
+	}
+
+	// En producción, validar que todas las configuraciones estén presentes
+	if cfg.SMTPUser == "" || cfg.SMTPPassword == "" {
+		logger.Fatal("SMTP credentials not configured")
+	}
+
+	return services.NewEmailNotificationService(
+		cfg.SMTPServer,
+		cfg.SMTPPort,
+		cfg.SMTPUser,
+		cfg.SMTPPassword,
+		cfg.SMTPUseTLS,
+		cfg.SMTPFromEmail,
+	)
+}
+
 func main() {
 
 	// 1) Crear contexto base con cancelación
@@ -213,14 +243,14 @@ func main() {
 	// 9) Inicializar servicios (domain layer)
 	memberService := services.NewMemberService(memberRepo, appLogger, auditLogger)
 	familyService := services.NewFamilyService(familyRepo, memberRepo)
-	notificationService := services.NewEmailNotificationService("", 0, "", "")
+	notificationService := createNotificationService(cfg, appLogger)
 	feeCalculator := services.NewFeeCalculator(30.0, 10.0, 1.0, 1.0)
 	paymentService := services.NewPaymentService(
 		paymentRepo, membershipFeeRepo, memberRepo,
 		notificationService, feeCalculator,
 	)
 	cashFlowService := services.NewCashFlowService(cashFlowRepo)
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, appLogger)
 
 	// 10) Inicializar Resolver con las dependencias necesarias
 	resolver := resolvers.NewResolver(

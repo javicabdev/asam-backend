@@ -15,7 +15,7 @@ type Member struct {
 	TipoMembresia      string     `gorm:"not null;column:tipo_membresia"`
 	Nombre             string     `gorm:"not null"`
 	Apellidos          string     `gorm:"not null"`
-	CalleNumeroPiso    string     `gorm:"not null;column:calle_numero_piso"`
+	Direccion          string     `gorm:"not null;column:calle_numero_piso"`
 	CodigoPostal       string     `gorm:"not null;column:codigo_postal"`
 	Poblacion          string     `gorm:"not null"`
 	Provincia          string     `gorm:"not null;default:Barcelona"`
@@ -101,7 +101,7 @@ func (m *Member) validateBasicFields() error {
 		return appErrors.NewValidationError("los apellidos son obligatorios", nil)
 	}
 
-	if m.CalleNumeroPiso == "" {
+	if m.Direccion == "" {
 		return appErrors.NewValidationError("la dirección es obligatoria", nil)
 	}
 

@@ -2,22 +2,21 @@ package services
 
 import (
 	"context"
-	stdErr "errors"
-	"fmt"
-	"github.com/javicabdev/asam-backend/pkg/errors"
-	"github.com/javicabdev/asam-backend/pkg/metrics"
+	"strconv"
 	"time"
 
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/internal/ports/output"
+	"github.com/javicabdev/asam-backend/pkg/errors"
+	"github.com/javicabdev/asam-backend/pkg/metrics"
 )
 
 type paymentService struct {
 	paymentRepo         output.PaymentRepository
 	membershipFeeRepo   output.MembershipFeeRepository
 	memberRepo          output.MemberRepository
-	notificationService NotificationService
+	notificationService input.NotificationService
 	feeCalculator       input.FeeCalculator
 }
 
@@ -25,7 +24,7 @@ func NewPaymentService(
 	paymentRepo output.PaymentRepository,
 	membershipFeeRepo output.MembershipFeeRepository,
 	memberRepo output.MemberRepository,
-	notificationService NotificationService,
+	notificationService input.NotificationService,
 	feeCalculator input.FeeCalculator,
 ) input.PaymentService {
 	return &paymentService{
@@ -38,46 +37,38 @@ func NewPaymentService(
 }
 
 func (s *paymentService) RegisterPayment(ctx context.Context, payment *models.Payment) error {
+	// Validar el pago
 	if err := payment.Validate(); err != nil {
-		var appErr *errors.AppError
-		if stdErr.As(err, &appErr) {
+		// Si ya es un AppError, retornarlo directamente
+		if appErr, ok := errors.AsAppError(err); ok {
 			return appErr
 		}
+		// Sino, convertirlo a un error de validación estructurado
 		return errors.NewValidationError(err.Error(), nil)
 	}
 
 	// Si es un pago de cuota, actualizar el estado de la cuota
 	if payment.MembershipFeeID != nil {
+		// Buscar cuota existente
 		fee, err := s.membershipFeeRepo.FindByYearMonth(ctx, time.Now().Year(), int(time.Now().Month()))
 		if err != nil {
-			var appErr *errors.AppError
-			if stdErr.As(err, &appErr) {
-				return appErr
-			}
-			return errors.NewDatabaseError("error finding membership fee", err)
+			return errors.DB(err, "error buscando cuota de membresía")
 		}
 
 		if fee == nil {
-			return errors.NewNotFoundError("membership fee")
+			return errors.NotFound("membership fee", nil)
 		}
 
+		// Actualizar estado de la cuota
 		fee.Status = models.PaymentStatusPaid
 		if err := s.membershipFeeRepo.Update(ctx, fee); err != nil {
-			var appErr *errors.AppError
-			if stdErr.As(err, &appErr) {
-				return appErr
-			}
-			return errors.NewDatabaseError("error updating membership fee", err)
+			return errors.DB(err, "error actualizando cuota de membresía")
 		}
 	}
 
 	// Crear el payment
 	if err := s.paymentRepo.Create(ctx, payment); err != nil {
-		var appErr *errors.AppError
-		if stdErr.As(err, &appErr) {
-			return appErr
-		}
-		return errors.NewDatabaseError("error creating payment in DB", err)
+		return errors.DB(err, "error creando pago")
 	}
 
 	// Registrar métricas del pago
@@ -115,84 +106,102 @@ func (s *paymentService) memberTypeToString(ctx context.Context, memberID uint) 
 }
 
 func (s *paymentService) CancelPayment(ctx context.Context, paymentID uint, reason string) error {
+	// Buscar el pago existente
 	payment, err := s.paymentRepo.FindByID(ctx, paymentID)
 	if err != nil {
-		var appErr *errors.AppError
-		if stdErr.As(err, &appErr) {
-			return appErr
-		}
-		return errors.NewDatabaseError("error finding payment", err)
+		return errors.DB(err, "error buscando pago")
 	}
 
 	if payment == nil {
-		return errors.NewNotFoundError("payment")
+		return errors.NotFound("payment", nil)
 	}
 
+	// Actualizar el estado del pago
 	payment.Status = models.PaymentStatusCancelled
 	payment.Notes = reason
+
 	return s.paymentRepo.Update(ctx, payment)
 }
 
 func (s *paymentService) GetPayment(ctx context.Context, paymentID uint) (*models.Payment, error) {
 	payment, err := s.paymentRepo.FindByID(ctx, paymentID)
 	if err != nil {
-		var appErr *errors.AppError
-		if stdErr.As(err, &appErr) {
-			return nil, appErr
-		}
-		return nil, errors.NewDatabaseError("error finding payment", err)
+		return nil, errors.DB(err, "error buscando pago")
 	}
 
 	if payment == nil {
-		return nil, errors.NewNotFoundError("payment")
+		return nil, errors.NotFound("payment", nil)
 	}
 
 	return payment, nil
 }
 
 func (s *paymentService) GetMemberPayments(ctx context.Context, memberID uint) ([]*models.Payment, error) {
-	// Define un rango de fechas
-	from := time.Time{}
+	// Definir un rango de fechas amplio para búsqueda
+	from := time.Time{} // Tiempo cero para "desde siempre"
 	to := time.Now()
 
-	// Reutiliza tu repositorio para buscar pagos por memberID
+	// Verificar que el miembro existe
+	member, err := s.memberRepo.GetByID(ctx, memberID)
+	if err != nil {
+		return nil, errors.DB(err, "error verificando miembro")
+	}
+
+	if member == nil {
+		return nil, errors.NotFound("member", nil)
+	}
+
+	// Buscar pagos por memberID
 	payments, err := s.paymentRepo.FindByMember(ctx, memberID, from, to)
 	if err != nil {
-		return nil, err
+		return nil, errors.DB(err, "error buscando pagos del miembro")
 	}
 
 	// Convertir []models.Payment a []*models.Payment
 	paymentPtrs := make([]*models.Payment, len(payments))
-	for i, payment := range payments {
-		payment := payment // Crear una copia del elemento original para evitar problemas con referencias
-		paymentPtrs[i] = &payment
+	for i := range payments {
+		paymentPtrs[i] = &payments[i]
 	}
 
 	return paymentPtrs, nil
 }
 
 func (s *paymentService) GetFamilyPayments(ctx context.Context, familyID uint) ([]*models.Payment, error) {
-	// Define un rango de fechas
-	from := time.Time{}
+	// Definir un rango de fechas amplio para búsqueda
+	from := time.Time{} // Tiempo cero para "desde siempre"
 	to := time.Now()
 
-	// Reutiliza tu repositorio para buscar pagos por memberID
+	// Obtener pagos por familyID
 	payments, err := s.paymentRepo.FindByFamily(ctx, familyID, from, to)
 	if err != nil {
-		return nil, err
+		return nil, errors.DB(err, "error buscando pagos de la familia")
 	}
 
 	// Convertir []models.Payment a []*models.Payment
 	paymentPtrs := make([]*models.Payment, len(payments))
-	for i, payment := range payments {
-		payment := payment // Crear una copia del elemento original para evitar problemas con referencias
-		paymentPtrs[i] = &payment
+	for i := range payments {
+		paymentPtrs[i] = &payments[i]
 	}
 
 	return paymentPtrs, nil
 }
 
 func (s *paymentService) GenerateMonthlyFees(ctx context.Context, year, month int, baseAmount float64) error {
+	// Validar datos de entrada
+	if baseAmount <= 0 {
+		return errors.Validation("El monto base debe ser positivo", "baseAmount", "debe ser positivo")
+	}
+
+	// Verificar si ya existe una cuota para el mismo año/mes
+	existingFee, err := s.membershipFeeRepo.FindByYearMonth(ctx, year, month)
+	if err != nil {
+		return errors.DB(err, "error verificando cuota existente")
+	}
+
+	if existingFee != nil {
+		return errors.New(errors.ErrDuplicateEntry, "ya existe una cuota para este período")
+	}
+
 	// Generar cuota base
 	fee := &models.MembershipFee{
 		Year:           year,
@@ -200,7 +209,7 @@ func (s *paymentService) GenerateMonthlyFees(ctx context.Context, year, month in
 		BaseFeeAmount:  baseAmount,
 		FamilyFeeExtra: s.feeCalculator.CalculateFamilyFee(year, month) - baseAmount,
 		Status:         models.PaymentStatusPending,
-		DueDate:        time.Date(year, time.Month(month), 10, 0, 0, 0, 0, time.Local),
+		DueDate:        time.Date(year, time.Month(month), 10, 0, 0, 0, 0, time.UTC),
 	}
 
 	return s.membershipFeeRepo.Create(ctx, fee)
@@ -209,60 +218,59 @@ func (s *paymentService) GenerateMonthlyFees(ctx context.Context, year, month in
 func (s *paymentService) GetMembershipFee(ctx context.Context, year, month int) (*models.MembershipFee, error) {
 	fee, err := s.membershipFeeRepo.FindByYearMonth(ctx, year, month)
 	if err != nil {
-		var appErr *errors.AppError
-		if stdErr.As(err, &appErr) {
-			return nil, appErr
-		}
-		return nil, errors.NewDatabaseError("error finding membership fee", err)
+		return nil, errors.DB(err, "error buscando cuota de membresía")
 	}
 
 	if fee == nil {
-		return nil, errors.NewNotFoundError("membership fee")
+		return nil, errors.NotFound("membership fee", nil)
 	}
 
 	return fee, nil
 }
 
 func (s *paymentService) UpdateFeeAmount(ctx context.Context, feeID uint, newAmount float64) error {
-	// Get the specific fee by ID
+	// Validar monto
+	if newAmount <= 0 {
+		return errors.Validation("El monto debe ser positivo", "amount", "debe ser positivo")
+	}
+
+	// Obtener la cuota específica por ID
 	fee, err := s.membershipFeeRepo.FindByID(ctx, feeID)
 	if err != nil {
-		var appErr *errors.AppError
-		if stdErr.As(err, &appErr) {
-			return appErr
-		}
-		return errors.NewDatabaseError("error finding membership fee", err)
+		return errors.DB(err, "error buscando cuota de membresía")
 	}
 
 	if fee == nil {
-		return errors.NewNotFoundError("membership fee")
+		return errors.NotFound("membership fee", nil)
 	}
 
-	// Update the fee amount
+	// Actualizar monto de la cuota
 	fee.BaseFeeAmount = newAmount
 	return s.membershipFeeRepo.Update(ctx, fee)
 }
 
 func (s *paymentService) GetMemberStatement(ctx context.Context, memberID uint) (*input.AccountStatement, error) {
+	// Verificar que el miembro existe
+	member, err := s.memberRepo.GetByID(ctx, memberID)
+	if err != nil {
+		return nil, errors.DB(err, "error verificando miembro")
+	}
+
+	if member == nil {
+		return nil, errors.NotFound("member", nil)
+	}
+
 	// Obtener pagos del último año
 	from := time.Now().AddDate(-1, 0, 0)
 	payments, err := s.paymentRepo.FindByMember(ctx, memberID, from, time.Now())
 	if err != nil {
-		var appErr *errors.AppError
-		if stdErr.As(err, &appErr) {
-			return nil, appErr
-		}
-		return nil, errors.NewDatabaseError("error finding member payments", err)
+		return nil, errors.DB(err, "error buscando pagos del miembro")
 	}
 
 	// Obtener cuotas pendientes
 	pendingFees, err := s.membershipFeeRepo.FindPendingByMember(ctx, memberID)
 	if err != nil {
-		var appErr *errors.AppError
-		if stdErr.As(err, &appErr) {
-			return nil, appErr
-		}
-		return nil, errors.NewDatabaseError("error finding pending fees", err)
+		return nil, errors.DB(err, "error buscando cuotas pendientes")
 	}
 
 	// Calcular total pagado
@@ -301,11 +309,7 @@ func (s *paymentService) GetFamilyStatement(ctx context.Context, familyID uint) 
 	from := time.Now().AddDate(-1, 0, 0)
 	payments, err := s.paymentRepo.FindByFamily(ctx, familyID, from, time.Now())
 	if err != nil {
-		var appErr *errors.AppError
-		if stdErr.As(err, &appErr) {
-			return nil, appErr
-		}
-		return nil, errors.NewDatabaseError("error finding family payments", err)
+		return nil, errors.DB(err, "error buscando pagos de la familia")
 	}
 
 	var totalPaid float64
@@ -331,7 +335,7 @@ func (s *paymentService) GetDefaulters(ctx context.Context) ([]input.AccountStat
 	now := time.Now()
 	pendingFees, err := s.membershipFeeRepo.FindPendingByMember(ctx, 0) // 0 para obtener todos
 	if err != nil {
-		return nil, err
+		return nil, errors.DB(err, "error buscando cuotas pendientes")
 	}
 
 	// Agrupar por miembro y calcular días de atraso
@@ -344,7 +348,8 @@ func (s *paymentService) GetDefaulters(ctx context.Context) ([]input.AccountStat
 		if !memberMap[fee.Payment.MemberID] {
 			statement, err := s.GetMemberStatement(ctx, fee.Payment.MemberID)
 			if err != nil {
-				return nil, err
+				// Loguear el error pero continuar con otros miembros
+				continue
 			}
 			if statement.IsDefaulter {
 				defaulters = append(defaulters, *statement)
@@ -357,16 +362,17 @@ func (s *paymentService) GetDefaulters(ctx context.Context) ([]input.AccountStat
 }
 
 func (s *paymentService) SendPaymentReminder(ctx context.Context, memberID uint) error {
-	// Get member information
+	// Verificar que el miembro existe
 	member, err := s.memberRepo.GetByID(ctx, memberID)
 	if err != nil {
-		return errors.NewDatabaseError("error fetching member", err)
-	}
-	if member == nil {
-		return errors.NewNotFoundError("member")
+		return errors.DB(err, "error obteniendo miembro")
 	}
 
-	// Send notification using notification service
+	if member == nil {
+		return errors.NotFound("member", nil)
+	}
+
+	// Enviar notificación usando el servicio de notificaciones
 	if member.CorreoElectronico != nil {
 		return s.notificationService.SendEmail(
 			ctx,
@@ -379,49 +385,57 @@ func (s *paymentService) SendPaymentReminder(ctx context.Context, memberID uint)
 }
 
 func (s *paymentService) SendPaymentConfirmation(ctx context.Context, paymentID uint) error {
-	// Get payment and member information
+	// Obtener información del pago y miembro
 	payment, err := s.paymentRepo.FindByID(ctx, paymentID)
 	if err != nil {
-		return errors.NewDatabaseError("error fetching payment", err)
+		return errors.DB(err, "error obteniendo pago")
 	}
+
 	if payment == nil {
-		return errors.NewNotFoundError("payment")
+		return errors.NotFound("payment", nil)
 	}
 
 	member, err := s.memberRepo.GetByID(ctx, payment.MemberID)
 	if err != nil {
-		return errors.NewDatabaseError("error fetching member", err)
+		return errors.DB(err, "error obteniendo miembro")
 	}
 
-	// Send confirmation email
-	if member != nil && member.CorreoElectronico != nil {
+	if member == nil {
+		return errors.NotFound("member", nil)
+	}
+
+	// Enviar confirmación por email
+	if member.CorreoElectronico != nil {
+		amountStr := strconv.FormatFloat(payment.Amount, 'f', 2, 64)
 		return s.notificationService.SendEmail(
 			ctx,
 			*member.CorreoElectronico,
 			"Confirmación de Pago ASAM",
-			fmt.Sprintf("Se ha registrado su pago por %.2f€", payment.Amount),
+			"Se ha registrado su pago por "+amountStr+"€",
 		)
 	}
 	return nil
 }
 
 func (s *paymentService) SendDefaulterNotification(ctx context.Context, memberID uint, days int) error {
-	// Get member information
+	// Verificar que el miembro existe
 	member, err := s.memberRepo.GetByID(ctx, memberID)
 	if err != nil {
-		return errors.NewDatabaseError("error fetching member", err)
-	}
-	if member == nil {
-		return errors.NewNotFoundError("member")
+		return errors.DB(err, "error obteniendo miembro")
 	}
 
-	// Send notification with days of delay
+	if member == nil {
+		return errors.NotFound("member", nil)
+	}
+
+	// Enviar notificación con días de retraso
 	if member.CorreoElectronico != nil {
+		daysStr := strconv.Itoa(days)
 		return s.notificationService.SendEmail(
 			ctx,
 			*member.CorreoElectronico,
 			"Aviso de Pago Atrasado ASAM",
-			fmt.Sprintf("Su pago está atrasado %d días. Por favor, regularice su situación.", days),
+			"Su pago está atrasado "+daysStr+" días. Por favor, regularice su situación.",
 		)
 	}
 	return nil

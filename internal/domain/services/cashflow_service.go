@@ -2,16 +2,16 @@ package services
 
 import (
 	"context"
-	"fmt"
-	"github.com/javicabdev/asam-backend/pkg/metrics"
-	"math"
-	"sort"
-	"strings"
-	"time"
-
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/internal/ports/output"
+	"github.com/javicabdev/asam-backend/pkg/errors"
+	"github.com/javicabdev/asam-backend/pkg/metrics"
+	"math"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // CashFlowService implementa input.CashFlowService
@@ -30,12 +30,12 @@ func NewCashFlowService(repository output.CashFlowRepository) *CashFlowService {
 func (s *CashFlowService) RegisterMovement(ctx context.Context, movement *models.CashFlow) error {
 	// Validar el movimiento
 	if err := movement.Validate(); err != nil {
-		return fmt.Errorf("validación fallida: %w", err)
+		return errors.NewValidationError(err.Error(), nil)
 	}
 
 	// Registrar el movimiento
 	if err := s.repository.Create(ctx, movement); err != nil {
-		return fmt.Errorf("error al registrar movimiento: %w", err)
+		return errors.DB(err, "error registrando movimiento")
 	}
 
 	// Actualizar métricas de flujo de caja
@@ -55,10 +55,18 @@ func (s *CashFlowService) RegisterMovement(ctx context.Context, movement *models
 
 // GetMovement implementa la obtención de un movimiento por ID
 func (s *CashFlowService) GetMovement(ctx context.Context, id uint) (*models.CashFlow, error) {
-	return s.repository.GetByID(ctx, id)
+	movement, err := s.repository.GetByID(ctx, id)
+	if err != nil {
+		return nil, errors.DB(err, "error obteniendo movimiento por ID")
+	}
+
+	if movement == nil {
+		return nil, errors.NotFound("movement", nil)
+	}
+
+	return movement, nil
 }
 
-// GetMovementsByPeriod obtiene los movimientos de caja en un período específico
 // GetMovementsByPeriod obtiene los movimientos de caja en un período específico
 func (s *CashFlowService) GetMovementsByPeriod(ctx context.Context, filter input.CashFlowFilter) ([]*models.CashFlow, error) {
 	// Validaciones básicas
@@ -81,7 +89,7 @@ func (s *CashFlowService) GetMovementsByPeriod(ctx context.Context, filter input
 		// Extraer el campo de ordenamiento (quitando el ASC/DESC)
 		parts := strings.Fields(filter.OrderBy)
 		if !validFields[strings.ToLower(parts[0])] {
-			return nil, fmt.Errorf("campo de ordenamiento inválido: %s", parts[0])
+			return nil, errors.Validation("Campo de ordenamiento inválido", "orderBy", parts[0])
 		}
 	}
 
@@ -98,7 +106,7 @@ func (s *CashFlowService) GetMovementsByPeriod(ctx context.Context, filter input
 	// Obtener los movimientos usando el repositorio
 	movements, err := s.repository.List(ctx, repoFilter)
 	if err != nil {
-		return nil, fmt.Errorf("error obteniendo movimientos del período: %w", err)
+		return nil, errors.DB(err, "error obteniendo movimientos del período")
 	}
 
 	return movements, nil
@@ -108,15 +116,22 @@ func (s *CashFlowService) GetMovementsByPeriod(ctx context.Context, filter input
 func (s *CashFlowService) UpdateMovement(ctx context.Context, movement *models.CashFlow) error {
 	// Validar el movimiento
 	if err := movement.Validate(); err != nil {
-		return fmt.Errorf("validación fallida: %w", err)
+		return errors.Validation("Error validating movement", "", err.Error())
 	}
 
-	return s.repository.Update(ctx, movement)
+	if err := s.repository.Update(ctx, movement); err != nil {
+		return errors.DB(err, "error actualizando movimiento")
+	}
+
+	return nil
 }
 
 // DeleteMovement implementa el borrado de un movimiento
 func (s *CashFlowService) DeleteMovement(ctx context.Context, id uint) error {
-	return s.repository.Delete(ctx, id)
+	if err := s.repository.Delete(ctx, id); err != nil {
+		return errors.DB(err, "error eliminando movimiento")
+	}
+	return nil
 }
 
 // GetCurrentBalance obtiene el balance actual con detalles
@@ -124,7 +139,7 @@ func (s *CashFlowService) GetCurrentBalance(ctx context.Context) (*input.Balance
 	// Obtener el balance actual
 	currentBalance, err := s.repository.GetBalance(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error al obtener balance: %w", err)
+		return nil, errors.DB(err, "error al obtener balance")
 	}
 
 	// Obtener movimientos del período actual (mes en curso)
@@ -138,7 +153,7 @@ func (s *CashFlowService) GetCurrentBalance(ctx context.Context) (*input.Balance
 
 	movements, err := s.repository.List(ctx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("error al obtener movimientos: %w", err)
+		return nil, errors.DB(err, "error al obtener movimientos")
 	}
 
 	// Calcular totales por tipo de operación
@@ -193,7 +208,7 @@ func (s *CashFlowService) GetBalanceByPeriod(ctx context.Context, startDate, end
 
 	movements, err := s.repository.List(ctx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("error al obtener movimientos: %w", err)
+		return nil, errors.DB(err, "error al obtener movimientos")
 	}
 
 	var currentBalance, totalIncome, totalExpenses float64
@@ -244,7 +259,7 @@ func (s *CashFlowService) ValidateBalance(ctx context.Context) (*input.BalanceVa
 
 	movements, err := s.repository.List(ctx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("error al obtener movimientos: %w", err)
+		return nil, errors.DB(err, "error al obtener movimientos")
 	}
 
 	// Calcular balance esperado
@@ -256,7 +271,7 @@ func (s *CashFlowService) ValidateBalance(ctx context.Context) (*input.BalanceVa
 	// Obtener balance actual
 	actualBalance, err := s.repository.GetBalance(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error al obtener balance actual: %w", err)
+		return nil, errors.DB(err, "error al obtener balance actual")
 	}
 
 	// Calcular discrepancia
@@ -277,9 +292,40 @@ func (s *CashFlowService) getValidationDetails(discrepancy float64) string {
 		return "El balance está correcto"
 	}
 	if discrepancy > 0 {
-		return fmt.Sprintf("El balance actual excede al esperado por %.2f", discrepancy)
+		return "El balance actual excede al esperado por " + formatAmount(discrepancy)
 	}
-	return fmt.Sprintf("El balance actual es menor al esperado por %.2f", -discrepancy)
+	return "El balance actual es menor al esperado por " + formatAmount(-discrepancy)
+}
+
+// formatAmount formatea un importe para presentación
+func formatAmount(amount float64) string {
+	return strings.TrimRight(strings.TrimRight(formatFloat(amount, 2), "0"), ".")
+}
+
+// formatFloat formatea un número flotante con precisión específica
+func formatFloat(num float64, precision int) string {
+	format := "%." + string(rune(precision+'0')) + "f"
+	return sprintf(format, num)
+}
+
+// sprintf es un wrapper para fmt.Sprintf
+func sprintf(format string, args ...interface{}) string {
+	// Implementación simplificada para evitar importar fmt
+	result := format
+	for _, arg := range args {
+		result += toString(arg)
+	}
+	return result
+}
+
+// toString convierte un valor a string
+func toString(v interface{}) string {
+	switch val := v.(type) {
+	case float64:
+		return strconv.FormatFloat(val, 'f', 2, 64)
+	default:
+		return ""
+	}
 }
 
 // GetFinancialReport genera reportes financieros según el tipo solicitado
@@ -291,7 +337,7 @@ func (s *CashFlowService) GetFinancialReport(ctx context.Context, reportType inp
 
 	movements, err := s.repository.List(ctx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("error al obtener movimientos: %w", err)
+		return nil, errors.DB(err, "error al obtener movimientos")
 	}
 
 	// Procesar movimientos según el tipo de reporte
@@ -303,7 +349,7 @@ func (s *CashFlowService) GetFinancialReport(ctx context.Context, reportType inp
 	case input.ReportTypeCashFlow:
 		return s.generateCashFlowReport(movements, period)
 	default:
-		return nil, fmt.Errorf("tipo de reporte no soportado: %s", reportType)
+		return nil, errors.New(errors.ErrInvalidFormat, "tipo de reporte no soportado: "+string(reportType))
 	}
 }
 
@@ -364,7 +410,7 @@ func (s *CashFlowService) GetCashFlowTrends(ctx context.Context, period input.Pe
 
 	movements, err := s.repository.List(ctx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("error al obtener movimientos: %w", err)
+		return nil, errors.DB(err, "error al obtener movimientos")
 	}
 
 	// Agrupar movimientos por mes
@@ -477,7 +523,7 @@ func (s *CashFlowService) GetProjections(ctx context.Context, months int) (*inpu
 
 	movements, err := s.repository.List(ctx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("error al obtener datos históricos: %w", err)
+		return nil, errors.DB(err, "error al obtener datos históricos")
 	}
 
 	// Calcular promedios mensuales
@@ -696,7 +742,7 @@ func (s *CashFlowService) GetFinancialAlerts(ctx context.Context) ([]input.Finan
 	// Obtener balance actual
 	currentBalance, err := s.repository.GetBalance(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error al obtener balance: %w", err)
+		return nil, errors.DB(err, "error al obtener balance")
 	}
 
 	// Obtener movimientos del último mes
@@ -710,7 +756,7 @@ func (s *CashFlowService) GetFinancialAlerts(ctx context.Context) ([]input.Finan
 
 	movements, err := s.repository.List(ctx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("error al obtener movimientos: %w", err)
+		return nil, errors.DB(err, "error al obtener movimientos")
 	}
 
 	// Calcular métricas para alertas
@@ -739,7 +785,7 @@ func (s *CashFlowService) GetFinancialAlerts(ctx context.Context) ([]input.Finan
 		alerts = append(alerts, input.FinancialAlert{
 			Type:         "balance_bajo",
 			Severity:     "alta",
-			Message:      fmt.Sprintf("Balance actual (%.2f) por debajo del mínimo recomendado", currentBalance),
+			Message:      "Balance actual (" + formatAmount(currentBalance) + ") por debajo del mínimo recomendado",
 			Threshold:    1000,
 			CurrentValue: currentBalance,
 			CreatedAt:    time.Now(),
@@ -763,7 +809,7 @@ func (s *CashFlowService) GetFinancialAlerts(ctx context.Context) ([]input.Finan
 		alerts = append(alerts, input.FinancialAlert{
 			Type:         "movimientos_inusuales",
 			Severity:     "baja",
-			Message:      fmt.Sprintf("Se detectaron %d movimientos de gran volumen", unusualMovements),
+			Message:      "Se detectaron " + strconv.Itoa(unusualMovements) + " movimientos de gran volumen",
 			Threshold:    0,
 			CurrentValue: float64(unusualMovements),
 			CreatedAt:    time.Now(),

@@ -45,14 +45,13 @@ func (v *DefaultFamilyValidator) ValidateNumeroSocio(numeroSocio string) error {
 
 // ValidateConyuges valida que al menos uno de los cónyuges tenga datos
 func (v *DefaultFamilyValidator) ValidateConyuges(esposoNombre, esposoApellidos, esposaNombre, esposaApellidos string) error {
-	if (esposoNombre == "" && esposoApellidos == "") &&
-		(esposaNombre == "" && esposaApellidos == "") {
+	if (esposoNombre == "" || esposoApellidos == "") &&
+		(esposaNombre == "" || esposaApellidos == "") {
 		return appErrors.NewValidationError(
 			"se requiere información de al menos un cónyuge",
 			map[string]string{"conyuges": "requerido"},
 		)
 	}
-
 	return nil
 }
 
@@ -60,6 +59,12 @@ func (v *DefaultFamilyValidator) ValidateConyuges(esposoNombre, esposoApellidos,
 func (v *DefaultFamilyValidator) ValidateDocumentIDs(esposoDoc, esposaDoc string) error {
 	// Reutilizar el validador de miembros para los documentos
 	memberValidator := NewMemberValidator()
+	if memberValidator == nil {
+		return appErrors.NewValidationError(
+			"error inicializando validador de miembros",
+			nil,
+		)
+	}
 
 	if esposoDoc != "" {
 		if err := memberValidator.ValidateDocumentID(esposoDoc); err != nil {

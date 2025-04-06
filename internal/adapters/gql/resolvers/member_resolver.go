@@ -5,22 +5,42 @@ import (
 	stdErrors "errors"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/pkg/constants"
 	"github.com/javicabdev/asam-backend/pkg/errors"
 	"time"
 )
 
 func (r *memberResolver) handleMemberMutation(ctx context.Context, member *models.Member) (*models.Member, error) {
+	// Valida el miembro antes de continuar
 	if err := member.Validate(); err != nil {
 		// Si ya es un AppError, devuélvelo tal cual
 		var appErr *errors.AppError
 		if stdErrors.As(err, &appErr) {
 			return nil, appErr
 		}
-		// Si fuera un error genérico, entonces lo convertimos:
+		// Si fuera un error genérico, lo convertimos:
 		return nil, errors.NewValidationError(err.Error(), nil)
 	}
 
+	// Si se trata de una creación, se verifica que el usuario tenga permisos de administrador.
 	if member.ID == 0 {
+		// Obtener el usuario desde el contexto
+		userInterface := ctx.Value(constants.UserContextKey)
+		if userInterface == nil {
+			return nil, errors.NewBusinessError(errors.ErrUnauthorized, "usuario no autenticado")
+		}
+
+		user, ok := userInterface.(*models.User)
+		if !ok {
+			return nil, errors.NewBusinessError(errors.ErrUnauthorized, "usuario inválido")
+		}
+
+		// Verificar que el usuario sea administrador
+		if user.Role != models.RoleAdmin {
+			return nil, stdErrors.New("insufficient permissions")
+		}
+
+		// Como el usuario es admin, se procede a crear el miembro
 		err := r.memberService.CreateMember(ctx, member)
 		if err != nil {
 			return nil, err
@@ -35,13 +55,32 @@ func (r *memberResolver) handleMemberMutation(ctx context.Context, member *model
 	return member, nil
 }
 
-func (r *memberResolver) mapCreateInputToMember(input *model.CreateMemberInput) *models.Member {
+func (r *memberResolver) mapTipoMembresia(tipo model.MembershipType) (string, error) {
+	switch tipo {
+	case model.MembershipTypeIndividual:
+		return models.TipoMembresiaPIndividual, nil
+	case model.MembershipTypeFamily:
+		return models.TipoMembresiaPFamiliar, nil
+	default:
+		return "", errors.NewValidationError(
+			"tipo de membresía no válido",
+			map[string]string{"tipo_membresia": "debe ser INDIVIDUAL o FAMILY"},
+		)
+	}
+}
+
+func (r *memberResolver) mapCreateInputToMember(input *model.CreateMemberInput) (*models.Member, error) {
+	tipoMembresia, err := r.mapTipoMembresia(input.TipoMembresia)
+	if err != nil {
+		return nil, err
+	}
+
 	member := &models.Member{
 		NumeroSocio:     input.NumeroSocio,
-		TipoMembresia:   string(input.TipoMembresia),
+		TipoMembresia:   tipoMembresia,
 		Nombre:          input.Nombre,
 		Apellidos:       input.Apellidos,
-		CalleNumeroPiso: input.CalleNumeroPiso,
+		Direccion:       input.Direccion,
 		CodigoPostal:    input.CodigoPostal,
 		Poblacion:       input.Poblacion,
 		Estado:          models.EstadoActivo,
@@ -82,7 +121,7 @@ func (r *memberResolver) mapCreateInputToMember(input *model.CreateMemberInput) 
 		member.Observaciones = input.Observaciones
 	}
 
-	return member
+	return member, nil
 }
 
 func (r *memberResolver) mapUpdateInputToMember(id uint, input *model.UpdateMemberInput, existing *models.Member) *models.Member {
@@ -91,7 +130,7 @@ func (r *memberResolver) mapUpdateInputToMember(id uint, input *model.UpdateMemb
 
 	// Actualizar solo campos proporcionados
 	if input.CalleNumeroPiso != nil {
-		member.CalleNumeroPiso = *input.CalleNumeroPiso
+		member.Direccion = *input.CalleNumeroPiso
 	}
 	if input.CodigoPostal != nil {
 		member.CodigoPostal = *input.CodigoPostal
@@ -166,7 +205,7 @@ func (r *memberResolver) validateCreateInput(input *model.CreateMemberInput) err
 	if input.Apellidos == "" {
 		fields["apellidos"] = "Last name is required"
 	}
-	if input.CalleNumeroPiso == "" {
+	if input.Direccion == "" {
 		fields["direccion"] = "Address is required"
 	}
 	if input.CodigoPostal == "" {

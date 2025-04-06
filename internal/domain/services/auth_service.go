@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"go.uber.org/zap"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/javicabdev/asam-backend/internal/ports/output"
 	"github.com/javicabdev/asam-backend/pkg/auth"
 	"github.com/javicabdev/asam-backend/pkg/constants"
+	"github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
@@ -18,17 +18,20 @@ type authService struct {
 	userRepo  output.UserRepository
 	jwtUtil   *auth.JWTUtil
 	tokenRepo output.TokenRepository // Para gestionar tokens de refresh
+	logger    logger.Logger
 }
 
 func NewAuthService(
 	userRepo output.UserRepository,
 	jwtUtil *auth.JWTUtil,
 	tokenRepo output.TokenRepository,
+	logger logger.Logger,
 ) input.AuthService {
 	return &authService{
 		userRepo:  userRepo,
 		jwtUtil:   jwtUtil,
 		tokenRepo: tokenRepo,
+		logger:    logger,
 	}
 }
 
@@ -49,7 +52,7 @@ func getUserAgentFromContext(ctx context.Context) string {
 
 func (s *authService) Login(ctx context.Context, username, password string) (*input.TokenDetails, error) {
 	// Registrar intento de login
-	logger.Info("Login attempt",
+	s.logger.Info("Login attempt",
 		zap.String("username", username),
 		zap.String("ip", getIPFromContext(ctx)),
 		zap.String("user_agent", getUserAgentFromContext(ctx)),
@@ -58,58 +61,58 @@ func (s *authService) Login(ctx context.Context, username, password string) (*in
 	// Buscar usuario por username
 	user, err := s.userRepo.FindByUsername(ctx, username)
 	if err != nil {
-		logger.Error("Login failed: database error",
+		s.logger.Error("Login failed: database error",
 			zap.String("username", username),
 			zap.Error(err),
 		)
-		return nil, fmt.Errorf("error buscando usuario: %w", err)
+		return nil, errors.DB(err, "error buscando usuario")
 	}
 	if user == nil {
-		logger.Warn("Login failed: user not found",
+		s.logger.Warn("Login failed: user not found",
 			zap.String("username", username),
 		)
-		return nil, fmt.Errorf("credenciales inválidas")
+		return nil, errors.NewBusinessError(errors.ErrUnauthorized, "credenciales inválidas")
 	}
 
 	// Verificar contraseña
 	if !user.CheckPassword(password) {
-		logger.Warn("Login failed: invalid password",
+		s.logger.Warn("Login failed: invalid password",
 			zap.String("username", username),
 			zap.Uint("user_id", user.ID),
 		)
-		return nil, fmt.Errorf("credenciales inválidas")
+		return nil, errors.NewBusinessError(errors.ErrUnauthorized, "credenciales inválidas")
 	}
 
 	// Verificar que el usuario esté activo
 	if !user.IsActive {
-		logger.Warn("Login failed: inactive user",
+		s.logger.Warn("Login failed: inactive user",
 			zap.String("username", username),
 			zap.Uint("user_id", user.ID),
 		)
-		return nil, fmt.Errorf("usuario inactivo")
+		return nil, errors.NewBusinessError(errors.ErrInvalidStatus, "usuario inactivo")
 	}
 
 	// Generar tokens
 	td, err := s.jwtUtil.GenerateTokenPair(user.ID, string(user.Role))
 	if err != nil {
-		return nil, fmt.Errorf("error generando tokens: %w", err)
+		return nil, errors.Wrap(err, errors.ErrInternalError, "error generando tokens")
 	}
 
 	// Guardar refresh token
 	err = s.tokenRepo.SaveRefreshToken(ctx, td.RefreshUuid, user.ID, td.RtExpires)
 	if err != nil {
-		return nil, fmt.Errorf("error guardando refresh token: %w", err)
+		return nil, errors.Wrap(err, errors.ErrInternalError, "error guardando refresh token")
 	}
 
 	// Actualizar último login
 	user.LastLogin = time.Now()
 	err = s.userRepo.Update(ctx, user)
 	if err != nil {
-		return nil, fmt.Errorf("error actualizando último login: %w", err)
+		return nil, errors.Wrap(err, errors.ErrInternalError, "error actualizando último login")
 	}
 
 	// Al final del login exitoso:
-	logger.Info("Login successful",
+	s.logger.Info("Login successful",
 		zap.String("username", username),
 		zap.Uint("user_id", user.ID),
 		zap.String("role", string(user.Role)),
@@ -130,24 +133,24 @@ func (s *authService) Logout(ctx context.Context, accessToken string) error {
 	// 1. Validar access token
 	token, err := s.jwtUtil.ValidateToken(accessToken, false)
 	if err != nil {
-		return fmt.Errorf("token inválido: %w", err)
+		return errors.Wrap(err, errors.ErrUnauthorized, "token inválido")
 	}
 
 	// 2. Extraer claims
 	claims, err := s.jwtUtil.ExtractClaims(token)
 	if err != nil {
-		return err
+		return errors.Wrap(err, errors.ErrInternalError, "error extrayendo claims")
 	}
 
 	// 3. Eliminar refresh token asociado
 	accessUuid, ok := claims["uuid"].(string)
 	if !ok {
-		return fmt.Errorf("uuid no encontrado en token")
+		return errors.NewBusinessError(errors.ErrUnauthorized, "uuid no encontrado en token")
 	}
 
 	err = s.tokenRepo.DeleteRefreshToken(ctx, accessUuid)
 	if err != nil {
-		return fmt.Errorf("error eliminando refresh token: %w", err)
+		return errors.Wrap(err, errors.ErrInternalError, "error eliminando refresh token")
 	}
 
 	return nil
@@ -157,56 +160,56 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*i
 	// 1. Validar refresh token
 	token, err := s.jwtUtil.ValidateToken(refreshToken, true)
 	if err != nil {
-		return nil, fmt.Errorf("refresh token inválido: %w", err)
+		return nil, errors.Wrap(err, errors.ErrUnauthorized, "refresh token inválido")
 	}
 
 	// 2. Extraer claims
 	claims, err := s.jwtUtil.ExtractClaims(token)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errors.ErrInternalError, "error extrayendo claims")
 	}
 
 	// 3. Verificar que el refresh token exista en BD
 	refreshUuid, ok := claims["uuid"].(string)
 	if !ok {
-		return nil, fmt.Errorf("uuid no encontrado en token")
+		return nil, errors.NewBusinessError(errors.ErrUnauthorized, "uuid no encontrado en token")
 	}
 
 	userId, ok := claims["user_id"].(float64)
 	if !ok {
-		return nil, fmt.Errorf("user_id no encontrado en token")
+		return nil, errors.NewBusinessError(errors.ErrUnauthorized, "user_id no encontrado en token")
 	}
 
 	// 4. Verificar token en BD
 	err = s.tokenRepo.ValidateRefreshToken(ctx, refreshUuid, uint(userId))
 	if err != nil {
-		return nil, fmt.Errorf("refresh token no válido: %w", err)
+		return nil, errors.Wrap(err, errors.ErrUnauthorized, "refresh token no válido")
 	}
 
 	// 5. Obtener usuario para verificar rol
 	user, err := s.userRepo.FindByID(ctx, uint(userId))
 	if err != nil {
-		return nil, fmt.Errorf("error obteniendo usuario: %w", err)
+		return nil, errors.DB(err, "error obteniendo usuario")
 	}
 	if user == nil {
-		return nil, fmt.Errorf("usuario no encontrado")
+		return nil, errors.NewBusinessError(errors.ErrNotFound, "usuario no encontrado")
 	}
 
 	// 6. Generar nuevo par de tokens
 	td, err := s.jwtUtil.GenerateTokenPair(user.ID, string(user.Role))
 	if err != nil {
-		return nil, fmt.Errorf("error generando nuevos tokens: %w", err)
+		return nil, errors.Wrap(err, errors.ErrInternalError, "error generando nuevos tokens")
 	}
 
 	// 7. Actualizar refresh token en BD
 	err = s.tokenRepo.DeleteRefreshToken(ctx, refreshUuid)
 	if err != nil {
-		return nil, fmt.Errorf("error eliminando refresh token antiguo: %w", err)
+		return nil, errors.Wrap(err, errors.ErrInternalError, "error eliminando refresh token antiguo")
 	}
 
 	err = s.tokenRepo.SaveRefreshToken(ctx, td.RefreshUuid, user.ID, td.RtExpires)
 	if err != nil {
-		return nil, fmt.Errorf("error guardando nuevo refresh token: %w", err)
+		return nil, errors.Wrap(err, errors.ErrInternalError, "error guardando nuevo refresh token")
 	}
 
 	// Convertir auth.TokenDetails a input.TokenDetails
@@ -224,28 +227,28 @@ func (s *authService) ValidateToken(ctx context.Context, tokenString string) (*m
 	// 1. Validar token
 	token, err := s.jwtUtil.ValidateToken(tokenString, false)
 	if err != nil {
-		return nil, fmt.Errorf("token inválido: %w", err)
+		return nil, errors.Wrap(err, errors.ErrUnauthorized, "token inválido")
 	}
 
 	// 2. Extraer claims
 	claims, err := s.jwtUtil.ExtractClaims(token)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errors.ErrInternalError, "error extrayendo claims")
 	}
 
 	// 3. Obtener user_id
 	userId, ok := claims["user_id"].(float64)
 	if !ok {
-		return nil, fmt.Errorf("user_id no encontrado en token")
+		return nil, errors.NewBusinessError(errors.ErrUnauthorized, "user_id no encontrado en token")
 	}
 
 	// 4. Buscar usuario
 	user, err := s.userRepo.FindByID(ctx, uint(userId))
 	if err != nil {
-		return nil, fmt.Errorf("error obteniendo usuario: %w", err)
+		return nil, errors.DB(err, "error obteniendo usuario")
 	}
 	if user == nil {
-		return nil, fmt.Errorf("usuario no encontrado")
+		return nil, errors.NewBusinessError(errors.ErrNotFound, "usuario no encontrado")
 	}
 
 	return user, nil
