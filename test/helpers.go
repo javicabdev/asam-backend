@@ -55,3 +55,22 @@ func CreateValidFamily() *models.Family {
 		EsposaFechaNacimiento: TimePtr(time.Date(1985, 1, 1, 0, 0, 0, 0, time.UTC)),
 	}
 }
+
+func CreateValidMember() *models.Member {
+	email := "test@example.com"
+	return &models.Member{
+		NumeroSocio:       "B0001",
+		TipoMembresia:     models.TipoMembresiaPIndividual,
+		Nombre:            "Juan",
+		Apellidos:         "García",
+		Direccion:         "Calle Test 1, 1º",
+		CodigoPostal:      "08224",
+		Poblacion:         "Terrassa",
+		Provincia:         "Barcelona",
+		Pais:              "España",
+		Estado:            models.EstadoActivo,
+		FechaAlta:         time.Now().Add(-24 * time.Hour),
+		Nacionalidad:      "Senegal",
+		CorreoElectronico: &email,
+	}
+}

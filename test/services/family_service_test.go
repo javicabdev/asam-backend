@@ -2,12 +2,14 @@ package services_test
 
 import (
 	"context"
+	"testing"
+
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/domain/services"
+	"github.com/javicabdev/asam-backend/pkg/errors" // Biblioteca de errores personalizados
 	"github.com/javicabdev/asam-backend/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"testing"
 )
 
 func TestCreateFamily(t *testing.T) {
@@ -16,6 +18,7 @@ func TestCreateFamily(t *testing.T) {
 		family    *models.Family
 		setupRepo func(*test.MockFamilyRepository, *test.MockMemberRepository)
 		wantErr   bool
+		checkErr  func(t *testing.T, err error)
 	}{
 		{
 			name:   "successful creation",
@@ -24,6 +27,9 @@ func TestCreateFamily(t *testing.T) {
 				fr.On("Create", mock.Anything, mock.AnythingOfType("*models.Family")).Return(nil)
 			},
 			wantErr: false,
+			checkErr: func(t *testing.T, err error) {
+				assert.NoError(t, err)
+			},
 		},
 		{
 			name: "validation failed - empty numero socio",
@@ -31,9 +37,13 @@ func TestCreateFamily(t *testing.T) {
 				NumeroSocio: "",
 			},
 			setupRepo: func(fr *test.MockFamilyRepository, mr *test.MockMemberRepository) {
-				// No expectations needed as validation should fail before repo call
+				// No se llama al repositorio porque la validación falla antes
 			},
 			wantErr: true,
+			checkErr: func(t *testing.T, err error) {
+				assert.Error(t, err)
+				assert.True(t, errors.IsValidationError(err), "debería ser un error de validación")
+			},
 		},
 		{
 			name: "member origin not found",
@@ -46,33 +56,38 @@ func TestCreateFamily(t *testing.T) {
 				EsposaApellidos: "Lopez",
 			},
 			setupRepo: func(fr *test.MockFamilyRepository, mr *test.MockMemberRepository) {
-				mr.On("GetByID", mock.Anything, uint(999)).Return(nil, nil)
+				mr.On("GetByID", mock.Anything, uint(999)).Return(nil, errors.NewNotFoundError("member"))
 			},
 			wantErr: true,
+			checkErr: func(t *testing.T, err error) {
+				assert.Error(t, err)
+				assert.True(t, errors.IsNotFoundError(err), "debería ser un error de no encontrado")
+			},
+		},
+		{
+			name:   "repository error",
+			family: test.CreateValidFamily(),
+			setupRepo: func(fr *test.MockFamilyRepository, mr *test.MockMemberRepository) {
+				fr.On("Create", mock.Anything, mock.AnythingOfType("*models.Family")).Return(errors.NewDatabaseError("database failure", nil))
+			},
+			wantErr: true,
+			checkErr: func(t *testing.T, err error) {
+				assert.Error(t, err)
+				assert.True(t, errors.IsDatabaseError(err), "debería ser un error de base de datos")
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup repos
 			familyRepo := new(test.MockFamilyRepository)
 			memberRepo := new(test.MockMemberRepository)
 			tt.setupRepo(familyRepo, memberRepo)
 
-			// Create service
 			service := services.NewFamilyService(familyRepo, memberRepo)
-
-			// Execute test
 			err := service.Create(context.Background(), tt.family)
 
-			// Assert results
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			// Verify expectations
+			tt.checkErr(t, err)
 			familyRepo.AssertExpectations(t)
 			memberRepo.AssertExpectations(t)
 		})
@@ -85,6 +100,7 @@ func TestUpdateFamily(t *testing.T) {
 		family    *models.Family
 		setupRepo func(*test.MockFamilyRepository, *test.MockMemberRepository)
 		wantErr   bool
+		checkErr  func(t *testing.T, err error)
 	}{
 		{
 			name: "successful update",
@@ -101,6 +117,9 @@ func TestUpdateFamily(t *testing.T) {
 				fr.On("Update", mock.Anything, mock.AnythingOfType("*models.Family")).Return(nil)
 			},
 			wantErr: false,
+			checkErr: func(t *testing.T, err error) {
+				assert.NoError(t, err)
+			},
 		},
 		{
 			name: "family not found",
@@ -109,33 +128,44 @@ func TestUpdateFamily(t *testing.T) {
 				NumeroSocio: "A0999",
 			},
 			setupRepo: func(fr *test.MockFamilyRepository, mr *test.MockMemberRepository) {
-				fr.On("GetByID", mock.Anything, uint(999)).Return(nil, nil)
+				fr.On("GetByID", mock.Anything, uint(999)).Return(nil, errors.NewNotFoundError("family"))
 			},
 			wantErr: true,
+			checkErr: func(t *testing.T, err error) {
+				assert.Error(t, err)
+				assert.True(t, errors.IsNotFoundError(err), "debería ser un error de no encontrado")
+			},
+		},
+		{
+			name: "repository error",
+			family: &models.Family{
+				ID:              1,
+				NumeroSocio:     "B0001",
+				EsposoNombre:    "Juan",
+				EsposoApellidos: "Pérez",
+			},
+			setupRepo: func(fr *test.MockFamilyRepository, mr *test.MockMemberRepository) {
+				fr.On("GetByID", mock.Anything, uint(1)).Return(&models.Family{ID: 1}, nil)
+				fr.On("Update", mock.Anything, mock.AnythingOfType("*models.Family")).Return(errors.NewDatabaseError("database failure", nil))
+			},
+			wantErr: true,
+			checkErr: func(t *testing.T, err error) {
+				assert.Error(t, err)
+				assert.True(t, errors.IsDatabaseError(err), "debería ser un error de base de datos")
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup repos
 			familyRepo := new(test.MockFamilyRepository)
 			memberRepo := new(test.MockMemberRepository)
 			tt.setupRepo(familyRepo, memberRepo)
 
-			// Create service
 			service := services.NewFamilyService(familyRepo, memberRepo)
-
-			// Execute test
 			err := service.Update(context.Background(), tt.family)
 
-			// Assert results
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			// Verify expectations
+			tt.checkErr(t, err)
 			familyRepo.AssertExpectations(t)
 			memberRepo.AssertExpectations(t)
 		})
@@ -148,6 +178,7 @@ func TestDeleteFamily(t *testing.T) {
 		familyID  uint
 		setupRepo func(*test.MockFamilyRepository)
 		wantErr   bool
+		checkErr  func(t *testing.T, err error)
 	}{
 		{
 			name:     "successful delete",
@@ -157,37 +188,46 @@ func TestDeleteFamily(t *testing.T) {
 				fr.On("Delete", mock.Anything, uint(1)).Return(nil)
 			},
 			wantErr: false,
+			checkErr: func(t *testing.T, err error) {
+				assert.NoError(t, err)
+			},
 		},
 		{
 			name:     "family not found",
 			familyID: 999,
 			setupRepo: func(fr *test.MockFamilyRepository) {
-				fr.On("GetByID", mock.Anything, uint(999)).Return(nil, nil)
+				fr.On("GetByID", mock.Anything, uint(999)).Return(nil, errors.NewNotFoundError("family"))
 			},
 			wantErr: true,
+			checkErr: func(t *testing.T, err error) {
+				assert.Error(t, err)
+				assert.True(t, errors.IsNotFoundError(err), "debería ser un error de no encontrado")
+			},
+		},
+		{
+			name:     "repository error",
+			familyID: 1,
+			setupRepo: func(fr *test.MockFamilyRepository) {
+				fr.On("GetByID", mock.Anything, uint(1)).Return(&models.Family{ID: 1}, nil)
+				fr.On("Delete", mock.Anything, uint(1)).Return(errors.NewDatabaseError("database failure", nil))
+			},
+			wantErr: true,
+			checkErr: func(t *testing.T, err error) {
+				assert.Error(t, err)
+				assert.True(t, errors.IsDatabaseError(err), "debería ser un error de base de datos")
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup repo
 			familyRepo := new(test.MockFamilyRepository)
 			tt.setupRepo(familyRepo)
 
-			// Create service
 			service := services.NewFamilyService(familyRepo, nil)
-
-			// Execute test
 			err := service.Delete(context.Background(), tt.familyID)
 
-			// Assert results
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			// Verify expectations
+			tt.checkErr(t, err)
 			familyRepo.AssertExpectations(t)
 		})
 	}

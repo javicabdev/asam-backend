@@ -1,6 +1,7 @@
 package models_test
 
 import (
+	"github.com/javicabdev/asam-backend/test"
 	"testing"
 	"time"
 
@@ -8,23 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func createValidMember() *models.Member {
-	return &models.Member{
-		NumeroSocio:   "B0001",
-		Nombre:        "Juan",
-		Apellidos:     "Pérez",
-		TipoMembresia: models.TipoMembresiaPIndividual,
-		Direccion:     "Calle Falsa 123",
-		CodigoPostal:  "08001",
-		Poblacion:     "Barcelona",
-		Estado:        models.EstadoActivo,
-		FechaAlta:     time.Now(),
-	}
-}
-
 // Tests de validaciones básicas
 func TestValidateBasicFields(t *testing.T) {
-	member := createValidMember()
+	member := test.CreateValidMember()
 
 	// Caso válido
 	assert.NoError(t, member.Validate())
@@ -38,7 +25,7 @@ func TestValidateBasicFields(t *testing.T) {
 
 // Tests de validaciones de fechas
 func TestValidateDates(t *testing.T) {
-	member := createValidMember()
+	member := test.CreateValidMember()
 
 	// Caso válido
 	assert.NoError(t, member.Validate())
@@ -59,7 +46,7 @@ func TestValidateDates(t *testing.T) {
 
 // Tests de lógica de negocio
 func TestIsActive(t *testing.T) {
-	member := createValidMember()
+	member := test.CreateValidMember()
 
 	// Caso activo
 	assert.True(t, member.IsActive())
@@ -70,7 +57,7 @@ func TestIsActive(t *testing.T) {
 }
 
 func TestIsFamiliar(t *testing.T) {
-	member := createValidMember()
+	member := test.CreateValidMember()
 
 	// Caso no familiar
 	assert.False(t, member.IsFamiliar())
@@ -81,7 +68,7 @@ func TestIsFamiliar(t *testing.T) {
 }
 
 func TestNombreCompleto(t *testing.T) {
-	member := createValidMember()
+	member := test.CreateValidMember()
 
 	// Validar nombre completo
 	assert.Equal(t, "Juan Pérez", member.NombreCompleto())
@@ -89,7 +76,7 @@ func TestNombreCompleto(t *testing.T) {
 
 // Tests de validación de estado
 func TestValidateStatus(t *testing.T) {
-	member := createValidMember()
+	member := test.CreateValidMember()
 
 	// Caso válido
 	assert.NoError(t, member.Validate())
@@ -104,7 +91,7 @@ func TestValidateStatus(t *testing.T) {
 
 // Tests de hooks de GORM
 func TestBeforeCreate(t *testing.T) {
-	member := createValidMember()
+	member := test.CreateValidMember()
 
 	// Caso válido
 	err := member.BeforeCreate(nil)
@@ -117,7 +104,7 @@ func TestBeforeCreate(t *testing.T) {
 }
 
 func TestBeforeUpdate(t *testing.T) {
-	member := createValidMember()
+	member := test.CreateValidMember()
 
 	// Caso válido
 	err := member.BeforeUpdate(nil)

@@ -5,6 +5,7 @@ import (
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
+	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/test"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -61,12 +62,14 @@ var _ = Describe("Family", func() {
 		})
 
 		When("family does not exist", func() {
-			It("returns error", func() {
-				familyService.On("GetByID", mock.Anything, uint(999)).Return(nil, nil)
+			It("returns not found error", func() {
+				familyService.On("GetByID", mock.Anything, uint(999)).Return(nil, appErrors.NewNotFoundError("familia"))
 
 				family, err := resolver.Query().GetFamily(context.Background(), "999")
 
 				Expect(err).To(HaveOccurred())
+				Expect(appErrors.IsNotFoundError(err)).To(BeTrue())
+				Expect(err.Error()).To(ContainSubstring("familia con ID 999 no encontrada"))
 				Expect(family).To(BeNil())
 			})
 		})
@@ -93,9 +96,18 @@ var _ = Describe("Family", func() {
 					EsposoNombre: "",
 				}
 
+				// Simular un error de validación con el mensaje correcto
+				expectedErr := appErrors.Validation("número de socio no puede estar vacío", "numeroSocio", "requerido")
+
+				familyService.On("Create", mock.Anything, mock.AnythingOfType("*models.Family")).Return(expectedErr)
+
 				family, err := resolver.Mutation().CreateFamily(context.Background(), input)
 
 				Expect(err).To(HaveOccurred())
+				Expect(appErrors.IsValidationError(err)).To(BeTrue())
+				fields := appErrors.GetFields(err)
+				Expect(fields).To(HaveKey("numeroSocio"))
+				Expect(fields["numeroSocio"]).To(ContainSubstring("requerido"))
 				Expect(family).To(BeNil())
 			})
 		})
@@ -128,7 +140,7 @@ var _ = Describe("Family", func() {
 		})
 
 		When("family does not exist", func() {
-			It("returns error", func() {
+			It("returns not found error", func() {
 				familyID := "999"
 				familiar := model.FamiliarInput{
 					Nombre:     "Pedro",
@@ -136,11 +148,13 @@ var _ = Describe("Family", func() {
 					Parentesco: "Hijo",
 				}
 
-				familyService.On("GetByID", mock.Anything, uint(999)).Return(nil, nil)
+				familyService.On("GetByID", mock.Anything, uint(999)).Return(nil, appErrors.NewNotFoundError("familia"))
 
 				member, err := resolver.Mutation().AddFamilyMember(context.Background(), familyID, familiar)
 
 				Expect(err).To(HaveOccurred())
+				Expect(appErrors.IsNotFoundError(err)).To(BeTrue())
+				Expect(err.Error()).To(ContainSubstring("familia con ID 999 no encontrada"))
 				Expect(member).To(BeNil())
 			})
 		})
