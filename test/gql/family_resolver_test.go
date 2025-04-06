@@ -1,0 +1,166 @@
+package gql_test
+
+import (
+	"context"
+	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
+	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
+	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/test"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/mock"
+	"time"
+)
+
+var _ = Describe("Family", func() {
+	var (
+		resolver        *resolvers.Resolver
+		memberService   *test.MockMemberService
+		familyService   *test.MockFamilyService
+		paymentService  *test.MockPaymentService
+		cashFlowService *test.MockCashFlowService
+		authService     *test.MockAuthService
+	)
+
+	BeforeEach(func() {
+		memberService = new(test.MockMemberService)
+		familyService = new(test.MockFamilyService)
+		paymentService = new(test.MockPaymentService)
+		cashFlowService = new(test.MockCashFlowService)
+		authService = new(test.MockAuthService)
+
+		resolver = resolvers.NewResolver(
+			memberService,
+			familyService,
+			paymentService,
+			cashFlowService,
+			authService,
+		)
+	})
+
+	Describe("GetFamily", func() {
+		When("family exists", func() {
+			It("returns the family", func() {
+				expectedFamily := &models.Family{
+					ID:              1,
+					NumeroSocio:     "A0001",
+					EsposoNombre:    "Juan",
+					EsposoApellidos: "García",
+				}
+
+				familyService.On("GetByID", mock.Anything, uint(1)).Return(expectedFamily, nil)
+
+				family, err := resolver.Query().GetFamily(context.Background(), "1")
+
+				Expect(err).NotTo(HaveOccurred())
+				Expect(family.ID).To(Equal(expectedFamily.ID))
+				Expect(family.NumeroSocio).To(Equal(expectedFamily.NumeroSocio))
+				Expect(family.EsposoNombre).To(Equal(expectedFamily.EsposoNombre))
+				Expect(family.EsposoApellidos).To(Equal(expectedFamily.EsposoApellidos))
+			})
+		})
+
+		When("family does not exist", func() {
+			It("returns error", func() {
+				familyService.On("GetByID", mock.Anything, uint(999)).Return(nil, nil)
+
+				family, err := resolver.Query().GetFamily(context.Background(), "999")
+
+				Expect(err).To(HaveOccurred())
+				Expect(family).To(BeNil())
+			})
+		})
+	})
+
+	Describe("CreateFamily", func() {
+		When("input is valid", func() {
+			It("creates the family", func() {
+				input := createValidFamilyInput()
+
+				familyService.On("Create", mock.Anything, mock.AnythingOfType("*models.Family")).Return(nil)
+
+				family, err := resolver.Mutation().CreateFamily(context.Background(), input)
+
+				Expect(err).NotTo(HaveOccurred())
+				Expect(family).NotTo(BeNil())
+			})
+		})
+
+		When("input is invalid", func() {
+			It("returns validation error", func() {
+				input := model.CreateFamilyInput{
+					NumeroSocio:  "",
+					EsposoNombre: "",
+				}
+
+				family, err := resolver.Mutation().CreateFamily(context.Background(), input)
+
+				Expect(err).To(HaveOccurred())
+				Expect(family).To(BeNil())
+			})
+		})
+	})
+
+	Describe("AddFamilyMember", func() {
+		When("family exists", func() {
+			It("adds the family member", func() {
+				familyID := "1"
+				fechaNacimiento := time.Now()
+				familiar := model.FamiliarInput{
+					Nombre:          "Pedro",
+					Apellidos:       "García López",
+					FechaNacimiento: &fechaNacimiento,
+					DniNie:          test.StringPtr("12345678C"),
+					Parentesco:      "Hijo",
+				}
+
+				familyService.On("GetByID", mock.Anything, uint(1)).Return(&models.Family{
+					ID:          1,
+					NumeroSocio: "A0001",
+				}, nil)
+				familyService.On("AddFamiliar", mock.Anything, uint(1), mock.AnythingOfType("*models.Familiar")).Return(nil)
+
+				member, err := resolver.Mutation().AddFamilyMember(context.Background(), familyID, familiar)
+
+				Expect(err).NotTo(HaveOccurred())
+				Expect(member).NotTo(BeNil())
+			})
+		})
+
+		When("family does not exist", func() {
+			It("returns error", func() {
+				familyID := "999"
+				familiar := model.FamiliarInput{
+					Nombre:     "Pedro",
+					Apellidos:  "García",
+					Parentesco: "Hijo",
+				}
+
+				familyService.On("GetByID", mock.Anything, uint(999)).Return(nil, nil)
+
+				member, err := resolver.Mutation().AddFamilyMember(context.Background(), familyID, familiar)
+
+				Expect(err).To(HaveOccurred())
+				Expect(member).To(BeNil())
+			})
+		})
+	})
+})
+
+func createValidFamilyInput() model.CreateFamilyInput {
+	esposoFecha := time.Now().AddDate(-30, 0, 0)
+	esposaFecha := time.Now().AddDate(-28, 0, 0)
+	return model.CreateFamilyInput{
+		NumeroSocio:              "A0001",
+		EsposoNombre:             "Juan",
+		EsposoApellidos:          "García",
+		EsposaNombre:             "María",
+		EsposaApellidos:          "López",
+		EsposoFechaNacimiento:    &esposoFecha,
+		EsposaFechaNacimiento:    &esposaFecha,
+		EsposoDocumentoIdentidad: test.StringPtr("12345678A"),
+		EsposoCorreoElectronico:  test.StringPtr("juan@example.com"),
+		EsposaDocumentoIdentidad: test.StringPtr("87654321B"),
+		EsposaCorreoElectronico:  test.StringPtr("maria@example.com"),
+	}
+}

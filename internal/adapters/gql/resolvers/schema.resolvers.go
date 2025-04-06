@@ -77,7 +77,10 @@ func (r *mutationResolver) CreateMember(ctx context.Context, input model.CreateM
 	}
 
 	// 2) Mapear el input al dominio
-	member := r.Member().(*memberResolver).mapCreateInputToMember(&input)
+	member, err := r.Member().(*memberResolver).mapCreateInputToMember(&input)
+	if err != nil {
+		return nil, err
+	}
 
 	// 3) Manejar la mutación en la capa de servicio
 	return r.Member().(*memberResolver).handleMemberMutation(ctx, member)
@@ -444,7 +447,7 @@ func (r *queryResolver) ListMembers(ctx context.Context, filter *model.MemberFil
 	for i, m := range members {
 		// crear un puntero a la variable local (cuidado con &m en range)
 		mm := m
-		memberPtrs[i] = &mm
+		memberPtrs[i] = mm
 	}
 
 	// 11) Construir el PageInfo (sin total real, sólo un placeholder)
@@ -480,7 +483,7 @@ func (r *queryResolver) SearchMembers(ctx context.Context, criteria string) ([]*
 	result := make([]*models.Member, len(members))
 	for i, m := range members {
 		mm := m
-		result[i] = &mm
+		result[i] = mm
 	}
 
 	return result, nil

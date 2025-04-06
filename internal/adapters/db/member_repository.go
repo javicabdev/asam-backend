@@ -3,9 +3,9 @@ package db
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/output"
+	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 	"gorm.io/gorm"
 )
 
@@ -22,7 +22,11 @@ func NewMemberRepository(db *gorm.DB) output.MemberRepository {
 func (r *memberRepository) Create(ctx context.Context, member *models.Member) error {
 	result := r.db.WithContext(ctx).Create(member)
 	if result.Error != nil {
-		return fmt.Errorf("error creating member: %w", result.Error)
+		// Check for specific database errors
+		if IsDuplicateKeyError(result.Error) {
+			return appErrors.New(appErrors.ErrDuplicateEntry, "member with the same key already exists")
+		}
+		return appErrors.DB(result.Error, "error creating member")
 	}
 	return nil
 }
@@ -31,12 +35,15 @@ func (r *memberRepository) Create(ctx context.Context, member *models.Member) er
 func (r *memberRepository) GetByID(ctx context.Context, id uint) (*models.Member, error) {
 	var member models.Member
 	result := r.db.WithContext(ctx).First(&member, id)
+
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			// Consistently return nil, nil for not found
 			return nil, nil
 		}
-		return nil, fmt.Errorf("error getting member by ID: %w", result.Error)
+		return nil, appErrors.DB(result.Error, "error getting member by ID")
 	}
+
 	return &member, nil
 }
 
@@ -44,12 +51,15 @@ func (r *memberRepository) GetByID(ctx context.Context, id uint) (*models.Member
 func (r *memberRepository) GetByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Member, error) {
 	var member models.Member
 	result := r.db.WithContext(ctx).Where("numero_socio = ?", numeroSocio).First(&member)
+
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			// Consistently return nil, nil for not found
 			return nil, nil
 		}
-		return nil, fmt.Errorf("error getting member by numero socio: %w", result.Error)
+		return nil, appErrors.DB(result.Error, "error getting member by numero socio")
 	}
+
 	return &member, nil
 }
 
@@ -57,8 +67,20 @@ func (r *memberRepository) GetByNumeroSocio(ctx context.Context, numeroSocio str
 func (r *memberRepository) Update(ctx context.Context, member *models.Member) error {
 	result := r.db.WithContext(ctx).Save(member)
 	if result.Error != nil {
-		return fmt.Errorf("error updating member: %w", result.Error)
+		// Check for specific database errors
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return appErrors.NotFound("member", result.Error)
+		}
+		if IsDuplicateKeyError(result.Error) {
+			return appErrors.New(appErrors.ErrDuplicateEntry, "member with the same key already exists")
+		}
+		return appErrors.DB(result.Error, "error updating member")
 	}
+
+	if result.RowsAffected == 0 {
+		return appErrors.NotFound("member", nil)
+	}
+
 	return nil
 }
 
@@ -66,8 +88,13 @@ func (r *memberRepository) Update(ctx context.Context, member *models.Member) er
 func (r *memberRepository) Delete(ctx context.Context, id uint) error {
 	result := r.db.WithContext(ctx).Delete(&models.Member{}, id)
 	if result.Error != nil {
-		return fmt.Errorf("error deleting member: %w", result.Error)
+		return appErrors.DB(result.Error, "error deleting member")
 	}
+
+	if result.RowsAffected == 0 {
+		return appErrors.NotFound("member", nil)
+	}
+
 	return nil
 }
 
@@ -106,7 +133,7 @@ func (r *memberRepository) List(ctx context.Context, filters output.MemberFilter
 
 	result := query.Find(&members)
 	if result.Error != nil {
-		return nil, fmt.Errorf("error listing members: %w", result.Error)
+		return nil, appErrors.DB(result.Error, "error listing members")
 	}
 
 	return members, nil

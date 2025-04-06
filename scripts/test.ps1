@@ -1,44 +1,80 @@
-# scripts/test.ps1
-
 param (
-    [string]$Env = "test"
+    [switch]$Build,
+    [switch]$NoCleanup,
+    [string]$Module = "",  # Parámetro para el módulo
+    [switch]$UseBake      # Nuevo parámetro para habilitar Bake
 )
 
-Write-Host "test.ps1 - Received Env: '$Env'" -ForegroundColor Cyan  # Depuración
+# Iniciar entorno de pruebas
+Write-Host "Configurando entorno de pruebas..." -ForegroundColor Green
 
-function Get-ProjectRoot {
-    return Split-Path -Parent $PSScriptRoot
+# Configurar variable de entorno para usar Bake si se solicita
+$composeEnv = @{}
+if ($UseBake) {
+    Write-Host "Habilitando Docker Compose con Bake para mejor rendimiento" -ForegroundColor Yellow
+    $composeEnv.COMPOSE_BAKE = "true"
 }
 
-$projectRoot = Get-ProjectRoot
-Write-Host "test.ps1 - Project Root: '$projectRoot'" -ForegroundColor Cyan  # Depuración
+# Función para ejecutar comandos compose con la variable de entorno correcta
+function Invoke-DockerCompose {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments
+    )
 
-# Establecer la variable de entorno APP_ENV
-$env:APP_ENV = $Env
-Write-Host "test.ps1 - Set APP_ENV to '$Env'" -ForegroundColor Cyan  # Depuración
-
-# Cargar las variables de entorno desde .env.test
-Write-Host "Cargando configuración desde .env.$Env..." -ForegroundColor Green
-if (Test-Path "$projectRoot\.env.$Env") {
-    Get-Content "$projectRoot\.env.$Env" | ForEach-Object {
-        $pair = $_ -split "="
-        if ($pair.Length -eq 2) {
-            [Environment]::SetEnvironmentVariable($pair[0], $pair[1], "Process")
-            Write-Host "test.ps1 - Set variable '$($pair[0])' to '$($pair[1])'" -ForegroundColor Cyan  # Depuración
-        }
+    if ($UseBake) {
+        $env:COMPOSE_BAKE = "true"
+        docker-compose @Arguments
+        Remove-Item Env:\COMPOSE_BAKE
+    } else {
+        docker-compose @Arguments
     }
-} else {
-    Write-Host "Advertencia: El archivo .env.$Env no existe." -ForegroundColor Yellow
 }
 
-# Ejecutar migraciones para la base de datos de pruebas
-Write-Host "Ejecutando migraciones para el entorno '$Env'..." -ForegroundColor Green
-& "$PSScriptRoot\run-all.ps1" migrate $Env  # Ruta corregida
+# Limpiar entorno previo
+Invoke-DockerCompose -Arguments @("-f", "docker-compose.test.yml", "down")
 
-# Ejecutar los tests
-Write-Host "Ejecutando tests en el entorno '$Env'..." -ForegroundColor Green
-go test ./test/integration/... -v
+# Reconstruir imágenes si se solicita
+if ($Build) {
+    Write-Host "Construyendo imágenes..." -ForegroundColor Cyan
+    if ($UseBake) {
+        Write-Host "Usando Bake para construcción paralela más rápida" -ForegroundColor Cyan
+    }
+    Invoke-DockerCompose -Arguments @("-f", "docker-compose.test.yml", "build", "--no-cache")
+}
 
-# Limpiar la variable de entorno
-Remove-Item Env:\APP_ENV -ErrorAction SilentlyContinue
-Write-Host "test.ps1 - Limpieza de APP_ENV completada." -ForegroundColor Cyan  # Depuración
+# Iniciar contenedor de base de datos
+Invoke-DockerCompose -Arguments @("-f", "docker-compose.test.yml", "up", "-d", "postgres-test")
+
+# Esperar a que PostgreSQL esté disponible
+Write-Host "Esperando a que PostgreSQL esté listo..." -ForegroundColor Cyan
+Start-Sleep -Seconds 5
+
+try {
+    # Verificar conexión a PostgreSQL
+    Write-Host "Comprobando conexión a PostgreSQL..." -ForegroundColor Cyan
+    docker exec asam-postgres-test psql -U postgres -d asam_test_db -c "SELECT 1"
+
+    # Ejecutar migraciones si es necesario
+    Write-Host "Aplicando migraciones..." -ForegroundColor Cyan
+
+    # Ejecutar los tests según el módulo especificado
+    Write-Host "Ejecutando tests..." -ForegroundColor Green
+
+    if ($Module) {
+        Write-Host "Ejecutando tests del módulo: $Module" -ForegroundColor Cyan
+        Invoke-DockerCompose -Arguments @("-f", "docker-compose.test.yml", "run", "--rm", "api-test", "go", "test", "./test/$Module/...", "-v")
+    } else {
+        Write-Host "Ejecutando todos los tests..." -ForegroundColor Cyan
+        Invoke-DockerCompose -Arguments @("-f", "docker-compose.test.yml", "run", "--rm", "api-test")
+    }
+}
+catch {
+    Write-Host "Error durante la ejecución de pruebas: $_" -ForegroundColor Red
+}
+finally {
+    if (-not $NoCleanup) {
+        Write-Host "Limpiando entorno de pruebas..." -ForegroundColor Cyan
+        Invoke-DockerCompose -Arguments @("-f", "docker-compose.test.yml", "down")
+    }
+}
