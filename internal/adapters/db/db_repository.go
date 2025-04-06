@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/javicabdev/asam-backend/internal/config"
+	"github.com/javicabdev/asam-backend/pkg/errors"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -39,13 +40,13 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error connecting to database: %w", err)
+		return nil, errors.DB(err, "error connecting to database")
 	}
 
 	// Configure connection pool
 	sqlDB, err := db.DB()
 	if err != nil {
-		return nil, fmt.Errorf("error getting database instance: %w", err)
+		return nil, errors.InternalError("error getting database instance", err)
 	}
 
 	sqlDB.SetMaxIdleConns(cfg.DBMaxIdleConns)       // Mantener conexiones inactivas
@@ -60,10 +61,13 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 		},
 		Logger: logger.Default.LogMode(logger.Silent), // Reducir logging en producción
 	})
+	if err != nil {
+		return nil, errors.DB(err, "error reopening database with prepared statements")
+	}
 
 	// Test connection
 	if err := sqlDB.Ping(); err != nil {
-		return nil, fmt.Errorf("error pinging database: %w", err)
+		return nil, errors.DB(err, "error pinging database")
 	}
 
 	return db, nil

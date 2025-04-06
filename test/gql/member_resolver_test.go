@@ -6,6 +6,7 @@ import (
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/pkg/constants"
+	"github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/test"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -100,8 +101,13 @@ var _ = Describe("Member", func() {
 				// Usar ctx autenticado en lugar de context.Background()
 				member, err := resolver.Mutation().CreateMember(ctx, input)
 
+				// Verificar que es un error de validación según la biblioteca de errores
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("tipo de membresía no válido"))
+				Expect(errors.IsValidationError(err)).To(BeTrue())
+
+				// Obtener los campos del error
+				fields := errors.GetFields(err)
+				Expect(fields).To(HaveKey("tipoMembresia"))
 				Expect(member).To(BeNil())
 			})
 
@@ -114,8 +120,14 @@ var _ = Describe("Member", func() {
 				// Usar ctx autenticado en lugar de context.Background()
 				member, err := resolver.Mutation().CreateMember(ctx, input)
 
+				// Verificar que es un error de validación según la biblioteca de errores
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).Should(ContainSubstring("VALIDATION_FAILED"))
+				Expect(errors.IsValidationError(err)).To(BeTrue())
+
+				// Obtener los campos del error
+				fields := errors.GetFields(err)
+				Expect(fields).To(HaveKey("numeroSocio"))
+				Expect(fields).To(HaveKey("nombre"))
 				Expect(member).To(BeNil())
 			})
 		})
@@ -172,8 +184,15 @@ var _ = Describe("Member", func() {
 				// Usar ctx autenticado en lugar de context.Background()
 				member, err := resolver.Mutation().UpdateMember(ctx, input)
 
+				// Verificar que es un error de recurso no encontrado según la biblioteca de errores
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("not found"))
+				Expect(errors.IsNotFoundError(err)).To(BeTrue())
+
+				// Verificar el mensaje del error
+				message, ok := errors.GetMessage(err)
+				Expect(ok).To(BeTrue())
+				Expect(message).To(ContainSubstring("not found"))
+
 				Expect(member).To(BeNil())
 			})
 		})

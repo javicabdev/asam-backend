@@ -382,6 +382,10 @@ func NetworkError(message string, err error) error {
 	}
 }
 
+func IsNetworkError(err error) bool {
+	return Is(err, ErrNetworkError)
+}
+
 // TokenError returns a standardized token error
 func TokenError(message string, err error) error {
 	return &AppError{

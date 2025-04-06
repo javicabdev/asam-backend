@@ -61,9 +61,11 @@ var _ = Describe("Payment", func() {
 
 		When("payment does not exist", func() {
 			It("returns error", func() {
+				// Aquí está la corrección: asegurarse de que el mock devuelve un error
 				paymentService.On("GetPayment", mock.Anything, uint(999)).Return(nil, errors.NewNotFoundError("payment"))
 
-				result, err := resolver.Mutation().CancelPayment(context.Background(), "999", "test")
+				// Aquí está la corrección: usar Query().GetPayment en lugar de Mutation().CancelPayment
+				result, err := resolver.Query().GetPayment(context.Background(), "999")
 
 				Expect(err).To(HaveOccurred())
 				Expect(result).To(BeNil())
@@ -141,6 +143,8 @@ var _ = Describe("Payment", func() {
 
 		When("payment does not exist", func() {
 			It("returns error", func() {
+				// Aseguramos que el servicio de pagos realmente devuelve un error
+				// para un pago que no existe
 				paymentService.On("GetPayment", mock.Anything, uint(999)).Return(nil, errors.NewNotFoundError("payment"))
 
 				result, err := resolver.Mutation().CancelPayment(context.Background(), "999", "test")
@@ -166,6 +170,8 @@ var _ = Describe("Payment", func() {
 
 		When("parameters are invalid", func() {
 			It("returns error for invalid month", func() {
+				// Aseguramos que el servicio devuelve un error para un mes inválido
+				// Esto es crucial para que el resolver capture y propague este error
 				paymentService.On("GenerateMonthlyFees", mock.Anything, 2025, 13, 30.0).
 					Return(errors.NewValidationError("Invalid month", nil))
 

@@ -8,11 +8,13 @@ import (
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/domain/services"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
+	"github.com/javicabdev/asam-backend/pkg/errors" // Biblioteca de errores personalizados
 	"github.com/javicabdev/asam-backend/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
+// createValidCashFlow crea un movimiento de flujo de efectivo válido para las pruebas.
 func createValidCashFlow() *models.CashFlow {
 	return &models.CashFlow{
 		OperationType: models.OperationTypeOtherIncome,
@@ -28,6 +30,7 @@ func TestRegisterMovement(t *testing.T) {
 		movement  *models.CashFlow
 		setupMock func(*test.MockCashFlowRepository)
 		wantErr   bool
+		checkErr  func(t *testing.T, err error)
 	}{
 		{
 			name:     "successful movement registration",
@@ -36,17 +39,36 @@ func TestRegisterMovement(t *testing.T) {
 				cr.On("Create", mock.Anything, mock.AnythingOfType("*models.CashFlow")).Return(nil)
 			},
 			wantErr: false,
+			checkErr: func(t *testing.T, err error) {
+				assert.NoError(t, err)
+			},
 		},
 		{
 			name: "invalid amount",
 			movement: &models.CashFlow{
 				OperationType: models.OperationTypeOtherIncome,
-				Amount:        0, // Invalid amount
+				Amount:        0, // Monto inválido
 				Date:          time.Now(),
 				Detail:        "Test",
 			},
 			setupMock: func(cr *test.MockCashFlowRepository) {},
 			wantErr:   true,
+			checkErr: func(t *testing.T, err error) {
+				assert.Error(t, err)
+				assert.True(t, errors.IsValidationError(err), "debería ser un error de validación")
+			},
+		},
+		{
+			name:     "repository error",
+			movement: createValidCashFlow(),
+			setupMock: func(cr *test.MockCashFlowRepository) {
+				cr.On("Create", mock.Anything, mock.AnythingOfType("*models.CashFlow")).Return(errors.NewDatabaseError("database failure", nil))
+			},
+			wantErr: true,
+			checkErr: func(t *testing.T, err error) {
+				assert.Error(t, err)
+				assert.True(t, errors.IsDatabaseError(err), "debería ser un error de base de datos")
+			},
 		},
 	}
 
@@ -58,12 +80,7 @@ func TestRegisterMovement(t *testing.T) {
 			service := services.NewCashFlowService(repo)
 			err := service.RegisterMovement(context.Background(), tt.movement)
 
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
+			tt.checkErr(t, err)
 			repo.AssertExpectations(t)
 		})
 	}
@@ -75,6 +92,7 @@ func TestGetCurrentBalance(t *testing.T) {
 		setupMock   func(*test.MockCashFlowRepository)
 		wantBalance float64
 		wantErr     bool
+		checkErr    func(t *testing.T, err error)
 	}{
 		{
 			name: "successful balance calculation",
@@ -88,6 +106,20 @@ func TestGetCurrentBalance(t *testing.T) {
 			},
 			wantBalance: 1000.0,
 			wantErr:     false,
+			checkErr: func(t *testing.T, err error) {
+				assert.NoError(t, err)
+			},
+		},
+		{
+			name: "repository error on GetBalance",
+			setupMock: func(cr *test.MockCashFlowRepository) {
+				cr.On("GetBalance", mock.Anything).Return(0.0, errors.NewDatabaseError("database failure", nil))
+			},
+			wantErr: true,
+			checkErr: func(t *testing.T, err error) {
+				assert.Error(t, err)
+				assert.True(t, errors.IsDatabaseError(err), "debería ser un error de base de datos")
+			},
 		},
 	}
 
@@ -100,7 +132,7 @@ func TestGetCurrentBalance(t *testing.T) {
 			report, err := service.GetCurrentBalance(context.Background())
 
 			if tt.wantErr {
-				assert.Error(t, err)
+				tt.checkErr(t, err)
 				assert.Nil(t, report)
 			} else {
 				assert.NoError(t, err)
@@ -119,6 +151,7 @@ func TestGetCashFlowTrends(t *testing.T) {
 		period    input.Period
 		setupMock func(*test.MockCashFlowRepository)
 		wantErr   bool
+		checkErr  func(t *testing.T, err error)
 	}{
 		{
 			name: "successful trends calculation",
@@ -134,6 +167,24 @@ func TestGetCashFlowTrends(t *testing.T) {
 					}, nil)
 			},
 			wantErr: false,
+			checkErr: func(t *testing.T, err error) {
+				assert.NoError(t, err)
+			},
+		},
+		{
+			name: "repository failure",
+			period: input.Period{
+				StartDate: time.Now().AddDate(0, -6, 0),
+				EndDate:   time.Now(),
+			},
+			setupMock: func(cr *test.MockCashFlowRepository) {
+				cr.On("List", mock.Anything, mock.Anything).Return(nil, errors.NewDatabaseError("failed to fetch trends", nil))
+			},
+			wantErr: true,
+			checkErr: func(t *testing.T, err error) {
+				assert.Error(t, err)
+				assert.True(t, errors.IsDatabaseError(err), "debería ser un error de base de datos")
+			},
 		},
 	}
 
@@ -146,7 +197,7 @@ func TestGetCashFlowTrends(t *testing.T) {
 			trends, err := service.GetCashFlowTrends(context.Background(), tt.period)
 
 			if tt.wantErr {
-				assert.Error(t, err)
+				tt.checkErr(t, err)
 				assert.Nil(t, trends)
 			} else {
 				assert.NoError(t, err)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/javicabdev/asam-backend/internal/adapters/db"
 	"github.com/javicabdev/asam-backend/internal/config"
+	"github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/joho/godotenv"
 	"gorm.io/gorm"
 )
@@ -22,7 +23,9 @@ func TestMain(m *testing.M) {
 
 	// Configurar variables adicionales para tests
 	_ = os.Setenv("APP_ENV", "test")
-	defer os.Unsetenv("APP_ENV")
+	defer func() {
+		_ = os.Unsetenv("APP_ENV")
+	}()
 
 	// Ejecutar tests
 	os.Exit(m.Run())
@@ -31,9 +34,10 @@ func TestMain(m *testing.M) {
 // TestInitDB verifica la conexión a la base de datos con diferentes escenarios.
 func TestInitDB(t *testing.T) {
 	tests := []struct {
-		name    string
-		envVars map[string]string
-		wantErr bool
+		name     string
+		envVars  map[string]string
+		wantErr  bool
+		wantCode errors.ErrorCode // Añadimos el código de error esperado
 	}{
 		{
 			name: "successful connection",
@@ -48,7 +52,8 @@ func TestInitDB(t *testing.T) {
 				"DB_MAX_OPEN_CONNS":    "15",
 				"DB_CONN_MAX_LIFETIME": "2m",
 			},
-			wantErr: false,
+			wantErr:  false,
+			wantCode: "", // No se espera error
 		},
 		{
 			name: "invalid credentials",
@@ -63,7 +68,8 @@ func TestInitDB(t *testing.T) {
 				"DB_MAX_OPEN_CONNS":    "3",
 				"DB_CONN_MAX_LIFETIME": "1m",
 			},
-			wantErr: true,
+			wantErr:  true,
+			wantCode: errors.ErrDatabaseError, // Esperamos un error de base de datos
 		},
 	}
 
@@ -76,19 +82,29 @@ func TestInitDB(t *testing.T) {
 
 			// Cargar configuración
 			cfg, err := config.LoadConfig()
-			if err != nil && !tt.wantErr {
-				t.Errorf("LoadConfig() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("LoadConfig() expected error but got nil")
+				} else if tt.wantCode != "" && !errors.Is(err, tt.wantCode) {
+					t.Errorf("LoadConfig() error = %v, wantCode %v", err, tt.wantCode)
+				}
+			} else if err != nil {
+				t.Errorf("LoadConfig() unexpected error = %v", err)
 			}
 
 			// Probar conexión a la base de datos si la configuración se cargó correctamente
 			if err == nil {
 				gdb, errDB := db.InitDB(cfg)
-				if (errDB != nil) != tt.wantErr {
-					t.Errorf("InitDB() error = %v, wantErr %v", errDB, tt.wantErr)
-				}
-
-				// Verificar conexión
-				if !tt.wantErr && gdb != nil {
+				if tt.wantErr {
+					if errDB == nil {
+						t.Errorf("InitDB() expected error but got nil")
+					} else if tt.wantCode != "" && !errors.Is(errDB, tt.wantCode) {
+						t.Errorf("InitDB() error = %v, wantCode %v", errDB, tt.wantCode)
+					}
+				} else if errDB != nil {
+					t.Errorf("InitDB() unexpected error = %v", errDB)
+				} else {
+					// Verificar conexión
 					sqlDB, err := gdb.DB()
 					if err != nil {
 						t.Errorf("Failed to get *sql.DB: %v", err)
@@ -142,7 +158,11 @@ func TestInitDB_ConnectionRetry(t *testing.T) {
 					t.Logf("Attempt %d: Successfully connected to the database", i+1)
 					break
 				}
-				t.Logf("Attempt %d: InitDB() error = %v", i+1, err)
+				if errors.IsDatabaseError(err) {
+					t.Logf("Attempt %d: Database error = %v", i+1, err)
+				} else {
+					t.Logf("Attempt %d: Unexpected error = %v", i+1, err)
+				}
 			}
 			time.Sleep(retryInterval)
 		}

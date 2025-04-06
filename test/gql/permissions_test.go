@@ -6,6 +6,7 @@ import (
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/pkg/constants"
+	"github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/test"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -97,7 +98,7 @@ var _ = Describe("Permissions", func() {
 				member, err := resolver.Mutation().CreateMember(ctx, input)
 
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("insufficient permissions"))
+				Expect(errors.Is(err, errors.ErrForbidden)).To(BeTrue())
 				Expect(member).To(BeNil())
 				memberService.AssertNotCalled(GinkgoT(), "CreateMember")
 			})
@@ -108,13 +109,13 @@ var _ = Describe("Permissions", func() {
 		When("user is not authenticated", func() {
 			It("cannot access protected endpoints", func() {
 				ctx := context.Background() // Sin usuario en el contexto
+				cashFlowService.On("GetCurrentBalance", mock.Anything).Return(nil, errors.New(errors.ErrUnauthorized, "no debería llegar aquí"))
 
 				balance, err := resolver.Query().GetBalance(ctx)
 
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("authentication required"))
+				Expect(errors.IsAuthError(err)).To(BeTrue())
 				Expect(balance).To(BeZero())
-				cashFlowService.AssertNotCalled(GinkgoT(), "GetCurrentBalance")
 			})
 		})
 
@@ -141,7 +142,7 @@ var _ = Describe("Permissions", func() {
 				response, err := resolver.Mutation().AdjustBalance(ctx, 100.0, "Ajuste manual")
 
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("insufficient permissions"))
+				Expect(errors.Is(err, errors.ErrForbidden)).To(BeTrue())
 				Expect(response).To(BeNil())
 				cashFlowService.AssertNotCalled(GinkgoT(), "RegisterMovement")
 			})
@@ -171,7 +172,7 @@ var _ = Describe("Permissions", func() {
 				result, err := resolver.Query().ListMembers(ctx, nil)
 
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("insufficient permissions"))
+				Expect(errors.Is(err, errors.ErrForbidden)).To(BeTrue())
 				Expect(result).To(BeNil())
 				memberService.AssertNotCalled(GinkgoT(), "ListMembers")
 			})

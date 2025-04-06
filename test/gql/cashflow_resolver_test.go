@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/pkg/errors" // Importar la biblioteca de errores personalizada
 	"github.com/javicabdev/asam-backend/test"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -61,8 +62,27 @@ var _ = Describe("CashFlow", func() {
 			It("returns validation error", func() {
 				response, err := resolver.Mutation().AdjustBalance(context.Background(), 0.0, "Invalid adjustment")
 
+				// Verificaciones con la biblioteca de errores personalizada
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("amount cannot be zero"))
+
+				// Verificar que es un AppError
+				Expect(errors.IsAppError(err)).To(BeTrue())
+
+				// Verificar el tipo de error
+				Expect(errors.Is(err, errors.ErrInvalidAmount)).To(BeTrue()) // Suponiendo que este es el código adecuado
+
+				// Opcionalmente, verificar otros aspectos del error
+				appErr, ok := errors.AsAppError(err)
+				Expect(ok).To(BeTrue())
+				Expect(appErr.Message).To(ContainSubstring("amount cannot be zero"))
+
+				// Para errores de validación, podrías comprobar también los campos específicos
+				if errors.IsValidationError(err) {
+					fields := errors.GetFields(err)
+					Expect(fields).To(HaveKey("amount"))
+					Expect(fields["amount"]).To(ContainSubstring("zero"))
+				}
+
 				Expect(response).To(BeNil())
 			})
 		})

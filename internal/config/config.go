@@ -2,7 +2,7 @@ package config
 
 import (
 	"context"
-	"fmt"
+	"github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/joho/godotenv"
 	"github.com/sethvargo/go-envconfig"
 	"time"
@@ -49,7 +49,7 @@ func LoadConfig() (*Config, error) {
 	ctx := context.Background()
 	var c Config
 	if err := envconfig.Process(ctx, &c); err != nil {
-		return nil, fmt.Errorf("failed to parse env config: %w", err)
+		return nil, errors.InternalError("failed to parse env config", err)
 	}
 	return &c, nil
 }
