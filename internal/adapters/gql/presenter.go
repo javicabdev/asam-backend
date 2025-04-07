@@ -11,38 +11,66 @@ import (
 	"gorm.io/gorm"
 )
 
-// CustomErrorPresenter transforma los errores en errores GraphQL
+// CustomErrorPresenter transforms errors into GraphQL errors
 func CustomErrorPresenter(ctx context.Context, err error) *gqlerror.Error {
-	// Si ya es un error GraphQL, retornarlo tal cual
-	if gqlErr, ok := err.(*gqlerror.Error); ok {
+	// If already a GraphQL error, return it as is
+	var gqlErr *gqlerror.Error
+	if errors.As(err, &gqlErr) {
 		return gqlErr
 	}
 
-	// Obtener la ruta de la query/mutation actual
+	// Get the current query/mutation path
 	path := graphql.GetPath(ctx)
 
-	// Conversión de errores específicos
+	// Get operation name for better error context
+	operation := "unknown"
+	if op := graphql.GetOperationContext(ctx); op != nil {
+		operation = op.OperationName
+	}
+
+	// Handle specific error types
 	switch {
 	case errors.Is(err, gorm.ErrRecordNotFound):
-		// Error de GORM "not found"
 		return &gqlerror.Error{
 			Path:    path,
 			Message: "Resource not found",
 			Extensions: map[string]interface{}{
-				"code": appErrors.ErrNotFound,
+				"code":      appErrors.ErrNotFound,
+				"operation": operation,
+			},
+		}
+
+	case errors.Is(err, context.DeadlineExceeded):
+		return &gqlerror.Error{
+			Path:    path,
+			Message: "Operation timed out",
+			Extensions: map[string]interface{}{
+				"code":      appErrors.ErrInternalError,
+				"operation": operation,
+			},
+		}
+
+	case errors.Is(err, context.Canceled):
+		return &gqlerror.Error{
+			Path:    path,
+			Message: "Operation was canceled",
+			Extensions: map[string]interface{}{
+				"code":      appErrors.ErrInternalError,
+				"operation": operation,
 			},
 		}
 	}
 
-	// Mapeo de AppError
+	// Map AppError
 	var appErr *appErrors.AppError
 	if errors.As(err, &appErr) {
-		// Construir extensiones con el código y campos de error
+		// Build extensions with code and error fields
 		extensions := map[string]interface{}{
-			"code": appErr.Code,
+			"code":      appErr.Code,
+			"operation": operation,
 		}
 
-		// Añadir campos de validación si existen
+		// Add validation fields if they exist
 		if appErr.Fields != nil && len(appErr.Fields) > 0 {
 			extensions["fields"] = appErr.Fields
 		}
@@ -54,43 +82,78 @@ func CustomErrorPresenter(ctx context.Context, err error) *gqlerror.Error {
 		}
 	}
 
-	// Para errores no estructurados, crear un error interno genérico
+	// For unstructured errors, create a generic internal error
 	return &gqlerror.Error{
 		Path:    path,
 		Message: fmt.Sprintf("Internal error: %s", err.Error()),
 		Extensions: map[string]interface{}{
-			"code": appErrors.ErrInternalError,
+			"code":      appErrors.ErrInternalError,
+			"operation": operation,
 		},
 	}
 }
 
-// ErrorHandler devuelve una función middleware.ConfigErrorPresenter compatible
-// para integrar con nuestro sistema refactorizado
+// ErrorHandler returns a middleware.ConfigErrorPresenter compatible function
+// to integrate with our refactored system
 func ErrorHandler() graphql.ErrorPresenterFunc {
 	return func(ctx context.Context, err error) *gqlerror.Error {
-		// Buscar errorHandler en el contexto
+		// Look for errorHandler in context
 		if handler, ok := ctx.Value(middleware.ErrorHandlerKey{}).(*middleware.ErrorMiddleware); ok {
 			return handler.HandleError(ctx, err)
 		}
 
-		// Fallback al CustomErrorPresenter si no hay un errorHandler en el contexto
+		// Fallback to CustomErrorPresenter if no errorHandler in context
 		return CustomErrorPresenter(ctx, err)
 	}
 }
 
-// RecoverFunc proporciona una función para recuperarse de pánicos en resolvers GraphQL
+// RecoverFunc provides a function to recover from panics in GraphQL resolvers
 func RecoverFunc() graphql.RecoverFunc {
-	return func(ctx context.Context, err interface{}) error {
-		// Construir mensaje de error
+	return func(ctx context.Context, panicValue interface{}) error {
+		// Build error message
 		errMsg := "Internal server error"
-		if err != nil {
-			errMsg = fmt.Sprintf("GraphQL panic: %v", err)
+		if panicValue != nil {
+			errMsg = fmt.Sprintf("GraphQL panic: %v", panicValue)
 		}
 
-		// Crear un error estructurado
+		// Create a structured error
 		appErr := appErrors.New(appErrors.ErrInternalError, errMsg)
 
-		// Convertir a gqlerror.Error usando nuestro presenter
+		// Look for errorHandler in context for consistent handling
+		if handler, ok := ctx.Value(middleware.ErrorHandlerKey{}).(*middleware.ErrorMiddleware); ok {
+			return handler.HandleError(ctx, appErr)
+		}
+
+		// Fallback to direct conversion
 		return CustomErrorPresenter(ctx, appErr)
 	}
+}
+
+// MapErrorToGraphQL is a utility function to convert any error to a GraphQL error
+// with consistent formatting
+func MapErrorToGraphQL(ctx context.Context, err error, defaultMessage string) *gqlerror.Error {
+	if err == nil {
+		return nil
+	}
+
+	// Look for errorHandler in context for consistent handling
+	if handler, ok := ctx.Value(middleware.ErrorHandlerKey{}).(*middleware.ErrorMiddleware); ok {
+		return handler.HandleError(ctx, err)
+	}
+
+	// If no specific message provided, use a default one
+	if defaultMessage == "" {
+		defaultMessage = "An error occurred"
+	}
+
+	// If it's already an AppError, preserve its information
+	var appErr *appErrors.AppError
+	if errors.As(err, &appErr) {
+		// Use original error's message
+		return CustomErrorPresenter(ctx, err)
+	}
+
+	// Create a new AppError with the default message
+	wrappedErr := appErrors.Wrap(err, appErrors.ErrInternalError, defaultMessage)
+	return CustomErrorPresenter(ctx, wrappedErr)
 }

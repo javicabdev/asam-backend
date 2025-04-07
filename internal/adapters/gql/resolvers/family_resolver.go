@@ -82,7 +82,7 @@ func (r *familyResolver) mapFamiliarInputToModel(input *model.FamiliarInput) *mo
 }
 
 func (r *familyResolver) handleFamilyMutation(ctx context.Context, family *models.Family) (*models.Family, error) {
-	// Validar la familia
+	// Validate family
 	if err := family.Validate(); err != nil {
 		var appErr *errors.AppError
 		if stdErrors.As(err, &appErr) {
@@ -91,21 +91,18 @@ func (r *familyResolver) handleFamilyMutation(ctx context.Context, family *model
 		return nil, errors.NewValidationError(err.Error(), nil)
 	}
 
-	// Si hay miembro origen, verificar que existe
+	// If there's an origin member, verify it exists
 	if family.MiembroOrigenID != nil {
 		member, err := r.memberService.GetMemberByID(ctx, *family.MiembroOrigenID)
 		if err != nil {
-			return nil, errors.NewBusinessError(
-				errors.ErrDatabaseError,
-				"Failed to verify origin member",
-			)
+			return nil, errors.Wrap(err, errors.ErrDatabaseError, "Error verifying origin member")
 		}
 		if member == nil {
-			return nil, errors.NewNotFoundError("origin member")
+			return nil, errors.NotFound("origin member", nil)
 		}
 	}
 
-	// Crear o actualizar
+	// Create or update
 	var err error
 	if family.ID == 0 {
 		err = r.familyService.Create(ctx, family)
@@ -114,45 +111,38 @@ func (r *familyResolver) handleFamilyMutation(ctx context.Context, family *model
 	}
 
 	if err != nil {
-		return nil, errors.NewBusinessError(
-			errors.ErrInternalError,
-			"Failed to process family operation",
-		)
+		return nil, errors.Wrap(err, errors.ErrInternalError, "Error processing family operation")
 	}
 
 	return family, nil
 }
 
 func (r *familyResolver) handleFamiliarMutation(ctx context.Context, familyID uint, familiar *models.Familiar) (*models.Family, error) {
-	// Verificar que la familia existe
+	// Verify that the family exists
 	family, err := r.familyService.GetByID(ctx, familyID)
 	if err != nil {
-		return nil, errors.NewBusinessError(
-			errors.ErrDatabaseError,
-			"Failed to fetch family",
-		)
+		return nil, errors.Wrap(err, errors.ErrDatabaseError, "Error fetching family")
 	}
 	if family == nil {
-		return nil, errors.NewNotFoundError("family")
+		return nil, errors.NotFound("family", nil)
 	}
 
-	// Validar datos del familiar
+	// Validate familiar data
 	if err := familiar.Validate(); err != nil {
-		return nil, errors.NewValidationError("Invalid familiar data", map[string]string{
-			"details": err.Error(),
-		})
+		var appErr *errors.AppError
+		if stdErrors.As(err, &appErr) {
+			return nil, appErr
+		}
+		return nil, errors.NewValidationError(err.Error(), nil)
 	}
 
-	// Añadir el familiar
+	// Add the familiar
 	err = r.familyService.AddFamiliar(ctx, familyID, familiar)
 	if err != nil {
-		return nil, errors.NewBusinessError(
-			errors.ErrInternalError,
-			"Failed to add familiar",
-		)
+		return nil, errors.Wrap(err, errors.ErrInternalError, "Error adding familiar")
 	}
 
-	// Recargar la familia con los familiares actualizados
+	// Reload the family with updated familiares
 	return r.familyService.GetByID(ctx, familyID)
 }
 
@@ -201,7 +191,7 @@ func (r *familyResolver) validateUpdateFamilyInput(input *model.UpdateFamilyInpu
 		})
 	}
 
-	// Al menos un campo debe ser proporcionado para actualizar
+	// At least one field must be provided for update
 	hasUpdates := input.EsposoNombre != nil ||
 		input.EsposoApellidos != nil ||
 		input.EsposaNombre != nil ||

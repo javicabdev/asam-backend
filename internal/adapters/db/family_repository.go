@@ -3,7 +3,10 @@ package db
 import (
 	"context"
 	"errors"
+
 	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/internal/ports/output"
+	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 	"gorm.io/gorm"
 )
 
@@ -11,23 +14,27 @@ type familyRepository struct {
 	db *gorm.DB
 }
 
-// NewFamilyRepository crea una nueva instancia del repositorio
-func NewFamilyRepository(db *gorm.DB) *familyRepository {
+// NewFamilyRepository creates a new instance of the repository
+func NewFamilyRepository(db *gorm.DB) output.FamilyRepository {
 	return &familyRepository{
 		db: db,
 	}
 }
 
-// Create inserta una nueva familia en la base de datos
+// Create inserts a new family into the database
 func (r *familyRepository) Create(ctx context.Context, family *models.Family) error {
 	result := r.db.WithContext(ctx).Create(family)
 	if result.Error != nil {
-		return result.Error
+		// Check for specific database errors
+		if IsDuplicateKeyError(result.Error) {
+			return appErrors.New(appErrors.ErrDuplicateEntry, "family with the same number already exists")
+		}
+		return appErrors.DB(result.Error, "error creating family")
 	}
 	return nil
 }
 
-// GetByID obtiene una familia por su ID
+// GetByID gets a family by its ID
 func (r *familyRepository) GetByID(ctx context.Context, id uint) (*models.Family, error) {
 	var family models.Family
 	result := r.db.WithContext(ctx).
@@ -37,14 +44,14 @@ func (r *familyRepository) GetByID(ctx context.Context, id uint) (*models.Family
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, nil
+			return nil, nil // Consistent pattern: nil, nil for "not found"
 		}
-		return nil, result.Error
+		return nil, appErrors.DB(result.Error, "error getting family by ID")
 	}
 	return &family, nil
 }
 
-// GetByNumeroSocio obtiene una familia por su número de socio
+// GetByNumeroSocio gets a family by its member number
 func (r *familyRepository) GetByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Family, error) {
 	var family models.Family
 	result := r.db.WithContext(ctx).
@@ -55,40 +62,62 @@ func (r *familyRepository) GetByNumeroSocio(ctx context.Context, numeroSocio str
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, nil
+			return nil, nil // Consistent pattern: nil, nil for "not found"
 		}
-		return nil, result.Error
+		return nil, appErrors.DB(result.Error, "error getting family by numero socio")
 	}
 	return &family, nil
 }
 
-// Update actualiza los datos de una familia existente
+// Update updates an existing family's data
 func (r *familyRepository) Update(ctx context.Context, family *models.Family) error {
 	result := r.db.WithContext(ctx).Save(family)
 	if result.Error != nil {
-		return result.Error
+		// Check for specific database errors
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return appErrors.NotFound("family", result.Error)
+		}
+		if IsDuplicateKeyError(result.Error) {
+			return appErrors.New(appErrors.ErrDuplicateEntry, "family with the same number already exists")
+		}
+		if IsConstraintViolationError(result.Error) {
+			return appErrors.New(appErrors.ErrInvalidOperation, "cannot update family due to constraint violations")
+		}
+		return appErrors.DB(result.Error, "error updating family")
 	}
+
+	if result.RowsAffected == 0 {
+		return appErrors.NotFound("family", nil)
+	}
+
 	return nil
 }
 
-// Delete elimina una familia (soft delete)
+// Delete removes a family (soft delete)
 func (r *familyRepository) Delete(ctx context.Context, id uint) error {
 	result := r.db.WithContext(ctx).Delete(&models.Family{}, id)
 	if result.Error != nil {
-		return result.Error
+		if IsConstraintViolationError(result.Error) {
+			return appErrors.New(appErrors.ErrInvalidOperation, "cannot delete family due to dependent records")
+		}
+		return appErrors.DB(result.Error, "error deleting family")
 	}
+
+	if result.RowsAffected == 0 {
+		return appErrors.NotFound("family", nil)
+	}
+
 	return nil
 }
 
-// List obtiene una lista paginada de familias
-// List obtiene una lista paginada de familias
+// List gets a paginated list of families
 func (r *familyRepository) List(ctx context.Context, page, pageSize int, searchTerm *string, orderBy string) ([]*models.Family, int, error) {
 	var families []*models.Family
 	var total int64
 
 	query := r.db.WithContext(ctx).Model(&models.Family{})
 
-	// Aplicar búsqueda si se proporciona
+	// Apply search if provided
 	if searchTerm != nil && *searchTerm != "" {
 		searchQuery := "%" + *searchTerm + "%"
 		query = query.Where(
@@ -97,63 +126,79 @@ func (r *familyRepository) List(ctx context.Context, page, pageSize int, searchT
 		)
 	}
 
-	// Obtener el total de registros
+	// Get total record count
 	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, appErrors.DB(err, "error counting families")
 	}
 
-	// Aplicar ordenamiento si se proporciona
+	// Apply sorting if provided
 	if orderBy != "" {
 		query = query.Order(orderBy)
 	}
 
-	// Aplicar paginación
+	// Apply pagination
 	query = query.Offset((page - 1) * pageSize).Limit(pageSize)
 
-	// Cargar relaciones
+	// Load relationships
 	query = query.Preload("Familiares").
 		Preload("Telefonos")
 
-	// Ejecutar la consulta
+	// Execute the query
 	result := query.Find(&families)
 	if result.Error != nil {
-		return nil, 0, result.Error
+		return nil, 0, appErrors.DB(result.Error, "error listing families")
 	}
 
 	return families, int(total), nil
 }
 
-// Operaciones de familiares
+// Operations for family members
 
-// AddFamiliar añade un nuevo familiar a una familia
+// AddFamiliar adds a new family member to a family
 func (r *familyRepository) AddFamiliar(ctx context.Context, familyID uint, familiar *models.Familiar) error {
 	familiar.FamiliaID = familyID
 	result := r.db.WithContext(ctx).Create(familiar)
 	if result.Error != nil {
-		return result.Error
+		if IsDuplicateKeyError(result.Error) {
+			return appErrors.New(appErrors.ErrDuplicateEntry, "duplicate family member")
+		}
+		return appErrors.DB(result.Error, "error adding familiar")
 	}
 	return nil
 }
 
-// UpdateFamiliar actualiza los datos de un familiar
+// UpdateFamiliar updates a family member's data
 func (r *familyRepository) UpdateFamiliar(ctx context.Context, familiar *models.Familiar) error {
 	result := r.db.WithContext(ctx).Save(familiar)
 	if result.Error != nil {
-		return result.Error
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return appErrors.NotFound("familiar", result.Error)
+		}
+		return appErrors.DB(result.Error, "error updating familiar")
 	}
+
+	if result.RowsAffected == 0 {
+		return appErrors.NotFound("familiar", nil)
+	}
+
 	return nil
 }
 
-// RemoveFamiliar elimina un familiar
+// RemoveFamiliar removes a family member
 func (r *familyRepository) RemoveFamiliar(ctx context.Context, familiarID uint) error {
 	result := r.db.WithContext(ctx).Delete(&models.Familiar{}, familiarID)
 	if result.Error != nil {
-		return result.Error
+		return appErrors.DB(result.Error, "error removing familiar")
 	}
+
+	if result.RowsAffected == 0 {
+		return appErrors.NotFound("familiar", nil)
+	}
+
 	return nil
 }
 
-// GetFamiliares obtiene todos los familiares de una familia
+// GetFamiliares gets all family members of a family
 func (r *familyRepository) GetFamiliares(ctx context.Context, familyID uint) ([]*models.Familiar, error) {
 	var familiares []*models.Familiar
 	result := r.db.WithContext(ctx).
@@ -161,7 +206,7 @@ func (r *familyRepository) GetFamiliares(ctx context.Context, familyID uint) ([]
 		Find(&familiares)
 
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, appErrors.DB(result.Error, "error getting familiares")
 	}
 	return familiares, nil
 }

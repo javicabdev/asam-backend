@@ -14,7 +14,7 @@ import (
 )
 
 // InitDB initializes the database connection.
-// Recibe una instancia de config.Config con los valores de entorno ya cargados.
+// It takes a config.Config instance with loaded environment values.
 func InitDB(cfg *config.Config) (*gorm.DB, error) {
 	// Configure GORM logger
 	gormLogger := logger.New(
@@ -27,10 +27,14 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 		},
 	)
 
-	// Construct DSN (Data Source Name) utilizando los valores en cfg
+	// Construct DSN (Data Source Name) using values in cfg
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
 		cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort, cfg.DBSSLMode)
-	fmt.Println("[DEBUG] DSN = ", dsn)
+
+	// Log the DSN with sensitive info masked for debugging
+	maskedDSN := fmt.Sprintf("host=%s user=%s password=***** dbname=%s port=%s sslmode=%s",
+		cfg.DBHost, cfg.DBUser, cfg.DBName, cfg.DBPort, cfg.DBSSLMode)
+	log.Printf("Connecting to database: %s", maskedDSN)
 
 	// Open connection with GORM
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
@@ -40,35 +44,72 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 		},
 	})
 	if err != nil {
-		return nil, errors.DB(err, "error connecting to database")
+		return nil, errors.DB(err, "Failed to connect to database")
 	}
 
 	// Configure connection pool
 	sqlDB, err := db.DB()
 	if err != nil {
-		return nil, errors.InternalError("error getting database instance", err)
+		return nil, errors.Wrap(err, errors.ErrInternalError, "Failed to get database instance")
 	}
 
-	sqlDB.SetMaxIdleConns(cfg.DBMaxIdleConns)       // Mantener conexiones inactivas
-	sqlDB.SetMaxOpenConns(cfg.DBMaxOpenConns)       // Máximo de conexiones simultáneas
-	sqlDB.SetConnMaxLifetime(cfg.DBConnMaxLifetime) // Tiempo de vida de las conexiones
+	sqlDB.SetMaxIdleConns(cfg.DBMaxIdleConns)       // Keep idle connections
+	sqlDB.SetMaxOpenConns(cfg.DBMaxOpenConns)       // Maximum simultaneous connections
+	sqlDB.SetConnMaxLifetime(cfg.DBConnMaxLifetime) // Connection lifetime
 
-	// Configurar statement cache
+	// Configure statement cache
 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
-		PrepareStmt: true, // Habilitar cache de prepared statements
+		PrepareStmt: true, // Enable prepared statement cache
 		NowFunc: func() time.Time {
 			return time.Now().UTC() // Use UTC for all timestamps
 		},
-		Logger: logger.Default.LogMode(logger.Silent), // Reducir logging en producción
+		Logger: logger.Default.LogMode(logger.Silent), // Reduce logging in production
 	})
 	if err != nil {
-		return nil, errors.DB(err, "error reopening database with prepared statements")
+		return nil, errors.DB(err, "Failed to reopen database with prepared statements")
 	}
 
 	// Test connection
 	if err := sqlDB.Ping(); err != nil {
-		return nil, errors.DB(err, "error pinging database")
+		return nil, errors.Wrap(err, errors.ErrDatabaseError, "Failed to ping database server")
 	}
 
+	log.Printf("Successfully connected to database %s at %s:%s", cfg.DBName, cfg.DBHost, cfg.DBPort)
 	return db, nil
+}
+
+// Additional helper functions for database operations
+
+// IsConnected checks if the database connection is still active
+func IsConnected(db *gorm.DB) error {
+	sqlDB, err := db.DB()
+	if err != nil {
+		return errors.Wrap(err, errors.ErrDatabaseError, "Failed to get underlying database connection")
+	}
+
+	if err := sqlDB.Ping(); err != nil {
+		return errors.Wrap(err, errors.ErrDatabaseError, "Database connection lost")
+	}
+
+	return nil
+}
+
+// GetDBStats returns statistics about the database connection pool
+func GetDBStats(db *gorm.DB) (map[string]interface{}, error) {
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, errors.Wrap(err, errors.ErrDatabaseError, "Failed to get underlying database connection")
+	}
+
+	stats := sqlDB.Stats()
+	return map[string]interface{}{
+		"max_open_connections": stats.MaxOpenConnections,
+		"open_connections":     stats.OpenConnections,
+		"in_use":               stats.InUse,
+		"idle":                 stats.Idle,
+		"wait_count":           stats.WaitCount,
+		"wait_duration":        stats.WaitDuration,
+		"max_idle_closed":      stats.MaxIdleClosed,
+		"max_lifetime_closed":  stats.MaxLifetimeClosed,
+	}, nil
 }
