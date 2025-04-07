@@ -11,44 +11,44 @@ import (
 )
 
 func (r *memberResolver) handleMemberMutation(ctx context.Context, member *models.Member) (*models.Member, error) {
-	// Valida el miembro antes de continuar
+	// Validate member before continuing
 	if err := member.Validate(); err != nil {
-		// Si ya es un AppError, devuélvelo tal cual
+		// If it's already an AppError, return it as is
 		var appErr *errors.AppError
 		if stdErrors.As(err, &appErr) {
 			return nil, appErr
 		}
-		// Si fuera un error genérico, lo convertimos:
+		// If it's a generic error, convert it:
 		return nil, errors.NewValidationError(err.Error(), nil)
 	}
 
-	// Si se trata de una creación, se verifica que el usuario tenga permisos de administrador.
+	// For creation, verify that the user has admin permissions
 	if member.ID == 0 {
-		// Obtener el usuario desde el contexto
+		// Get user from context
 		userInterface := ctx.Value(constants.UserContextKey)
 		if userInterface == nil {
-			return nil, errors.NewBusinessError(errors.ErrUnauthorized, "usuario no autenticado")
+			return nil, errors.NewBusinessError(errors.ErrUnauthorized, "User not authenticated")
 		}
 
 		user, ok := userInterface.(*models.User)
 		if !ok {
-			return nil, errors.NewBusinessError(errors.ErrUnauthorized, "usuario inválido")
+			return nil, errors.NewBusinessError(errors.ErrUnauthorized, "Invalid user")
 		}
 
-		// Verificar que el usuario sea administrador
+		// Verify that user is admin
 		if user.Role != models.RoleAdmin {
-			return nil, stdErrors.New("insufficient permissions")
+			return nil, errors.NewBusinessError(errors.ErrForbidden, "Insufficient permissions")
 		}
 
-		// Como el usuario es admin, se procede a crear el miembro
+		// Since user is admin, proceed to create the member
 		err := r.memberService.CreateMember(ctx, member)
 		if err != nil {
-			return nil, err
+			return nil, err // Service errors are already wrapped properly
 		}
 	} else {
 		err := r.memberService.UpdateMember(ctx, member)
 		if err != nil {
-			return nil, err
+			return nil, err // Service errors are already wrapped properly
 		}
 	}
 
@@ -63,8 +63,8 @@ func (r *memberResolver) mapTipoMembresia(tipo model.MembershipType) (string, er
 		return models.TipoMembresiaPFamiliar, nil
 	default:
 		return "", errors.NewValidationError(
-			"tipo de membresía no válido",
-			map[string]string{"tipo_membresia": "debe ser INDIVIDUAL o FAMILY"},
+			"Invalid membership type",
+			map[string]string{"tipo_membresia": "Must be INDIVIDUAL or FAMILY"},
 		)
 	}
 }
@@ -88,7 +88,7 @@ func (r *memberResolver) mapCreateInputToMember(input *model.CreateMemberInput) 
 		FechaNacimiento: input.FechaNacimiento,
 	}
 
-	// Campos opcionales con valores por defecto
+	// Optional fields with default values
 	if input.Provincia != nil {
 		member.Provincia = *input.Provincia
 	} else {
@@ -107,7 +107,7 @@ func (r *memberResolver) mapCreateInputToMember(input *model.CreateMemberInput) 
 		member.Nacionalidad = "Senegal"
 	}
 
-	// Campos opcionales
+	// Optional fields
 	if input.DocumentoIdentidad != nil {
 		member.DocumentoIdentidad = input.DocumentoIdentidad
 	}
@@ -128,7 +128,7 @@ func (r *memberResolver) mapUpdateInputToMember(id uint, input *model.UpdateMemb
 	member := *existing
 	member.ID = id
 
-	// Actualizar solo campos proporcionados
+	// Update only provided fields
 	if input.CalleNumeroPiso != nil {
 		member.Direccion = *input.CalleNumeroPiso
 	}
@@ -163,13 +163,10 @@ func (r *memberResolver) mapUpdateInputToMember(id uint, input *model.UpdateMemb
 func (r *memberResolver) handleMemberStatus(ctx context.Context, memberID uint, status model.MemberStatus) (*models.Member, error) {
 	member, err := r.memberService.GetMemberByID(ctx, memberID)
 	if err != nil {
-		return nil, errors.NewBusinessError(
-			errors.ErrDatabaseError,
-			"Failed to fetch member",
-		)
+		return nil, errors.Wrap(err, errors.ErrDatabaseError, "Failed to fetch member")
 	}
 	if member == nil {
-		return nil, errors.NewNotFoundError("member")
+		return nil, errors.NotFound("member", nil)
 	}
 
 	switch status {
@@ -180,19 +177,21 @@ func (r *memberResolver) handleMemberStatus(ctx context.Context, memberID uint, 
 		member.Estado = models.EstadoInactivo
 		now := time.Now()
 		member.FechaBaja = &now
+	default:
+		return nil, errors.NewValidationError(
+			"Invalid member status",
+			map[string]string{"status": "Must be ACTIVE or INACTIVE"},
+		)
 	}
 
 	if err = r.memberService.UpdateMember(ctx, member); err != nil {
-		return nil, errors.NewBusinessError(
-			errors.ErrInternalError,
-			"Failed to update member status",
-		)
+		return nil, errors.Wrap(err, errors.ErrInternalError, "Failed to update member status")
 	}
 
 	return member, nil
 }
 
-// Funciones auxiliares para las validaciones específicas de miembro
+// Helper functions for specific member validations
 func (r *memberResolver) validateCreateInput(input *model.CreateMemberInput) error {
 	fields := make(map[string]string)
 
@@ -229,5 +228,24 @@ func (r *memberResolver) validateUpdateInput(input *model.UpdateMemberInput) err
 			map[string]string{"miembro_id": "Member ID is required"},
 		)
 	}
+
+	// Check if at least one field is provided for update
+	hasUpdates := input.CalleNumeroPiso != nil ||
+		input.CodigoPostal != nil ||
+		input.Poblacion != nil ||
+		input.Provincia != nil ||
+		input.Pais != nil ||
+		input.DocumentoIdentidad != nil ||
+		input.CorreoElectronico != nil ||
+		input.Profesion != nil ||
+		input.Observaciones != nil
+
+	if !hasUpdates {
+		return errors.NewValidationError(
+			"No fields to update",
+			map[string]string{"update": "At least one field must be provided for update"},
+		)
+	}
+
 	return nil
 }

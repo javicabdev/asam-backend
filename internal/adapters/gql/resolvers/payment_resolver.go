@@ -36,81 +36,136 @@ func (r *paymentResolver) mapPaymentInputToModel(input *model.PaymentInput) *mod
 }
 
 func (r *paymentResolver) validatePayment(ctx context.Context, payment *models.Payment) error {
+	// Basic model validation
 	if err := payment.Validate(); err != nil {
-		// Chequear si es AppError
+		// Check if it's already an AppError
 		var appErr *appErrors.AppError
 		if stdErr.As(err, &appErr) {
 			return appErr
 		}
-		// Sino, convertirlo (caso excepcional)
+		// Otherwise, convert it to a validation error
 		return appErrors.NewValidationError(err.Error(), nil)
 	}
 
+	// Check if member exists and is active
 	if payment.MemberID != 0 {
 		member, err := r.memberService.GetMemberByID(ctx, payment.MemberID)
 		if err != nil {
-			var appErr *appErrors.AppError
-			if stdErr.As(err, &appErr) {
-				return appErr
-			}
-			return appErrors.NewValidationError(err.Error(), nil)
+			return appErrors.Wrap(err, appErrors.ErrDatabaseError, "Error verifying member")
 		}
 		if member == nil {
-			return appErrors.NewNotFoundError("member")
+			return appErrors.NotFound("member", nil)
 		}
 		if member.Estado != models.EstadoActivo {
 			return appErrors.NewValidationError(
-				"cannot register payment for inactive member",
+				"Cannot register payment for inactive member",
 				map[string]string{
-					"Member": "Inactive",
+					"member_status": "inactive",
 				},
 			)
 		}
 	}
 
+	// Check if family exists
 	if payment.FamilyID != nil {
 		family, err := r.familyService.GetByID(ctx, *payment.FamilyID)
 		if err != nil {
-			return err
+			return appErrors.Wrap(err, appErrors.ErrDatabaseError, "Error verifying family")
 		}
 		if family == nil {
-			return appErrors.NewNotFoundError("family")
+			return appErrors.NotFound("family", nil)
 		}
+	}
+
+	// Ensure either member or family is provided
+	if payment.MemberID == 0 && payment.FamilyID == nil {
+		return appErrors.NewValidationError(
+			"Payment must be associated with either a member or family",
+			map[string]string{
+				"member_id": "required if family_id not provided",
+				"family_id": "required if member_id not provided",
+			},
+		)
+	}
+
+	// Validate amount is positive
+	if payment.Amount <= 0 {
+		return appErrors.NewValidationError(
+			"Payment amount must be greater than zero",
+			map[string]string{
+				"amount": "must be positive",
+			},
+		)
 	}
 
 	return nil
 }
 
 func (r *paymentResolver) handlePaymentMutation(ctx context.Context, payment *models.Payment) (*models.Payment, error) {
+	// Validate the payment
 	if err := r.validatePayment(ctx, payment); err != nil {
 		return nil, err
 	}
 
 	if payment.ID == 0 {
+		// Creating a new payment
 		err := r.paymentService.RegisterPayment(ctx, payment)
 		if err != nil {
-			return nil, err
+			return nil, appErrors.Wrap(err, appErrors.ErrInternalError, "Error registering payment")
 		}
 	} else {
-		// Verificar que el pago no esté cancelado
+		// Updating an existing payment
+		// Check if payment exists and is not cancelled
 		existingPayment, err := r.paymentService.GetPayment(ctx, payment.ID)
 		if err != nil {
-			return nil, err
+			return nil, appErrors.Wrap(err, appErrors.ErrDatabaseError, "Error retrieving payment")
+		}
+		if existingPayment == nil {
+			return nil, appErrors.NotFound("payment", nil)
 		}
 		if existingPayment.Status == models.PaymentStatusCancelled {
 			return nil, appErrors.NewValidationError(
-				"cannot update cancelled payment",
+				"Cannot update cancelled payment",
 				map[string]string{
-					"Payment": "Cancelled",
+					"status": "cancelled",
 				},
 			)
 		}
 
+		// Update the payment
 		err = r.paymentService.RegisterPayment(ctx, payment)
 		if err != nil {
-			return nil, err
+			return nil, appErrors.Wrap(err, appErrors.ErrInternalError, "Error updating payment")
 		}
 	}
 
 	return payment, nil
+}
+
+// Helper methods for handling specific payment operations
+
+func (r *paymentResolver) validatePaymentInput(input *model.PaymentInput) error {
+	fields := make(map[string]string)
+
+	// Either member_id or family_id must be provided
+	if input.MemberID == nil && input.FamilyID == nil {
+		fields["member_id"] = "Either member_id or family_id is required"
+		fields["family_id"] = "Either member_id or family_id is required"
+	}
+
+	// Amount must be positive
+	if input.Amount <= 0 {
+		fields["amount"] = "Amount must be greater than zero"
+	}
+
+	// Payment method is required
+	if input.PaymentMethod == "" {
+		fields["payment_method"] = "Payment method is required"
+	}
+
+	if len(fields) > 0 {
+		return appErrors.NewValidationError("Invalid payment input", fields)
+	}
+
+	return nil
 }
