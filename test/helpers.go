@@ -31,15 +31,15 @@ func CreateValidFamilyInput() model.CreateFamilyInput {
 // Helper para crear datos válidos de miembro para tests
 func CreateValidMemberInput() model.CreateMemberInput {
 	return model.CreateMemberInput{
-		NumeroSocio:   GenerateValidNumeroSocio(2),
-		TipoMembresia: model.MembershipTypeIndividual,
-		Nombre:        "Pedro",
-		Apellidos:     "Martínez",
-		Direccion:     "Calle Test 1",
-		CodigoPostal:  "08001",
-		Poblacion:     "Barcelona",
-		Provincia:     StringPtr("Barcelona"),
-		Pais:          StringPtr("España"),
+		NumeroSocio:     GenerateValidNumeroSocio(2),
+		TipoMembresia:   model.MembershipTypeIndividual,
+		Nombre:          "Pedro",
+		Apellidos:       "Martínez",
+		CalleNumeroPiso: "Calle Test 1",
+		CodigoPostal:    "08001",
+		Poblacion:       "Barcelona",
+		Provincia:       StringPtr("Barcelona"),
+		Pais:            StringPtr("España"),
 	}
 }
 
@@ -67,7 +67,7 @@ func CreateValidMember() *models.Member {
 		TipoMembresia:     models.TipoMembresiaPIndividual,
 		Nombre:            "Juan",
 		Apellidos:         "García",
-		Direccion:         "Calle Test 1, 1º",
+		CalleNumeroPiso:   "Calle Test 1, 1º",
 		CodigoPostal:      "08224",
 		Poblacion:         "Terrassa",
 		Provincia:         "Barcelona",

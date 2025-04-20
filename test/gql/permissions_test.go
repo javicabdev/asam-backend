@@ -59,13 +59,13 @@ var _ = Describe("Permissions", func() {
 			It("can create member", func() {
 				ctx := context.WithValue(context.Background(), constants.UserContextKey, adminUser)
 				input := model.CreateMemberInput{
-					NumeroSocio:   "001",
-					TipoMembresia: model.MembershipTypeIndividual,
-					Nombre:        "Test",
-					Apellidos:     "User",
-					Direccion:     "Test Address",
-					CodigoPostal:  "12345",
-					Poblacion:     "Test City",
+					NumeroSocio:     "001",
+					TipoMembresia:   model.MembershipTypeIndividual,
+					Nombre:          "Test",
+					Apellidos:       "User",
+					CalleNumeroPiso: "Test Address",
+					CodigoPostal:    "12345",
+					Poblacion:       "Test City",
 				}
 
 				memberService.On("CreateMember", mock.Anything, mock.AnythingOfType("*models.Member")).Return(nil)
@@ -86,13 +86,13 @@ var _ = Describe("Permissions", func() {
 			It("cannot create member", func() {
 				ctx := context.WithValue(context.Background(), constants.UserContextKey, regularUser)
 				input := model.CreateMemberInput{
-					NumeroSocio:   "001",
-					TipoMembresia: model.MembershipTypeIndividual,
-					Nombre:        "Test",
-					Apellidos:     "User",
-					Direccion:     "Test Address",
-					CodigoPostal:  "12345",
-					Poblacion:     "Test City",
+					NumeroSocio:     "001",
+					TipoMembresia:   model.MembershipTypeIndividual,
+					Nombre:          "Test",
+					Apellidos:       "User",
+					CalleNumeroPiso: "Test Address",
+					CodigoPostal:    "12345",
+					Poblacion:       "Test City",
 				}
 
 				member, err := resolver.Mutation().CreateMember(ctx, input)

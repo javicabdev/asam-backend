@@ -137,18 +137,18 @@ var _ = Describe("Member", func() {
 		When("member exists", func() {
 			It("updates successfully", func() {
 				existingMember := &models.Member{
-					ID:            1,
-					NumeroSocio:   test.GenerateValidNumeroSocio(1),
-					TipoMembresia: models.TipoMembresiaPIndividual,
-					Nombre:        "Juan",
-					Apellidos:     "García",
-					Direccion:     "Calle Test 1",
-					CodigoPostal:  "08001",
-					Poblacion:     "Barcelona",
-					Provincia:     "Barcelona",
-					Pais:          "España",
-					Estado:        models.EstadoActivo,
-					FechaAlta:     time.Now(),
+					ID:              1,
+					NumeroSocio:     test.GenerateValidNumeroSocio(1),
+					TipoMembresia:   models.TipoMembresiaPIndividual,
+					Nombre:          "Juan",
+					Apellidos:       "García",
+					CalleNumeroPiso: "Calle Test 1",
+					CodigoPostal:    "08001",
+					Poblacion:       "Barcelona",
+					Provincia:       "Barcelona",
+					Pais:            "España",
+					Estado:          models.EstadoActivo,
+					FechaAlta:       time.Now(),
 				}
 
 				input := model.UpdateMemberInput{
@@ -201,14 +201,14 @@ var _ = Describe("Member", func() {
 
 func createValidMemberInput() model.CreateMemberInput {
 	return model.CreateMemberInput{
-		NumeroSocio:   "001",
-		TipoMembresia: model.MembershipTypeIndividual,
-		Nombre:        "Juan",
-		Apellidos:     "García",
-		Direccion:     "Calle Test 1",
-		CodigoPostal:  "08001",
-		Poblacion:     "Barcelona",
-		Provincia:     test.StringPtr("Barcelona"),
-		Pais:          test.StringPtr("España"),
+		NumeroSocio:     "001",
+		TipoMembresia:   model.MembershipTypeIndividual,
+		Nombre:          "Juan",
+		Apellidos:       "García",
+		CalleNumeroPiso: "Calle Test 1",
+		CodigoPostal:    "08001",
+		Poblacion:       "Barcelona",
+		Provincia:       test.StringPtr("Barcelona"),
+		Pais:            test.StringPtr("España"),
 	}
 }

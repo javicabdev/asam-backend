@@ -14,7 +14,7 @@ type Member struct {
 	TipoMembresia      string     `gorm:"not null;column:tipo_membresia"`
 	Nombre             string     `gorm:"not null"`
 	Apellidos          string     `gorm:"not null"`
-	Direccion          string     `gorm:"not null;column:calle_numero_piso"`
+	CalleNumeroPiso    string     `gorm:"not null;column:calle_numero_piso"`
 	CodigoPostal       string     `gorm:"not null;column:codigo_postal"`
 	Poblacion          string     `gorm:"not null"`
 	Provincia          string     `gorm:"not null;default:Barcelona"`
@@ -97,8 +97,8 @@ func (m *Member) validateBasicFields() error {
 		errDetails["apellidos"] = "Last name is required"
 	}
 
-	if m.Direccion == "" {
-		errDetails["direccion"] = "Address is required"
+	if m.CalleNumeroPiso == "" {
+		errDetails["calleNumeroPiso"] = "Address is required"
 	}
 
 	if m.CodigoPostal == "" {
