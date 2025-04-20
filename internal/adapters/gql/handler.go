@@ -88,7 +88,8 @@ func NewHandler(
 	metrics.RegisterMetrics(db)
 
 	// Crear middlewares individuales
-	authMiddleware := auth.NewAuthMiddleware(authService)
+	// Usar nuestro nuevo middleware de autenticación basado en JWT
+	authMiddleware := middleware.AuthMiddleware(authService, appLogger)
 	validationMiddleware := middleware.NewValidationMiddleware()
 	recoveryMiddleware := middleware.NewRecoveryMiddleware(appLogger)
 	transactionMiddleware := middleware.NewTransactionMiddleware(db)
@@ -102,24 +103,24 @@ func NewHandler(
 	metricsMiddleware := metrics.NewMetricsMiddleware()
 
 	// Construir la cadena de middleware con manejo de errores coherente
-	var handler http.Handler = srv
+	var handlerChain http.Handler = srv
 
 	// Orden de middleware revisado para manejo de errores coherente:
-	handler = transactionMiddleware.Handler(handler) // Transacciones (más interno)
-	handler = metricsMiddleware(handler)             // Métricas después de las transacciones
+	handlerChain = transactionMiddleware.Handler(handlerChain) // Transacciones (más interno)
+	handlerChain = metricsMiddleware(handlerChain)             // Métricas después de las transacciones
 
 	// El middleware de errores debe ir ANTES de middlewares que pueden generar errores
 	// pero después de middlewares que modifican el flujo (como transacciones)
-	handler = errorHandler.Handler(handler) // *** Error handling aquí ***
+	handlerChain = errorHandler.Handler(handlerChain) // *** Error handling aquí ***
 
-	handler = authMiddleware.Handler(handler)       // Autenticación - errores manejados por errorHandler
-	handler = validationMiddleware.Handler(handler) // Validación
-	handler = rateLimiter.Middleware(handler)       // Rate limiting
-	handler = recoveryMiddleware.Handler(handler)   // Recuperación de pánicos - alimenta a errorHandler
-	handler = securityHeaders.Middleware(handler)   // Headers de seguridad
+	handlerChain = authMiddleware(handlerChain)               // Autenticación JWT - errores manejados por errorHandler
+	handlerChain = validationMiddleware.Handler(handlerChain) // Validación
+	handlerChain = rateLimiter.Middleware(handlerChain)       // Rate limiting
+	handlerChain = recoveryMiddleware.Handler(handlerChain)   // Recuperación de pánicos - alimenta a errorHandler
+	handlerChain = securityHeaders.Middleware(handlerChain)   // Headers de seguridad
 
 	// Aplicar filtrado de métodos HTTP usando el sistema de errores
-	handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handlerChain = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost && r.Method != http.MethodOptions {
 			// Construir un error estructurado en lugar de simplemente retornar un código HTTP
 			ctx := context.WithValue(r.Context(), middleware.ErrorHandlerKey{}, errorHandler)
@@ -133,28 +134,31 @@ func NewHandler(
 			})
 			return
 		}
-		handler.ServeHTTP(w, r)
+		handlerChain.ServeHTTP(w, r)
 	})
 
 	// Aplicar CORS como la capa más externa
-	handler = corsMiddleware(handler)
+	handlerChain = corsMiddleware(handlerChain)
 
 	// Establecer Content-Type
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		handler.ServeHTTP(w, r)
+		handlerChain.ServeHTTP(w, r)
 	})
 }
 
 // writeJSON es un helper para escribir JSON en la respuesta
-func writeJSON(w http.ResponseWriter, data interface{}) {
-	json.NewEncoder(w).Encode(data)
+func writeJSON(w http.ResponseWriter, data any) {
+	err := json.NewEncoder(w).Encode(data)
+	if err != nil {
+		return
+	}
 }
 
 // NewPlaygroundHandler crea un nuevo handler para el playground GraphQL
 func NewPlaygroundHandler() http.Handler {
-	playground := playground.Handler("ASAM GraphQL Playground", "/graphql")
+	playgroundHandler := playground.Handler("ASAM GraphQL Playground", "/graphql")
 
-	// Aplicar CORS al playground para consistencia
-	return corsMiddleware(playground)
+	// Aplicar CORS al playgroundHandler para consistencia
+	return corsMiddleware(playgroundHandler)
 }
