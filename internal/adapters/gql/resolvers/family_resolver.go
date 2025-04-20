@@ -3,6 +3,7 @@ package resolvers
 import (
 	"context"
 	stdErrors "errors"
+	"fmt"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/pkg/errors"
@@ -124,7 +125,7 @@ func (r *familyResolver) handleFamiliarMutation(ctx context.Context, familyID ui
 		return nil, errors.Wrap(err, errors.ErrDatabaseError, "Error fetching family")
 	}
 	if family == nil {
-		return nil, errors.NotFound("familia con ID "+string(familyID), nil)
+		return nil, errors.NotFound("familia con ID "+fmt.Sprintf("%d", familyID), nil)
 	}
 
 	// Validate familiar data
