@@ -9,13 +9,8 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/errors"
 )
 
-// Helper function to convert string to pointer
-func strPtr(s string) *string {
-	return &s
-}
-
-// Mutation.login implementa la mutación de login
-func (r *Resolver) Login(ctx context.Context, input model.LoginInput) (interface{}, error) {
+// Login Mutation.login implementa la mutación de login
+func (r *Resolver) Login(ctx context.Context, input model.LoginInput) (*model.AuthResponse, error) {
 	// Extraer username y password del input
 	username := input.Username
 	password := input.Password
@@ -55,7 +50,7 @@ func (r *Resolver) Login(ctx context.Context, input model.LoginInput) (interface
 	}, nil
 }
 
-// Mutation.logout implementa la mutación de logout
+// Logout Mutation.logout implementa la mutación de logout
 func (r *Resolver) Logout(ctx context.Context) (interface{}, error) {
 	// Obtener token del contexto
 	token, err := getAccessTokenFromContext(ctx)
@@ -84,7 +79,7 @@ func (r *Resolver) Logout(ctx context.Context) (interface{}, error) {
 	}, nil
 }
 
-// Mutation.refreshToken implementa la mutación de refreshToken
+// RefreshToken Mutation.refreshToken implementa la mutación de refreshToken
 func (r *Resolver) RefreshToken(ctx context.Context, input model.RefreshTokenInput) (interface{}, error) {
 	// Extraer refreshToken del input
 	refreshToken := input.RefreshToken
