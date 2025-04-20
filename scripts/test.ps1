@@ -65,8 +65,9 @@ try {
         Write-Host "Ejecutando tests del módulo: $Module" -ForegroundColor Cyan
         Invoke-DockerCompose -Arguments @("-f", "docker-compose.test.yml", "run", "--rm", "api-test", "go", "test", "./test/$Module/...", "-v")
     } else {
-        Write-Host "Ejecutando todos los tests..." -ForegroundColor Cyan
-        Invoke-DockerCompose -Arguments @("-f", "docker-compose.test.yml", "run", "--rm", "api-test")
+        Write-Host "Ejecutando todos los tests desde la raíz..." -ForegroundColor Cyan
+        # Ejecutar todos los tests en el proyecto
+        Invoke-DockerCompose -Arguments @("-f", "docker-compose.test.yml", "run", "--rm", "api-test", "sh", "-c", "go test -v ./...")
     }
 }
 catch {
