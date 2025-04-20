@@ -379,15 +379,9 @@ func (r *mutationResolver) AdjustBalance(ctx context.Context, amount float64, re
 // Login is the resolver for the login field.
 func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*model.AuthResponse, error) {
 	// Llamamos a la función implementada en auth_resolver.go
-	result, err := r.Resolver.Login(ctx, input)
+	auth, err := r.Resolver.Login(ctx, input)
 	if err != nil {
 		return nil, err
-	}
-
-	// Hacemos un cast al tipo adecuado
-	auth, ok := result.(*model.AuthResponse)
-	if !ok {
-		return nil, fmt.Errorf("error interno: formato de respuesta inesperado")
 	}
 
 	return auth, nil
