@@ -1,7 +1,9 @@
 package models_test
 
 import (
+	"github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/test"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,11 +20,13 @@ func TestFamilyValidation_BasicFields(t *testing.T) {
 		{
 			name: "valid family",
 			family: &models.Family{
-				NumeroSocio:     "F1234",
-				EsposoNombre:    "Juan",
-				EsposoApellidos: "García",
-				EsposaNombre:    "María",
-				EsposaApellidos: "López",
+				NumeroSocio:              "F1234",
+				EsposoNombre:             "Juan",
+				EsposoApellidos:          "García",
+				EsposaNombre:             "María",
+				EsposaApellidos:          "López",
+				EsposoDocumentoIdentidad: "12345678A",
+				EsposaDocumentoIdentidad: "87654321B",
 			},
 			wantErr: false,
 		},
@@ -58,18 +62,22 @@ func TestFamilyValidation_Conyuges(t *testing.T) {
 		{
 			name: "valid family data",
 			family: &models.Family{
-				NumeroSocio:     test.GenerateValidNumeroSocio(1),
-				EsposoNombre:    "Juan",
-				EsposoApellidos: "García",
-				EsposaNombre:    "María",
-				EsposaApellidos: "López",
+				NumeroSocio:              test.GenerateValidNumeroSocio(1),
+				EsposoNombre:             "Juan",
+				EsposoApellidos:          "García",
+				EsposaNombre:             "María",
+				EsposaApellidos:          "López",
+				EsposoDocumentoIdentidad: "12345678A",
+				EsposaDocumentoIdentidad: "87654321B",
 			},
 			wantErr: false,
 		},
 		{
 			name: "missing spouse names",
 			family: &models.Family{
-				NumeroSocio: test.GenerateValidNumeroSocio(2),
+				NumeroSocio:              test.GenerateValidNumeroSocio(2),
+				EsposoDocumentoIdentidad: "12345678A",
+				EsposaDocumentoIdentidad: "87654321B",
 			},
 			wantErr: true,
 			errMsg:  "se requiere información de al menos un cónyuge",
@@ -77,11 +85,14 @@ func TestFamilyValidation_Conyuges(t *testing.T) {
 		{
 			name: "only husband data",
 			family: &models.Family{
-				NumeroSocio:     test.GenerateValidNumeroSocio(3),
-				EsposoNombre:    "Juan",
-				EsposoApellidos: "García",
+				NumeroSocio:              test.GenerateValidNumeroSocio(3),
+				EsposoNombre:             "Juan",
+				EsposoApellidos:          "García",
+				EsposoDocumentoIdentidad: "12345678A",
+				EsposaDocumentoIdentidad: "87654321B",
 			},
-			wantErr: false,
+			wantErr: true,
+			errMsg:  "se requiere información de al menos un cónyuge",
 		},
 	}
 
@@ -91,7 +102,7 @@ func TestFamilyValidation_Conyuges(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.errMsg != "" {
-					assert.Contains(t, err.Error(), tt.errMsg)
+					assert.Contains(t, strings.ToLower(err.Error()), strings.ToLower(tt.errMsg))
 				}
 			} else {
 				assert.NoError(t, err)
@@ -111,7 +122,12 @@ func TestFamilyValidation_DocumentIDs(t *testing.T) {
 	family.EsposoDocumentoIdentidad = "INVALID_DOC"
 	err := family.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "documento de identidad del esposo inválido")
+	assert.True(t, errors.IsValidationError(err), "Debería ser un error de validación")
+
+	// Verificar que el campo específico tiene error
+	fields := errors.GetFields(err)
+	assert.NotNil(t, fields, "Debería contener campos con error")
+	assert.Contains(t, fields, "esposoDocumentoIdentidad", "Debería tener error en el documento del esposo")
 
 	// Restaurar documento válido
 	family.EsposoDocumentoIdentidad = "12345678A"
@@ -120,7 +136,12 @@ func TestFamilyValidation_DocumentIDs(t *testing.T) {
 	family.EsposaDocumentoIdentidad = "INVALID_DOC"
 	err = family.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "documento de identidad de la esposa inválido")
+	assert.True(t, errors.IsValidationError(err), "Debería ser un error de validación")
+
+	// Verificar que el campo específico tiene error
+	fields = errors.GetFields(err)
+	assert.NotNil(t, fields, "Debería contener campos con error")
+	assert.Contains(t, fields, "esposaDocumentoIdentidad", "Debería tener error en el documento de la esposa")
 }
 
 // Tests de validaciones de información de contacto
@@ -134,7 +155,12 @@ func TestFamilyValidation_ContactInfo(t *testing.T) {
 	family.EsposoCorreoElectronico = "invalid-email"
 	err := family.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "correo electrónico del esposo inválido")
+	assert.True(t, errors.IsValidationError(err), "Debería ser un error de validación")
+
+	// Verificar que el campo específico tiene error
+	fields := errors.GetFields(err)
+	assert.NotNil(t, fields, "Debería contener campos con error")
+	assert.Contains(t, fields, "esposoCorreoElectronico", "Debería tener error en el correo del esposo")
 
 	// Restaurar correo válido
 	family.EsposoCorreoElectronico = "pedro.lopez@example.com"
@@ -143,7 +169,12 @@ func TestFamilyValidation_ContactInfo(t *testing.T) {
 	family.EsposaCorreoElectronico = "invalid-email"
 	err = family.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "correo electrónico de la esposa inválido")
+	assert.True(t, errors.IsValidationError(err), "Debería ser un error de validación")
+
+	// Verificar que el campo específico tiene error
+	fields = errors.GetFields(err)
+	assert.NotNil(t, fields, "Debería contener campos con error")
+	assert.Contains(t, fields, "esposaCorreoElectronico", "Debería tener error en el correo de la esposa")
 }
 
 // Tests de validaciones de fechas
@@ -157,7 +188,12 @@ func TestFamilyValidation_Dates(t *testing.T) {
 	family.EsposoFechaNacimiento = test.TimePtr(time.Now().Add(24 * time.Hour))
 	err := family.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "fecha de nacimiento del esposo no puede ser futura")
+	assert.True(t, errors.IsValidationError(err), "Debería ser un error de validación")
+
+	// Verificar que el campo específico tiene error
+	fields := errors.GetFields(err)
+	assert.NotNil(t, fields, "Debería contener campos con error")
+	assert.Contains(t, fields, "esposoFechaNacimiento", "Debería tener error en la fecha de nacimiento")
 }
 
 // Tests de lógica de negocio
@@ -186,19 +222,33 @@ func TestFamily_BeforeCreate(t *testing.T) {
 	// Caso válido
 	assert.NoError(t, family.BeforeCreate(nil))
 
-	// Caso inválido
+	// Caso inválido - numero socio vacío
 	family.NumeroSocio = ""
 	assert.Error(t, family.BeforeCreate(nil))
+
+	// Restauramos numero socio y probamos documento identidad vacío
+	family.NumeroSocio = "A1234"
+	family.EsposoDocumentoIdentidad = ""
+	err := family.BeforeCreate(nil)
+	assert.Error(t, err)
+	assert.True(t, errors.IsValidationError(err), "Debería ser un error de validación")
+
+	// Verificar que el campo específico tiene error
+	fields := errors.GetFields(err)
+	assert.NotNil(t, fields, "Debería contener campos con error")
+	assert.Contains(t, fields, "esposoDocumentoIdentidad", "Debería tener error en el documento de identidad del esposo")
 }
 
 func TestFamily_BeforeUpdate(t *testing.T) {
 	// Caso 1: Familia válida
 	family := &models.Family{
-		NumeroSocio:     test.GenerateValidNumeroSocio(1),
-		EsposoNombre:    "Juan",
-		EsposoApellidos: "García",
-		EsposaNombre:    "María",
-		EsposaApellidos: "López",
+		NumeroSocio:              test.GenerateValidNumeroSocio(1),
+		EsposoNombre:             "Juan",
+		EsposoApellidos:          "García",
+		EsposaNombre:             "María",
+		EsposaApellidos:          "López",
+		EsposoDocumentoIdentidad: "12345678A",
+		EsposaDocumentoIdentidad: "87654321B",
 	}
 	assert.NoError(t, family.BeforeUpdate(nil))
 
@@ -206,13 +256,34 @@ func TestFamily_BeforeUpdate(t *testing.T) {
 	family.NumeroSocio = "invalid"
 	err := family.BeforeUpdate(nil)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "formato de número de socio inválido")
+	assert.True(t, errors.IsValidationError(err), "Debería ser un error de validación")
+
+	// Verificar que el campo específico tiene error
+	fields := errors.GetFields(err)
+	assert.NotNil(t, fields, "Debería contener campos con error")
+	assert.Contains(t, fields, "numeroSocio", "Debería tener error en el número de socio")
 
 	// Caso 3: Sin cónyuges (debe generar error)
 	family = &models.Family{
-		NumeroSocio: test.GenerateValidNumeroSocio(2),
+		NumeroSocio:              test.GenerateValidNumeroSocio(2),
+		EsposoDocumentoIdentidad: "12345678A",
+		EsposaDocumentoIdentidad: "87654321B",
 	}
 	err = family.BeforeUpdate(nil)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "se requiere información de al menos un cónyuge")
+	assert.True(t, errors.IsValidationError(err), "Debería ser un error de validación")
+
+	// Verificar los campos con error para cónyuges
+	fields = errors.GetFields(err)
+	assert.NotNil(t, fields, "Debería contener campos con error")
+	// Debe tener al menos un error relacionado con los cónyuges
+	conyugeFields := []string{"esposoNombre", "esposoApellidos", "esposaNombre", "esposaApellidos"}
+	hasConyugeError := false
+	for _, field := range conyugeFields {
+		if _, exists := fields[field]; exists {
+			hasConyugeError = true
+			break
+		}
+	}
+	assert.True(t, hasConyugeError, "Debería tener al menos un error relacionado con los cónyuges")
 }

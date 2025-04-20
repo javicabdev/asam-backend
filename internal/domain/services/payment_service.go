@@ -47,6 +47,16 @@ func (s *paymentService) RegisterPayment(ctx context.Context, payment *models.Pa
 		return errors.NewValidationError(err.Error(), nil)
 	}
 
+	// Obtener miembro para validar que existe y está activo
+	member, err := s.memberRepo.GetByID(ctx, payment.MemberID)
+	if err != nil {
+		return errors.DB(err, "error obteniendo miembro")
+	}
+
+	if member == nil {
+		return errors.NotFound("member", nil)
+	}
+
 	// Si es un pago de cuota, actualizar el estado de la cuota
 	if payment.MembershipFeeID != nil {
 		// Buscar cuota existente
@@ -81,7 +91,7 @@ func (s *paymentService) RegisterPayment(ctx context.Context, payment *models.Pa
 	if payment.PaymentDate.Before(payment.PaymentDate) {
 		daysLate := payment.PaymentDate.Sub(payment.PaymentDate).Hours() / 24
 		metrics.PaymentLatency.WithLabelValues(
-			s.memberTypeToString(ctx, payment.MemberID),
+			s.memberTypeToString(member),
 		).Observe(daysLate)
 	}
 
@@ -96,10 +106,11 @@ func paymentTypeToString(isMembershipFee bool) string {
 	return "otros"
 }
 
-func (s *paymentService) memberTypeToString(ctx context.Context, memberID uint) string {
-	member, err := s.memberRepo.GetByID(ctx, memberID)
-	if err != nil || member == nil {
-		// Si hay error o no encontramos el miembro, retornamos un valor por defecto
+// Función auxiliar para obtener el tipo de membresía
+// Versión optimizada que evita una segunda llamada a la base de datos
+func (s *paymentService) memberTypeToString(member *models.Member) string {
+	if member == nil {
+		// Si no encontramos el miembro, retornamos un valor por defecto
 		return models.TipoMembresiaPIndividual
 	}
 	return member.TipoMembresia

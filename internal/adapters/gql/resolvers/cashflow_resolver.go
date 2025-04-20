@@ -2,11 +2,22 @@ package resolvers
 
 import (
 	"context"
+	"time"
+
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/pkg/constants"
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
-	"time"
 )
+
+// GetUserFromContext obtiene el usuario del contexto
+func GetUserFromContext(ctx context.Context) *models.User {
+	user, ok := ctx.Value(constants.UserContextKey).(*models.User)
+	if !ok {
+		return nil
+	}
+	return user
+}
 
 func (r *cashFlowResolver) mapTransactionInputToModel(input *model.TransactionInput) *models.CashFlow {
 	transaction := &models.CashFlow{
@@ -119,11 +130,18 @@ func (r *cashFlowResolver) handleTransactionMutation(ctx context.Context, transa
 }
 
 func (r *cashFlowResolver) handleBalanceAdjustment(ctx context.Context, amount float64, reason string) (*model.MutationResponse, error) {
+	// Verificar que el usuario es administrador
+	user := GetUserFromContext(ctx)
+	if user == nil || !user.IsAdmin() {
+		return nil, appErrors.NewBusinessError(appErrors.ErrForbidden, "Insufficient permissions to adjust balance")
+	}
+
 	// Validate amount is non-zero
 	if amount == 0 {
-		return nil, appErrors.NewValidationError(
+		return nil, appErrors.Business(
+			appErrors.ErrInvalidAmount,
 			"Adjustment amount cannot be zero",
-			map[string]string{"amount": "Must be non-zero"},
+			nil,
 		)
 	}
 
@@ -183,7 +201,7 @@ func (r *cashFlowResolver) validateTransactionInput(input *model.TransactionInpu
 
 	// Operation type must be valid
 	if !input.OperationType.IsValid() {
-		fields["operation_type"] = "Invalid operation type"
+		fields["operationType"] = "Invalid operation type"
 	} else {
 		// Amount must match operation type
 		if input.OperationType.IsIncome() && input.Amount < 0 {

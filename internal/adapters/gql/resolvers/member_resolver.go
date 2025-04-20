@@ -64,7 +64,7 @@ func (r *memberResolver) mapTipoMembresia(tipo model.MembershipType) (string, er
 	default:
 		return "", errors.NewValidationError(
 			"Invalid membership type",
-			map[string]string{"tipo_membresia": "Must be INDIVIDUAL or FAMILY"},
+			map[string]string{"tipoMembresia": "Must be INDIVIDUAL or FAMILY"},
 		)
 	}
 }
@@ -166,7 +166,7 @@ func (r *memberResolver) handleMemberStatus(ctx context.Context, memberID uint, 
 		return nil, errors.Wrap(err, errors.ErrDatabaseError, "Failed to fetch member")
 	}
 	if member == nil {
-		return nil, errors.NotFound("member", nil)
+		return nil, errors.NotFound("Member", nil)
 	}
 
 	switch status {
@@ -196,7 +196,7 @@ func (r *memberResolver) validateCreateInput(input *model.CreateMemberInput) err
 	fields := make(map[string]string)
 
 	if input.NumeroSocio == "" {
-		fields["numero_socio"] = "Member number is required"
+		fields["numeroSocio"] = "Member number is required"
 	}
 	if input.Nombre == "" {
 		fields["nombre"] = "Name is required"
@@ -208,7 +208,7 @@ func (r *memberResolver) validateCreateInput(input *model.CreateMemberInput) err
 		fields["direccion"] = "Address is required"
 	}
 	if input.CodigoPostal == "" {
-		fields["codigo_postal"] = "Postal code is required"
+		fields["codigoPostal"] = "Postal code is required"
 	}
 	if input.Poblacion == "" {
 		fields["poblacion"] = "City is required"
@@ -225,7 +225,7 @@ func (r *memberResolver) validateUpdateInput(input *model.UpdateMemberInput) err
 	if input.MiembroID == "" {
 		return errors.NewValidationError(
 			"Invalid input data",
-			map[string]string{"miembro_id": "Member ID is required"},
+			map[string]string{"miembroId": "Member ID is required"},
 		)
 	}
 

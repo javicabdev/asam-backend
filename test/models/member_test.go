@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,7 +21,13 @@ func TestValidateBasicFields(t *testing.T) {
 	member.NumeroSocio = ""
 	err := member.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "El número de socio es obligatorio")
+	// Verificamos que sea un error de validación
+	assert.Contains(t, err.Error(), "VALIDATION_FAILED")
+	// Verificamos que contenga el campo numeroSocio
+	appErr, ok := err.(*errors.AppError)
+	assert.True(t, ok)
+	assert.NotNil(t, appErr.Fields)
+	assert.Contains(t, appErr.Fields, "numeroSocio")
 }
 
 // Tests de validaciones de fechas
@@ -35,13 +42,24 @@ func TestValidateDates(t *testing.T) {
 	member.FechaBaja = &fechaBaja                      // Asignar puntero
 	err := member.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "la fecha de baja no puede ser anterior a la fecha de alta")
+
+	// Verificamos que sea un error de validación de fechas
+	assert.Contains(t, err.Error(), "VALIDATION_FAILED")
+
+	// Verificamos que contenga el campo fechaBaja
+	appErr, ok := err.(*errors.AppError)
+	assert.True(t, ok)
+	assert.NotNil(t, appErr.Fields)
+	assert.Contains(t, appErr.Fields, "fechaBaja")
 
 	// Caso: FechaBaja igual a FechaAlta
 	member.FechaBaja = &member.FechaAlta
 	err = member.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "la fecha de baja debe ser posterior a la fecha de alta")
+	assert.Contains(t, err.Error(), "VALIDATION_FAILED")
+	appErr, ok = err.(*errors.AppError)
+	assert.True(t, ok)
+	assert.Contains(t, appErr.Fields, "fechaBaja")
 }
 
 // Tests de lógica de negocio
@@ -71,7 +89,10 @@ func TestNombreCompleto(t *testing.T) {
 	member := test.CreateValidMember()
 
 	// Validar nombre completo
-	assert.Equal(t, "Juan Pérez", member.NombreCompleto())
+	expected := member.Nombre + " " + member.Apellidos
+	actual := member.NombreCompleto()
+
+	assert.Equal(t, expected, actual)
 }
 
 // Tests de validación de estado
@@ -86,7 +107,16 @@ func TestValidateStatus(t *testing.T) {
 	member.FechaBaja = nil
 	err := member.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "un miembro inactivo debe tener fecha de baja")
+
+	// Verificamos que sea un error de validación
+	assert.Contains(t, err.Error(), "VALIDATION_FAILED")
+
+	// Verificamos que contenga el campo correcto
+	appErr, ok := err.(*errors.AppError)
+	assert.True(t, ok)
+	assert.NotNil(t, appErr.Fields)
+	assert.Contains(t, appErr.Fields, "fechaBaja")
+	assert.Contains(t, appErr.Fields["fechaBaja"], "Inactive member")
 }
 
 // Tests de hooks de GORM

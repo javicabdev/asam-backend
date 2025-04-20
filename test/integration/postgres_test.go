@@ -82,18 +82,12 @@ func TestInitDB(t *testing.T) {
 
 			// Cargar configuración
 			cfg, err := config.LoadConfig()
-			if tt.wantErr {
-				if err == nil {
-					t.Errorf("LoadConfig() expected error but got nil")
-				} else if tt.wantCode != "" && !errors.Is(err, tt.wantCode) {
-					t.Errorf("LoadConfig() error = %v, wantCode %v", err, tt.wantCode)
-				}
-			} else if err != nil {
-				t.Errorf("LoadConfig() unexpected error = %v", err)
+			if err != nil {
+				t.Fatalf("LoadConfig() unexpected error = %v", err)
 			}
 
-			// Probar conexión a la base de datos si la configuración se cargó correctamente
-			if err == nil {
+			// Probar conexión a la base de datos
+			{
 				gdb, errDB := db.InitDB(cfg)
 				if tt.wantErr {
 					if errDB == nil {

@@ -124,7 +124,7 @@ func (r *familyResolver) handleFamiliarMutation(ctx context.Context, familyID ui
 		return nil, errors.Wrap(err, errors.ErrDatabaseError, "Error fetching family")
 	}
 	if family == nil {
-		return nil, errors.NotFound("family", nil)
+		return nil, errors.NotFound("familia con ID "+string(familyID), nil)
 	}
 
 	// Validate familiar data
@@ -150,35 +150,35 @@ func (r *familyResolver) validateCreateFamilyInput(input *model.CreateFamilyInpu
 	fields := make(map[string]string)
 
 	if input.NumeroSocio == "" {
-		fields["numero_socio"] = "Family number is required"
+		fields["numeroSocio"] = "El número de socio es obligatorio"
 	}
 
 	if input.EsposoNombre == "" {
-		fields["esposo_nombre"] = "Husband's name is required"
+		fields["esposoNombre"] = "El nombre del esposo es obligatorio"
 	}
 
 	if input.EsposoApellidos == "" {
-		fields["esposo_apellidos"] = "Husband's last name is required"
+		fields["esposoApellidos"] = "Los apellidos del esposo son obligatorios"
 	}
 
 	if input.EsposaNombre == "" {
-		fields["esposa_nombre"] = "Wife's name is required"
+		fields["esposaNombre"] = "El nombre de la esposa es obligatorio"
 	}
 
 	if input.EsposaApellidos == "" {
-		fields["esposa_apellidos"] = "Wife's last name is required"
+		fields["esposaApellidos"] = "Los apellidos de la esposa son obligatorios"
 	}
 
 	if input.EsposoDocumentoIdentidad == nil {
-		fields["esposo_documento_identidad"] = "Husband's ID document is required"
+		fields["esposoDocumentoIdentidad"] = "El documento de identidad del esposo es obligatorio"
 	}
 
 	if input.EsposaDocumentoIdentidad == nil {
-		fields["esposa_documento_identidad"] = "Wife's ID document is required"
+		fields["esposaDocumentoIdentidad"] = "El documento de identidad de la esposa es obligatorio"
 	}
 
 	if len(fields) > 0 {
-		return errors.NewValidationError("Invalid family input", fields)
+		return errors.NewValidationError("Datos de familia inválidos", fields)
 	}
 
 	return nil
@@ -186,8 +186,8 @@ func (r *familyResolver) validateCreateFamilyInput(input *model.CreateFamilyInpu
 
 func (r *familyResolver) validateUpdateFamilyInput(input *model.UpdateFamilyInput) error {
 	if input.FamiliaID == "" {
-		return errors.NewValidationError("Invalid input data", map[string]string{
-			"familia_id": "Family ID is required",
+		return errors.NewValidationError("Datos de entrada inválidos", map[string]string{
+			"familiaId": "El ID de familia es obligatorio",
 		})
 	}
 
@@ -202,8 +202,8 @@ func (r *familyResolver) validateUpdateFamilyInput(input *model.UpdateFamilyInpu
 		input.EsposaCorreoElectronico != nil
 
 	if !hasUpdates {
-		return errors.NewValidationError("Invalid input data", map[string]string{
-			"update": "At least one field must be provided for update",
+		return errors.NewValidationError("Datos de entrada inválidos", map[string]string{
+			"update": "Se debe proporcionar al menos un campo para actualizar",
 		})
 	}
 

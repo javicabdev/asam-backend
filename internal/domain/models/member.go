@@ -1,7 +1,6 @@
 package models
 
 import (
-	"errors"
 	"gorm.io/gorm"
 	"time"
 
@@ -79,38 +78,39 @@ func (m *Member) Validate() error {
 
 // validateBasicFields valida los campos básicos obligatorios
 func (m *Member) validateBasicFields() error {
+	errDetails := make(map[string]string)
+
+	// Validamos todos los campos requeridos primero
 	if m.NumeroSocio == "" {
-		return appErrors.NewValidationError(
-			"El número de socio es obligatorio",
-			map[string]string{"numero_socio": "campo requerido"},
-		)
+		errDetails["numeroSocio"] = "Member number is required"
 	}
 
 	if m.TipoMembresia != TipoMembresiaPIndividual && m.TipoMembresia != TipoMembresiaPFamiliar {
-		return appErrors.NewValidationError(
-			"tipo de membresía no válido",
-			map[string]string{"tipo_membresia": "debe ser 'individual' o 'familiar'"},
-		)
+		errDetails["tipoMembresia"] = "Must be INDIVIDUAL or FAMILY"
 	}
 
 	if m.Nombre == "" {
-		return appErrors.NewValidationError("el nombre es obligatorio", nil)
+		errDetails["nombre"] = "Name is required"
 	}
 
 	if m.Apellidos == "" {
-		return appErrors.NewValidationError("los apellidos son obligatorios", nil)
+		errDetails["apellidos"] = "Last name is required"
 	}
 
 	if m.Direccion == "" {
-		return appErrors.NewValidationError("la dirección es obligatoria", nil)
+		errDetails["direccion"] = "Address is required"
 	}
 
 	if m.CodigoPostal == "" {
-		return appErrors.NewValidationError("el código postal es obligatorio", nil)
+		errDetails["codigoPostal"] = "Postal code is required"
 	}
 
 	if m.Poblacion == "" {
-		return appErrors.NewValidationError("la población es obligatoria", nil)
+		errDetails["poblacion"] = "City is required"
+	}
+
+	if len(errDetails) > 0 {
+		return appErrors.NewValidationError("Error de validación en campos del miembro", errDetails)
 	}
 
 	return nil
@@ -118,17 +118,20 @@ func (m *Member) validateBasicFields() error {
 
 // validateDates valida las fechas del miembro
 func (m *Member) validateDates() error {
+	errDetails := make(map[string]string)
+
 	if m.FechaAlta.IsZero() {
-		return appErrors.NewValidationError("la fecha de alta es obligatoria", nil)
+		errDetails["fechaAlta"] = "Registration date is required"
 	}
 
 	if m.FechaBaja != nil {
-		if m.FechaBaja.Before(m.FechaAlta) {
-			return appErrors.NewValidationError("la fecha de baja no puede ser anterior a la fecha de alta", nil)
+		if m.FechaBaja.Before(m.FechaAlta) || !m.FechaBaja.After(m.FechaAlta) {
+			errDetails["fechaBaja"] = "Termination date must be after registration date"
 		}
-		if !m.FechaBaja.After(m.FechaAlta) {
-			return appErrors.NewValidationError("la fecha de baja debe ser posterior a la fecha de alta", nil)
-		}
+	}
+
+	if len(errDetails) > 0 {
+		return appErrors.NewValidationError("Error de validación en las fechas", errDetails)
 	}
 
 	return nil
@@ -136,12 +139,18 @@ func (m *Member) validateDates() error {
 
 // validateStatus valida el estado del miembro
 func (m *Member) validateStatus() error {
+	errDetails := make(map[string]string)
+
 	if m.Estado != EstadoActivo && m.Estado != EstadoInactivo {
-		return errors.New("estado no válido")
+		errDetails["estado"] = "Status must be 'activo' or 'inactivo'"
 	}
 
 	if m.Estado == EstadoInactivo && m.FechaBaja == nil {
-		return errors.New("un miembro inactivo debe tener fecha de baja")
+		errDetails["fechaBaja"] = "Inactive member must have a termination date"
+	}
+
+	if len(errDetails) > 0 {
+		return appErrors.NewValidationError("Error de validación en el estado", errDetails)
 	}
 
 	return nil

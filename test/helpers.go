@@ -46,13 +46,17 @@ func CreateValidMemberInput() model.CreateMemberInput {
 // Helper para crear una familia válida
 func CreateValidFamily() *models.Family {
 	return &models.Family{
-		NumeroSocio:           "A1234", // Cumple con la validación de formato
-		EsposoNombre:          "Pedro",
-		EsposoApellidos:       "López",
-		EsposaNombre:          "María",
-		EsposaApellidos:       "García",
-		EsposoFechaNacimiento: TimePtr(time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)),
-		EsposaFechaNacimiento: TimePtr(time.Date(1985, 1, 1, 0, 0, 0, 0, time.UTC)),
+		NumeroSocio:              "A1234", // Cumple con la validación de formato
+		EsposoNombre:             "Pedro",
+		EsposoApellidos:          "López",
+		EsposaNombre:             "María",
+		EsposaApellidos:          "García",
+		EsposoFechaNacimiento:    TimePtr(time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)),
+		EsposaFechaNacimiento:    TimePtr(time.Date(1985, 1, 1, 0, 0, 0, 0, time.UTC)),
+		EsposoDocumentoIdentidad: "12345678A",         // Documento de identidad válido
+		EsposaDocumentoIdentidad: "87654321B",         // Documento de identidad válido
+		EsposoCorreoElectronico:  "pedro@example.com", // Correo válido
+		EsposaCorreoElectronico:  "maria@example.com", // Correo válido
 	}
 }
 

@@ -298,7 +298,7 @@ func NewValidationError(message string, fields map[string]string) error {
 func NewNotFoundError(resource string) error {
 	return &AppError{
 		Code:    ErrNotFound,
-		Message: fmt.Sprintf("%s not found", resource),
+		Message: fmt.Sprintf("%s no encontrada", resource),
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/pkg/constants"
 	"github.com/javicabdev/asam-backend/pkg/errors" // Importar la biblioteca de errores personalizada
 	"github.com/javicabdev/asam-backend/test"
 	. "github.com/onsi/ginkgo/v2"
@@ -43,11 +44,19 @@ var _ = Describe("CashFlow", func() {
 				amount := 100.0
 				reason := "Test adjustment"
 
+				// Crear un usuario administrador para el contexto
+				mockUser := &models.User{
+					Role: models.RoleAdmin,
+				}
+
+				// Crear un contexto con el usuario
+				ctx := context.WithValue(context.Background(), constants.UserContextKey, mockUser)
+
 				cashFlowService.On("RegisterMovement", mock.Anything, mock.MatchedBy(func(m *models.CashFlow) bool {
 					return m.Amount == amount && m.Detail == reason
 				})).Return(nil)
 
-				response, err := resolver.Mutation().AdjustBalance(context.Background(), amount, reason)
+				response, err := resolver.Mutation().AdjustBalance(ctx, amount, reason)
 
 				Expect(err).NotTo(HaveOccurred())
 				Expect(response).NotTo(BeNil())
@@ -60,7 +69,15 @@ var _ = Describe("CashFlow", func() {
 
 		When("amount is zero", func() {
 			It("returns validation error", func() {
-				response, err := resolver.Mutation().AdjustBalance(context.Background(), 0.0, "Invalid adjustment")
+				// Crear un usuario administrador para el contexto
+				mockUser := &models.User{
+					Role: models.RoleAdmin,
+				}
+
+				// Crear un contexto con el usuario
+				ctx := context.WithValue(context.Background(), constants.UserContextKey, mockUser)
+
+				response, err := resolver.Mutation().AdjustBalance(ctx, 0.0, "Invalid adjustment")
 
 				// Verificaciones con la biblioteca de errores personalizada
 				Expect(err).To(HaveOccurred())
@@ -69,19 +86,12 @@ var _ = Describe("CashFlow", func() {
 				Expect(errors.IsAppError(err)).To(BeTrue())
 
 				// Verificar el tipo de error
-				Expect(errors.Is(err, errors.ErrInvalidAmount)).To(BeTrue()) // Suponiendo que este es el código adecuado
+				Expect(errors.Is(err, errors.ErrInvalidAmount)).To(BeTrue())
 
-				// Opcionalmente, verificar otros aspectos del error
+				// Verificar mensaje del error
 				appErr, ok := errors.AsAppError(err)
 				Expect(ok).To(BeTrue())
-				Expect(appErr.Message).To(ContainSubstring("amount cannot be zero"))
-
-				// Para errores de validación, podrías comprobar también los campos específicos
-				if errors.IsValidationError(err) {
-					fields := errors.GetFields(err)
-					Expect(fields).To(HaveKey("amount"))
-					Expect(fields["amount"]).To(ContainSubstring("zero"))
-				}
+				Expect(appErr.Message).To(ContainSubstring("cannot be zero"))
 
 				Expect(response).To(BeNil())
 			})

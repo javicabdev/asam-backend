@@ -149,7 +149,11 @@ var _ = Describe("Payment", func() {
 
 				result, err := resolver.Mutation().CancelPayment(context.Background(), "999", "test")
 
+				// Verificamos que hay un error y que es del tipo correcto
 				Expect(err).To(HaveOccurred())
+				Expect(errors.IsNotFoundError(err)).To(BeTrue())
+
+				// Verificamos que el resultado es nil
 				Expect(result).To(BeNil())
 			})
 		})
@@ -170,14 +174,16 @@ var _ = Describe("Payment", func() {
 
 		When("parameters are invalid", func() {
 			It("returns error for invalid month", func() {
-				// Aseguramos que el servicio devuelve un error para un mes inválido
-				// Esto es crucial para que el resolver capture y propague este error
-				paymentService.On("GenerateMonthlyFees", mock.Anything, 2025, 13, 30.0).
-					Return(errors.NewValidationError("Invalid month", nil))
-
+				// No necesitamos configurar el mock porque la validación ocurre antes de llamar al servicio
 				result, err := resolver.Mutation().RegisterFee(context.Background(), 2025, 13, 30.0)
 
 				Expect(err).To(HaveOccurred())
+				Expect(errors.IsValidationError(err)).To(BeTrue())
+
+				// Verificar que el campo específico tiene el error
+				fields := errors.GetFields(err)
+				Expect(fields).To(HaveKey("month"))
+
 				Expect(result).To(BeNil())
 			})
 		})

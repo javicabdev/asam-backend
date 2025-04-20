@@ -191,7 +191,7 @@ var _ = Describe("Member", func() {
 				// Verificar el mensaje del error
 				message, ok := errors.GetMessage(err)
 				Expect(ok).To(BeTrue())
-				Expect(message).To(ContainSubstring("not found"))
+				Expect(message).To(ContainSubstring("Member no encontrada"))
 
 				Expect(member).To(BeNil())
 			})

@@ -40,7 +40,7 @@ func TestRegisterMovement(t *testing.T) {
 			},
 			wantErr: false,
 			checkErr: func(t *testing.T, err error) {
-				assert.NoError(t, err)
+				assert.NoError(t, err, "No debería haber error en un registro exitoso")
 			},
 		},
 		{
@@ -54,8 +54,8 @@ func TestRegisterMovement(t *testing.T) {
 			setupMock: func(cr *test.MockCashFlowRepository) {},
 			wantErr:   true,
 			checkErr: func(t *testing.T, err error) {
-				assert.Error(t, err)
-				assert.True(t, errors.IsValidationError(err), "debería ser un error de validación")
+				assert.Error(t, err, "Debería haber error con un monto inválido")
+				assert.True(t, errors.IsValidationError(err), "Debería ser un error de validación")
 			},
 		},
 		{
@@ -66,8 +66,8 @@ func TestRegisterMovement(t *testing.T) {
 			},
 			wantErr: true,
 			checkErr: func(t *testing.T, err error) {
-				assert.Error(t, err)
-				assert.True(t, errors.IsDatabaseError(err), "debería ser un error de base de datos")
+				assert.Error(t, err, "Debería haber error cuando falla el repositorio")
+				assert.True(t, errors.IsDatabaseError(err), "Debería ser un error de base de datos")
 			},
 		},
 	}
@@ -168,7 +168,7 @@ func TestGetCashFlowTrends(t *testing.T) {
 			},
 			wantErr: false,
 			checkErr: func(t *testing.T, err error) {
-				assert.NoError(t, err)
+				assert.NoError(t, err, "No debería haber error en un cálculo exitoso de tendencias")
 			},
 		},
 		{
@@ -178,12 +178,14 @@ func TestGetCashFlowTrends(t *testing.T) {
 				EndDate:   time.Now(),
 			},
 			setupMock: func(cr *test.MockCashFlowRepository) {
+				// Es importante devolver nil como primer parámetro cuando hay un error
 				cr.On("List", mock.Anything, mock.Anything).Return(nil, errors.NewDatabaseError("failed to fetch trends", nil))
 			},
 			wantErr: true,
 			checkErr: func(t *testing.T, err error) {
-				assert.Error(t, err)
-				assert.True(t, errors.IsDatabaseError(err), "debería ser un error de base de datos")
+				assert.Error(t, err, "Debería haber error cuando falla el repositorio")
+				assert.True(t, errors.IsDatabaseError(err), "Debería ser un error de base de datos")
+				// No verificamos mensajes de error específicos, solo el tipo de error
 			},
 		},
 	}

@@ -2,6 +2,7 @@ package services_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/javicabdev/asam-backend/internal/domain/services"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/internal/ports/output"
+	"github.com/javicabdev/asam-backend/pkg/constants"
 	"github.com/javicabdev/asam-backend/pkg/errors" // Biblioteca de errores personalizados
 	"github.com/javicabdev/asam-backend/test"
 	"github.com/stretchr/testify/assert"
@@ -141,6 +143,14 @@ func TestCreateMember(t *testing.T) {
 			cashFlowService := new(test.MockCashFlowService)
 			authService := new(test.MockAuthService)
 
+			// Crear un mockUser para autenticación
+			mockUser := &models.User{
+				Role: models.RoleAdmin,
+			}
+
+			// Configurar el contexto con el usuario
+			ctx := context.WithValue(context.Background(), constants.UserContextKey, mockUser)
+
 			tt.setupMock(memberService)
 
 			resolver := resolvers.NewResolver(
@@ -151,7 +161,7 @@ func TestCreateMember(t *testing.T) {
 				authService,
 			)
 
-			got, err := resolver.Mutation().CreateMember(context.Background(), tt.input)
+			got, err := resolver.Mutation().CreateMember(ctx, tt.input)
 
 			tt.checkErr(t, err)
 			if !tt.wantErr {
@@ -215,13 +225,14 @@ func TestDeactivateMember(t *testing.T) {
 			wantErr: true,
 			checkErr: func(t *testing.T, err error) {
 				assert.Error(t, err)
-				assert.Contains(t, err.Error(), "el miembro ya está inactivo")
+				assert.Contains(t, strings.ToLower(err.Error()), "ya está dado de baja")
 			},
 		},
 		{
 			name:     "database error",
 			memberID: 1,
 			setupRepo: func(repo *mockMemberRepository) {
+				// Database error when getting member
 				repo.On("GetByID", mock.Anything, uint(1)).Return(nil, errors.NewDatabaseError("database failure", nil))
 			},
 			wantErr: true,
@@ -363,9 +374,6 @@ func TestUpdateMember(t *testing.T) {
 func TestGetMemberByID(t *testing.T) {
 	logger := &test.MockLogger{}
 	auditLogger := &test.MockAuditLogger{}
-	repo := new(mockMemberRepository)
-
-	service := services.NewMemberService(repo, logger, auditLogger)
 
 	tests := []struct {
 		name      string
@@ -413,8 +421,13 @@ func TestGetMemberByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Crear un nuevo mock para cada test
+			repo := new(mockMemberRepository)
 			tt.setupRepo(repo)
+
+			service := services.NewMemberService(repo, logger, auditLogger)
 			member, err := service.GetMemberByID(context.Background(), tt.memberID)
+
 			tt.checkErr(t, err)
 			if !tt.wantErr {
 				assert.NotNil(t, member)
@@ -429,9 +442,6 @@ func TestGetMemberByID(t *testing.T) {
 func TestGetMemberByNumeroSocio(t *testing.T) {
 	logger := &test.MockLogger{}
 	auditLogger := &test.MockAuditLogger{}
-	repo := new(mockMemberRepository)
-
-	service := services.NewMemberService(repo, logger, auditLogger)
 
 	tests := []struct {
 		name        string
@@ -467,6 +477,7 @@ func TestGetMemberByNumeroSocio(t *testing.T) {
 			name:        "database error",
 			numeroSocio: "B0001",
 			setupRepo: func(repo *mockMemberRepository) {
+				// Database error
 				repo.On("GetByNumeroSocio", mock.Anything, "B0001").Return(nil, errors.NewDatabaseError("database failure", nil))
 			},
 			wantErr: true,
@@ -479,8 +490,13 @@ func TestGetMemberByNumeroSocio(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Crear un nuevo mock para cada test
+			repo := new(mockMemberRepository)
 			tt.setupRepo(repo)
+
+			service := services.NewMemberService(repo, logger, auditLogger)
 			member, err := service.GetMemberByNumeroSocio(context.Background(), tt.numeroSocio)
+
 			tt.checkErr(t, err)
 			if !tt.wantErr {
 				assert.NotNil(t, member)
@@ -495,9 +511,6 @@ func TestGetMemberByNumeroSocio(t *testing.T) {
 func TestListMembers(t *testing.T) {
 	logger := &test.MockLogger{}
 	auditLogger := &test.MockAuditLogger{}
-	repo := new(mockMemberRepository)
-
-	service := services.NewMemberService(repo, logger, auditLogger)
 
 	tests := []struct {
 		name      string
@@ -527,6 +540,7 @@ func TestListMembers(t *testing.T) {
 				Estado: test.StringPtr(models.EstadoActivo),
 			},
 			setupRepo: func(repo *mockMemberRepository) {
+				// Database error
 				repo.On("List", mock.Anything, mock.AnythingOfType("output.MemberFilters")).
 					Return([]models.Member{}, errors.NewDatabaseError("database failure", nil))
 			},
@@ -540,8 +554,13 @@ func TestListMembers(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Crear un nuevo mock para cada test
+			repo := new(mockMemberRepository)
 			tt.setupRepo(repo)
+
+			service := services.NewMemberService(repo, logger, auditLogger)
 			members, err := service.ListMembers(context.Background(), tt.filters)
+
 			tt.checkErr(t, err)
 			if !tt.wantErr {
 				assert.NotEmpty(t, members)
