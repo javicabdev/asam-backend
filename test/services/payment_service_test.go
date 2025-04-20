@@ -14,6 +14,7 @@ import (
 	"github.com/javicabdev/asam-backend/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"gorm.io/gorm"
 )
 
 // Estos mocks no existen en el paquete test, así que debemos mantenerlos
@@ -87,8 +88,7 @@ func createValidMembershipFee() *models.MembershipFee {
 
 // Pruebas para RegisterPayment
 func TestRegisterPayment(t *testing.T) {
-	// Deshabilitamos completamente la paralelización para evitar interferencias
-	t.Parallel()
+	// No usamos t.Parallel() en esta prueba para evitar interferencias
 
 	tests := []struct {
 		name      string
@@ -114,7 +114,11 @@ func TestRegisterPayment(t *testing.T) {
 				fc *mockFeeCalculator,
 			) {
 				// Validate member exists and is active
-				mr.On("GetByID", mock.Anything, uint(1)).Return(test.CreateValidMember(), nil)
+				// Validate member exists and is active
+				member := test.CreateValidMember()
+				email := "test@example.com"
+				member.CorreoElectronico = &email
+				mr.On("GetByID", mock.Anything, uint(1)).Return(member, nil)
 
 				// Check specific parameters instead of AnythingOfType
 				pr.On("Create", mock.Anything, mock.MatchedBy(func(p *models.Payment) bool {
@@ -142,7 +146,11 @@ func TestRegisterPayment(t *testing.T) {
 				fc *mockFeeCalculator,
 			) {
 				// Validate member exists and is active
-				mr.On("GetByID", mock.Anything, uint(1)).Return(test.CreateValidMember(), nil)
+				// Validate member exists and is active
+				member := test.CreateValidMember()
+				email := "test@example.com"
+				member.CorreoElectronico = &email
+				mr.On("GetByID", mock.Anything, uint(1)).Return(member, nil)
 
 				// Find membership fee
 				fee := createValidMembershipFee()
@@ -159,9 +167,8 @@ func TestRegisterPayment(t *testing.T) {
 					return p.MemberID == 1 && p.Amount == 100.0 && p.Status == models.PaymentStatusPending
 				})).Return(nil)
 
-				// Send email confirmation
-				email := "test@example.com"
-				ns.On("SendEmail", mock.Anything, email, mock.Anything, mock.Anything).Return(nil)
+				// Ya no necesitamos la expectativa SendEmail, ya que el servicio no llama a este método en RegisterPayment
+				// Ahora se envía en SendPaymentConfirmation que debe llamarse explícitamente
 			},
 			wantErr: false,
 			checkErr: func(t *testing.T, err error) {
@@ -250,12 +257,13 @@ func TestRegisterPayment(t *testing.T) {
 				member := test.CreateValidMember()
 				member.Estado = models.EstadoInactivo
 				mr.On("GetByID", mock.Anything, uint(1)).Return(member, nil)
-				// No debería llegar a llamar a Create porque el error se detecta antes
+				// NO AÑADIR expectativas para Create, ya que no debe llegar a ese punto
 			},
 			wantErr: true,
 			checkErr: func(t *testing.T, err error) {
 				assert.Error(t, err)
 				assert.True(t, appErrors.IsValidationError(err), "should be a validation error")
+				assert.Contains(t, err.Error(), "no está activo", "should mention inactive member")
 			},
 		},
 		{
@@ -268,8 +276,8 @@ func TestRegisterPayment(t *testing.T) {
 				ns *mockNotificationService,
 				fc *mockFeeCalculator,
 			) {
-				// Validate member exists
-				mr.On("GetByID", mock.Anything, uint(1)).Return(test.CreateValidMember(), nil)
+				member := test.CreateValidMember()
+				mr.On("GetByID", mock.Anything, uint(1)).Return(member, nil)
 
 				// Database error when creating payment
 				pr.On("Create", mock.Anything, mock.Anything).
@@ -297,8 +305,8 @@ func TestRegisterPayment(t *testing.T) {
 				ns *mockNotificationService,
 				fc *mockFeeCalculator,
 			) {
-				// Validate member exists
-				mr.On("GetByID", mock.Anything, uint(1)).Return(test.CreateValidMember(), nil)
+				member := test.CreateValidMember()
+				mr.On("GetByID", mock.Anything, uint(1)).Return(member, nil)
 
 				// Find membership fee
 				fee := createValidMembershipFee()
@@ -335,8 +343,11 @@ func TestRegisterPayment(t *testing.T) {
 
 			tt.checkErr(t, err)
 
-			// Ahora activamos la verificación de expectativas para detectar problemas
-			pr.AssertExpectations(t)
+			// Verificación de expectativas para cada mock
+			// Verificamos solo los mocks que se esperan usar en cada test
+			if tt.name != "inactive member" {
+				pr.AssertExpectations(t)
+			}
 			mfr.AssertExpectations(t)
 			mr.AssertExpectations(t)
 			ns.AssertExpectations(t)
@@ -369,7 +380,7 @@ func TestRegisterPaymentWithCanceledContext(t *testing.T) {
 
 // Pruebas para CancelPayment
 func TestCancelPayment(t *testing.T) {
-	t.Parallel()
+	// No usamos t.Parallel() para evitar problemas de interferencia entre tests
 
 	tests := []struct {
 		name      string
@@ -396,25 +407,30 @@ func TestCancelPayment(t *testing.T) {
 				ns *mockNotificationService,
 				fc *mockFeeCalculator,
 			) {
-				pr.On("FindByID", mock.Anything, uint(1)).
-					Return(&models.Payment{
-						MemberID:    1,
-						Status:      models.PaymentStatusPending,
-						PaymentDate: time.Now(),
-					}, nil)
+				// Configurar un payment con ID válido
+				payment := &models.Payment{
+					Model: gorm.Model{
+						ID: 1,
+					},
+					MemberID:    1,
+					Status:      models.PaymentStatusPending,
+					PaymentDate: time.Now(),
+				}
+				pr.On("FindByID", mock.Anything, uint(1)).Return(payment, nil)
 
 				// Member found for notification
 				member := test.CreateValidMember()
-				mr.On("GetByID", mock.Anything, uint(1)).Return(member, nil)
+				email := "test@example.com"
+				member.CorreoElectronico = &email
+				// No necesitamos mr.On("GetByID") porque el CancelPayment no lo usa
 
-				// Update with correct status
+				// Update with correct status - usando el mismo objeto payment para garantizar integridad
 				pr.On("Update", mock.Anything, mock.MatchedBy(func(p *models.Payment) bool {
 					return p.ID == 1 && p.Status == models.PaymentStatusCancelled && p.Notes == "cancelado por solicitud"
 				})).Return(nil)
 
-				// Send notification email
-				email := "test@example.com"
-				ns.On("SendEmail", mock.Anything, email, mock.Anything, mock.Anything).Return(nil)
+				// No necesitamos configurar SendEmail aquí ya que no se llama durante CancelPayment
+				// Solo si posteriormente se llamara a SendPaymentConfirmation
 			},
 			wantErr: false,
 			checkErr: func(t *testing.T, err error) {
@@ -453,6 +469,9 @@ func TestCancelPayment(t *testing.T) {
 			) {
 				pr.On("FindByID", mock.Anything, uint(1)).
 					Return(&models.Payment{
+						Model: gorm.Model{
+							ID: 1,
+						},
 						MemberID: 1,
 						Status:   models.PaymentStatusCancelled,
 					}, nil)
@@ -460,7 +479,7 @@ func TestCancelPayment(t *testing.T) {
 			wantErr: true,
 			checkErr: func(t *testing.T, err error) {
 				assert.Error(t, err)
-				assert.Contains(t, err.Error(), "cancelled")
+				assert.Contains(t, err.Error(), "El pago ya está cancelado")
 			},
 		},
 		{
@@ -474,18 +493,20 @@ func TestCancelPayment(t *testing.T) {
 				ns *mockNotificationService,
 				fc *mockFeeCalculator,
 			) {
-				pr.On("FindByID", mock.Anything, uint(1)).
-					Return(&models.Payment{
-						MemberID:    1,
-						Status:      models.PaymentStatusPending,
-						PaymentDate: time.Now(),
-					}, nil)
-
-				member := test.CreateValidMember()
-				mr.On("GetByID", mock.Anything, uint(1)).Return(member, nil)
+				payment := &models.Payment{
+					Model: gorm.Model{
+						ID: 1,
+					},
+					MemberID:    1,
+					Status:      models.PaymentStatusPending,
+					PaymentDate: time.Now(),
+				}
+				pr.On("FindByID", mock.Anything, uint(1)).Return(payment, nil)
 
 				// Database error when updating
-				pr.On("Update", mock.Anything, mock.Anything).Return(errors.New("database error"))
+				pr.On("Update", mock.Anything, mock.MatchedBy(func(p *models.Payment) bool {
+					return p.ID == 1 && p.Status == models.PaymentStatusCancelled
+				})).Return(errors.New("database error"))
 			},
 			wantErr: true,
 			checkErr: func(t *testing.T, err error) {
@@ -496,9 +517,8 @@ func TestCancelPayment(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt // Capture range variable for parallel execution
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+			// Evitamos usar t.Parallel() para prevenir interferencias
 
 			service, pr, mfr, mr, ns, fc := setupTestService()
 
@@ -507,16 +527,16 @@ func TestCancelPayment(t *testing.T) {
 			err := service.CancelPayment(context.Background(), tt.paymentID, tt.reason)
 
 			tt.checkErr(t, err)
+			
+			// Verificar solo los mocks que se utilizan en CancelPayment
 			pr.AssertExpectations(t)
-			mr.AssertExpectations(t)
-			ns.AssertExpectations(t)
 		})
 	}
 }
 
 // Pruebas para GetPayment
 func TestGetPayment(t *testing.T) {
-	t.Parallel()
+	// No usar paralelización para evitar efectos secundarios
 
 	tests := []struct {
 		name      string
@@ -543,6 +563,9 @@ func TestGetPayment(t *testing.T) {
 				fc *mockFeeCalculator,
 			) {
 				expectedPayment := &models.Payment{
+					Model: gorm.Model{
+						ID: 1,
+					},
 					MemberID:    1,
 					Amount:      100.0,
 					Status:      models.PaymentStatusPaid,
@@ -551,6 +574,9 @@ func TestGetPayment(t *testing.T) {
 				pr.On("FindByID", mock.Anything, uint(1)).Return(expectedPayment, nil)
 			},
 			want: &models.Payment{
+				Model: gorm.Model{
+					ID: 1,
+				},
 				MemberID:    1,
 				Amount:      100.0,
 				Status:      models.PaymentStatusPaid,
@@ -602,9 +628,8 @@ func TestGetPayment(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt // Capture range variable for parallel execution
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+			// Evitamos usar t.Parallel() aquí
 
 			service, pr, _, _, _, _ := setupTestService()
 
@@ -631,7 +656,7 @@ func TestGetPayment(t *testing.T) {
 
 // Pruebas para GetMemberPayments
 func TestGetMemberPayments(t *testing.T) {
-	t.Parallel()
+	// No usamos t.Parallel() para evitar interferencias
 
 	tests := []struct {
 		name      string
@@ -729,9 +754,8 @@ func TestGetMemberPayments(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt // Capture range variable for parallel execution
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+			// No usamos t.Parallel()
 
 			service, pr, _, mr, _, _ := setupTestService()
 
@@ -752,7 +776,7 @@ func TestGetMemberPayments(t *testing.T) {
 }
 
 func TestGetFamilyPayments(t *testing.T) {
-	t.Parallel()
+	// No usamos t.Parallel() para evitar interferencias
 
 	tests := []struct {
 		name      string
@@ -823,9 +847,8 @@ func TestGetFamilyPayments(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt // Capture range variable for parallel execution
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+			// No usamos t.Parallel() para evitar interferencias
 
 			service, pr, _, _, _, _ := setupTestService()
 
@@ -846,7 +869,7 @@ func TestGetFamilyPayments(t *testing.T) {
 
 // Pruebas para GenerateMonthlyFees
 func TestGenerateMonthlyFees(t *testing.T) {
-	t.Parallel()
+	// No usamos t.Parallel() para evitar interferencias
 
 	tests := []struct {
 		name       string
@@ -954,9 +977,8 @@ func TestGenerateMonthlyFees(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt // Capture range variable for parallel execution
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+			// No usamos t.Parallel() para evitar interferencias
 
 			service, _, mfr, _, _, fc := setupTestService()
 
@@ -1008,10 +1030,14 @@ func BenchmarkCancelPayment(b *testing.B) {
 	service := services.NewPaymentService(pr, mfr, mr, ns, fc)
 
 	// Configure mocks to avoid errors
-	pr.On("FindByID", mock.Anything, uint(1)).Return(&models.Payment{
+	payment := &models.Payment{
+		Model: gorm.Model{
+			ID: 1,
+		},
 		MemberID: 1,
 		Status:   models.PaymentStatusPending,
-	}, nil)
+	}
+	pr.On("FindByID", mock.Anything, uint(1)).Return(payment, nil)
 
 	mr.On("GetByID", mock.Anything, uint(1)).Return(test.CreateValidMember(), nil)
 	pr.On("Update", mock.Anything, mock.Anything).Return(nil)
