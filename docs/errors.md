@@ -122,7 +122,7 @@ Cuando ocurre un error (por ejemplo, `VALIDATION_FAILED` en un campo), el client
 
 ## 4. Mapeo de Errores en gqlgen (ErrorPresenter)
 
-En `internal/adapters/gql/handler.go` (o similar), se configura un `ErrorPresenter` para que cada `AppError` se muestre con `extensions.code`, `extensions.fields`, etc. Esto asegura la consistencia en todas las operaciones GraphQL.
+En `internal/adapters/gql/handlerChain.go` (o similar), se configura un `ErrorPresenter` para que cada `AppError` se muestre con `extensions.code`, `extensions.fields`, etc. Esto asegura la consistencia en todas las operaciones GraphQL.
 
 ## 5. Guía de Uso y Recomendaciones
 

@@ -72,15 +72,15 @@ func TestCreateMember(t *testing.T) {
 		{
 			name: "successful create member - individual",
 			input: model.CreateMemberInput{
-				NumeroSocio:   test.GenerateValidNumeroSocio(1),
-				TipoMembresia: model.MembershipTypeIndividual,
-				Nombre:        "Juan",
-				Apellidos:     "García",
-				Direccion:     "Calle Test 1",
-				CodigoPostal:  "08001",
-				Poblacion:     "Barcelona",
-				Provincia:     test.StringPtr("Barcelona"),
-				Pais:          test.StringPtr("España"),
+				NumeroSocio:     test.GenerateValidNumeroSocio(1),
+				TipoMembresia:   model.MembershipTypeIndividual,
+				Nombre:          "Juan",
+				Apellidos:       "García",
+				CalleNumeroPiso: "Calle Test 1",
+				CodigoPostal:    "08001",
+				Poblacion:       "Barcelona",
+				Provincia:       test.StringPtr("Barcelona"),
+				Pais:            test.StringPtr("España"),
 			},
 			setupMock: func(ms *test.MockMemberService) {
 				ms.On("CreateMember", mock.Anything, mock.MatchedBy(func(m *models.Member) bool {
@@ -113,15 +113,15 @@ func TestCreateMember(t *testing.T) {
 		{
 			name: "database error",
 			input: model.CreateMemberInput{
-				NumeroSocio:   test.GenerateValidNumeroSocio(1),
-				TipoMembresia: model.MembershipTypeIndividual,
-				Nombre:        "Juan",
-				Apellidos:     "García",
-				Direccion:     "Calle Test 1",
-				CodigoPostal:  "08001",
-				Poblacion:     "Barcelona",
-				Provincia:     test.StringPtr("Barcelona"),
-				Pais:          test.StringPtr("España"),
+				NumeroSocio:     test.GenerateValidNumeroSocio(1),
+				TipoMembresia:   model.MembershipTypeIndividual,
+				Nombre:          "Juan",
+				Apellidos:       "García",
+				CalleNumeroPiso: "Calle Test 1",
+				CodigoPostal:    "08001",
+				Poblacion:       "Barcelona",
+				Provincia:       test.StringPtr("Barcelona"),
+				Pais:            test.StringPtr("España"),
 			},
 			setupMock: func(ms *test.MockMemberService) {
 				ms.On("CreateMember", mock.Anything, mock.AnythingOfType("*models.Member")).
@@ -307,7 +307,7 @@ func TestUpdateMember(t *testing.T) {
 			member: func() *models.Member {
 				m := test.CreateValidMember()
 				m.ID = 1
-				m.Direccion = ""
+				m.CalleNumeroPiso = ""
 				return m
 			}(),
 			setupRepo: func(repo *mockMemberRepository) {

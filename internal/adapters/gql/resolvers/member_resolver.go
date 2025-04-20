@@ -80,7 +80,7 @@ func (r *memberResolver) mapCreateInputToMember(input *model.CreateMemberInput) 
 		TipoMembresia:   tipoMembresia,
 		Nombre:          input.Nombre,
 		Apellidos:       input.Apellidos,
-		Direccion:       input.Direccion,
+		CalleNumeroPiso: input.CalleNumeroPiso,
 		CodigoPostal:    input.CodigoPostal,
 		Poblacion:       input.Poblacion,
 		Estado:          models.EstadoActivo,
@@ -130,7 +130,7 @@ func (r *memberResolver) mapUpdateInputToMember(id uint, input *model.UpdateMemb
 
 	// Update only provided fields
 	if input.CalleNumeroPiso != nil {
-		member.Direccion = *input.CalleNumeroPiso
+		member.CalleNumeroPiso = *input.CalleNumeroPiso
 	}
 	if input.CodigoPostal != nil {
 		member.CodigoPostal = *input.CodigoPostal
@@ -204,8 +204,8 @@ func (r *memberResolver) validateCreateInput(input *model.CreateMemberInput) err
 	if input.Apellidos == "" {
 		fields["apellidos"] = "Last name is required"
 	}
-	if input.Direccion == "" {
-		fields["direccion"] = "Address is required"
+	if input.CalleNumeroPiso == "" {
+		fields["calleNumeroPiso"] = "Address is required"
 	}
 	if input.CodigoPostal == "" {
 		fields["codigoPostal"] = "Postal code is required"

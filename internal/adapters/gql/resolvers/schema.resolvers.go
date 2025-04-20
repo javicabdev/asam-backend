@@ -53,6 +53,11 @@ func (r *memberResolver) TipoMembresia(ctx context.Context, obj *models.Member) 
 	}
 }
 
+// CalleNumeroPiso is the resolver for the calle_numero_piso field.
+func (r *memberResolver) CalleNumeroPiso(ctx context.Context, obj *models.Member) (string, error) {
+	return obj.CalleNumeroPiso, nil
+}
+
 // Estado is the resolver for the estado field.
 func (r *memberResolver) Estado(ctx context.Context, obj *models.Member) (model.MemberStatus, error) {
 	switch obj.Estado {
@@ -369,6 +374,57 @@ func (r *mutationResolver) UpdateTransaction(ctx context.Context, id string, inp
 // AdjustBalance is the resolver for the adjustBalance field.
 func (r *mutationResolver) AdjustBalance(ctx context.Context, amount float64, reason string) (*model.MutationResponse, error) {
 	return r.CashFlow().(*cashFlowResolver).handleBalanceAdjustment(ctx, amount, reason)
+}
+
+// Login is the resolver for the login field.
+func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*model.AuthResponse, error) {
+	// Llamamos a la función implementada en auth_resolver.go
+	result, err := r.Resolver.Login(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+
+	// Hacemos un cast al tipo adecuado
+	auth, ok := result.(*model.AuthResponse)
+	if !ok {
+		return nil, fmt.Errorf("error interno: formato de respuesta inesperado")
+	}
+
+	return auth, nil
+}
+
+// Logout is the resolver for the logout field.
+func (r *mutationResolver) Logout(ctx context.Context) (*model.MutationResponse, error) {
+	// Llamamos a la función implementada en auth_resolver.go
+	result, err := r.Resolver.Logout(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Hacemos un cast al tipo adecuado
+	response, ok := result.(*model.MutationResponse)
+	if !ok {
+		return nil, fmt.Errorf("error interno: formato de respuesta inesperado")
+	}
+
+	return response, nil
+}
+
+// RefreshToken is the resolver for the refreshToken field.
+func (r *mutationResolver) RefreshToken(ctx context.Context, input model.RefreshTokenInput) (*model.TokenResponse, error) {
+	// Llamamos a la función implementada en auth_resolver.go
+	result, err := r.Resolver.RefreshToken(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+
+	// Hacemos un cast al tipo adecuado
+	response, ok := result.(*model.TokenResponse)
+	if !ok {
+		return nil, fmt.Errorf("error interno: formato de respuesta inesperado")
+	}
+
+	return response, nil
 }
 
 // ID is the resolver for the id field.
@@ -760,6 +816,24 @@ func (r *queryResolver) GetTransactions(ctx context.Context, filter *model.Trans
 	}, nil
 }
 
+// ID is the resolver for the id field.
+func (r *userResolver) ID(ctx context.Context, obj *models.User) (string, error) {
+	return fmt.Sprintf("%d", obj.ID), nil
+}
+
+// Role is the resolver for the role field.
+func (r *userResolver) Role(ctx context.Context, obj *models.User) (model.UserRole, error) {
+	// Convertir el role del modelo a UserRole
+	switch obj.Role {
+	case "admin":
+		return model.UserRoleAdmin, nil
+	case "user":
+		return model.UserRoleUser, nil
+	default:
+		return model.UserRoleUser, nil // Valor predeterminado
+	}
+}
+
 // CashFlow returns generated.CashFlowResolver implementation.
 func (r *Resolver) CashFlow() generated.CashFlowResolver { return &cashFlowResolver{r} }
 
@@ -781,6 +855,9 @@ func (r *Resolver) Payment() generated.PaymentResolver { return &paymentResolver
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
+// User returns generated.UserResolver implementation.
+func (r *Resolver) User() generated.UserResolver { return &userResolver{r} }
+
 type cashFlowResolver struct{ *Resolver }
 type familiarResolver struct{ *Resolver }
 type familyResolver struct{ *Resolver }
@@ -788,3 +865,4 @@ type memberResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type paymentResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type userResolver struct{ *Resolver }
