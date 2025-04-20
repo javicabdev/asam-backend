@@ -57,10 +57,17 @@ func (s *paymentService) RegisterPayment(ctx context.Context, payment *models.Pa
 		return errors.NotFound("member", nil)
 	}
 
+	// Verificar que el miembro esté activo
+	if member.Estado != models.EstadoActivo {
+		return errors.Validation("El miembro no está activo", "estado", "inactive")
+	}
+
 	// Si es un pago de cuota, actualizar el estado de la cuota
+	var fee *models.MembershipFee
 	if payment.MembershipFeeID != nil {
 		// Buscar cuota existente
-		fee, err := s.membershipFeeRepo.FindByYearMonth(ctx, time.Now().Year(), int(time.Now().Month()))
+		var err error
+		fee, err = s.membershipFeeRepo.FindByYearMonth(ctx, time.Now().Year(), int(time.Now().Month()))
 		if err != nil {
 			return errors.DB(err, "error buscando cuota de membresía")
 		}
@@ -87,9 +94,9 @@ func (s *paymentService) RegisterPayment(ctx context.Context, payment *models.Pa
 		string(payment.Status),
 	).Set(payment.Amount)
 
-	// Si es un pago atrasado, registrar la latencia
-	if payment.PaymentDate.Before(payment.PaymentDate) {
-		daysLate := payment.PaymentDate.Sub(payment.PaymentDate).Hours() / 24
+	// Verificar si el pago de cuota está atrasado
+	if fee != nil && fee.DueDate.Before(payment.PaymentDate) {
+		daysLate := payment.PaymentDate.Sub(fee.DueDate).Hours() / 24
 		metrics.PaymentLatency.WithLabelValues(
 			s.memberTypeToString(member),
 		).Observe(daysLate)
@@ -125,6 +132,11 @@ func (s *paymentService) CancelPayment(ctx context.Context, paymentID uint, reas
 
 	if payment == nil {
 		return errors.NotFound("payment", nil)
+	}
+
+	// Verificar si ya está cancelado
+	if payment.Status == models.PaymentStatusCancelled {
+		return errors.Validation("El pago ya está cancelado", "status", "already cancelled")
 	}
 
 	// Actualizar el estado del pago
