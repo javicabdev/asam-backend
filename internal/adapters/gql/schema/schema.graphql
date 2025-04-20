@@ -1,5 +1,6 @@
 # Scalares personalizados
 scalar Time
+scalar JWT
 
 # Enums
 enum MembershipType {
@@ -48,6 +49,33 @@ enum TransactionSortField {
     DATE
     AMOUNT
     OPERATION_TYPE
+}
+
+enum UserRole {
+    ADMIN
+    USER
+}
+
+# Tipos de autenticación
+type User {
+    id: ID!
+    username: String!
+    role: UserRole!
+    isActive: Boolean!
+    lastLogin: Time
+}
+
+type AuthResponse {
+    user: User!
+    accessToken: JWT!
+    refreshToken: JWT!
+    expiresAt: Time!
+}
+
+type TokenResponse {
+    accessToken: JWT!
+    refreshToken: JWT!
+    expiresAt: Time!
 }
 
 # Tipos base
@@ -279,6 +307,16 @@ input TransactionInput {
     detail: String!
 }
 
+# Input Types para Auth
+input LoginInput {
+    username: String!
+    password: String!
+}
+
+input RefreshTokenInput {
+    refreshToken: JWT!
+}
+
 # Mutation Types
 type MutationResponse {
     success: Boolean!
@@ -309,4 +347,9 @@ type Mutation {
     registerTransaction(input: TransactionInput!): CashFlow!
     updateTransaction(id: ID!, input: TransactionInput!): CashFlow!
     adjustBalance(amount: Float!, reason: String!): MutationResponse!
+
+    # Auth Mutations
+    login(input: LoginInput!): AuthResponse!
+    logout: MutationResponse!
+    refreshToken(input: RefreshTokenInput!): TokenResponse!
 }
