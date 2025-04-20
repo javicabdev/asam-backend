@@ -6,7 +6,7 @@ Este documento describe los **códigos de error** definidos en el sistema ASAM y
 
 ## 1. Convenciones Generales
 
-- El sistema de errores se basa en un tipo `AppError` definido en `pkg/errors/errors.go`.
+- El sistema de errores se basa en un tipo `AppError` definido en `pkg/errs/errs.go`.
 - Cada `AppError` contiene:
     - **Code**: Un string (definido como `ErrorCode`) que identifica la clase de error (p. ej. `VALIDATION_FAILED`).
     - **Message**: Texto que describe el error al usuario.
@@ -19,7 +19,7 @@ Cuando ocurre un error en un resolver, si el sistema detecta un `*AppError`, se 
 
 ```json
 {
-  "errors": [
+  "errs": [
     {
       "message": "Descripción del error",
       "path": ["nombreDelResolver"],
@@ -40,7 +40,7 @@ Cuando ocurre un error en un resolver, si el sistema detecta un `*AppError`, se 
 
 ## 2. Códigos de Error
 
-A continuación se listan los códigos de error principales definidos en pkg/errors/errors.go, junto con su significado, mensaje sugerido y acciones recomendadas.
+A continuación se listan los códigos de error principales definidos en pkg/errs/errs.go, junto con su significado, mensaje sugerido y acciones recomendadas.
 
 ### 2.1 Errores de Validación
 
@@ -53,7 +53,7 @@ Ejemplo: Campo amount <= 0 al registrar un pago.
 
 ```json
 {
-  "errors": [
+  "errs": [
     {
       "message": "El campo amount no puede ser <= 0",
       "extensions": {
@@ -101,7 +101,7 @@ Cuando ocurre un error (por ejemplo, `VALIDATION_FAILED` en un campo), el client
 
 ```json
 {
-  "errors": [
+  "errs": [
     {
       "message": "El número de socio es requerido",
       "path": ["createMember"],
@@ -130,7 +130,7 @@ En `internal/adapters/gql/handlerChain.go` (o similar), se configura un `ErrorPr
 2. **No** envolver varias veces el mismo error. Si ya tenemos un `VALIDATION_FAILED`, propagarlo sin sobrescribirlo.
 3. **Exponer** datos relevantes en `fields` cuando sea un error de validación (ej. campo, requerimiento, etc.).
 4. **Evitar** poner información sensible en `Message` o `fields`.
-5. **Documentar** nuevos códigos de error en este archivo cada vez que se agreguen en `pkg/errors/errors.go`.
+5. **Documentar** nuevos códigos de error en este archivo cada vez que se agreguen en `pkg/errs/errs.go`.
 
 ## 6. Futuras Extensiones
 
