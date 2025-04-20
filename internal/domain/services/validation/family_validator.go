@@ -25,8 +25,8 @@ func NewFamilyValidator() FamilyValidator {
 func (v *DefaultFamilyValidator) ValidateNumeroSocio(numeroSocio string) error {
 	if numeroSocio == "" {
 		return appErrors.NewValidationError(
-			"número de socio es requerido",
-			map[string]string{"numero_socio": "requerido"},
+			"El número de socio es obligatorio",
+			map[string]string{"numeroSocio": "El número de socio es obligatorio"},
 		)
 	}
 
@@ -35,8 +35,8 @@ func (v *DefaultFamilyValidator) ValidateNumeroSocio(numeroSocio string) error {
 
 	if !socioRegex.MatchString(numeroSocio) {
 		return appErrors.NewValidationError(
-			"formato de número de socio inválido (debe ser letra mayúscula seguida de 4 dígitos)",
-			map[string]string{"numero_socio": "formato inválido"},
+			"Formato de número de socio inválido",
+			map[string]string{"numeroSocio": "El formato debe ser una letra mayúscula seguida de 4 dígitos"},
 		)
 	}
 
@@ -45,11 +45,28 @@ func (v *DefaultFamilyValidator) ValidateNumeroSocio(numeroSocio string) error {
 
 // ValidateConyuges valida que al menos uno de los cónyuges tenga datos
 func (v *DefaultFamilyValidator) ValidateConyuges(esposoNombre, esposoApellidos, esposaNombre, esposaApellidos string) error {
-	if (esposoNombre == "" || esposoApellidos == "") &&
-		(esposaNombre == "" || esposaApellidos == "") {
+	errDetails := make(map[string]string)
+
+	if esposoNombre == "" {
+		errDetails["esposoNombre"] = "El nombre del esposo es obligatorio"
+	}
+
+	if esposoApellidos == "" {
+		errDetails["esposoApellidos"] = "Los apellidos del esposo son obligatorios"
+	}
+
+	if esposaNombre == "" {
+		errDetails["esposaNombre"] = "El nombre de la esposa es obligatorio"
+	}
+
+	if esposaApellidos == "" {
+		errDetails["esposaApellidos"] = "Los apellidos de la esposa son obligatorios"
+	}
+
+	if len(errDetails) > 0 {
 		return appErrors.NewValidationError(
-			"se requiere información de al menos un cónyuge",
-			map[string]string{"conyuges": "requerido"},
+			"Se requiere información de al menos un cónyuge",
+			errDetails,
 		)
 	}
 	return nil
@@ -57,31 +74,34 @@ func (v *DefaultFamilyValidator) ValidateConyuges(esposoNombre, esposoApellidos,
 
 // ValidateDocumentIDs valida el formato de los documentos de identidad
 func (v *DefaultFamilyValidator) ValidateDocumentIDs(esposoDoc, esposaDoc string) error {
+	errDetails := make(map[string]string)
+
 	// Reutilizar el validador de miembros para los documentos
 	memberValidator := NewMemberValidator()
 	if memberValidator == nil {
 		return appErrors.NewValidationError(
-			"error inicializando validador de miembros",
+			"Error al inicializar el validador de miembros",
 			nil,
 		)
 	}
 
-	if esposoDoc != "" {
-		if err := memberValidator.ValidateDocumentID(esposoDoc); err != nil {
-			return appErrors.NewValidationError(
-				"documento de identidad del esposo inválido",
-				map[string]string{"esposo_documento": "formato inválido"},
-			)
-		}
+	if esposoDoc == "" {
+		errDetails["esposoDocumentoIdentidad"] = "El documento de identidad del esposo es obligatorio"
+	} else if err := memberValidator.ValidateDocumentID(esposoDoc); err != nil {
+		errDetails["esposoDocumentoIdentidad"] = "Documento de identidad del esposo inválido"
 	}
 
-	if esposaDoc != "" {
-		if err := memberValidator.ValidateDocumentID(esposaDoc); err != nil {
-			return appErrors.NewValidationError(
-				"documento de identidad de la esposa inválido",
-				map[string]string{"esposa_documento": "formato inválido"},
-			)
-		}
+	if esposaDoc == "" {
+		errDetails["esposaDocumentoIdentidad"] = "El documento de identidad de la esposa es obligatorio"
+	} else if err := memberValidator.ValidateDocumentID(esposaDoc); err != nil {
+		errDetails["esposaDocumentoIdentidad"] = "Documento de identidad de la esposa inválido"
+	}
+
+	if len(errDetails) > 0 {
+		return appErrors.NewValidationError(
+			"Información de documentos inválida",
+			errDetails,
+		)
 	}
 
 	return nil
@@ -89,25 +109,28 @@ func (v *DefaultFamilyValidator) ValidateDocumentIDs(esposoDoc, esposaDoc string
 
 // ValidateContactInfo valida el formato de los correos electrónicos
 func (v *DefaultFamilyValidator) ValidateContactInfo(esposoEmail, esposaEmail string) error {
+	errDetails := make(map[string]string)
+
 	// Reutilizar el validador de miembros para los correos
 	memberValidator := NewMemberValidator()
 
 	if esposoEmail != "" {
 		if err := memberValidator.ValidateContactInfo(esposoEmail, "", ""); err != nil {
-			return appErrors.NewValidationError(
-				"correo electrónico del esposo inválido",
-				map[string]string{"esposo_email": "formato inválido"},
-			)
+			errDetails["esposoCorreoElectronico"] = "Correo electrónico del esposo inválido"
 		}
 	}
 
 	if esposaEmail != "" {
 		if err := memberValidator.ValidateContactInfo(esposaEmail, "", ""); err != nil {
-			return appErrors.NewValidationError(
-				"correo electrónico de la esposa inválido",
-				map[string]string{"esposa_email": "formato inválido"},
-			)
+			errDetails["esposaCorreoElectronico"] = "Correo electrónico de la esposa inválido"
 		}
+	}
+
+	if len(errDetails) > 0 {
+		return appErrors.NewValidationError(
+			"Información de contacto inválida",
+			errDetails,
+		)
 	}
 
 	return nil
@@ -115,19 +138,21 @@ func (v *DefaultFamilyValidator) ValidateContactInfo(esposoEmail, esposaEmail st
 
 // ValidateDates valida las fechas de nacimiento
 func (v *DefaultFamilyValidator) ValidateDates(esposoFechaNac, esposaFechaNac *time.Time) error {
+	errDetails := make(map[string]string)
 	now := time.Now()
 
 	if esposoFechaNac != nil && esposoFechaNac.After(now) {
-		return appErrors.NewValidationError(
-			"fecha de nacimiento del esposo no puede ser futura",
-			map[string]string{"esposo_fecha_nacimiento": "formato inválido"},
-		)
+		errDetails["esposoFechaNacimiento"] = "Fecha de nacimiento del esposo no puede ser futura"
 	}
 
 	if esposaFechaNac != nil && esposaFechaNac.After(now) {
+		errDetails["esposaFechaNacimiento"] = "Fecha de nacimiento de la esposa no puede ser futura"
+	}
+
+	if len(errDetails) > 0 {
 		return appErrors.NewValidationError(
-			"fecha de nacimiento de la esposa no puede ser futura",
-			map[string]string{"esposa_fecha_nacimiento": "formato inválido"},
+			"Fechas de nacimiento inválidas",
+			errDetails,
 		)
 	}
 

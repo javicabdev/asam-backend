@@ -276,6 +276,9 @@ func (m *MockCashFlowRepository) Delete(ctx context.Context, id uint) error {
 
 func (m *MockCashFlowRepository) List(ctx context.Context, filter output.CashFlowFilter) ([]*models.CashFlow, error) {
 	args := m.Called(ctx, filter)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).([]*models.CashFlow), args.Error(1)
 }
 

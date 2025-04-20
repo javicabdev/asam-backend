@@ -48,12 +48,14 @@ func TestCreateFamily(t *testing.T) {
 		{
 			name: "member origin not found",
 			family: &models.Family{
-				NumeroSocio:     "B0002",
-				MiembroOrigenID: test.UintPtr(999),
-				EsposoNombre:    "Juan",
-				EsposoApellidos: "Pérez",
-				EsposaNombre:    "Maria",
-				EsposaApellidos: "Lopez",
+				NumeroSocio:              "B0002",
+				MiembroOrigenID:          test.UintPtr(999),
+				EsposoNombre:             "Juan",
+				EsposoApellidos:          "Pérez",
+				EsposaNombre:             "Maria",
+				EsposaApellidos:          "Lopez",
+				EsposoDocumentoIdentidad: "12345678A",
+				EsposaDocumentoIdentidad: "87654321B",
 			},
 			setupRepo: func(fr *test.MockFamilyRepository, mr *test.MockMemberRepository) {
 				mr.On("GetByID", mock.Anything, uint(999)).Return(nil, errors.NewNotFoundError("member"))
@@ -105,15 +107,28 @@ func TestUpdateFamily(t *testing.T) {
 		{
 			name: "successful update",
 			family: &models.Family{
-				ID:              1,
-				NumeroSocio:     "B0001",
-				EsposoNombre:    "Juan Updated",
-				EsposoApellidos: "Pérez",
-				EsposaNombre:    "Maria",
-				EsposaApellidos: "Lopez",
+				ID:                       1,
+				NumeroSocio:              "B0001",
+				EsposoNombre:             "Juan Updated",
+				EsposoApellidos:          "Pérez",
+				EsposaNombre:             "Maria",
+				EsposaApellidos:          "Lopez",
+				EsposoDocumentoIdentidad: "12345678A",
+				EsposaDocumentoIdentidad: "87654321B",
 			},
 			setupRepo: func(fr *test.MockFamilyRepository, mr *test.MockMemberRepository) {
-				fr.On("GetByID", mock.Anything, uint(1)).Return(&models.Family{ID: 1}, nil)
+				// Se debe devolver una familia completa con documentos para que pase la validación
+				validFamily := &models.Family{
+					ID:                       1,
+					NumeroSocio:              "B0001",
+					EsposoNombre:             "Juan",
+					EsposoApellidos:          "Pérez",
+					EsposaNombre:             "Maria",
+					EsposaApellidos:          "Lopez",
+					EsposoDocumentoIdentidad: "12345678A",
+					EsposaDocumentoIdentidad: "87654321B",
+				}
+				fr.On("GetByID", mock.Anything, uint(1)).Return(validFamily, nil)
 				fr.On("Update", mock.Anything, mock.AnythingOfType("*models.Family")).Return(nil)
 			},
 			wantErr: false,
@@ -139,13 +154,28 @@ func TestUpdateFamily(t *testing.T) {
 		{
 			name: "repository error",
 			family: &models.Family{
-				ID:              1,
-				NumeroSocio:     "B0001",
-				EsposoNombre:    "Juan",
-				EsposoApellidos: "Pérez",
+				ID:                       1,
+				NumeroSocio:              "B0001",
+				EsposoNombre:             "Juan",
+				EsposoApellidos:          "Pérez",
+				EsposaNombre:             "Maria",
+				EsposaApellidos:          "Lopez",
+				EsposoDocumentoIdentidad: "12345678A",
+				EsposaDocumentoIdentidad: "87654321B",
 			},
 			setupRepo: func(fr *test.MockFamilyRepository, mr *test.MockMemberRepository) {
-				fr.On("GetByID", mock.Anything, uint(1)).Return(&models.Family{ID: 1}, nil)
+				// Se debe devolver una familia completa con documentos para que pase la validación
+				validFamily := &models.Family{
+					ID:                       1,
+					NumeroSocio:              "B0001",
+					EsposoNombre:             "Juan",
+					EsposoApellidos:          "Pérez",
+					EsposaNombre:             "Maria",
+					EsposaApellidos:          "Lopez",
+					EsposoDocumentoIdentidad: "12345678A",
+					EsposaDocumentoIdentidad: "87654321B",
+				}
+				fr.On("GetByID", mock.Anything, uint(1)).Return(validFamily, nil)
 				fr.On("Update", mock.Anything, mock.AnythingOfType("*models.Family")).Return(errors.NewDatabaseError("database failure", nil))
 			},
 			wantErr: true,
@@ -184,7 +214,18 @@ func TestDeleteFamily(t *testing.T) {
 			name:     "successful delete",
 			familyID: 1,
 			setupRepo: func(fr *test.MockFamilyRepository) {
-				fr.On("GetByID", mock.Anything, uint(1)).Return(&models.Family{ID: 1}, nil)
+				// Retornamos una familia válida completa
+				validFamily := &models.Family{
+					ID:                       1,
+					NumeroSocio:              "B0001",
+					EsposoNombre:             "Juan",
+					EsposoApellidos:          "Pérez",
+					EsposaNombre:             "Maria",
+					EsposaApellidos:          "Lopez",
+					EsposoDocumentoIdentidad: "12345678A",
+					EsposaDocumentoIdentidad: "87654321B",
+				}
+				fr.On("GetByID", mock.Anything, uint(1)).Return(validFamily, nil)
 				fr.On("Delete", mock.Anything, uint(1)).Return(nil)
 			},
 			wantErr: false,
@@ -208,7 +249,18 @@ func TestDeleteFamily(t *testing.T) {
 			name:     "repository error",
 			familyID: 1,
 			setupRepo: func(fr *test.MockFamilyRepository) {
-				fr.On("GetByID", mock.Anything, uint(1)).Return(&models.Family{ID: 1}, nil)
+				// Retornamos una familia válida completa
+				validFamily := &models.Family{
+					ID:                       1,
+					NumeroSocio:              "B0001",
+					EsposoNombre:             "Juan",
+					EsposoApellidos:          "Pérez",
+					EsposaNombre:             "Maria",
+					EsposaApellidos:          "Lopez",
+					EsposoDocumentoIdentidad: "12345678A",
+					EsposaDocumentoIdentidad: "87654321B",
+				}
+				fr.On("GetByID", mock.Anything, uint(1)).Return(validFamily, nil)
 				fr.On("Delete", mock.Anything, uint(1)).Return(errors.NewDatabaseError("database failure", nil))
 			},
 			wantErr: true,

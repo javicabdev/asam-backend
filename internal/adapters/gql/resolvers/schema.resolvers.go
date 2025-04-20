@@ -142,6 +142,13 @@ func (r *mutationResolver) ChangeMemberStatus(ctx context.Context, id string, st
 // CreateFamily is the resolver for the createFamily field.
 func (r *mutationResolver) CreateFamily(ctx context.Context, input model.CreateFamilyInput) (*models.Family, error) {
 	// 1) Validar input (opcional, si tienes validateCreateFamilyInput)
+	if input.NumeroSocio == "" {
+		return nil, appErrors.NewValidationError(
+			"VALIDATION_FAILED: El número de familia es obligatorio",
+			map[string]string{"numeroSocio": "El número de familia es obligatorio"},
+		)
+	}
+
 	if err := r.Family().(*familyResolver).validateCreateFamilyInput(&input); err != nil {
 		return nil, err
 	}
@@ -271,11 +278,10 @@ func (r *mutationResolver) CancelPayment(ctx context.Context, id string, reason 
 	// 1) obtener el pago
 	existing, err := r.paymentService.GetPayment(ctx, paymentID)
 	if err != nil {
-		errMsg := err.Error()
-		return &model.MutationResponse{Success: false, Error: &errMsg}, nil
+		return nil, err // Retornar el error directamente
 	}
 	if existing == nil {
-		return &model.MutationResponse{Success: false, Error: stringPtr("Payment")}, nil
+		return nil, appErrors.NewNotFoundError("Payment") // Retornar error not found
 	}
 
 	// 2) si ya está cancelado, devuelves error o idempotencia
@@ -299,14 +305,25 @@ func (r *mutationResolver) CancelPayment(ctx context.Context, id string, reason 
 
 // RegisterFee is the resolver for the registerFee field.
 func (r *mutationResolver) RegisterFee(ctx context.Context, year int, month int, baseAmount float64) (*model.MutationResponse, error) {
+	// Validación básica de los parámetros
+	if month < 1 || month > 12 {
+		return nil, appErrors.NewValidationError(
+			"Invalid month",
+			map[string]string{"month": "Month must be between 1 and 12"},
+		)
+	}
+
+	if baseAmount <= 0 {
+		return nil, appErrors.NewValidationError(
+			"Invalid base amount",
+			map[string]string{"baseAmount": "Base amount must be greater than zero"},
+		)
+	}
+
 	// 1) Crear la cuota de membresía para ese mes/año en la BD
 	err := r.paymentService.GenerateMonthlyFees(ctx, year, month, baseAmount)
 	if err != nil {
-		errMsg := err.Error()
-		return &model.MutationResponse{
-			Success: false,
-			Error:   &errMsg,
-		}, nil
+		return nil, err
 	}
 
 	// 2) Devolver un mensaje confirmando la operación

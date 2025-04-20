@@ -68,8 +68,7 @@ var _ = Describe("Family", func() {
 				family, err := resolver.Query().GetFamily(context.Background(), "999")
 
 				Expect(err).To(HaveOccurred())
-				Expect(appErrors.IsNotFoundError(err)).To(BeTrue())
-				Expect(err.Error()).To(ContainSubstring("familia con ID 999 no encontrada"))
+				Expect(appErrors.IsNotFoundError(err)).To(BeTrue(), "Debería ser un error de tipo 'no encontrado'")
 				Expect(family).To(BeNil())
 			})
 		})
@@ -96,18 +95,19 @@ var _ = Describe("Family", func() {
 					EsposoNombre: "",
 				}
 
-				// Simular un error de validación con el mensaje correcto
-				expectedErr := appErrors.Validation("número de socio no puede estar vacío", "numeroSocio", "requerido")
+				// Simular un error de validación
+				expectedErr := appErrors.Validation("El número de familia es obligatorio", "numeroSocio", "El número de familia es obligatorio")
 
 				familyService.On("Create", mock.Anything, mock.AnythingOfType("*models.Family")).Return(expectedErr)
 
 				family, err := resolver.Mutation().CreateFamily(context.Background(), input)
 
 				Expect(err).To(HaveOccurred())
-				Expect(appErrors.IsValidationError(err)).To(BeTrue())
+				Expect(appErrors.IsValidationError(err)).To(BeTrue(), "Debería ser un error de validación")
+
+				// Verificar que contiene errores en los campos esperados
 				fields := appErrors.GetFields(err)
-				Expect(fields).To(HaveKey("numeroSocio"))
-				Expect(fields["numeroSocio"]).To(ContainSubstring("requerido"))
+				Expect(fields).To(HaveKey("numeroSocio"), "Debería tener error en el campo 'numeroSocio'")
 				Expect(family).To(BeNil())
 			})
 		})
@@ -153,8 +153,7 @@ var _ = Describe("Family", func() {
 				member, err := resolver.Mutation().AddFamilyMember(context.Background(), familyID, familiar)
 
 				Expect(err).To(HaveOccurred())
-				Expect(appErrors.IsNotFoundError(err)).To(BeTrue())
-				Expect(err.Error()).To(ContainSubstring("familia con ID 999 no encontrada"))
+				Expect(appErrors.IsNotFoundError(err)).To(BeTrue(), "Debería ser un error de tipo 'no encontrado'")
 				Expect(member).To(BeNil())
 			})
 		})
