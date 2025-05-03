@@ -140,12 +140,13 @@ func (g *MemberGenerator) generateMember() Member {
 		membershipType = "familiar"
 	}
 
-	// Generate member number (format: SOC-XXXX for individual, FAM-XXXX for family)
-	prefix := "SOC"
+	// Generate member number (format: B-XXXX for individual, A-XXXX for family)
+	// According to new requirements: Individual members start with 'B', Family members start with 'A'
+	prefix := "B"
 	if membershipType == "familiar" {
-		prefix = "FAM"
+		prefix = "A"
 	}
-	memberNumber := GenerateRandomMembershipNumber(g.rand, prefix, g.lastCount)
+	memberNumber := fmt.Sprintf("%s%d", prefix, g.lastCount)
 	g.lastCount++
 
 	// Generate dates
