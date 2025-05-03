@@ -1,0 +1,13 @@
+@echo off
+echo Instalando dependencias para el sistema de seeding...
+
+echo Instalando github.com/jmoiron/sqlx...
+go get github.com/jmoiron/sqlx
+
+echo Instalando github.com/lib/pq...
+go get github.com/lib/pq
+
+echo Instalando github.com/joho/godotenv...
+go get github.com/joho/godotenv
+
+echo Instalacion completada.
