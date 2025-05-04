@@ -2,7 +2,6 @@
 
 # Ignorar el directorio de módulos de Go
 /vendor
-/pkg
 
 # Ignorar archivos binarios
 *.exe
@@ -13,9 +12,13 @@
 
 # Ignorar archivos de configuración locales
 .env
+.env.local
+.env.development*
+!.env.production
 
 # Ignorar directorios de prueba
 /test
+/coverage
 
 # Ignorar archivos de logs y temporales
 *.log
@@ -26,6 +29,20 @@
 .gitignore
 
 # Ignorar Dockerfile y docker-compose.yml si no se necesita dentro del contenedor
-# (opcional)
 Dockerfile.dev
-docker-compose.yml
+Dockerfile.test
+docker-compose*.yml
+
+# Ignorar documentación y otros archivos que no son necesarios para la ejecución
+README.md
+LICENSE
+/.github
+/.idea
+*.ps1
+*.bat
+
+# Mantener el código fuente y las migraciones
+!/cmd/**
+!/internal/**
+!/pkg/**
+!/migrations/**

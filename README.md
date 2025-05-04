@@ -4,6 +4,28 @@
 
 Este proyecto utiliza GitHub Actions para automatizar los procesos de Integración Continua (CI) y Despliegue Continuo (CD). A continuación, se explica en detalle cómo está configurado el sistema y cómo utilizarlo.
 
+### Despliegue en Google Cloud Run
+
+Se ha implementado un nuevo workflow para desplegar automáticamente la aplicación en Google Cloud Run y conectarla a la base de datos PostgreSQL alojada en Aiven. El archivo de configuración se encuentra en `.github/workflows/cloud-run-deploy.yml`.
+
+Este workflow se activa cuando:
+- Se hace push a la rama `main`
+- Se inicia manualmente desde la interfaz de GitHub Actions
+
+El proceso realiza las siguientes acciones:
+1. Ejecuta las pruebas (unitarias e integración)
+2. Construye y publica una imagen Docker optimizada para producción
+3. Despliega la aplicación en Google Cloud Run
+4. Ejecuta las migraciones de base de datos en Aiven PostgreSQL
+5. Muestra la URL del servicio desplegado
+
+### Configuración del proyecto
+
+Antes de utilizar este workflow, necesitas:
+
+1. **Crear un nuevo proyecto en GCP**: Sigue la [guía para crear un proyecto en GCP](docs/gcp-project-setup.md)
+2. **Configurar secretos en GitHub**: Sigue la [guía de configuración de secretos](docs/github-secrets-setup.md)
+
 ## Índice
 
 - [Conceptos básicos](#conceptos-básicos)
