@@ -80,7 +80,7 @@ func NewFromPayment(payment *Payment) (*CashFlow, error) {
 	}
 
 	// Convertir uint a *uint
-	paymentID := payment.ID
+	paymentID := payment.Model.ID
 
 	cashFlow := &CashFlow{
 		PaymentID:     &paymentID,
