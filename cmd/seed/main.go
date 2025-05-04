@@ -67,14 +67,15 @@ func main() {
 		dbUser := os.Getenv("DB_USER")
 		dbPass := os.Getenv("DB_PASSWORD")
 		dbName := os.Getenv("DB_NAME")
+		sslMode := os.Getenv("DB_SSL_MODE")
 
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbName == "" {
 			log.Fatalf("Database connection parameters not found in environment")
 		}
 
 		dbConn = fmt.Sprintf(
-			"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-			dbHost, dbPort, dbUser, dbPass, dbName,
+			"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+			dbHost, dbPort, dbUser, dbPass, dbName, sslMode,
 		)
 	}
 
