@@ -2,10 +2,11 @@ run:
   timeout: 5m
   go: '1.24'
   tests: true
-  skip-dirs:
-    - test/integration
-  skip-files:
-    - ".*_test.go$"
+  # Eliminar estas opciones obsoletas
+  # skip-dirs:
+  #   - test/integration
+  # skip-files:
+  #   - ".*_test.go$"
 
 linters:
   enable:
@@ -36,37 +37,39 @@ linters:
     - unconvert
     - unparam
     - whitespace
+    # No añadir 'shadow' aquí
 
 linters-settings:
   errcheck:
     check-type-assertions: true
     check-blank: true
-  
+
   funlen:
     lines: 100
     statements: 50
-  
+
   gocognit:
     min-complexity: 15
-  
+
   gocyclo:
     min-complexity: 15
-  
+
   lll:
     line-length: 120
-  
+
   nakedret:
     max-func-lines: 30
-  
-  govet:
-    check-shadowing: true
-  
+
+  # Quitar la configuración obsoleta para govet
+  # govet:
+  #   check-shadowing: true
+
   revive:
     rules:
       - name: exported
         arguments:
           - "disableStutteringCheck"
-  
+
   gosec:
     excludes:
       - G104 # Disable "Audit errors not checked" for certain cases
@@ -78,6 +81,12 @@ issues:
         - dupl
         - gosec
         - funlen
-  
+
+  # Añadir estas opciones nuevas en reemplazo de las obsoletas
+  exclude-dirs:
+    - test/integration
+  exclude-files:
+    - ".*_test.go$"
+
   max-same-issues: 3
   max-issues-per-linter: 10
