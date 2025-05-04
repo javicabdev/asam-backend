@@ -44,3 +44,4 @@ dist/
 /internal/adapters/gql/generated/
 /internal/adapters/gql/resolvers/schema.resolvers.go
 /coverage
+/coverage.html
