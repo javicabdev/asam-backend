@@ -1,0 +1,83 @@
+run:
+  timeout: 5m
+  go: '1.24'
+  tests: true
+  skip-dirs:
+    - test/integration
+  skip-files:
+    - ".*_test.go$"
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+    - bodyclose
+    - dupl
+    - funlen
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - gofmt
+    - goimports
+    - gosec
+    - lll
+    - misspell
+    - nakedret
+    - prealloc
+    - revive
+    - stylecheck
+    - unconvert
+    - unparam
+    - whitespace
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+  
+  funlen:
+    lines: 100
+    statements: 50
+  
+  gocognit:
+    min-complexity: 15
+  
+  gocyclo:
+    min-complexity: 15
+  
+  lll:
+    line-length: 120
+  
+  nakedret:
+    max-func-lines: 30
+  
+  govet:
+    check-shadowing: true
+  
+  revive:
+    rules:
+      - name: exported
+        arguments:
+          - "disableStutteringCheck"
+  
+  gosec:
+    excludes:
+      - G104 # Disable "Audit errors not checked" for certain cases
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - dupl
+        - gosec
+        - funlen
+  
+  max-same-issues: 3
+  max-issues-per-linter: 10
