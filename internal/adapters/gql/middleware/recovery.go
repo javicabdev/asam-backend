@@ -68,12 +68,12 @@ func (m *RecoveryMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 
 			// Escribir respuesta JSON con el error estructurado
-			responseJSON := map[string]interface{}{
-				"errors": []interface{}{
-					map[string]interface{}{
+			responseJSON := map[string]any{
+				"errors": []any{
+					map[string]any{
 						"message": graphQLErr.Message,
 						"path":    graphQLErr.Path,
-						"extensions": map[string]interface{}{
+						"extensions": map[string]any{
 							"code": errors.ErrInternalError,
 						},
 					},

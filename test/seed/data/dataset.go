@@ -6,65 +6,77 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// DatasetType represents the type of dataset to generate
-type DatasetType string
-
-const (
-	// MinimalType represents a minimal dataset for basic testing
-	MinimalType DatasetType = "minimal"
-
-	// FullType represents a complete dataset for comprehensive testing
-	FullType DatasetType = "full"
-
-	// ScenarioType represents a scenario-specific dataset
-	ScenarioType DatasetType = "scenario"
-)
-
-// Dataset represents a dataset factory
-func Dataset(db *sqlx.DB, seeder Seeder, datasetType DatasetType, options ...string) Seedable {
-	switch datasetType {
-	case MinimalType:
-		return NewMinimalDataset(db, seeder)
-	case FullType:
-		return NewFullDataset(db, seeder)
-	case ScenarioType:
-		// The first option is the scenario name
-		scenarioName := "payment_overdue" // Default scenario
-		if len(options) > 0 {
-			scenarioName = options[0]
-		}
-		return NewScenarioDataset(db, seeder, scenarioName)
-	default:
-		// Default to minimal dataset
-		return NewMinimalDataset(db, seeder)
-	}
-}
-
-// Seedable represents a type that can seed data
+// Seedable is an interface for objects that can seed the database
 type Seedable interface {
 	Seed(ctx context.Context) error
 }
 
-// Add convenience function for minimal dataset - renamed to avoid conflict
-func NewMinimalDatasetHelper(seeder Seeder) Seedable {
-	if s, ok := seeder.(interface{ GetDB() *sqlx.DB }); ok {
-		return NewMinimalDataset(s.GetDB(), seeder)
-	}
-	return nil
+// DatasetType represents the type of dataset to seed
+type DatasetType string
+
+const (
+	// MinimalType represents a minimal dataset for quick testing
+	MinimalType DatasetType = "minimal"
+
+	// FullType represents a full dataset for comprehensive testing
+	FullType DatasetType = "full"
+
+	// ScenarioType represents a specific scenario dataset
+	ScenarioType DatasetType = "scenario"
+
+	// CustomType represents a custom dataset with specified counts
+	CustomType DatasetType = "custom"
+)
+
+// Seeder interface for objects that can seed individual entity types
+type Seeder interface {
+	Clean(ctx context.Context) error
+	SeedMiembros(ctx context.Context) error
+	SeedFamilias(ctx context.Context) error
+	SeedFamiliares(ctx context.Context) error
+	SeedCuotasMembresia(ctx context.Context) error
+	SeedCaja(ctx context.Context) error
+	Logf(format string, args ...any)
 }
 
-// Add convenience function for full dataset - renamed to avoid conflict
-func NewFullDatasetHelper(seeder Seeder) Seedable {
-	if s, ok := seeder.(interface{ GetDB() *sqlx.DB }); ok {
-		return NewFullDataset(s.GetDB(), seeder)
-	}
-	return nil
+// dataset represents a collection of seed data
+type dataset struct {
+	db          *sqlx.DB
+	seeder      Seeder
+	datasetType DatasetType
+	args        []any
 }
 
-// Add convenience function for scenario dataset - renamed to avoid conflict
-func NewScenarioDatasetHelper(seeder Seeder, name string) Seedable {
-	if s, ok := seeder.(interface{ GetDB() *sqlx.DB }); ok {
-		return NewScenarioDataset(s.GetDB(), seeder, name)
+// Dataset returns a new dataset with the specified type and optional arguments
+func Dataset(db *sqlx.DB, seeder Seeder, datasetType DatasetType, args ...any) Seedable {
+	return &dataset{
+		db:          db,
+		seeder:      seeder,
+		datasetType: datasetType,
+		args:        args,
 	}
-	return nil
+}
+
+// Seed seeds the database with the dataset
+func (d *dataset) Seed(ctx context.Context) error {
+	switch d.datasetType {
+	case MinimalType:
+		return NewMinimalDataset(d.db, d.seeder).Seed(ctx)
+	case FullType:
+		return NewFullDataset(d.db, d.seeder).Seed(ctx)
+	case ScenarioType:
+		if len(d.args) > 0 {
+			if scenario, ok := d.args[0].(string); ok {
+				return NewScenarioDataset(d.db, d.seeder, scenario).Seed(ctx)
+			}
+		}
+		return NewScenarioDataset(d.db, d.seeder, "default").Seed(ctx)
+	case CustomType:
+		// The custom dataset is handled directly in the main.go seedCustom function
+		// This is just a placeholder to match the interface
+		return nil
+	default:
+		// Default to minimal dataset
+		return NewMinimalDataset(d.db, d.seeder).Seed(ctx)
+	}
 }

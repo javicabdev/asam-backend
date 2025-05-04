@@ -51,7 +51,7 @@ func (r *Resolver) Login(ctx context.Context, input model.LoginInput) (*model.Au
 }
 
 // Logout Mutation.logout implementa la mutación de logout
-func (r *Resolver) Logout(ctx context.Context) (interface{}, error) {
+func (r *Resolver) Logout(ctx context.Context) (any, error) {
 	// Obtener token del contexto
 	token, err := getAccessTokenFromContext(ctx)
 	if err != nil {
@@ -80,7 +80,7 @@ func (r *Resolver) Logout(ctx context.Context) (interface{}, error) {
 }
 
 // RefreshToken Mutation.refreshToken implementa la mutación de refreshToken
-func (r *Resolver) RefreshToken(ctx context.Context, input model.RefreshTokenInput) (interface{}, error) {
+func (r *Resolver) RefreshToken(ctx context.Context, input model.RefreshTokenInput) (any, error) {
 	// Extraer refreshToken del input
 	refreshToken := input.RefreshToken
 

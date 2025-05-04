@@ -58,7 +58,7 @@ func (s *Seeder) WithConcurrency(c int) *Seeder {
 }
 
 // Logf logs a message if logging is enabled
-func (s *Seeder) Logf(format string, args ...interface{}) {
+func (s *Seeder) Logf(format string, args ...any) {
 	if s.EnableLog {
 		log.Printf(format, args...)
 	}
@@ -105,8 +105,7 @@ func (s *Seeder) ExecuteTx(ctx context.Context, fn func(*sqlx.Tx) error) error {
 func (s *Seeder) Clean(ctx context.Context) error {
 	// IMPORTANT: Double-check these names match your DB schema exactly (case-sensitive)
 	// Order matters for deletion if constraints are not disabled or deferred properly.
-	// Listing tables generally from "most dependent" to "least dependent" is safer for DELETE.
-	// If using TRUNCATE CASCADE, order matters less.
+	// Listing tables from "most dependent" to "least dependent" is critical for DELETE.
 	tables := []string{
 		"caja",                // Depends on miembros, familias
 		"cuotas_membresia",    // Depends on miembros
@@ -122,54 +121,31 @@ func (s *Seeder) Clean(ctx context.Context) error {
 	s.Logf("Starting database cleaning process...")
 
 	return s.ExecuteTx(ctx, func(tx *sqlx.Tx) error {
-		// Disable foreign key checks temporarily for PostgreSQL.
-		// Using "SET session_replication_role = replica;" is often more robust for bulk operations.
-		s.Logf("Disabling foreign key checks (setting session_replication_role to replica)")
-		if _, err := tx.ExecContext(ctx, "SET session_replication_role = replica;"); err != nil {
-			return fmt.Errorf("failed to disable foreign key checks: %w", err)
-		}
+		// Ya no intentamos deshabilitar las restricciones de clave foránea
+		// Simplemente eliminamos las tablas en el orden correcto
 
-		// Defer re-enabling foreign keys to ensure it runs even if errors occur mid-way.
-		defer func() {
-			s.Logf("Re-enabling foreign key checks (setting session_replication_role to default)")
-			// Use a separate ExecContext for the deferred call. It won't use the tx if it was committed/rolled back,
-			// but it needs to run on the connection. Using s.DB might be safer if tx is invalid.
-			// However, session_replication_role is session-based, so resetting it after the tx might be fine.
-			if _, err := tx.ExecContext(ctx, "SET session_replication_role = DEFAULT;"); err != nil {
-				// Log as warning because failure here shouldn't mask the primary error.
-				s.Logf("WARNING: Failed to re-enable foreign key checks: %v", err)
-			}
-		}()
-
-		// Iterate through tables to delete data. Consider iterating backwards if needed,
-		// although disabling constraints should make order less critical.
+		// Iterate through tables to delete data
 		for _, table := range tables {
 			s.Logf("Cleaning table: %s", table)
 
-			// Option 1: TRUNCATE (often faster, resets sequences automatically)
-			// Use CASCADE with caution, it will delete related data in other tables.
-			// sqlQuery := fmt.Sprintf(`TRUNCATE TABLE "%s" RESTART IDENTITY CASCADE;`, table)
-
-			// Option 2: DELETE (as originally used)
+			// Use DELETE for all tables
 			sqlQuery := fmt.Sprintf(`DELETE FROM "%s";`, table)
-
 			s.Logf("Executing SQL: %s", sqlQuery)
 
 			// Execute the query
 			if _, err := tx.ExecContext(ctx, sqlQuery); err != nil {
-				// Provide more context in the error message
+				// Si hay un error, podría ser porque la tabla no existe
+				if strings.Contains(err.Error(), "does not exist") {
+					s.Logf("Table '%s' does not exist, skipping", table)
+					continue
+				}
+				// Cualquier otro error es un problema real
 				return fmt.Errorf("failed to execute query [%s] for table %s: %w", sqlQuery, table, err)
 			}
 
-			// If using DELETE, reset sequence separately. TRUNCATE with RESTART IDENTITY handles this.
-			// Note: Sequence names might not always be table_id_seq. Adjust if needed.
-			// Using "IF EXISTS" makes it more robust.
-			// Only reset if using DELETE.
-			// if sqlQuery == fmt.Sprintf(`DELETE FROM "%s";`, table) { // Check if DELETE was used
+			// Reset sequence after DELETE
 			seqName := fmt.Sprintf("%s_id_seq", table) // Assuming standard sequence name convention
-			// Check if the table name might include schema (e.g., "public.users")
-			// Basic handling: remove potential schema prefix for sequence name generation
-			parts := splitTableName(table) // Helper function needed (see below)
+			parts := splitTableName(table)
 			if len(parts) == 2 {
 				seqName = fmt.Sprintf("%s_%s_id_seq", parts[0], parts[1]) // e.g. public_users_id_seq
 			} else {
@@ -182,7 +158,6 @@ func (s *Seeder) Clean(ctx context.Context) error {
 				// Log warning instead of failing, as sequence might not exist or name differs.
 				s.Logf("Warning: Failed to reset sequence %s (it might not exist or name is different): %v", seqName, err)
 			}
-			// } // End of sequence reset block
 		}
 
 		s.Logf("Finished cleaning tables within transaction.")

@@ -11,6 +11,7 @@ Este módulo implementa un sistema completo para generar datos de prueba que per
 - Limpieza sencilla de la base de datos
 - Opciones configurables para la generación
 - Generación basada en semilla aleatoria (reproducible)
+- **Soporte para múltiples entornos (local y Aiven)**
 
 ## Estructura
 
@@ -41,24 +42,38 @@ test/
 El sistema incluye un comando para ejecutar el seeding desde la línea de comandos:
 
 ```bash
-# Seed con dataset mínimo (por defecto)
+# Seed con dataset mínimo en la base de datos local (por defecto)
 go run cmd/seed/main.go
 
-# Seed con dataset completo
-go run cmd/seed/main.go -type=full
+# Seed con dataset mínimo en la base de datos Aiven
+go run cmd/seed/main.go -env=aiven
 
-# Seed con escenario específico
-go run cmd/seed/main.go -type=scenario -scenario=payment_overdue
+# Seed con dataset mínimo en ambas bases de datos (local y Aiven)
+go run cmd/seed/main.go -env=all
 
-# Solo limpiar la base de datos
-go run cmd/seed/main.go -clean
+# Seed con dataset completo en ambas bases de datos
+go run cmd/seed/main.go -env=all -type=full
 
-# Seed personalizado con cantidades específicas
-go run cmd/seed/main.go -type=custom -members=50 -families=20 -payments=100
+# Seed con escenario específico en la base de datos local
+go run cmd/seed/main.go -env=local -type=scenario -scenario=payment_overdue
+
+# Solo limpiar ambas bases de datos
+go run cmd/seed/main.go -env=all -clean
+
+# Seed personalizado con cantidades específicas en la base de datos local
+go run cmd/seed/main.go -env=local -type=custom -members=50 -families=20 -payments=100
 
 # Usar una semilla específica para reproducibilidad
-go run cmd/seed/main.go -seed=12345
+go run cmd/seed/main.go -env=local -seed=12345
 ```
+
+### Entornos disponibles
+
+El sistema soporta los siguientes entornos:
+
+- **local**: Usa la configuración de `.env.development` para conectarse a la base de datos local.
+- **aiven**: Usa la configuración de `.env.aiven` para conectarse a la base de datos en la nube Aiven.
+- **all**: Ejecuta el seed en ambas bases de datos secuencialmente.
 
 ### Desde código
 
@@ -162,3 +177,4 @@ Puedes ajustar varios parámetros de generación:
 2. **Semilla fija**: Para pruebas reproducibles, usa una semilla fija.
 3. **Entornos aislados**: Usa bases de datos separadas para desarrollo y testing.
 4. **Automatización**: Integra el seeding en tus flujos de CI/CD.
+5. **Múltiples entornos**: Usa el parámetro `-env=all` para ejecutar el seed en ambas bases de datos (local y Aiven).

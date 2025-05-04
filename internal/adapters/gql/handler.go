@@ -67,7 +67,7 @@ func NewHandler(
 	})
 
 	// Configurar función de recuperación que también usa el errorHandler
-	srv.SetRecoverFunc(func(ctx context.Context, err interface{}) error {
+	srv.SetRecoverFunc(func(ctx context.Context, err any) error {
 		// Asegurar que se guarde el errorHandler en el contexto para uso posterior
 		ctx = context.WithValue(ctx, middleware.ErrorHandlerKey{}, errorHandler)
 
@@ -78,7 +78,7 @@ func NewHandler(
 		return &gqlerror.Error{
 			Path:    graphql.GetPath(ctx),
 			Message: "Internal server error",
-			Extensions: map[string]interface{}{
+			Extensions: map[string]any{
 				"code": appErrors.ErrInternalError,
 			},
 		}
@@ -129,7 +129,7 @@ func NewHandler(
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusMethodNotAllowed)
-			writeJSON(w, map[string]interface{}{
+			writeJSON(w, map[string]any{
 				"errors": []*gqlerror.Error{gqlErr},
 			})
 			return

@@ -59,7 +59,7 @@ func handleNotFound(entity string, id string) error {
 }
 
 // ensureExists checks if an entity exists and returns appropriate error if not
-func ensureExists(entity interface{}, entityName string, id string) error {
+func ensureExists(entity any, entityName string, id string) error {
 	if entity == nil {
 		return handleNotFound(entityName, id)
 	}

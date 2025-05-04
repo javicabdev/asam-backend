@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -25,7 +26,7 @@ var (
 	enableConsole bool
 	verbose       bool
 	concurrency   int
-	envFile       string
+	environment   string
 	numMembers    int
 	numFamilies   int
 	numFamiliares int
@@ -33,16 +34,28 @@ var (
 	numCashflows  int
 )
 
+// Environment files
+const (
+	LocalEnvFile = ".env.development"
+	AivenEnvFile = ".env.aiven"
+)
+
+// Lista de variables de entorno que necesitamos limpiar entre ejecuciones
+var envVars = []string{
+	"DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "DB_SSL_MODE",
+	"DATABASE_URL", "DB_MAX_IDLE_CONNS", "DB_MAX_OPEN_CONNS", "DB_CONN_MAX_LIFETIME",
+}
+
 func init() {
 	// Setup command line flags
-	flag.StringVar(&datasetType, "type", "minimal", "Dataset type (minimal, full, scenario)")
+	flag.StringVar(&datasetType, "type", "minimal", "Dataset type (minimal, full, scenario, custom)")
 	flag.StringVar(&scenario, "scenario", "payment_overdue", "Scenario name when type=scenario")
 	flag.BoolVar(&clean, "clean", false, "Only clean the database without seeding")
 	flag.Int64Var(&randomSeed, "seed", time.Now().UnixNano(), "Random seed for reproducible generation")
 	flag.BoolVar(&enableConsole, "console", true, "Enable console output")
 	flag.BoolVar(&verbose, "verbose", false, "Enable verbose output")
 	flag.IntVar(&concurrency, "concurrency", 5, "Number of concurrent operations")
-	flag.StringVar(&envFile, "env", ".env", "Path to environment file")
+	flag.StringVar(&environment, "env", "local", "Environment to use (local, aiven, all)")
 	flag.IntVar(&numMembers, "members", 0, "Number of members to generate (override default)")
 	flag.IntVar(&numFamilies, "families", 0, "Number of families to generate (override default)")
 	flag.IntVar(&numFamiliares, "familiares", 0, "Number of familiares to generate (override default)")
@@ -53,10 +66,61 @@ func init() {
 func main() {
 	flag.Parse()
 
-	// Load environment variables
-	if err := godotenv.Load(envFile); err != nil {
-		log.Printf("Warning: Error loading .env file: %v", err)
+	// Validate environment
+	environment = strings.ToLower(environment)
+	if environment != "local" && environment != "aiven" && environment != "all" {
+		log.Fatalf("Invalid environment. Must be 'local', 'aiven', or 'all'")
 	}
+
+	// Run seeder for specified environment(s)
+	if environment == "local" || environment == "all" {
+		log.Println("==================================================")
+		log.Println("Running seed on LOCAL database")
+		log.Println("==================================================")
+
+		// Limpiar las variables de entorno antes de cargar el archivo local
+		clearEnvVars()
+
+		if err := runSeed(LocalEnvFile); err != nil {
+			log.Printf("Error seeding local database: %v", err)
+		}
+	}
+
+	if environment == "aiven" || environment == "all" {
+		log.Println("==================================================")
+		log.Println("Running seed on AIVEN database")
+		log.Println("==================================================")
+
+		// Limpiar las variables de entorno antes de cargar el archivo Aiven
+		clearEnvVars()
+
+		if err := runSeed(AivenEnvFile); err != nil {
+			log.Printf("Error seeding Aiven database: %v", err)
+		}
+	}
+}
+
+// clearEnvVars limpia las variables de entorno relacionadas con la base de datos
+func clearEnvVars() {
+	for _, envVar := range envVars {
+		os.Unsetenv(envVar)
+	}
+}
+
+// runSeed executes the seeder with the specified env file
+func runSeed(envFile string) error {
+	// Cargar las variables de entorno del archivo específico
+	if err := godotenv.Load(envFile); err != nil {
+		return fmt.Errorf("error loading %s file: %w", envFile, err)
+	}
+
+	// Imprimir la configuración de la base de datos para depuración
+	log.Printf("Database configuration: Host=%s, Port=%s, User=%s, DB=%s, SSL=%s",
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_NAME"),
+		os.Getenv("DB_SSL_MODE"))
 
 	// Get database connection string from environment
 	dbConn := os.Getenv("DATABASE_URL")
@@ -70,7 +134,7 @@ func main() {
 		sslMode := os.Getenv("DB_SSL_MODE")
 
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbName == "" {
-			log.Fatalf("Database connection parameters not found in environment")
+			return fmt.Errorf("database connection parameters not found in environment file %s", envFile)
 		}
 
 		dbConn = fmt.Sprintf(
@@ -82,7 +146,7 @@ func main() {
 	// Connect to database
 	db, err := sqlx.Connect("postgres", dbConn)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 	defer db.Close()
 
@@ -100,38 +164,40 @@ func main() {
 	if clean {
 		// Only clean the database
 		if err := seeder.Clean(ctx); err != nil {
-			log.Fatalf("Failed to clean database: %v", err)
+			return fmt.Errorf("failed to clean database: %w", err)
 		}
 		log.Println("Database cleaned successfully")
-		return
+		return nil
 	}
 
 	// Seed the database according to the specified type
-	var dataset data.Seedable
-
 	switch datasetType {
 	case "minimal":
-		dataset = data.Dataset(db, seeder, data.MinimalType)
+		dataset := data.Dataset(db, seeder, data.MinimalType)
+		if err := dataset.Seed(ctx); err != nil {
+			return fmt.Errorf("failed to seed minimal dataset: %w", err)
+		}
 	case "full":
-		dataset = data.Dataset(db, seeder, data.FullType)
+		dataset := data.Dataset(db, seeder, data.FullType)
+		if err := dataset.Seed(ctx); err != nil {
+			return fmt.Errorf("failed to seed full dataset: %w", err)
+		}
 	case "scenario":
-		dataset = data.Dataset(db, seeder, data.ScenarioType, scenario)
+		dataset := data.Dataset(db, seeder, data.ScenarioType, scenario)
+		if err := dataset.Seed(ctx); err != nil {
+			return fmt.Errorf("failed to seed scenario dataset: %w", err)
+		}
 	case "custom":
 		// Custom seeding with specific counts
 		if err := seedCustom(ctx, seeder); err != nil {
-			log.Fatalf("Failed to seed custom dataset: %v", err)
+			return fmt.Errorf("failed to seed custom dataset: %w", err)
 		}
-		return
 	default:
-		log.Fatalf("Unknown dataset type: %s", datasetType)
-	}
-
-	// Seed the dataset
-	if err := dataset.Seed(ctx); err != nil {
-		log.Fatalf("Failed to seed dataset: %v", err)
+		return fmt.Errorf("unknown dataset type: %s", datasetType)
 	}
 
 	log.Printf("Database seeded successfully with %s dataset", datasetType)
+	return nil
 }
 
 // seedCustom seeds the database with custom entity counts
@@ -143,44 +209,51 @@ func seedCustom(ctx context.Context, seeder *seed.Seeder) error {
 		return fmt.Errorf("failed to clean database: %w", err)
 	}
 
+	// Set default values if not specified
+	if numMembers <= 0 {
+		numMembers = 50
+	}
+	if numFamilies <= 0 {
+		numFamilies = 20
+	}
+	if numFamiliares <= 0 {
+		numFamiliares = 40
+	}
+	if numPayments <= 0 {
+		numPayments = 100
+	}
+	if numCashflows <= 0 {
+		numCashflows = 200
+	}
+
 	// Seed members
-	if numMembers > 0 {
-		log.Printf("Seeding %d members", numMembers)
-		if err := seeder.SeedMiembros(ctx); err != nil {
-			return fmt.Errorf("failed to seed members: %w", err)
-		}
+	log.Printf("Seeding %d members", numMembers)
+	if err := seeder.SeedMiembros(ctx); err != nil {
+		return fmt.Errorf("failed to seed members: %w", err)
 	}
 
 	// Seed families
-	if numFamilies > 0 {
-		log.Printf("Seeding %d families", numFamilies)
-		if err := seeder.SeedFamilias(ctx); err != nil {
-			return fmt.Errorf("failed to seed families: %w", err)
-		}
+	log.Printf("Seeding %d families", numFamilies)
+	if err := seeder.SeedFamilias(ctx); err != nil {
+		return fmt.Errorf("failed to seed families: %w", err)
 	}
 
 	// Seed familiares
-	if numFamiliares > 0 {
-		log.Printf("Seeding %d familiares", numFamiliares)
-		if err := seeder.SeedFamiliares(ctx); err != nil {
-			return fmt.Errorf("failed to seed familiares: %w", err)
-		}
+	log.Printf("Seeding %d familiares", numFamiliares)
+	if err := seeder.SeedFamiliares(ctx); err != nil {
+		return fmt.Errorf("failed to seed familiares: %w", err)
 	}
 
 	// Seed payments
-	if numPayments > 0 {
-		log.Printf("Seeding %d payments", numPayments)
-		if err := seeder.SeedCuotasMembresia(ctx); err != nil {
-			return fmt.Errorf("failed to seed payments: %w", err)
-		}
+	log.Printf("Seeding %d payments", numPayments)
+	if err := seeder.SeedCuotasMembresia(ctx); err != nil {
+		return fmt.Errorf("failed to seed payments: %w", err)
 	}
 
 	// Seed cashflows
-	if numCashflows > 0 {
-		log.Printf("Seeding %d cashflows", numCashflows)
-		if err := seeder.SeedCaja(ctx); err != nil {
-			return fmt.Errorf("failed to seed cashflows: %w", err)
-		}
+	log.Printf("Seeding %d cashflows", numCashflows)
+	if err := seeder.SeedCaja(ctx); err != nil {
+		return fmt.Errorf("failed to seed cashflows: %w", err)
 	}
 
 	return nil
