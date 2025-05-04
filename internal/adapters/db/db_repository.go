@@ -95,14 +95,14 @@ func IsConnected(db *gorm.DB) error {
 }
 
 // GetDBStats returns statistics about the database connection pool
-func GetDBStats(db *gorm.DB) (map[string]interface{}, error) {
+func GetDBStats(db *gorm.DB) (map[string]any, error) {
 	sqlDB, err := db.DB()
 	if err != nil {
 		return nil, errors.Wrap(err, errors.ErrDatabaseError, "Failed to get underlying database connection")
 	}
 
 	stats := sqlDB.Stats()
-	return map[string]interface{}{
+	return map[string]any{
 		"max_open_connections": stats.MaxOpenConnections,
 		"open_connections":     stats.OpenConnections,
 		"in_use":               stats.InUse,

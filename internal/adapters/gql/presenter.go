@@ -34,7 +34,7 @@ func CustomErrorPresenter(ctx context.Context, err error) *gqlerror.Error {
 		return &gqlerror.Error{
 			Path:    path,
 			Message: "Resource not found",
-			Extensions: map[string]interface{}{
+			Extensions: map[string]any{
 				"code":      appErrors.ErrNotFound,
 				"operation": operation,
 			},
@@ -44,7 +44,7 @@ func CustomErrorPresenter(ctx context.Context, err error) *gqlerror.Error {
 		return &gqlerror.Error{
 			Path:    path,
 			Message: "Operation timed out",
-			Extensions: map[string]interface{}{
+			Extensions: map[string]any{
 				"code":      appErrors.ErrInternalError,
 				"operation": operation,
 			},
@@ -54,7 +54,7 @@ func CustomErrorPresenter(ctx context.Context, err error) *gqlerror.Error {
 		return &gqlerror.Error{
 			Path:    path,
 			Message: "Operation was canceled",
-			Extensions: map[string]interface{}{
+			Extensions: map[string]any{
 				"code":      appErrors.ErrInternalError,
 				"operation": operation,
 			},
@@ -65,7 +65,7 @@ func CustomErrorPresenter(ctx context.Context, err error) *gqlerror.Error {
 	var appErr *appErrors.AppError
 	if errors.As(err, &appErr) {
 		// Build extensions with code and error fields
-		extensions := map[string]interface{}{
+		extensions := map[string]any{
 			"code":      appErr.Code,
 			"operation": operation,
 		}
@@ -86,7 +86,7 @@ func CustomErrorPresenter(ctx context.Context, err error) *gqlerror.Error {
 	return &gqlerror.Error{
 		Path:    path,
 		Message: fmt.Sprintf("Internal error: %s", err.Error()),
-		Extensions: map[string]interface{}{
+		Extensions: map[string]any{
 			"code":      appErrors.ErrInternalError,
 			"operation": operation,
 		},
@@ -109,7 +109,7 @@ func ErrorHandler() graphql.ErrorPresenterFunc {
 
 // RecoverFunc provides a function to recover from panics in GraphQL resolvers
 func RecoverFunc() graphql.RecoverFunc {
-	return func(ctx context.Context, panicValue interface{}) error {
+	return func(ctx context.Context, panicValue any) error {
 		// Build error message
 		errMsg := "Internal server error"
 		if panicValue != nil {

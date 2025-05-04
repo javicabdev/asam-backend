@@ -212,13 +212,13 @@ func respondWithAuthError(w http.ResponseWriter, message string) {
 	// Crear un error en formato GraphQL
 	gqlError := &gqlerror.Error{
 		Message: message,
-		Extensions: map[string]interface{}{
+		Extensions: map[string]any{
 			"code": errors.ErrUnauthorized,
 		},
 	}
 
 	// Construir respuesta JSON
-	response := map[string]interface{}{
+	response := map[string]any{
 		"errors": []*gqlerror.Error{gqlError},
 		"data":   nil,
 	}

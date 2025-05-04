@@ -309,7 +309,7 @@ func formatFloat(num float64, precision int) string {
 }
 
 // sprintf es un wrapper para fmt.Sprintf
-func sprintf(format string, args ...interface{}) string {
+func sprintf(format string, args ...any) string {
 	// Implementación simplificada para evitar importar fmt
 	result := format
 	for _, arg := range args {
@@ -319,7 +319,7 @@ func sprintf(format string, args ...interface{}) string {
 }
 
 // toString convierte un valor a string
-func toString(v interface{}) string {
+func toString(v any) string {
 	switch val := v.(type) {
 	case float64:
 		return strconv.FormatFloat(val, 'f', 2, 64)

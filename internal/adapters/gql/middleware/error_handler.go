@@ -114,7 +114,7 @@ func (m *ErrorMiddleware) handleAppError(ctx context.Context, err *appErrors.App
 
 	// Create GraphQL error
 	path := graphql.GetPath(ctx)
-	extensions := map[string]interface{}{
+	extensions := map[string]any{
 		"code": err.Code,
 	}
 
@@ -131,7 +131,7 @@ func (m *ErrorMiddleware) handleAppError(ctx context.Context, err *appErrors.App
 }
 
 // logError logs errors in a standardized format
-func (m *ErrorMiddleware) logError(ctx context.Context, errType, message, level string, code interface{}, path interface{}) {
+func (m *ErrorMiddleware) logError(ctx context.Context, errType, message, level string, code any, path any) {
 	if m.logger == nil {
 		return
 	}
@@ -181,7 +181,7 @@ func (m *ErrorMiddleware) createNotFoundError(ctx context.Context) *gqlerror.Err
 	return &gqlerror.Error{
 		Path:    path,
 		Message: message,
-		Extensions: map[string]interface{}{
+		Extensions: map[string]any{
 			"code": appErrors.ErrNotFound,
 		},
 	}
@@ -202,7 +202,7 @@ func (m *ErrorMiddleware) createInternalError(ctx context.Context, err error) *g
 	return &gqlerror.Error{
 		Path:    path,
 		Message: message,
-		Extensions: map[string]interface{}{
+		Extensions: map[string]any{
 			"code": appErrors.ErrInternalError,
 		},
 	}
@@ -223,7 +223,7 @@ func ConfigErrorPresenter() graphql.ErrorPresenterFunc {
 
 // LogPanic is a function to handle panic in resolvers
 func LogPanic() graphql.RecoverFunc {
-	return func(ctx context.Context, err interface{}) error {
+	return func(ctx context.Context, err any) error {
 		handler := FromContext(ctx)
 
 		// Log panic
@@ -238,7 +238,7 @@ func LogPanic() graphql.RecoverFunc {
 		return &gqlerror.Error{
 			Path:    graphql.GetPath(ctx),
 			Message: "Internal server error",
-			Extensions: map[string]interface{}{
+			Extensions: map[string]any{
 				"code": appErrors.ErrInternalError,
 			},
 		}
