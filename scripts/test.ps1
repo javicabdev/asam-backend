@@ -1,8 +1,9 @@
 param (
     [switch]$Build,
     [switch]$NoCleanup,
-    [string]$Module = "",  # Parámetro para el módulo
-    [switch]$UseBake      # Nuevo parámetro para habilitar Bake
+    [string]$Module = "",     # Parámetro para el módulo
+    [switch]$UseBake,         # Parámetro para habilitar Bake
+    [switch]$Coverage         # Nuevo parámetro para generar informe de cobertura
 )
 
 # Iniciar entorno de pruebas
@@ -61,13 +62,49 @@ try {
     # Ejecutar los tests según el módulo especificado
     Write-Host "Ejecutando tests..." -ForegroundColor Green
 
+    # Crear el contenedor api-test sin ejecutarlo inmediatamente si vamos a usar cobertura
+    # para poder obtener el ID del contenedor después
+    $containerId = $null
+    if ($Coverage) {
+        Write-Host "Se generará un informe de cobertura de tests" -ForegroundColor Yellow
+    }
+
     if ($Module) {
         Write-Host "Ejecutando tests del módulo: $Module" -ForegroundColor Cyan
-        Invoke-DockerCompose -Arguments @("-f", "docker-compose.test.yml", "run", "--rm", "api-test", "go", "test", "./test/$Module/...", "-v")
+
+        if ($Coverage) {
+            # Ejecutar tests con cobertura para un módulo específico
+            $testCmd = "go test ./test/$Module/... -v -coverprofile=coverage.out && go tool cover -func=coverage.out && go tool cover -html=coverage.out -o coverage.html"
+            Invoke-DockerCompose -Arguments @("-f", "docker-compose.test.yml", "run", "--name", "api-test-coverage", "--rm", "api-test", "sh", "-c", $testCmd)
+
+            # Copiar el archivo HTML de cobertura desde el contenedor
+            $containerId = $(docker ps -aqf "name=api-test-coverage")
+            if ($containerId) {
+                docker cp "${containerId}:/app/coverage.html" ./coverage.html
+                Write-Host "Informe de cobertura generado en $(Get-Location)\coverage.html" -ForegroundColor Green
+            }
+        } else {
+            # Ejecutar tests normales
+            Invoke-DockerCompose -Arguments @("-f", "docker-compose.test.yml", "run", "--rm", "api-test", "go", "test", "./test/$Module/...", "-v")
+        }
     } else {
         Write-Host "Ejecutando todos los tests desde la raíz..." -ForegroundColor Cyan
-        # Ejecutar todos los tests en el proyecto
-        Invoke-DockerCompose -Arguments @("-f", "docker-compose.test.yml", "run", "--rm", "api-test", "sh", "-c", "go test -v ./...")
+
+        if ($Coverage) {
+            # Ejecutar todos los tests con cobertura
+            $testCmd = "go test ./... -v -coverprofile=coverage.out && go tool cover -func=coverage.out && go tool cover -html=coverage.out -o coverage.html"
+            Invoke-DockerCompose -Arguments @("-f", "docker-compose.test.yml", "run", "--name", "api-test-coverage", "--rm", "api-test", "sh", "-c", $testCmd)
+
+            # Copiar el archivo HTML de cobertura desde el contenedor
+            $containerId = $(docker ps -aqf "name=api-test-coverage")
+            if ($containerId) {
+                docker cp "${containerId}:/app/coverage.html" ./coverage.html
+                Write-Host "Informe de cobertura generado en $(Get-Location)\coverage.html" -ForegroundColor Green
+            }
+        } else {
+            # Ejecutar todos los tests normales
+            Invoke-DockerCompose -Arguments @("-f", "docker-compose.test.yml", "run", "--rm", "api-test", "sh", "-c", "go test -v ./...")
+        }
     }
 }
 catch {
