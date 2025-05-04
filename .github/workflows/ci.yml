@@ -1,0 +1,176 @@
+name: Backend CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths-ignore:
+      - '**/*.md'
+  pull_request:
+    branches: [ main, develop ]
+    paths-ignore:
+      - '**/*.md'
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+      
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.58.0
+      
+      - name: Run golangci-lint
+        run: golangci-lint run ./... --timeout=5m
+
+      - name: Verify gofmt
+        run: |
+          if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+            gofmt -s -l .
+            echo "Code is not formatted with gofmt"
+            exit 1
+          fi
+      
+      - name: Validate imports
+        run: |
+          go install golang.org/x/tools/cmd/goimports@latest
+          if [ "$(goimports -l . | wc -l)" -gt 0 ]; then
+            goimports -l .
+            echo "Imports are not properly formatted"
+            exit 1
+          fi
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ['1.23', '1.24']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+      
+      - name: Get dependencies
+        run: go mod download
+      
+      - name: Build
+        run: go build -v ./cmd/api
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: [lint, build]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+      
+      - name: Get dependencies
+        run: go mod download
+      
+      - name: Run unit tests
+        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./internal/... ./pkg/...
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.txt
+          flags: unittests
+          fail_ci_if_error: true
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [lint, build]
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: asam_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+      
+      - name: Get dependencies
+        run: go mod download
+      
+      - name: Setup test environment
+        run: |
+          cp .env.test .env
+          go run cmd/migrate/main.go up
+      
+      - name: Run integration tests
+        run: go test -v -tags=integration ./test/integration/...
+
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+      
+      - name: Run go vet
+        run: go vet ./...
+      
+      - name: Check cyclomatic complexity
+        run: |
+          go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+          gocyclo -over 15 .
+      
+      - name: Generate coverage report
+        run: go test -coverprofile=coverage.out ./...
+      
+      - name: Check coverage
+        run: |
+          go tool cover -func=coverage.out
+          # Fail if coverage is below threshold
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
+            echo "Code coverage is below 70%: $COVERAGE%"
+            exit 1
+          fi
+
+  # Job para validar convenciones de commits
+  validate-commits:
+    name: Validate Commit Messages
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Validate Conventional Commits
+        uses: wagoid/commitlint-github-action@v5

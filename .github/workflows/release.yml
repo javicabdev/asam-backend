@@ -1,0 +1,153 @@
+name: Backend Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Generate Changelog
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v4
+        with:
+          configuration: ".github/changelog-config.json"
+          commitMode: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          body: ${{ steps.changelog.outputs.changelog }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: true
+          prerelease: contains(github.ref, '-rc') || contains(github.ref, '-beta') || contains(github.ref, '-alpha')
+
+  build-binaries:
+    name: Build Release Binaries
+    needs: create-release
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: [amd64, arm64]
+        exclude:
+          - goos: windows
+            goarch: arm64
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+      
+      - name: Get dependencies
+        run: go mod download
+      
+      - name: Get version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        shell: bash
+      
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          mkdir -p dist
+          OUTPUT_NAME=asam-backend_${{ steps.get_version.outputs.VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            OUTPUT_NAME="${OUTPUT_NAME}.exe"
+          fi
+          go build -ldflags="-X 'github.com/javicabdev/asam-backend/internal/config.Version=${{ steps.get_version.outputs.VERSION }}'" -o "dist/${OUTPUT_NAME}" ./cmd/api
+        shell: bash
+      
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ./dist/asam-backend_${{ steps.get_version.outputs.VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-and-deploy:
+    name: Build and Deploy to Google Cloud Run
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Get version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        shell: bash
+      
+      # Autenticar con Google Cloud
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+      
+      # Configurar Docker para usar gcloud como credencial helper
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker gcr.io
+      
+      # Construir y publicar la imagen en Google Container Registry
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/asam-backend:${{ steps.get_version.outputs.VERSION }} -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/asam-backend:latest .
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/asam-backend:${{ steps.get_version.outputs.VERSION }}
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/asam-backend:latest
+      
+      # Desplegar en Cloud Run
+      - name: Deploy to Cloud Run
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: asam-backend
+          region: europe-west1
+          image: gcr.io/${{ secrets.GCP_PROJECT_ID }}/asam-backend:${{ steps.get_version.outputs.VERSION }}
+          env_vars: |
+            DB_HOST=${{ secrets.AIVEN_DB_HOST }}
+            DB_PORT=${{ secrets.AIVEN_DB_PORT }}
+            DB_USER=${{ secrets.AIVEN_DB_USER }}
+            DB_PASSWORD=${{ secrets.AIVEN_DB_PASSWORD }}
+            DB_NAME=${{ secrets.AIVEN_DB_NAME }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            ENV=production
+      
+      # Ejecutar migraciones en la base de datos
+      - name: Run Database Migrations
+        run: |
+          go build -o migrate ./cmd/migrate
+          ./migrate up
+        env:
+          DB_HOST: ${{ secrets.AIVEN_DB_HOST }}
+          DB_PORT: ${{ secrets.AIVEN_DB_PORT }}
+          DB_USER: ${{ secrets.AIVEN_DB_USER }}
+          DB_PASSWORD: ${{ secrets.AIVEN_DB_PASSWORD }}
+          DB_NAME: ${{ secrets.AIVEN_DB_NAME }}
+      
+      # Publicar la URL del servicio en la release
+      - name: Update Release with Service URL
+        uses: softprops/action-gh-release@v1
+        with:
+          body: |
+            ${{ steps.deploy.outputs.url }}
+          append_body: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

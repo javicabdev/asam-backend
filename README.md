@@ -1,108 +1,313 @@
 # ASAM Backend
 
-Backend para la aplicación de gestión de la asociación ASAM (Fondo Solidario de Ayuda Mutua), ubicada en Terrassa.
+## Pipeline de CI/CD
 
-## 🎯 Objetivo
-El sistema permite gestionar los datos de la asociación, incluyendo miembros, familias, pagos y balance de caja. El fondo tiene como objetivo cubrir todos los gastos relacionados con el fallecimiento de cualquiera de los socios, incluida la repatriación del cadáver.
+Este proyecto utiliza GitHub Actions para automatizar los procesos de Integración Continua (CI) y Despliegue Continuo (CD). A continuación, se explica en detalle cómo está configurado el sistema y cómo utilizarlo.
 
-## 🛠️ Tecnologías
-- Go
-- PostgreSQL
-- GraphQL
-- GORM
+## Índice
 
-## 📂 Estructura del Proyecto
-```
-asam-backend/
-├── cmd/           # Puntos de entrada de la aplicación
-├── internal/      # Código privado de la aplicación
-├── migrations/    # Migraciones de base de datos
-├── pkg/           # Código compartido y utilidades
-├── test/          # Tests y datos de prueba
-└── docs/          # Documentación
-```
+- [Conceptos básicos](#conceptos-básicos)
+- [Estructura del pipeline](#estructura-del-pipeline)
+- [Pipeline de CI](#pipeline-de-ci)
+- [Pipeline de Release](#pipeline-de-release)
+- [Flujo de trabajo diario](#flujo-de-trabajo-diario)
+- [Requisitos de configuración](#requisitos-de-configuración)
+- [Beneficios del enfoque](#beneficios-del-enfoque)
 
-## 🚀 Inicio Rápido
-[Instrucciones de setup pendientes]
+## Conceptos básicos
 
-## 📝 Documentación
+### ¿Qué son GitHub Actions?
 
-### Entornos de Base de Datos
-El sistema está configurado para trabajar con dos entornos de base de datos:
+GitHub Actions es un sistema de automatización integrado en GitHub que permite crear flujos de trabajo automatizados (workflows) para proyectos. Estos workflows se ejecutan en respuesta a eventos específicos, como un push a una rama, la creación de un pull request o la publicación de una nueva versión.
 
-* **Local**: Base de datos PostgreSQL en el entorno local de desarrollo (`.env.development`)
-* **Aiven**: Base de datos PostgreSQL alojada en la nube Aiven (`.env.aiven`)
+### ¿Qué es un workflow?
 
-### Migraciones de Base de Datos
+Un workflow es una serie de tareas automatizadas definidas en un archivo YAML que se almacena en la carpeta `.github/workflows/` del repositorio. Cada workflow consta de uno o más "jobs" (trabajos), y cada job consta de uno o más "steps" (pasos).
 
-Para ejecutar migraciones de base de datos, se proporcionan scripts PowerShell:
+### Estructura básica de un workflow
 
-#### Primera vez: Instalar dependencias
+```yaml
+name: Nombre del Workflow
 
-```powershell
-.\setup_and_migrate.ps1 [entorno] [comando] [argumentos adicionales]
-```
+on:
+  evento1:
+    configuración...
+  evento2:
+    configuración...
 
-Este script instala las dependencias necesarias y luego ejecuta las migraciones. Solo necesitas ejecutarlo la primera vez.
-
-#### Uso normal
-
-```powershell
-.\migrate.ps1 [entorno] [comando] [argumentos adicionales]
+jobs:
+  trabajo1:
+    name: Nombre del Trabajo
+    runs-on: sistema-operativo
+    steps:
+      - name: Primer paso
+        uses: acción/a/usar
+        with:
+          parámetros...
+      
+      - name: Segundo paso
+        run: comandos a ejecutar
 ```
 
-**Ejemplos:**
-```powershell
-.\migrate.ps1                    # Migración en BD local
-.\migrate.ps1 aiven down         # Revertir migraciones en BD Aiven
-.\migrate.ps1 all up 1           # Aplicar 1 migración en ambas BD
-.\migrate.ps1 local version      # Ver versión actual de la BD local
+## Estructura del Pipeline
+
+El pipeline de CI/CD de ASAM backend consta de dos flujos de trabajo principales:
+
+1. **CI Pipeline (`ci.yml`)**: Se ejecuta en cada push a las ramas principales y en pull requests.
+2. **Release Pipeline (`release.yml`)**: Se activa cuando se crea un tag con el formato `v*` (ejemplo: v1.0.0).
+
+## Pipeline de CI
+
+El pipeline de CI se activa cuando:
+- Se hace push a las ramas `main` o `develop`
+- Se crea un pull request hacia estas ramas
+
+### Trabajos del pipeline de CI
+
+#### 1. Lint
+
+Verifica la calidad del código mediante herramientas de análisis estático:
+
+- **golangci-lint**: Ejecuta múltiples linters para identificar posibles problemas
+- **gofmt**: Verifica que el código esté formateado según los estándares de Go
+- **goimports**: Verifica que los imports estén correctamente organizados
+
+#### 2. Build
+
+Compila el proyecto para asegurar que no haya errores de compilación:
+
+- Se ejecuta con diferentes versiones de Go (1.23 y 1.24) usando una matriz de jobs
+- Descarga las dependencias del proyecto
+- Compila el código fuente
+
+#### 3. Unit Tests
+
+Ejecuta las pruebas unitarias del proyecto:
+
+- Solo comienza si los trabajos de lint y build fueron exitosos
+- Ejecuta pruebas con la bandera `-race` para detectar condiciones de carrera
+- Genera informes de cobertura de código
+- Sube los informes a Codecov para su análisis
+
+#### 4. Integration Tests
+
+Ejecuta pruebas de integración que requieren una base de datos real:
+
+- Configura un contenedor PostgreSQL para las pruebas
+- Ejecuta las migraciones de la base de datos
+- Corre pruebas con la etiqueta `integration`
+
+#### 5. Code Quality
+
+Analiza la calidad del código más allá de los linters básicos:
+
+- Ejecuta `go vet` para encontrar posibles problemas
+- Analiza la complejidad ciclomática del código
+- Verifica que la cobertura de código sea superior al umbral establecido (70%)
+
+#### 6. Validate Commits
+
+Verifica que los mensajes de commit sigan las convenciones establecidas:
+
+- Solo se ejecuta en pull requests
+- Utiliza commitlint para validar el formato de los mensajes
+- Asegura que los commits sigan el estándar de [Conventional Commits](https://www.conventionalcommits.org/)
+
+### Proceso paso a paso del CI
+
+1. **Activación del workflow**:
+   - Cuando subes código a `main` o `develop`, o creas un PR a estas ramas, GitHub detecta el evento y activa el workflow.
+
+2. **Ejecución de trabajos en paralelo**:
+   - El workflow comienza ejecutando los trabajos `lint` y `build` en paralelo para ahorrar tiempo.
+
+3. **Trabajo de Lint**:
+   - GitHub crea una máquina virtual con Ubuntu
+   - Clona el repositorio en esa máquina
+   - Instala Go 1.24
+   - Instala golangci-lint
+   - Ejecuta varios linters para verificar la calidad del código
+   - Verifica el formateo con gofmt
+   - Verifica la correcta organización de los imports
+
+4. **Trabajo de Build**:
+   - GitHub crea máquinas virtuales para cada versión de Go definida (1.23 y 1.24)
+   - Clona el repositorio en cada máquina
+   - Descarga las dependencias del proyecto
+   - Intenta compilar el código
+   - Si la compilación falla, todo el workflow se marca como fallido
+
+5. **Trabajos de pruebas**:
+   - Solo comienzan si los trabajos de lint y build fueron exitosos
+   - Ejecuta pruebas unitarias y genera reportes de cobertura
+   - Ejecuta pruebas de integración con una base de datos PostgreSQL temporal
+   - Si alguna prueba falla, el workflow se marca como fallido
+
+6. **Análisis de calidad de código**:
+   - Solo comienza si las pruebas fueron exitosas
+   - Ejecuta herramientas como `go vet` para detectar posibles errores
+   - Analiza la complejidad ciclomática para identificar código difícil de mantener
+   - Verifica que la cobertura de código sea superior al 70%
+
+7. **Resultado final**:
+   - Si todos los trabajos fueron exitosos, el workflow se marca como aprobado (✅)
+   - Si algún trabajo falló, el workflow se marca como fallido (❌)
+   - GitHub muestra un resumen de los resultados en la pestaña "Actions" del repositorio
+
+## Pipeline de Release
+
+El pipeline de release se activa cuando se crea un tag que comienza con "v" (por ejemplo, "v1.0.0").
+
+### Trabajos del pipeline de Release
+
+#### 1. Create Release
+
+Genera una nueva release en GitHub:
+
+- Genera un changelog automático basado en los commits desde la última versión
+- Crea una release en GitHub con ese changelog
+- Marca la release como draft para permitir revisión antes de publicarla
+- Detecta si es una versión prelanzamiento (alpha, beta, rc) para marcarla como tal
+
+#### 2. Build Binaries
+
+Compila binarios para diferentes sistemas operativos y arquitecturas:
+
+- Usa una matriz para definir combinaciones de sistemas y arquitecturas
+- Compila para Linux, Windows y macOS en arquitecturas amd64 y arm64
+- Incluye el número de versión en los binarios compilados
+- Sube los binarios a la release creada anteriormente
+
+#### 3. Build and Deploy
+
+Construye y despliega la aplicación en Google Cloud Run:
+
+- Construye una imagen Docker con la aplicación
+- Publica la imagen en Google Container Registry
+- Configura el servicio en Google Cloud Run
+- Establece las variables de entorno necesarias (conexión a BD, etc.)
+- Ejecuta las migraciones de la base de datos
+- Actualiza la release en GitHub con la URL del servicio desplegado
+
+### Proceso paso a paso del Release
+
+1. **Activación del workflow**:
+   - Cuando creas un tag (ejemplo: `git tag v1.0.0` y luego `git push origin v1.0.0`), GitHub detecta el evento y activa el workflow.
+
+2. **Creación de la release**:
+   - GitHub crea una máquina virtual con Ubuntu
+   - Clona el repositorio incluyendo todo el historial
+   - Genera un changelog automático basado en los commits desde la última versión
+   - Crea una release en GitHub con ese changelog
+
+3. **Compilación de binarios**:
+   - Se ejecuta en paralelo para diferentes sistemas operativos y arquitecturas
+   - Para cada combinación (por ejemplo, Linux-amd64, Windows-amd64, etc.), compila un binario
+   - Sube esos binarios a la release de GitHub
+
+4. **Despliegue en Google Cloud Run**:
+   - Construye una imagen Docker con tu aplicación
+   - Sube esa imagen a Google Container Registry
+   - Configura el servicio en Google Cloud Run con variables de entorno para conectarse a la BD en Aiven
+   - Despliega la aplicación
+   - Ejecuta las migraciones de la base de datos
+   - Actualiza la release en GitHub con la URL del servicio desplegado
+
+## Flujo de trabajo diario
+
+Este es el flujo de trabajo recomendado para utilizar el pipeline de CI/CD:
+
+### 1. Desarrollo de funcionalidades
+
+```bash
+# Crear una nueva rama para la funcionalidad
+git checkout -b feature/nueva-funcionalidad
+
+# Realizar cambios en el código
+# ...
+
+# Commit con mensaje que sigue las convenciones
+git commit -m "feat: añadir login de usuarios"
+
+# Subir cambios a GitHub
+git push origin feature/nueva-funcionalidad
 ```
 
-**Entornos disponibles:**
-- `local` - Base de datos local (por defecto)
-- `aiven` - Base de datos en la nube Aiven
-- `all` - Ambas bases de datos
+### 2. Crear Pull Request
 
-**Comandos principales:**
-- `up` - Aplica todas las migraciones (por defecto)
-- `down` - Revierte todas las migraciones
-- `up N` - Aplica N migraciones hacia adelante
-- `down N` - Revierte N migraciones hacia atrás
-- `goto V` - Migra a una versión específica V
-- `version` - Muestra la versión actual de la base de datos
-- `force V` - Fuerza la versión de la base de datos a V
+- Crear un PR desde la rama `feature/nueva-funcionalidad` a `develop`
+- El workflow de CI se ejecutará automáticamente
+- Revisar los resultados de los checks
+- Si algún check falla, corregir los problemas y hacer push de nuevo
+- Una vez que todos los checks pasen, solicitar revisión de código
 
-Para ver la documentación detallada, consulte [docs/database.md](docs/database.md)
+### 3. Merge del Pull Request
 
-### Generación de Datos de Prueba (Seeding)
+- Una vez aprobado, mergear el PR a la rama `develop`
+- Los cambios se integran y el workflow de CI se ejecuta de nuevo
 
-Para generar datos de prueba, se proporciona un script PowerShell:
+### 4. Crear una Release
 
-```powershell
-.\seed.ps1 [entorno] [tipo] [parámetros]
+```bash
+# Asegurarse de estar en la rama main con los últimos cambios
+git checkout main
+git pull
+
+# Crear tag con la nueva versión
+git tag v1.0.0
+
+# Subir el tag a GitHub
+git push origin v1.0.0
 ```
 
-**Ejemplos:**
-```powershell
-.\seed.ps1                        # Seed mínimo en BD local
-.\seed.ps1 aiven full             # Seed completo en BD Aiven
-.\seed.ps1 -Environment all -Clean    # Limpiar ambas BD
-.\seed.ps1 local custom -Members 100  # Seed personalizado
-```
+- El workflow de release se activa automáticamente
+- Se genera el changelog y la release en GitHub
+- Se compilan los binarios para diferentes plataformas
+- Se despliega la aplicación en Google Cloud Run
 
-**Entornos disponibles:**
-- `local` - Base de datos local (por defecto)
-- `aiven` - Base de datos en la nube Aiven
-- `all` - Ambas bases de datos
+## Requisitos de configuración
 
-**Tipos de dataset:**
-- `minimal` - Dataset mínimo para pruebas rápidas (por defecto)
-- `full` - Dataset completo para pruebas exhaustivas
-- `scenario` - Escenario específico (ej. "payment_overdue")
-- `custom` - Dataset personalizado con cantidades específicas
+Para que el pipeline funcione correctamente, es necesario configurar los siguientes secrets en GitHub:
 
-Para ver la documentación detallada, consulte [docs/database.md](docs/database.md)
+- `GCP_PROJECT_ID`: ID del proyecto en Google Cloud Platform
+- `GCP_SA_KEY`: Clave de cuenta de servicio de Google Cloud en formato JSON
+- `AIVEN_DB_HOST`: Host de la base de datos PostgreSQL en Aiven
+- `AIVEN_DB_PORT`: Puerto de la base de datos
+- `AIVEN_DB_USER`: Usuario de la base de datos
+- `AIVEN_DB_PASSWORD`: Contraseña de la base de datos
+- `AIVEN_DB_NAME`: Nombre de la base de datos
+- `JWT_SECRET`: Clave secreta para la generación de tokens JWT
 
-## 👥 Contribución
-[Guías de contribución pendientes]
+### Configuración en GitHub
+
+1. Ir a Settings > Secrets and variables > Actions
+2. Hacer clic en "New repository secret"
+3. Añadir cada uno de los secrets mencionados anteriormente
+
+## Beneficios del enfoque
+
+El uso de este pipeline de CI/CD proporciona los siguientes beneficios:
+
+1. **Automatización**: Todo el proceso de verificación y despliegue está automatizado, reduciendo errores humanos.
+
+2. **Consistencia**: Cada vez que alguien hace un cambio, se ejecutan las mismas verificaciones, asegurando la consistencia del código.
+
+3. **Detección temprana de problemas**: Los errores se detectan rápidamente antes de llegar a producción, reduciendo el costo de corrección.
+
+4. **Facilidad de despliegue**: Un simple comando (`git push origin v1.0.0`) desencadena todo el proceso de despliegue.
+
+5. **Trazabilidad**: Cada versión tiene un changelog asociado que muestra qué cambios incluye, facilitando el seguimiento de modificaciones.
+
+6. **Calidad de código**: El análisis constante de la calidad del código ayuda a mantener un código limpio y bien estructurado.
+
+7. **Feedback rápido**: Los desarrolladores reciben feedback inmediato sobre sus cambios, permitiendo correcciones rápidas.
+
+8. **Documentación automática**: La generación automática de changelogs proporciona documentación sobre los cambios en cada versión.
+
+9. **Despliegue multi-plataforma**: La generación de binarios para diferentes plataformas facilita la distribución del software.
+
+10. **Seguridad**: La validación automatizada ayuda a detectar posibles problemas de seguridad antes de que lleguen a producción.
+
+---
+
+Para cualquier duda o sugerencia sobre el pipeline de CI/CD, contactar al equipo de desarrollo.

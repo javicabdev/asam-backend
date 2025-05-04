@@ -1,0 +1,16 @@
+# Global owners
+* @javicabdev
+
+# Core code
+/cmd/ @javicabdev
+/internal/ @javicabdev
+/pkg/ @javicabdev
+
+# CI/CD workflows
+/.github/workflows/ @javicabdev
+
+# Database migrations
+/migrations/ @javicabdev
+
+# GraphQL schemas
+/gqlgen.yml @javicabdev
