@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/joho/godotenv"
-	"github.com/sethvargo/go-envconfig"
+	envconfig "github.com/sethvargo/go-envconfig"
 	"time"
 )
 
