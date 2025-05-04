@@ -43,11 +43,8 @@ jobs:
       - name: Get dependencies
         run: go mod download
       
-      - name: Install gqlgen
-        run: go install github.com/99designs/gqlgen@latest
-      
       - name: Generate GraphQL code
-        run: go run github.com/99designs/gqlgen generate
+        run: go run ./cmd/generate
       
       - name: Run unit tests
         run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./internal/... ./pkg/...

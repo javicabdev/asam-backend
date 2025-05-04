@@ -1,0 +1,78 @@
+#!/bin/sh
+# Hook de pre-commit para generar código GraphQL automáticamente
+# Para instalarlo: cp scripts/pre-commit .git/hooks/ && chmod +x .git/hooks/pre-commit
+
+echo "Ejecutando pre-commit hook..."
+
+# Verificar si hay cambios en archivos de esquema GraphQL
+SCHEMA_FILES_CHANGED=$(git diff --cached --name-only | grep -E "\.graphql$|gqlgen\.yml$")
+
+if [ -n "$SCHEMA_FILES_CHANGED" ]; then
+    echo "Detectados cambios en archivos de esquema GraphQL. Generando código..."
+    
+    # Guardar los archivos modificados
+    git stash push --keep-index --include-untracked
+    
+    # Generar código GraphQL
+    go run ./cmd/generate
+    
+    # Si la generación falló, abortar el commit
+    if [ $? -ne 0 ]; then
+        echo "Error: La generación de código GraphQL falló. Abortando commit."
+        git stash pop
+        exit 1
+    fi
+    
+    # Añadir los archivos generados al commit actual si están en directorios que no están en .gitignore
+    # Nota: No añadirá archivos que estén explícitamente en .gitignore
+    git add .
+    
+    # Recuperar los cambios stashed
+    git stash pop
+    
+    echo "Código GraphQL generado exitosamente."
+fi
+
+# Ejecutar gofmt para formatear el código
+echo "Formateando código con gofmt..."
+GOFMT_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.go$')
+if [ -n "$GOFMT_FILES" ]; then
+    gofmt -s -w $GOFMT_FILES
+    git add $GOFMT_FILES
+fi
+
+# Ejecutar goimports para organizar las importaciones
+echo "Organizando importaciones con goimports..."
+if command -v goimports > /dev/null; then
+    GOIMPORTS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.go$')
+    if [ -n "$GOIMPORTS_FILES" ]; then
+        goimports -w $GOIMPORTS_FILES
+        git add $GOIMPORTS_FILES
+    fi
+else
+    echo "Advertencia: goimports no está instalado. Saltando este paso."
+    echo "Para instalarlo: go install golang.org/x/tools/cmd/goimports@latest"
+fi
+
+# Ejecutar golangci-lint para verificar la calidad del código
+echo "Ejecutando golangci-lint..."
+if command -v golangci-lint > /dev/null; then
+    # Solo analizamos los archivos que están en staging
+    GO_FILES_CHANGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.go$')
+    if [ -n "$GO_FILES_CHANGED" ]; then
+        # Convertir lista de archivos a un formato compatible con golangci-lint
+        GO_FILES_ARG=$(echo "$GO_FILES_CHANGED" | tr '\n' ' ')
+        
+        # Ejecutar golangci-lint solo en los archivos modificados
+        if ! golangci-lint run $GO_FILES_ARG; then
+            echo "Error: golangci-lint ha encontrado problemas. Por favor corrígelos antes de hacer commit."
+            exit 1
+        fi
+    fi
+else
+    echo "Advertencia: golangci-lint no está instalado. Saltando este paso."
+    echo "Para instalarlo: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin"
+fi
+
+echo "Pre-commit hook completado exitosamente."
+exit 0

@@ -26,8 +26,76 @@ Antes de utilizar este workflow, necesitas:
 1. **Crear un nuevo proyecto en GCP**: Sigue la [guía para crear un proyecto en GCP](docs/gcp-project-setup.md)
 2. **Configurar secretos en GitHub**: Sigue la [guía de configuración de secretos](docs/github-secrets-setup.md)
 
+## Desarrollo
+
+### Generación de código GraphQL
+
+Este proyecto utiliza GraphQL con la herramienta [gqlgen](https://github.com/99designs/gqlgen) para generar código automáticamente a partir de esquemas GraphQL. Antes de compilar el proyecto, es necesario generar estos archivos:
+
+```bash
+# Usando el script proporcionado
+go run ./cmd/generate
+```
+
+El script se encarga de ejecutar el generador de código de GraphQL, creando los archivos necesarios en los directorios:
+- `internal/adapters/gql/generated/`
+- `internal/adapters/gql/model/`
+
+> **Nota**: Estos directorios están en `.gitignore` y no se incluyen en el repositorio. El proceso de CI/CD ejecuta este paso automáticamente.
+
+### Hooks de Git
+
+Se proporciona un hook de pre-commit que realiza las siguientes acciones automáticamente antes de cada commit:
+
+- Genera el código GraphQL cuando se modifican archivos de esquema
+- Formatea el código con `gofmt`
+- Organiza las importaciones con `goimports`
+- Ejecuta `golangci-lint` para verificar la calidad del código
+
+Esto garantiza que tu código siempre cumpla con los estándares de calidad y evita que se suban cambios que podrían fallar en el pipeline de CI.
+
+Para instalar el hook:
+
+**En Windows:**
+```batch
+scripts\install-hooks.bat
+```
+
+**En Unix/Linux/macOS:**
+```bash
+chmod +x scripts/install-hooks.sh
+./scripts/install-hooks.sh
+```
+
+**Requisitos previos:**
+
+Para aprovechar todas las funcionalidades del hook, asegúrate de tener instaladas las siguientes herramientas:
+
+```bash
+# Instalar goimports
+go install golang.org/x/tools/cmd/goimports@latest
+
+# Instalar golangci-lint
+curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
+```
+
+Esto garantiza que siempre tengas el código GraphQL generado y correctamente formateado antes de hacer commit, y que se detecten problemas de calidad del código anticipadamente.
+
+### Estructura del proyecto
+
+El backend sigue una arquitectura limpia (Clean Architecture) con las siguientes capas:
+
+- `cmd/`: Puntos de entrada a la aplicación
+- `internal/`: Código específico de la aplicación
+  - `adapters/`: Adaptadores para comunicación con servicios externos (BD, GraphQL)
+  - `core/`: Lógica de negocio y entidades de dominio
+  - `ports/`: Interfaces que definen los contratos entre capas
+- `pkg/`: Bibliotecas reutilizables
+- `migrations/`: Scripts de migración de la base de datos
+
 ## Índice
 
+- [Desarrollo](#desarrollo)
 - [Conceptos básicos](#conceptos-básicos)
 - [Estructura del pipeline](#estructura-del-pipeline)
 - [Pipeline de CI](#pipeline-de-ci)
