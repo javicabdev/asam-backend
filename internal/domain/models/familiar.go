@@ -2,8 +2,9 @@ package models
 
 import (
 	"errors"
-	"gorm.io/gorm"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // Familiar representa un familiar (hijo/a u otro dependiente) en una familia ASAM

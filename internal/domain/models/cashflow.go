@@ -3,8 +3,9 @@ package models
 import (
 	"errors"
 	"fmt"
-	"gorm.io/gorm"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 var (
@@ -14,7 +15,7 @@ var (
 	ErrMissingDetail        = errors.New("detalle requerido")
 )
 
-// CashFlow representa un movimiento en el flujo de caja de la asociación
+// CashFlow representa un movimiento en el flujo de caja de la asociación.
 type CashFlow struct {
 	ID            uint           `gorm:"primaryKey"`
 	MemberID      *uint          `gorm:"index"`
@@ -34,12 +35,12 @@ type CashFlow struct {
 	Payment *Payment `gorm:"foreignKey:PaymentID"` // Relación con el pago
 }
 
-// BeforeCreate hook de GORM que se ejecuta antes de crear un registro
+// BeforeCreate hook de GORM que se ejecuta antes de crear un registro.
 func (cf *CashFlow) BeforeCreate(_ *gorm.DB) error {
 	return cf.Validate()
 }
 
-// BeforeUpdate hook de GORM que se ejecuta antes de actualizar un registro
+// BeforeUpdate hook de GORM que se ejecuta antes de actualizar un registro.
 func (cf *CashFlow) BeforeUpdate(_ *gorm.DB) error {
 	return cf.Validate()
 }
