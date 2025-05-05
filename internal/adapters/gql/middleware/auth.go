@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/pkg/constants"
 	"github.com/javicabdev/asam-backend/pkg/errors"
@@ -22,12 +23,74 @@ var publicOperations = map[string]bool{
 	"IntrospectionQuery": true,
 }
 
+// isExemptRequest verifica si la petición está exenta de autenticación
+func isExemptRequest(r *http.Request) bool {
+	return r.Method == http.MethodOptions || r.URL.Path == "/graphql/playground"
+}
+
+// validateAuthHeader valida el encabezado de autorización y extrae el token
+func validateAuthHeader(authHeader string) (string, error) {
+	if authHeader == "" {
+		return "", errors.NewUnauthorizedError()
+	}
+
+	// El formato debe ser "Bearer {token}"
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || parts[0] != "Bearer" || parts[1] == "" {
+		return "", errors.NewUnauthorizedError()
+	}
+
+	return parts[1], nil
+}
+
+// enrichContextWithUserInfo enriquece el contexto con información del usuario
+func enrichContextWithUserInfo(ctx context.Context, user *models.User, token string, clientIP string, userAgent string) context.Context {
+	// Añadir información básica al contexto
+	ctx = context.WithValue(ctx, constants.UserContextKey, user)
+	ctx = context.WithValue(ctx, constants.AuthorizedContextKey, true)
+	ctx = context.WithValue(ctx, "authorization", token) // Para la función getAccessTokenFromContext
+
+	// Guardar información para auditoría
+	ctx = context.WithValue(ctx, constants.UserIDContextKey, user.ID)
+	ctx = context.WithValue(ctx, constants.UserRoleContextKey, user.Role)
+	ctx = context.WithValue(ctx, constants.IPContextKey, clientIP)
+	ctx = context.WithValue(ctx, constants.UserAgentContextKey, userAgent)
+
+	return ctx
+}
+
+// handlePublicOperation maneja operaciones públicas que no requieren autenticación
+func handlePublicOperation(w http.ResponseWriter, r *http.Request, next http.Handler, logger logger.Logger, operationName string) {
+	logger.Debug("Operación pública permitida sin autenticación",
+		zap.String("operation", operationName),
+		zap.String("ip", getClientIP(r)),
+	)
+	next.ServeHTTP(w, r)
+}
+
+// handleAuthFailure maneja fallos de autenticación
+func handleAuthFailure(w http.ResponseWriter, msg string, logger logger.Logger, operation string, clientIP string, err error) {
+	if err != nil {
+		logger.Warn("Error de autenticación",
+			zap.Error(err),
+			zap.String("operation", operation),
+			zap.String("ip", clientIP),
+		)
+	} else {
+		logger.Warn("Error de autenticación",
+			zap.String("operation", operation),
+			zap.String("ip", clientIP),
+		)
+	}
+	respondWithAuthError(w, msg)
+}
+
 // AuthMiddleware maneja la autenticación para las solicitudes GraphQL
 func AuthMiddleware(authService input.AuthService, logger logger.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Verificar si es una petición de playground o de opciones
-			if r.Method == http.MethodOptions || r.URL.Path == "/graphql/playground" {
+			// Verificar si es una petición exenta de autenticación
+			if isExemptRequest(r) {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -35,72 +98,32 @@ func AuthMiddleware(authService input.AuthService, logger logger.Logger) func(ht
 			// Verificar si es una operación pública (login, refresh token, etc.)
 			isPublicOp, operationName := isPublicOperation(r)
 			if isPublicOp {
-				logger.Debug("Operación pública permitida sin autenticación",
-					zap.String("operation", operationName),
-					zap.String("ip", getClientIP(r)),
-				)
-				next.ServeHTTP(w, r)
+				handlePublicOperation(w, r, next, logger, operationName)
 				return
 			}
 
-			// Obtener el token del header Authorization
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				// No hay token y la operación requiere autenticación
-				logger.Warn("Intento de acceso sin token de autorización",
-					zap.String("operation", operationName),
-					zap.String("ip", getClientIP(r)),
-				)
-
-				// Responder con error de autenticación en formato GraphQL
-				respondWithAuthError(w, "Se requiere autenticación para esta operación")
+			// Obtener y validar el token del header Authorization
+			token, err := validateAuthHeader(r.Header.Get("Authorization"))
+			if err != nil {
+				handleAuthFailure(w, err.Error(), logger, operationName, getClientIP(r), nil)
 				return
 			}
-
-			// El formato debe ser "Bearer {token}"
-			parts := strings.Split(authHeader, " ")
-			if len(parts) != 2 || parts[0] != "Bearer" || parts[1] == "" {
-				logger.Warn("Formato de token inválido",
-					zap.String("authorization", authHeader),
-					zap.String("ip", getClientIP(r)),
-				)
-
-				// Responder con error de formato de token
-				respondWithAuthError(w, "Formato de token inválido, debe ser 'Bearer {token}'")
-				return
-			}
-
-			token := parts[1]
 
 			// Validar el token
 			user, err := authService.ValidateToken(r.Context(), token)
 			if err != nil {
-				logger.Warn("Token inválido o expirado",
-					zap.Error(err),
-					zap.String("ip", getClientIP(r)),
-				)
-
 				// Obtener mensaje de error más preciso
 				msg := "Token inválido o expirado"
 				if appErr, ok := errors.AsAppError(err); ok {
 					msg = appErr.Message
 				}
 
-				// Responder con error de token inválido
-				respondWithAuthError(w, msg)
+				handleAuthFailure(w, msg, logger, operationName, getClientIP(r), err)
 				return
 			}
 
-			// Añadir información al contexto
-			ctx := context.WithValue(r.Context(), constants.UserContextKey, user)
-			ctx = context.WithValue(ctx, constants.AuthorizedContextKey, true)
-			ctx = context.WithValue(ctx, "authorization", token) // Para la función getAccessTokenFromContext
-
-			// Guardar información para auditoría
-			ctx = context.WithValue(ctx, constants.UserIDContextKey, user.ID)
-			ctx = context.WithValue(ctx, constants.UserRoleContextKey, user.Role)
-			ctx = context.WithValue(ctx, constants.IPContextKey, getClientIP(r))
-			ctx = context.WithValue(ctx, constants.UserAgentContextKey, r.UserAgent())
+			// Enriquecer el contexto con la información del usuario
+			ctx := enrichContextWithUserInfo(r.Context(), user, token, getClientIP(r), r.UserAgent())
 
 			// Log de acceso exitoso
 			logger.Debug("Acceso autenticado exitoso",

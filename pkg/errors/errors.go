@@ -218,9 +218,17 @@ func FromError(err error) error {
 	return InternalError("internal error", err)
 }
 
-// Combine une varios errores en uno solo, combinando sus campos si son de validación
-func Combine(errs ...error) error {
-	var result *AppError
+// extractFieldsFromAppError extrae los campos de un AppError si existen
+func extractFieldsFromAppError(appErr *AppError, fields map[string]string) {
+	if appErr.Fields != nil {
+		for k, v := range appErr.Fields {
+			fields[k] = v
+		}
+	}
+}
+
+// findBaseError encuentra el primer error no nulo para usar como base
+func findBaseError(errs []error) (*AppError, map[string]string) {
 	fields := make(map[string]string)
 
 	for _, err := range errs {
@@ -228,38 +236,52 @@ func Combine(errs ...error) error {
 			continue
 		}
 
-		// Si no tenemos un error base, usamos el primero
-		if result == nil {
-			if appErr, ok := AsAppError(err); ok {
-				result = appErr
-				// Copiamos los campos si los tiene
-				if appErr.Fields != nil {
-					for k, v := range appErr.Fields {
-						fields[k] = v
-					}
-				}
-			} else {
-				// Crear un nuevo error
-				result = New(ErrValidationFailed, err.Error())
-			}
+		if appErr, ok := AsAppError(err); ok {
+			extractFieldsFromAppError(appErr, fields)
+			return appErr, fields
+		}
+
+		// Si no es AppError, crear uno nuevo
+		return New(ErrValidationFailed, err.Error()), fields
+	}
+
+	return nil, fields
+}
+
+// collectAdditionalFields recolecta campos de los errores adicionales
+func collectAdditionalFields(baseError *AppError, errs []error, fields map[string]string) {
+	// Saltamos el primer error que ya se procesó como base
+	firstErrorProcessed := false
+
+	for _, err := range errs {
+		if err == nil {
 			continue
 		}
 
-		// Para errores adicionales, agregamos sus campos si son de validación
+		if !firstErrorProcessed {
+			firstErrorProcessed = true
+			continue
+		}
+
 		if appErr, ok := AsAppError(err); ok && appErr.Fields != nil {
-			for k, v := range appErr.Fields {
-				fields[k] = v
-			}
+			extractFieldsFromAppError(appErr, fields)
 		}
 	}
+}
 
-	if result == nil {
+// Combine une varios errores en uno solo, combinando sus campos si son de validación
+func Combine(errs ...error) error {
+	baseError, fields := findBaseError(errs)
+
+	if baseError == nil {
 		return nil
 	}
 
+	collectAdditionalFields(baseError, errs, fields)
+
 	// Asignamos los campos combinados
-	result.Fields = fields
-	return result
+	baseError.Fields = fields
+	return baseError
 }
 
 // FromHTTPStatus crea un AppError a partir de un código HTTP
