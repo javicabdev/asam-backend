@@ -3,7 +3,6 @@ package resolvers
 import (
 	"context"
 	stdErrors "errors"
-	"fmt"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/pkg/errors"
