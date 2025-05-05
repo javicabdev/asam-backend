@@ -38,6 +38,29 @@ func NewPaymentService(
 
 func (s *paymentService) RegisterPayment(ctx context.Context, payment *models.Payment) error {
 	// Validar el pago
+	if err := s.validatePayment(ctx, payment); err != nil {
+		return err
+	}
+
+	// Procesar pago de cuota si aplica
+	if err := s.processMembershipFee(ctx, payment); err != nil {
+		return err
+	}
+
+	// Crear el payment
+	if err := s.paymentRepo.Create(ctx, payment); err != nil {
+		return errors.DB(err, "error creando pago")
+	}
+
+	// Registrar métricas del pago
+	s.recordPaymentMetrics(ctx, payment)
+
+	return nil
+}
+
+// validatePayment valida que el pago sea correcto y que el miembro exista y esté activo
+func (s *paymentService) validatePayment(ctx context.Context, payment *models.Payment) error {
+	// Validar el pago
 	if err := payment.Validate(); err != nil {
 		// Si ya es un AppError, retornarlo directamente
 		if appErr, ok := errors.AsAppError(err); ok {
@@ -48,7 +71,12 @@ func (s *paymentService) RegisterPayment(ctx context.Context, payment *models.Pa
 	}
 
 	// Obtener miembro para validar que existe y está activo
-	member, err := s.memberRepo.GetByID(ctx, payment.MemberID)
+	return s.validateMember(ctx, payment.MemberID)
+}
+
+// validateMember verifica que el miembro exista y esté activo
+func (s *paymentService) validateMember(ctx context.Context, memberID uint) error {
+	member, err := s.memberRepo.GetByID(ctx, memberID)
 	if err != nil {
 		return errors.DB(err, "error obteniendo miembro")
 	}
@@ -62,32 +90,37 @@ func (s *paymentService) RegisterPayment(ctx context.Context, payment *models.Pa
 		return errors.Validation("El miembro no está activo", "estado", "inactive")
 	}
 
-	// Si es un pago de cuota, actualizar el estado de la cuota
-	var fee *models.MembershipFee
-	if payment.MembershipFeeID != nil {
-		// Buscar cuota existente
-		var err error
-		fee, err = s.membershipFeeRepo.FindByYearMonth(ctx, time.Now().Year(), int(time.Now().Month()))
-		if err != nil {
-			return errors.DB(err, "error buscando cuota de membresía")
-		}
+	return nil
+}
 
-		if fee == nil {
-			return errors.NotFound("membership fee", nil)
-		}
-
-		// Actualizar estado de la cuota
-		fee.Status = models.PaymentStatusPaid
-		if err := s.membershipFeeRepo.Update(ctx, fee); err != nil {
-			return errors.DB(err, "error actualizando cuota de membresía")
-		}
+// processMembershipFee actualiza la cuota de membresía si el pago está asociado a una
+func (s *paymentService) processMembershipFee(ctx context.Context, payment *models.Payment) error {
+	// Si no es un pago de cuota, no hay nada que procesar
+	if payment.MembershipFeeID == nil {
+		return nil
 	}
 
-	// Crear el payment
-	if err := s.paymentRepo.Create(ctx, payment); err != nil {
-		return errors.DB(err, "error creando pago")
+	// Buscar cuota existente
+	fee, err := s.membershipFeeRepo.FindByYearMonth(ctx, time.Now().Year(), int(time.Now().Month()))
+	if err != nil {
+		return errors.DB(err, "error buscando cuota de membresía")
 	}
 
+	if fee == nil {
+		return errors.NotFound("membership fee", nil)
+	}
+
+	// Actualizar estado de la cuota
+	fee.Status = models.PaymentStatusPaid
+	if err := s.membershipFeeRepo.Update(ctx, fee); err != nil {
+		return errors.DB(err, "error actualizando cuota de membresía")
+	}
+
+	return nil
+}
+
+// recordPaymentMetrics registra métricas relacionadas con el pago
+func (s *paymentService) recordPaymentMetrics(ctx context.Context, payment *models.Payment) error {
 	// Registrar métricas del pago
 	metrics.PaymentMetrics.WithLabelValues(
 		paymentTypeToString(payment.MembershipFeeID != nil),
@@ -95,7 +128,27 @@ func (s *paymentService) RegisterPayment(ctx context.Context, payment *models.Pa
 	).Set(payment.Amount)
 
 	// Verificar si el pago de cuota está atrasado
+	if payment.MembershipFeeID != nil {
+		return s.recordLatencyMetrics(ctx, payment)
+	}
+
+	return nil
+}
+
+// recordLatencyMetrics registra métricas de latencia para pagos de cuotas
+func (s *paymentService) recordLatencyMetrics(ctx context.Context, payment *models.Payment) error {
+	fee, err := s.membershipFeeRepo.FindByYearMonth(ctx, time.Now().Year(), int(time.Now().Month()))
+	if err != nil {
+		return err // Error silencioso para métricas, no afecta el flujo principal
+	}
+
 	if fee != nil && fee.DueDate.Before(payment.PaymentDate) {
+		// Obtener el miembro para las métricas
+		member, err := s.memberRepo.GetByID(ctx, payment.MemberID)
+		if err != nil {
+			return err // Error silencioso para métricas
+		}
+
 		daysLate := payment.PaymentDate.Sub(fee.DueDate).Hours() / 24
 		metrics.PaymentLatency.WithLabelValues(
 			s.memberTypeToString(member),
