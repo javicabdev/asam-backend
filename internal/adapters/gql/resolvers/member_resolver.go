@@ -124,7 +124,8 @@ func (r *memberResolver) mapCreateInputToMember(input *model.CreateMemberInput) 
 	return member, nil
 }
 
-func (r *memberResolver) mapUpdateInputToMember(id uint, input *model.UpdateMemberInput, existing *models.Member) *models.Member {
+func (r *memberResolver) mapUpdateInputToMember(id uint, input *model.UpdateMemberInput,
+	existing *models.Member) *models.Member {
 	member := *existing
 	member.ID = id
 
@@ -160,7 +161,8 @@ func (r *memberResolver) mapUpdateInputToMember(id uint, input *model.UpdateMemb
 	return &member
 }
 
-func (r *memberResolver) handleMemberStatus(ctx context.Context, memberID uint, status model.MemberStatus) (*models.Member, error) {
+func (r *memberResolver) handleMemberStatus(ctx context.Context, memberID uint,
+	status model.MemberStatus) (*models.Member, error) {
 	member, err := r.memberService.GetMemberByID(ctx, memberID)
 	if err != nil {
 		return nil, errors.Wrap(err, errors.ErrDatabaseError, "Failed to fetch member")

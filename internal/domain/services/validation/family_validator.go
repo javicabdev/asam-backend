@@ -45,7 +45,10 @@ func (v *DefaultFamilyValidator) ValidateNumeroSocio(numeroSocio string) error {
 }
 
 // ValidateConyuges valida que al menos uno de los cónyuges tenga datos.
-func (v *DefaultFamilyValidator) ValidateConyuges(esposoNombre, esposoApellidos, esposaNombre, esposaApellidos string) error {
+func (v *DefaultFamilyValidator) ValidateConyuges(
+	esposoNombre, esposoApellidos,
+	esposaNombre, esposaApellidos string,
+) error {
 	errDetails := make(map[string]string)
 
 	if esposoNombre == "" {

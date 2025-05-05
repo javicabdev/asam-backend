@@ -11,7 +11,8 @@ import (
 
 type Logger interface {
 	LogAction(ctx context.Context, action ActionType, entity EntityType, entityID string, description string)
-	LogChange(ctx context.Context, action ActionType, entity EntityType, entityID string, previous, new any, description string)
+	LogChange(ctx context.Context, action ActionType, entity EntityType, entityID string,
+		previous, new any, description string)
 	LogError(ctx context.Context, action ActionType, entity EntityType, entityID string, description string, err error)
 }
 
@@ -101,7 +102,8 @@ func (a *AuditLogger) logAuditEntry(entry Entry) {
 }
 
 // LogAction registra una acción simple en el log de auditoría
-func (a *AuditLogger) LogAction(ctx context.Context, action ActionType, entity EntityType, entityID string, description string) {
+func (a *AuditLogger) LogAction(ctx context.Context, action ActionType, entity EntityType,
+	entityID string, description string) {
 	entry := Entry{
 		Timestamp:   time.Now().UTC(),
 		Action:      action,
@@ -116,7 +118,8 @@ func (a *AuditLogger) LogAction(ctx context.Context, action ActionType, entity E
 }
 
 // LogChange registra un cambio en una entidad, incluyendo los datos anteriores y nuevos
-func (a *AuditLogger) LogChange(ctx context.Context, action ActionType, entity EntityType, entityID string, previous, new any, description string) {
+func (a *AuditLogger) LogChange(ctx context.Context, action ActionType, entity EntityType,
+	entityID string, previous, new any, description string) {
 	entry := Entry{
 		Timestamp:    time.Now().UTC(),
 		Action:       action,
@@ -133,7 +136,8 @@ func (a *AuditLogger) LogChange(ctx context.Context, action ActionType, entity E
 }
 
 // LogError registra una acción fallida en el log de auditoría
-func (a *AuditLogger) LogError(ctx context.Context, action ActionType, entity EntityType, entityID string, description string, err error) {
+func (a *AuditLogger) LogError(ctx context.Context, action ActionType, entity EntityType,
+	entityID string, description string, err error) {
 	entry := Entry{
 		Timestamp:   time.Now().UTC(),
 		Action:      action,

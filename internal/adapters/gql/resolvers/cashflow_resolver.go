@@ -100,7 +100,8 @@ func (r *cashFlowResolver) validateTransaction(ctx context.Context, transaction 
 	return nil
 }
 
-func (r *cashFlowResolver) handleTransactionMutation(ctx context.Context, transaction *models.CashFlow) (*models.CashFlow, error) {
+func (r *cashFlowResolver) handleTransactionMutation(ctx context.Context,
+	transaction *models.CashFlow) (*models.CashFlow, error) {
 	// Validate transaction data
 	if err := r.validateTransaction(ctx, transaction); err != nil {
 		return nil, err
@@ -129,7 +130,8 @@ func (r *cashFlowResolver) handleTransactionMutation(ctx context.Context, transa
 	return transaction, nil
 }
 
-func (r *cashFlowResolver) handleBalanceAdjustment(ctx context.Context, amount float64, reason string) (*model.MutationResponse, error) {
+func (r *cashFlowResolver) handleBalanceAdjustment(ctx context.Context, amount float64,
+	reason string) (*model.MutationResponse, error) {
 	// Verificar que el usuario es administrador
 	user := GetUserFromContext(ctx)
 	if user == nil || !user.IsAdmin() {
