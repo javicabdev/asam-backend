@@ -36,6 +36,24 @@ func (r *paymentResolver) mapPaymentInputToModel(input *model.PaymentInput) *mod
 }
 
 func (r *paymentResolver) validatePayment(ctx context.Context, payment *models.Payment) error {
+	// Realizar validaciones en orden de dependencia
+	if err := r.validateBasicPayment(payment); err != nil {
+		return err
+	}
+
+	if err := r.validatePaymentAssociations(ctx, payment); err != nil {
+		return err
+	}
+
+	if err := r.validatePaymentAmount(payment); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateBasicPayment realiza validaciones básicas del modelo
+func (r *paymentResolver) validateBasicPayment(payment *models.Payment) error {
 	// Basic model validation
 	if err := payment.Validate(); err != nil {
 		// Check if it's already an AppError
@@ -45,36 +63,6 @@ func (r *paymentResolver) validatePayment(ctx context.Context, payment *models.P
 		}
 		// Otherwise, convert it to a validation error
 		return appErrors.NewValidationError(err.Error(), nil)
-	}
-
-	// Check if member exists and is active
-	if payment.MemberID != 0 {
-		member, err := r.memberService.GetMemberByID(ctx, payment.MemberID)
-		if err != nil {
-			return appErrors.Wrap(err, appErrors.ErrDatabaseError, "Error verifying member")
-		}
-		if member == nil {
-			return appErrors.NotFound("member", nil)
-		}
-		if member.State != models.EstadoActivo {
-			return appErrors.NewValidationError(
-				"Cannot register payment for inactive member",
-				map[string]string{
-					"member_status": "inactive",
-				},
-			)
-		}
-	}
-
-	// Check if family exists
-	if payment.FamilyID != nil {
-		family, err := r.familyService.GetByID(ctx, *payment.FamilyID)
-		if err != nil {
-			return appErrors.Wrap(err, appErrors.ErrDatabaseError, "Error verifying family")
-		}
-		if family == nil {
-			return appErrors.NotFound("family", nil)
-		}
 	}
 
 	// Ensure either member or family is provided
@@ -88,7 +76,62 @@ func (r *paymentResolver) validatePayment(ctx context.Context, payment *models.P
 		)
 	}
 
-	// Validate amount is positive
+	return nil
+}
+
+// validatePaymentAssociations verifica que las entidades asociadas existan
+func (r *paymentResolver) validatePaymentAssociations(ctx context.Context, payment *models.Payment) error {
+	// Check if member exists and is active
+	if payment.MemberID != 0 {
+		if err := r.validateMember(ctx, payment.MemberID); err != nil {
+			return err
+		}
+	}
+
+	// Check if family exists
+	if payment.FamilyID != nil {
+		if err := r.validateFamily(ctx, *payment.FamilyID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// validateMember verifica que el miembro exista y esté activo
+func (r *paymentResolver) validateMember(ctx context.Context, memberID uint) error {
+	member, err := r.memberService.GetMemberByID(ctx, memberID)
+	if err != nil {
+		return appErrors.Wrap(err, appErrors.ErrDatabaseError, "Error verifying member")
+	}
+	if member == nil {
+		return appErrors.NotFound("member", nil)
+	}
+	if member.State != models.EstadoActivo {
+		return appErrors.NewValidationError(
+			"Cannot register payment for inactive member",
+			map[string]string{
+				"member_status": "inactive",
+			},
+		)
+	}
+	return nil
+}
+
+// validateFamily verifica que la familia exista
+func (r *paymentResolver) validateFamily(ctx context.Context, familyID uint) error {
+	family, err := r.familyService.GetByID(ctx, familyID)
+	if err != nil {
+		return appErrors.Wrap(err, appErrors.ErrDatabaseError, "Error verifying family")
+	}
+	if family == nil {
+		return appErrors.NotFound("family", nil)
+	}
+	return nil
+}
+
+// validatePaymentAmount verifica que el monto sea positivo
+func (r *paymentResolver) validatePaymentAmount(payment *models.Payment) error {
 	if payment.Amount <= 0 {
 		return appErrors.NewValidationError(
 			"Payment amount must be greater than zero",
@@ -97,7 +140,6 @@ func (r *paymentResolver) validatePayment(ctx context.Context, payment *models.P
 			},
 		)
 	}
-
 	return nil
 }
 
@@ -108,37 +150,44 @@ func (r *paymentResolver) handlePaymentMutation(ctx context.Context, payment *mo
 	}
 
 	if payment.ID == 0 {
-		// Creating a new payment
-		err := r.paymentService.RegisterPayment(ctx, payment)
-		if err != nil {
-			return nil, appErrors.Wrap(err, appErrors.ErrInternalError, "Error registering payment")
-		}
-	} else {
-		// Updating an existing payment
-		// Check if payment exists and is not cancelled
-		existingPayment, err := r.paymentService.GetPayment(ctx, payment.ID)
-		if err != nil {
-			return nil, appErrors.Wrap(err, appErrors.ErrDatabaseError, "Error retrieving payment")
-		}
-		if existingPayment == nil {
-			return nil, appErrors.NotFound("payment", nil)
-		}
-		if existingPayment.Status == models.PaymentStatusCancelled {
-			return nil, appErrors.NewValidationError(
-				"Cannot update cancelled payment",
-				map[string]string{
-					"status": "cancelled",
-				},
-			)
-		}
+		return r.createPayment(ctx, payment)
+	}
+	return r.updatePayment(ctx, payment)
+}
 
-		// Update the payment
-		err = r.paymentService.RegisterPayment(ctx, payment)
-		if err != nil {
-			return nil, appErrors.Wrap(err, appErrors.ErrInternalError, "Error updating payment")
-		}
+// createPayment crea un nuevo pago
+func (r *paymentResolver) createPayment(ctx context.Context, payment *models.Payment) (*models.Payment, error) {
+	err := r.paymentService.RegisterPayment(ctx, payment)
+	if err != nil {
+		return nil, appErrors.Wrap(err, appErrors.ErrInternalError, "Error registering payment")
+	}
+	return payment, nil
+}
+
+// updatePayment actualiza un pago existente
+func (r *paymentResolver) updatePayment(ctx context.Context, payment *models.Payment) (*models.Payment, error) {
+	// Check if payment exists and is not cancelled
+	existingPayment, err := r.paymentService.GetPayment(ctx, payment.ID)
+	if err != nil {
+		return nil, appErrors.Wrap(err, appErrors.ErrDatabaseError, "Error retrieving payment")
+	}
+	if existingPayment == nil {
+		return nil, appErrors.NotFound("payment", nil)
+	}
+	if existingPayment.Status == models.PaymentStatusCancelled {
+		return nil, appErrors.NewValidationError(
+			"Cannot update cancelled payment",
+			map[string]string{
+				"status": "cancelled",
+			},
+		)
 	}
 
+	// Update the payment
+	err = r.paymentService.RegisterPayment(ctx, payment)
+	if err != nil {
+		return nil, appErrors.Wrap(err, appErrors.ErrInternalError, "Error updating payment")
+	}
 	return payment, nil
 }
 
