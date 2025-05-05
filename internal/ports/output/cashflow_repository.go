@@ -2,8 +2,9 @@ package output
 
 import (
 	"context"
-	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"time"
+
+	"github.com/javicabdev/asam-backend/internal/domain/models"
 )
 
 // CashFlowRepository define las operaciones disponibles para el repositorio de CashFlow
