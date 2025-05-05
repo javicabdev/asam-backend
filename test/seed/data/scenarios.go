@@ -89,7 +89,9 @@ func (d *ScenarioDataset) seedPaymentOverdueScenario(ctx context.Context) error 
 				"DELETE FROM cuotas_membresia WHERE miembro_id = $1 AND ano = $2",
 				member.ID, currentYear)
 			if err != nil {
-				tx.Rollback()
+				if rbErr := tx.Rollback(); rbErr != nil {
+					d.seeder.Logf("Error during rollback: %v", rbErr)
+				}
 				return fmt.Errorf("failed to delete payments: %w", err)
 			}
 
@@ -99,7 +101,9 @@ func (d *ScenarioDataset) seedPaymentOverdueScenario(ctx context.Context) error 
 					"DELETE FROM cuotas_membresia WHERE miembro_id = $1 AND ano = $2",
 					member.ID, lastYear)
 				if err != nil {
-					tx.Rollback()
+					if rbErr := tx.Rollback(); rbErr != nil {
+						d.seeder.Logf("Error during rollback: %v", rbErr)
+					}
 					return fmt.Errorf("failed to delete payments: %w", err)
 				}
 			}
@@ -135,7 +139,9 @@ func (d *ScenarioDataset) seedMembershipExpiredScenario(ctx context.Context) err
 	err = tx.SelectContext(ctx, &members,
 		"SELECT miembro_id, numero_socio FROM miembros WHERE estado = 'activo' LIMIT 5")
 	if err != nil {
-		tx.Rollback()
+		if rbErr := tx.Rollback(); rbErr != nil {
+			d.seeder.Logf("Error during rollback: %v", rbErr)
+		}
 		return fmt.Errorf("failed to get members: %w", err)
 	}
 
@@ -148,7 +154,9 @@ func (d *ScenarioDataset) seedMembershipExpiredScenario(ctx context.Context) err
 				"UPDATE miembros SET estado = 'inactivo', fecha_baja = $1 WHERE miembro_id = $2",
 				fechaBaja, member.ID)
 			if err != nil {
-				tx.Rollback()
+				if rbErr := tx.Rollback(); rbErr != nil {
+					d.seeder.Logf("Error during rollback: %v", rbErr)
+				}
 				return fmt.Errorf("failed to update member status: %w", err)
 			}
 		}
@@ -182,7 +190,9 @@ func (d *ScenarioDataset) seedLargeFamilyScenario(ctx context.Context) error {
 	var families []Family
 	err = tx.SelectContext(ctx, &families, "SELECT familia_id, numero_socio FROM familias LIMIT 3")
 	if err != nil {
-		tx.Rollback()
+		if rbErr := tx.Rollback(); rbErr != nil {
+			d.seeder.Logf("Error during rollback: %v", rbErr)
+		}
 		return fmt.Errorf("failed to get families: %w", err)
 	}
 
@@ -204,7 +214,9 @@ func (d *ScenarioDataset) seedLargeFamilyScenario(ctx context.Context) error {
 			VALUES ($1, $2, $3)`,
 			families[0].ID, childName, birthDate)
 		if err != nil {
-			tx.Rollback()
+			if rbErr := tx.Rollback(); rbErr != nil {
+				d.seeder.Logf("Error during rollback: %v", rbErr)
+			}
 			return fmt.Errorf("failed to insert family member: %w", err)
 		}
 	}
@@ -224,7 +236,9 @@ func (d *ScenarioDataset) seedLargeFamilyScenario(ctx context.Context) error {
 			VALUES ($1, $2, $3)`,
 			families[1].ID, childName, birthDate)
 		if err != nil {
-			tx.Rollback()
+			if rbErr := tx.Rollback(); rbErr != nil {
+				d.seeder.Logf("Error during rollback: %v", rbErr)
+			}
 			return fmt.Errorf("failed to insert family member: %w", err)
 		}
 	}
@@ -257,7 +271,9 @@ func (d *ScenarioDataset) seedFinancialEmergencyScenario(ctx context.Context) er
 	err = tx.SelectContext(ctx, &members,
 		"SELECT miembro_id FROM miembros WHERE estado = 'activo' LIMIT 3")
 	if err != nil {
-		tx.Rollback()
+		if rbErr := tx.Rollback(); rbErr != nil {
+			d.seeder.Logf("Error during rollback: %v", rbErr)
+		}
 		return fmt.Errorf("failed to get members: %w", err)
 	}
 
@@ -269,7 +285,9 @@ func (d *ScenarioDataset) seedFinancialEmergencyScenario(ctx context.Context) er
 	var families []Family
 	err = tx.SelectContext(ctx, &families, "SELECT familia_id FROM familias LIMIT 2")
 	if err != nil {
-		tx.Rollback()
+		if rbErr := tx.Rollback(); rbErr != nil {
+			d.seeder.Logf("Error during rollback: %v", rbErr)
+		}
 		return fmt.Errorf("failed to get families: %w", err)
 	}
 
@@ -279,7 +297,9 @@ func (d *ScenarioDataset) seedFinancialEmergencyScenario(ctx context.Context) er
 		VALUES ($1, 'entrega_fondo', -1000, $2, 'Emergencia médica')`,
 		members[0].ID, time.Now().AddDate(0, -1, -5))
 	if err != nil {
-		tx.Rollback()
+		if rbErr := tx.Rollback(); rbErr != nil {
+			d.seeder.Logf("Error during rollback: %v", rbErr)
+		}
 		return fmt.Errorf("failed to insert cash movement: %w", err)
 	}
 
@@ -289,7 +309,9 @@ func (d *ScenarioDataset) seedFinancialEmergencyScenario(ctx context.Context) er
 		VALUES ($1, 'entrega_fondo', -1500, $2, 'Repatriación urgente')`,
 		families[0].ID, time.Now().AddDate(0, -2, -10))
 	if err != nil {
-		tx.Rollback()
+		if rbErr := tx.Rollback(); rbErr != nil {
+			d.seeder.Logf("Error during rollback: %v", rbErr)
+		}
 		return fmt.Errorf("failed to insert cash movement: %w", err)
 	}
 
@@ -299,7 +321,9 @@ func (d *ScenarioDataset) seedFinancialEmergencyScenario(ctx context.Context) er
 		VALUES ('otros_ingresos', 3000, $1, 'Donación extraordinaria para emergencias')`,
 		time.Now().AddDate(0, -3, 0))
 	if err != nil {
-		tx.Rollback()
+		if rbErr := tx.Rollback(); rbErr != nil {
+			d.seeder.Logf("Error during rollback: %v", rbErr)
+		}
 		return fmt.Errorf("failed to insert cash movement: %w", err)
 	}
 
