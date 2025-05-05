@@ -99,7 +99,7 @@ func (s *authService) Login(ctx context.Context, username, password string) (*in
 	}
 
 	// Guardar refresh token
-	err = s.tokenRepo.SaveRefreshToken(ctx, td.RefreshUuid, user.ID, td.RtExpires)
+	err = s.tokenRepo.SaveRefreshToken(ctx, td.RefreshUUID, user.ID, td.RtExpires)
 	if err != nil {
 		return nil, errors.Wrap(err, errors.ErrInternalError, "error guardando refresh token")
 	}
@@ -122,8 +122,8 @@ func (s *authService) Login(ctx context.Context, username, password string) (*in
 	return &input.TokenDetails{
 		AccessToken:  td.AccessToken,
 		RefreshToken: td.RefreshToken,
-		AccessUuid:   td.AccessUuid,
-		RefreshUuid:  td.RefreshUuid,
+		AccessUUID:   td.AccessUUID,
+		RefreshUUID:  td.RefreshUUID,
 		AtExpires:    td.AtExpires,
 		RtExpires:    td.RtExpires,
 	}, nil
@@ -143,12 +143,12 @@ func (s *authService) Logout(ctx context.Context, accessToken string) error {
 	}
 
 	// 3. Eliminar refresh token asociado
-	accessUuid, ok := claims["uuid"].(string)
+	accessUUID, ok := claims["uuid"].(string)
 	if !ok {
 		return errors.NewBusinessError(errors.ErrUnauthorized, "uuid no encontrado en token")
 	}
 
-	err = s.tokenRepo.DeleteRefreshToken(ctx, accessUuid)
+	err = s.tokenRepo.DeleteRefreshToken(ctx, accessUUID)
 	if err != nil {
 		return errors.Wrap(err, errors.ErrInternalError, "error eliminando refresh token")
 	}
@@ -170,24 +170,24 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*i
 	}
 
 	// 3. Verificar que el refresh token exista en BD
-	refreshUuid, ok := claims["uuid"].(string)
+	refreshUUID, ok := claims["uuid"].(string)
 	if !ok {
 		return nil, errors.NewBusinessError(errors.ErrUnauthorized, "uuid no encontrado en token")
 	}
 
-	userId, ok := claims["user_id"].(float64)
+	userID, ok := claims["user_id"].(float64)
 	if !ok {
 		return nil, errors.NewBusinessError(errors.ErrUnauthorized, "user_id no encontrado en token")
 	}
 
 	// 4. Verificar token en BD
-	err = s.tokenRepo.ValidateRefreshToken(ctx, refreshUuid, uint(userId))
+	err = s.tokenRepo.ValidateRefreshToken(ctx, refreshUUID, uint(userID))
 	if err != nil {
 		return nil, errors.Wrap(err, errors.ErrUnauthorized, "refresh token no válido")
 	}
 
 	// 5. Obtener usuario para verificar rol
-	user, err := s.userRepo.FindByID(ctx, uint(userId))
+	user, err := s.userRepo.FindByID(ctx, uint(userID))
 	if err != nil {
 		return nil, errors.DB(err, "error obteniendo usuario")
 	}
@@ -202,12 +202,12 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*i
 	}
 
 	// 7. Actualizar refresh token en BD
-	err = s.tokenRepo.DeleteRefreshToken(ctx, refreshUuid)
+	err = s.tokenRepo.DeleteRefreshToken(ctx, refreshUUID)
 	if err != nil {
 		return nil, errors.Wrap(err, errors.ErrInternalError, "error eliminando refresh token antiguo")
 	}
 
-	err = s.tokenRepo.SaveRefreshToken(ctx, td.RefreshUuid, user.ID, td.RtExpires)
+	err = s.tokenRepo.SaveRefreshToken(ctx, td.RefreshUUID, user.ID, td.RtExpires)
 	if err != nil {
 		return nil, errors.Wrap(err, errors.ErrInternalError, "error guardando nuevo refresh token")
 	}
@@ -216,8 +216,8 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*i
 	return &input.TokenDetails{
 		AccessToken:  td.AccessToken,
 		RefreshToken: td.RefreshToken,
-		AccessUuid:   td.AccessUuid,
-		RefreshUuid:  td.RefreshUuid,
+		AccessUUID:   td.AccessUUID,
+		RefreshUUID:  td.RefreshUUID,
 		AtExpires:    td.AtExpires,
 		RtExpires:    td.RtExpires,
 	}, nil
@@ -237,13 +237,13 @@ func (s *authService) ValidateToken(ctx context.Context, tokenString string) (*m
 	}
 
 	// 3. Obtener user_id
-	userId, ok := claims["user_id"].(float64)
+	userID, ok := claims["user_id"].(float64)
 	if !ok {
 		return nil, errors.NewBusinessError(errors.ErrUnauthorized, "user_id no encontrado en token")
 	}
 
 	// 4. Buscar usuario
-	user, err := s.userRepo.FindByID(ctx, uint(userId))
+	user, err := s.userRepo.FindByID(ctx, uint(userID))
 	if err != nil {
 		return nil, errors.DB(err, "error obteniendo usuario")
 	}

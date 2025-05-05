@@ -15,8 +15,8 @@ type UserRepository interface {
 
 // internal/ports/output/auth_repository.go
 type TokenRepository interface {
-	SaveRefreshToken(ctx context.Context, uuid string, userId uint, expires int64) error
-	ValidateRefreshToken(ctx context.Context, uuid string, userId uint) error
+	SaveRefreshToken(ctx context.Context, uuid string, userID uint, expires int64) error
+	ValidateRefreshToken(ctx context.Context, uuid string, userID uint) error
 	DeleteRefreshToken(ctx context.Context, uuid string) error
 	CleanupExpiredTokens(ctx context.Context) error // Añadimos este método
 }
