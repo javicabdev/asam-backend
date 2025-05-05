@@ -58,7 +58,7 @@ func (s *paymentService) RegisterPayment(ctx context.Context, payment *models.Pa
 	}
 
 	// Verificar que el miembro esté activo
-	if member.Estado != models.EstadoActivo {
+	if member.State != models.EstadoActivo {
 		return errors.Validation("El miembro no está activo", "estado", "inactive")
 	}
 
@@ -120,7 +120,7 @@ func (s *paymentService) memberTypeToString(member *models.Member) string {
 		// Si no encontramos el miembro, retornamos un valor por defecto
 		return models.TipoMembresiaPIndividual
 	}
-	return member.TipoMembresia
+	return member.MembershipType
 }
 
 func (s *paymentService) CancelPayment(ctx context.Context, paymentID uint, reason string) error {
@@ -396,10 +396,10 @@ func (s *paymentService) SendPaymentReminder(ctx context.Context, memberID uint)
 	}
 
 	// Enviar notificación usando el servicio de notificaciones
-	if member.CorreoElectronico != nil {
+	if member.Email != nil {
 		return s.notificationService.SendEmail(
 			ctx,
-			*member.CorreoElectronico,
+			*member.Email,
 			"Recordatorio de Pago ASAM",
 			"Este es un recordatorio para realizar su pago pendiente.",
 		)
@@ -428,11 +428,11 @@ func (s *paymentService) SendPaymentConfirmation(ctx context.Context, paymentID 
 	}
 
 	// Enviar confirmación por email
-	if member.CorreoElectronico != nil {
+	if member.Email != nil {
 		amountStr := strconv.FormatFloat(payment.Amount, 'f', 2, 64)
 		return s.notificationService.SendEmail(
 			ctx,
-			*member.CorreoElectronico,
+			*member.Email,
 			"Confirmación de Pago ASAM",
 			"Se ha registrado su pago por "+amountStr+"€",
 		)
@@ -452,11 +452,11 @@ func (s *paymentService) SendDefaulterNotification(ctx context.Context, memberID
 	}
 
 	// Enviar notificación con días de retraso
-	if member.CorreoElectronico != nil {
+	if member.Email != nil {
 		daysStr := strconv.Itoa(days)
 		return s.notificationService.SendEmail(
 			ctx,
-			*member.CorreoElectronico,
+			*member.Email,
 			"Aviso de Pago Atrasado ASAM",
 			"Su pago está atrasado "+daysStr+" días. Por favor, regularice su situación.",
 		)

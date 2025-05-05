@@ -27,9 +27,9 @@ type Family struct {
 	EsposaCorreoElectronico  string `gorm:"size:100"`
 
 	// Relaciones
-	MiembroOrigen *Member    `gorm:"foreignKey:MiembroOrigenID"`
-	Familiares    []Familiar `gorm:"foreignKey:FamiliaID"`
-	Telefonos     []Telefono `gorm:"polymorphic:Contactable"`
+	MiembroOrigen *Member     `gorm:"foreignKey:MiembroOrigenID"`
+	Familiares    []Familiar  `gorm:"foreignKey:FamiliaID"`
+	Telefonos     []Telephone `gorm:"polymorphic:Contactable"`
 
 	// Timestamps
 	CreatedAt time.Time

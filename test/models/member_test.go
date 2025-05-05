@@ -17,8 +17,8 @@ func TestValidateBasicFields(t *testing.T) {
 	// Caso válido
 	assert.NoError(t, member.Validate())
 
-	// Caso: falta NumeroSocio
-	member.NumeroSocio = ""
+	// Caso: falta MembershipNumber
+	member.MembershipNumber = ""
 	err := member.Validate()
 	assert.Error(t, err)
 	// Verificamos que sea un error de validación
@@ -37,9 +37,9 @@ func TestValidateDates(t *testing.T) {
 	// Caso válido
 	assert.NoError(t, member.Validate())
 
-	// Caso: FechaBaja antes de FechaAlta
-	fechaBaja := member.FechaAlta.Add(-24 * time.Hour) // Crear valor de tiempo
-	member.FechaBaja = &fechaBaja                      // Asignar puntero
+	// Caso: LeavingDate antes de RegistrationDate
+	fechaBaja := member.RegistrationDate.Add(-24 * time.Hour) // Crear valor de tiempo
+	member.LeavingDate = &fechaBaja                           // Asignar puntero
 	err := member.Validate()
 	assert.Error(t, err)
 
@@ -52,8 +52,8 @@ func TestValidateDates(t *testing.T) {
 	assert.NotNil(t, appErr.Fields)
 	assert.Contains(t, appErr.Fields, "fechaBaja")
 
-	// Caso: FechaBaja igual a FechaAlta
-	member.FechaBaja = &member.FechaAlta
+	// Caso: LeavingDate igual a RegistrationDate
+	member.LeavingDate = &member.RegistrationDate
 	err = member.Validate()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "VALIDATION_FAILED")
@@ -70,7 +70,7 @@ func TestIsActive(t *testing.T) {
 	assert.True(t, member.IsActive())
 
 	// Caso inactivo
-	member.Estado = models.EstadoInactivo
+	member.State = models.EstadoInactivo
 	assert.False(t, member.IsActive())
 }
 
@@ -81,7 +81,7 @@ func TestIsFamiliar(t *testing.T) {
 	assert.False(t, member.IsFamiliar())
 
 	// Caso familiar
-	member.TipoMembresia = models.TipoMembresiaPFamiliar
+	member.MembershipType = models.TipoMembresiaPFamiliar
 	assert.True(t, member.IsFamiliar())
 }
 
@@ -89,7 +89,7 @@ func TestNombreCompleto(t *testing.T) {
 	member := test.CreateValidMember()
 
 	// Validar nombre completo
-	expected := member.Nombre + " " + member.Apellidos
+	expected := member.Name + " " + member.Surnames
 	actual := member.NombreCompleto()
 
 	assert.Equal(t, expected, actual)
@@ -102,9 +102,9 @@ func TestValidateStatus(t *testing.T) {
 	// Caso válido
 	assert.NoError(t, member.Validate())
 
-	// Caso: estado inactivo sin FechaBaja
-	member.Estado = models.EstadoInactivo
-	member.FechaBaja = nil
+	// Caso: estado inactivo sin LeavingDate
+	member.State = models.EstadoInactivo
+	member.LeavingDate = nil
 	err := member.Validate()
 	assert.Error(t, err)
 
@@ -128,7 +128,7 @@ func TestBeforeCreate(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Caso inválido
-	member.NumeroSocio = ""
+	member.MembershipNumber = ""
 	err = member.BeforeCreate(nil)
 	assert.Error(t, err)
 }
@@ -141,7 +141,7 @@ func TestBeforeUpdate(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Caso inválido
-	member.Nombre = ""
+	member.Name = ""
 	err = member.BeforeUpdate(nil)
 	assert.Error(t, err)
 }

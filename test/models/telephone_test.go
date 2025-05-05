@@ -6,9 +6,9 @@ import (
 	"testing"
 )
 
-// Helper para crear un Telefono válido
-func createValidTelefono() *models.Telefono {
-	return &models.Telefono{
+// Helper para crear un Telephone válido
+func createValidTelefono() *models.Telephone {
+	return &models.Telephone{
 		NumeroTelefono:  "123456789",
 		ContactableID:   1,
 		ContactableType: "Member",

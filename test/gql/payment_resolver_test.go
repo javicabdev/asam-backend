@@ -79,8 +79,8 @@ var _ = Describe("Payment", func() {
 				input := createValidPaymentInput()
 
 				memberService.On("GetMemberByID", mock.Anything, uint(1)).Return(&models.Member{
-					ID:     1,
-					Estado: models.EstadoActivo,
+					ID:    1,
+					State: models.EstadoActivo,
 				}, nil)
 
 				paymentService.On("RegisterPayment", mock.Anything, mock.AnythingOfType("*models.Payment")).Return(nil)
@@ -112,8 +112,8 @@ var _ = Describe("Payment", func() {
 				input := createValidPaymentInput()
 
 				memberService.On("GetMemberByID", mock.Anything, uint(1)).Return(&models.Member{
-					ID:     1,
-					Estado: models.EstadoInactivo,
+					ID:    1,
+					State: models.EstadoInactivo,
 				}, nil)
 
 				result, err := resolver.Mutation().RegisterPayment(context.Background(), input)

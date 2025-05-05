@@ -76,49 +76,49 @@ func (r *memberResolver) mapCreateInputToMember(input *model.CreateMemberInput) 
 	}
 
 	member := &models.Member{
-		NumeroSocio:     input.NumeroSocio,
-		TipoMembresia:   tipoMembresia,
-		Nombre:          input.Nombre,
-		Apellidos:       input.Apellidos,
-		CalleNumeroPiso: input.CalleNumeroPiso,
-		CodigoPostal:    input.CodigoPostal,
-		Poblacion:       input.Poblacion,
-		Estado:          models.EstadoActivo,
-		FechaAlta:       time.Now(),
-		FechaNacimiento: input.FechaNacimiento,
+		MembershipNumber: input.NumeroSocio,
+		MembershipType:   tipoMembresia,
+		Name:             input.Nombre,
+		Surnames:         input.Apellidos,
+		Address:          input.CalleNumeroPiso,
+		Postcode:         input.CodigoPostal,
+		City:             input.Poblacion,
+		State:            models.EstadoActivo,
+		RegistrationDate: time.Now(),
+		BirthDate:        input.FechaNacimiento,
 	}
 
 	// Optional fields with default values
 	if input.Provincia != nil {
-		member.Provincia = *input.Provincia
+		member.Province = *input.Provincia
 	} else {
-		member.Provincia = "Barcelona"
+		member.Province = "Barcelona"
 	}
 
 	if input.Pais != nil {
-		member.Pais = *input.Pais
+		member.Country = *input.Pais
 	} else {
-		member.Pais = "España"
+		member.Country = "España"
 	}
 
 	if input.Nacionalidad != nil {
-		member.Nacionalidad = *input.Nacionalidad
+		member.Nationality = *input.Nacionalidad
 	} else {
-		member.Nacionalidad = "Senegal"
+		member.Nationality = "Senegal"
 	}
 
 	// Optional fields
 	if input.DocumentoIdentidad != nil {
-		member.DocumentoIdentidad = input.DocumentoIdentidad
+		member.IdentityCard = input.DocumentoIdentidad
 	}
 	if input.CorreoElectronico != nil {
-		member.CorreoElectronico = input.CorreoElectronico
+		member.Email = input.CorreoElectronico
 	}
 	if input.Profesion != nil {
-		member.Profesion = input.Profesion
+		member.Profession = input.Profesion
 	}
 	if input.Observaciones != nil {
-		member.Observaciones = input.Observaciones
+		member.Remarks = input.Observaciones
 	}
 
 	return member, nil
@@ -130,31 +130,31 @@ func (r *memberResolver) mapUpdateInputToMember(id uint, input *model.UpdateMemb
 
 	// Update only provided fields
 	if input.CalleNumeroPiso != nil {
-		member.CalleNumeroPiso = *input.CalleNumeroPiso
+		member.Address = *input.CalleNumeroPiso
 	}
 	if input.CodigoPostal != nil {
-		member.CodigoPostal = *input.CodigoPostal
+		member.Postcode = *input.CodigoPostal
 	}
 	if input.Poblacion != nil {
-		member.Poblacion = *input.Poblacion
+		member.City = *input.Poblacion
 	}
 	if input.Provincia != nil {
-		member.Provincia = *input.Provincia
+		member.Province = *input.Provincia
 	}
 	if input.Pais != nil {
-		member.Pais = *input.Pais
+		member.Country = *input.Pais
 	}
 	if input.DocumentoIdentidad != nil {
-		member.DocumentoIdentidad = input.DocumentoIdentidad
+		member.IdentityCard = input.DocumentoIdentidad
 	}
 	if input.CorreoElectronico != nil {
-		member.CorreoElectronico = input.CorreoElectronico
+		member.Email = input.CorreoElectronico
 	}
 	if input.Profesion != nil {
-		member.Profesion = input.Profesion
+		member.Profession = input.Profesion
 	}
 	if input.Observaciones != nil {
-		member.Observaciones = input.Observaciones
+		member.Remarks = input.Observaciones
 	}
 
 	return &member
@@ -171,12 +171,12 @@ func (r *memberResolver) handleMemberStatus(ctx context.Context, memberID uint, 
 
 	switch status {
 	case model.MemberStatusActive:
-		member.Estado = models.EstadoActivo
-		member.FechaBaja = nil
+		member.State = models.EstadoActivo
+		member.LeavingDate = nil
 	case model.MemberStatusInactive:
-		member.Estado = models.EstadoInactivo
+		member.State = models.EstadoInactivo
 		now := time.Now()
-		member.FechaBaja = &now
+		member.LeavingDate = &now
 	default:
 		return nil, errors.NewValidationError(
 			"Invalid member status",

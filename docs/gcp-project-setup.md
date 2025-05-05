@@ -8,7 +8,7 @@ Esta guía te ayudará a crear un nuevo proyecto en Google Cloud Platform (GCP) 
 2. Haz clic en el selector de proyectos en la parte superior
 3. Selecciona "Nuevo proyecto"
 4. En la ventana "Nuevo proyecto":
-   - **Nombre del proyecto**: asam-backend (o el nombre que prefieras)
+   - **Name del proyecto**: asam-backend (o el nombre que prefieras)
    - **Organización**: Selecciona la organización si aplica, o deja en "Sin organización"
    - **Ubicación**: Deja el valor predeterminado o selecciona una carpeta específica
 5. Haz clic en "Crear"
@@ -40,7 +40,7 @@ Para que GitHub Actions pueda desplegar en tu proyecto de GCP, necesitas crear u
 1. En la consola de GCP, ve a "IAM y administración" > "Cuentas de servicio"
 2. Haz clic en "Crear cuenta de servicio"
 3. En "Detalles de la cuenta de servicio":
-   - **Nombre de la cuenta de servicio**: github-actions-deploy
+   - **Name de la cuenta de servicio**: github-actions-deploy
    - **ID de la cuenta de servicio**: se generará automáticamente
    - **Descripción**: Cuenta de servicio para GitHub Actions CI/CD
 4. Haz clic en "Crear y continuar"

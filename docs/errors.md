@@ -75,7 +75,7 @@ Ejemplo: Campo amount <= 0 al registrar un pago.
 | `INVALID_OPERATION`  | Operación no permitida por las reglas de negocio.                                   | "Operación no válida"                        | Revisar la secuencia o el estado previo antes de invocar la operación.                |
 | `INSUFFICIENT_FUNDS` | No hay fondos suficientes para completar una operación financiera.                  | "Fondos insuficientes"                       | Aportar más fondos o comprobar que el balance sea correcto.                           |
 | `DUPLICATE_ENTRY`    | Intento de crear algo que ya existe (ej. dos miembros con el mismo `numero_socio`). | "El recurso ya existe"                       | Usar un ID único o verificar si ya estaba creado.                                     |
-| `INVALID_STATUS`     | Estado no válido al actualizar un recurso (p. ej., pasar de "cancelado" a "paid").  | "Estado no válido"                           | Revisar la lógica de estados o la transición permitida.                               |
+| `INVALID_STATUS`     | State no válido al actualizar un recurso (p. ej., pasar de "cancelado" a "paid").  | "State no válido"                           | Revisar la lógica de estados o la transición permitida.                               |
 | `INVALID_DATE`       | Fecha no válida o inconsistente (ej. fecha de baja anterior a la de alta).          | "Fecha no válida"                            | Ajustar las fechas según la regla de negocio.                                         |
 | `INVALID_AMOUNT`     | Monto no válido (ej. negativo cuando se espera positivo).                           | "Monto no válido"                            | Revisar el monto ingresado y corregir.                                                |
 

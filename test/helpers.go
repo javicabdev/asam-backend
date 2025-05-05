@@ -63,18 +63,18 @@ func CreateValidFamily() *models.Family {
 func CreateValidMember() *models.Member {
 	email := "test@example.com"
 	return &models.Member{
-		NumeroSocio:       "B0001",
-		TipoMembresia:     models.TipoMembresiaPIndividual,
-		Nombre:            "Juan",
-		Apellidos:         "García",
-		CalleNumeroPiso:   "Calle Test 1, 1º",
-		CodigoPostal:      "08224",
-		Poblacion:         "Terrassa",
-		Provincia:         "Barcelona",
-		Pais:              "España",
-		Estado:            models.EstadoActivo,
-		FechaAlta:         time.Now().Add(-24 * time.Hour),
-		Nacionalidad:      "Senegal",
-		CorreoElectronico: &email,
+		MembershipNumber: "B0001",
+		MembershipType:   models.TipoMembresiaPIndividual,
+		Name:             "Juan",
+		Surnames:         "García",
+		Address:          "Calle Test 1, 1º",
+		Postcode:         "08224",
+		City:             "Terrassa",
+		Province:         "Barcelona",
+		Country:          "España",
+		State:            models.EstadoActivo,
+		RegistrationDate: time.Now().Add(-24 * time.Hour),
+		Nationality:      "Senegal",
+		Email:            &email,
 	}
 }

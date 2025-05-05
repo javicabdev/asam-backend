@@ -117,7 +117,7 @@ func TestRegisterPayment(t *testing.T) {
 				// Validate member exists and is active
 				member := test.CreateValidMember()
 				email := "test@example.com"
-				member.CorreoElectronico = &email
+				member.Email = &email
 				mr.On("GetByID", mock.Anything, uint(1)).Return(member, nil)
 
 				// Check specific parameters instead of AnythingOfType
@@ -149,7 +149,7 @@ func TestRegisterPayment(t *testing.T) {
 				// Validate member exists and is active
 				member := test.CreateValidMember()
 				email := "test@example.com"
-				member.CorreoElectronico = &email
+				member.Email = &email
 				mr.On("GetByID", mock.Anything, uint(1)).Return(member, nil)
 
 				// Find membership fee
@@ -255,7 +255,7 @@ func TestRegisterPayment(t *testing.T) {
 			) {
 				// Return inactive member
 				member := test.CreateValidMember()
-				member.Estado = models.EstadoInactivo
+				member.State = models.EstadoInactivo
 				mr.On("GetByID", mock.Anything, uint(1)).Return(member, nil)
 				// NO AÑADIR expectativas para Create, ya que no debe llegar a ese punto
 			},
@@ -421,7 +421,7 @@ func TestCancelPayment(t *testing.T) {
 				// Member found for notification
 				member := test.CreateValidMember()
 				email := "test@example.com"
-				member.CorreoElectronico = &email
+				member.Email = &email
 				// No necesitamos mr.On("GetByID") porque el CancelPayment no lo usa
 
 				// Update with correct status - usando el mismo objeto payment para garantizar integridad
@@ -527,7 +527,7 @@ func TestCancelPayment(t *testing.T) {
 			err := service.CancelPayment(context.Background(), tt.paymentID, tt.reason)
 
 			tt.checkErr(t, err)
-			
+
 			// Verificar solo los mocks que se utilizan en CancelPayment
 			pr.AssertExpectations(t)
 		})
