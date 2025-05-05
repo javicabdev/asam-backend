@@ -320,8 +320,8 @@ func (s *memberService) DeactivateMember(ctx context.Context, id uint, fechaBaja
 func (s *memberService) ListMembers(ctx context.Context, filters input.MemberFilters) ([]*models.Member, error) {
 	// Convertir filtros de input a output
 	repoFilters := output.MemberFilters{
-		Estado:        filters.Estado,
-		TipoMembresia: filters.TipoMembresia,
+		Estado:        filters.State,
+		TipoMembresia: filters.MembershipType,
 		SearchTerm:    filters.SearchTerm,
 		Page:          filters.Page,
 		PageSize:      filters.PageSize,

@@ -27,45 +27,45 @@ type MemberService interface {
 	ListMembers(ctx context.Context, filters MemberFilters) ([]*models.Member, error)
 }
 
-// MemberFilters define los criterios de búsqueda para miembros
+// MemberFilters defines search criteria for members
 type MemberFilters struct {
-	Estado        *string
-	TipoMembresia *string
-	SearchTerm    *string
-	Page          int
-	PageSize      int
-	OrderBy       string
+	State          *string
+	MembershipType *string
+	SearchTerm     *string
+	Page           int
+	PageSize       int
+	OrderBy        string
 }
 
-// CreateMemberRequest representa los datos necesarios para crear un nuevo miembro
+// CreateMemberRequest represents the data necessary to create a new member
 type CreateMemberRequest struct {
-	NumeroSocio        string     `json:"numeroSocio"`
-	TipoMembresia      string     `json:"tipoMembresia"`
-	Nombre             string     `json:"nombre"`
-	Apellidos          string     `json:"apellidos"`
-	CalleNumeroPiso    string     `json:"calleNumeroPiso"`
-	CodigoPostal       string     `json:"codigoPostal"`
-	Poblacion          string     `json:"poblacion"`
-	Provincia          string     `json:"provincia"`
-	Pais               string     `json:"pais"`
-	FechaAlta          time.Time  `json:"fechaAlta"`
-	FechaNacimiento    *time.Time `json:"fechaNacimiento,omitempty"`
-	DocumentoIdentidad *string    `json:"documentoIdentidad,omitempty"`
-	CorreoElectronico  *string    `json:"correoElectronico,omitempty"`
-	Profesion          *string    `json:"profesion,omitempty"`
-	Nacionalidad       string     `json:"nacionalidad"`
-	Observaciones      *string    `json:"observaciones,omitempty"`
+	MembershipNumber string     `json:"membershipNumber"`
+	MembershipType   string     `json:"membershipType"`
+	Name             string     `json:"name"`
+	Surnames         string     `json:"surnames"`
+	Address          string     `json:"address"`
+	Postcode         string     `json:"postcode"`
+	City             string     `json:"city"`
+	Province         string     `json:"province"`
+	Country          string     `json:"country"`
+	RegistrationDate time.Time  `json:"registrationDate"`
+	BirthDate        *time.Time `json:"birthDate,omitempty"`
+	IdentityCard     *string    `json:"identityCard,omitempty"`
+	Email            *string    `json:"email,omitempty"`
+	Profession       *string    `json:"profession,omitempty"`
+	Nationality      string     `json:"nationality"`
+	Remarks          *string    `json:"remarks,omitempty"`
 }
 
-// UpdateMemberRequest representa los datos actualizables de un miembro
+// UpdateMemberRequest represents the updateable data of a member
 type UpdateMemberRequest struct {
-	CalleNumeroPiso    *string `json:"calleNumeroPiso,omitempty"`
-	CodigoPostal       *string `json:"codigoPostal,omitempty"`
-	Poblacion          *string `json:"poblacion,omitempty"`
-	Provincia          *string `json:"provincia,omitempty"`
-	Pais               *string `json:"pais,omitempty"`
-	DocumentoIdentidad *string `json:"documentoIdentidad,omitempty"`
-	CorreoElectronico  *string `json:"correoElectronico,omitempty"`
-	Profesion          *string `json:"profesion,omitempty"`
-	Observaciones      *string `json:"observaciones,omitempty"`
+	Address      *string `json:"address,omitempty"`
+	Postcode     *string `json:"postcode,omitempty"`
+	City         *string `json:"city,omitempty"`
+	Province     *string `json:"province,omitempty"`
+	Country      *string `json:"country,omitempty"`
+	IdentityCard *string `json:"identityCard,omitempty"`
+	Email        *string `json:"email,omitempty"`
+	Profession   *string `json:"profession,omitempty"`
+	Remarks      *string `json:"remarks,omitempty"`
 }

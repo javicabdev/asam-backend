@@ -486,12 +486,12 @@ func (r *queryResolver) ListMembers(ctx context.Context, filter *model.MemberFil
 
 	// 7) Crear el struct domain.MemberFilters
 	domainFilter := input.MemberFilters{
-		Estado:        estado,
-		TipoMembresia: tipoMembresia,
-		SearchTerm:    searchTerm,
-		Page:          page,
-		PageSize:      pageSize,
-		OrderBy:       orderBy,
+		State:          estado,
+		MembershipType: tipoMembresia,
+		SearchTerm:     searchTerm,
+		Page:           page,
+		PageSize:       pageSize,
+		OrderBy:        orderBy,
 	}
 
 	// 8) Llamar al servicio
