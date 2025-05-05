@@ -1,10 +1,11 @@
 package validation
 
 import (
-	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 	"regexp"
 	"strings"
 	"time"
+
+	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 )
 
 type FamilyValidator interface {
