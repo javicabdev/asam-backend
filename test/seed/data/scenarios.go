@@ -16,7 +16,7 @@ type ScenarioDataset struct {
 }
 
 // NewScenarioDataset creates a new scenario dataset
-func NewScenarioDataset(db *sqlx.DB, seeder Seeder, name string) *ScenarioDataset {
+func NewScenarioDataset(db *sqlx.DB, seeder Seeder, name string) Seedable {
 	return &ScenarioDataset{
 		db:     db,
 		seeder: seeder,

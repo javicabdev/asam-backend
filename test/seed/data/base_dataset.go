@@ -8,21 +8,6 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// Dataset define la interfaz común para todos los conjuntos de datos
-type Dataset interface {
-	Seed(ctx context.Context) error
-}
-
-// Seeder define los métodos necesarios para sembrar datos en la base de datos
-type Seeder interface {
-	Clean(ctx context.Context) error
-	SeedMiembros(ctx context.Context) error
-	SeedFamilias(ctx context.Context) error
-	SeedFamiliares(ctx context.Context) error
-	SeedCuotasMembresia(ctx context.Context) error
-	SeedCaja(ctx context.Context) error
-}
-
 // BaseDataset proporciona funcionalidad común para los diferentes conjuntos de datos
 type BaseDataset struct {
 	DB     *sqlx.DB
