@@ -265,38 +265,3 @@ func (r *cashFlowResolver) processAdjustment(ctx context.Context, adjustment *mo
 		Message: &message,
 	}, nil
 }
-
-// Helper method for validating transaction inputs from GraphQL
-func (r *cashFlowResolver) validateTransactionInput(input *model.TransactionInput) error {
-	fields := make(map[string]string)
-
-	// Detail is required
-	if input.Detail == "" {
-		fields["detail"] = "Description is required"
-	}
-
-	// Amount must not be zero
-	if input.Amount == 0 {
-		fields["amount"] = "Amount must be non-zero"
-	}
-
-	// Operation type must be valid
-	if !input.OperationType.IsValid() {
-		fields["operationType"] = "Invalid operation type"
-	} else {
-		// Amount must match operation type
-		if input.OperationType.IsIncome() && input.Amount < 0 {
-			fields["amount"] = "Income amount must be positive"
-		}
-		if input.OperationType.IsExpense() && input.Amount > 0 {
-			fields["amount"] = "Expense amount must be negative"
-		}
-	}
-
-	// Return validation error if any fields failed
-	if len(fields) > 0 {
-		return appErrors.NewValidationError("Invalid transaction input", fields)
-	}
-
-	return nil
-}
