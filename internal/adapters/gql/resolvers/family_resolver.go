@@ -32,7 +32,8 @@ func (r *familyResolver) mapCreateInputToFamily(input *model.CreateFamilyInput) 
 	}
 }
 
-func (r *familyResolver) mapUpdateInputToFamily(input *model.UpdateFamilyInput, existing *models.Family) *models.Family {
+func (r *familyResolver) mapUpdateInputToFamily(input *model.UpdateFamilyInput,
+	existing *models.Family) *models.Family {
 	family := *existing
 
 	if input.EsposoNombre != nil {
