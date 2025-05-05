@@ -21,7 +21,7 @@ func NewFamilyValidator() FamilyValidator {
 	return &DefaultFamilyValidator{}
 }
 
-// ValidateNumeroSocio valida el formato del número de socio
+// ValidateNumeroSocio valida el formato del número de socio.
 func (v *DefaultFamilyValidator) ValidateNumeroSocio(numeroSocio string) error {
 	if numeroSocio == "" {
 		return appErrors.NewValidationError(
@@ -43,7 +43,7 @@ func (v *DefaultFamilyValidator) ValidateNumeroSocio(numeroSocio string) error {
 	return nil
 }
 
-// ValidateConyuges valida que al menos uno de los cónyuges tenga datos
+// ValidateConyuges valida que al menos uno de los cónyuges tenga datos.
 func (v *DefaultFamilyValidator) ValidateConyuges(esposoNombre, esposoApellidos, esposaNombre, esposaApellidos string) error {
 	errDetails := make(map[string]string)
 
@@ -72,7 +72,7 @@ func (v *DefaultFamilyValidator) ValidateConyuges(esposoNombre, esposoApellidos,
 	return nil
 }
 
-// ValidateDocumentIDs valida el formato de los documentos de identidad
+// ValidateDocumentIDs valida el formato de los documentos de identidad.
 func (v *DefaultFamilyValidator) ValidateDocumentIDs(esposoDoc, esposaDoc string) error {
 	errDetails := make(map[string]string)
 
