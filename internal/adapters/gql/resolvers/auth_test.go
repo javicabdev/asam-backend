@@ -63,8 +63,8 @@ func TestLogin(t *testing.T) {
 	mockTokenDetails := &input.TokenDetails{
 		AccessToken:  "test-access-token",
 		RefreshToken: "test-refresh-token",
-		AccessUuid:   "test-access-uuid",
-		RefreshUuid:  "test-refresh-uuid",
+		AccessUUID:   "test-access-uuid",
+		RefreshUUID:  "test-refresh-uuid",
 		AtExpires:    1620000000,
 		RtExpires:    1620100000,
 	}
@@ -166,8 +166,8 @@ func TestRefreshToken(t *testing.T) {
 	mockTokenDetails := &input.TokenDetails{
 		AccessToken:  "new-access-token",
 		RefreshToken: "new-refresh-token",
-		AccessUuid:   "new-access-uuid",
-		RefreshUuid:  "new-refresh-uuid",
+		AccessUUID:   "new-access-uuid",
+		RefreshUUID:  "new-refresh-uuid",
 		AtExpires:    1630000000,
 		RtExpires:    1630100000,
 	}
