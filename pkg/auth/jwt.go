@@ -11,8 +11,8 @@ import (
 type TokenDetails struct {
 	AccessToken  string
 	RefreshToken string
-	AccessUuid   string
-	RefreshUuid  string
+	AccessUUID   string
+	RefreshUUID  string
 	AtExpires    int64
 	RtExpires    int64
 }
@@ -39,12 +39,12 @@ func (j *JWTUtil) GenerateTokenPair(userID uint, role string) (*TokenDetails, er
 
 	// Access Token
 	td.AtExpires = now.Add(j.accessTTL).Unix()
-	td.AccessUuid = uuid.New().String()
+	td.AccessUUID = uuid.New().String()
 
 	atClaims := jwt.MapClaims{
 		"user_id": userID,
 		"role":    role,
-		"uuid":    td.AccessUuid,
+		"uuid":    td.AccessUUID,
 		"exp":     td.AtExpires,
 		"iat":     now.Unix(),
 	}
@@ -58,11 +58,11 @@ func (j *JWTUtil) GenerateTokenPair(userID uint, role string) (*TokenDetails, er
 
 	// Refresh Token
 	td.RtExpires = now.Add(j.refreshTTL).Unix()
-	td.RefreshUuid = uuid.New().String()
+	td.RefreshUUID = uuid.New().String()
 
 	rtClaims := jwt.MapClaims{
 		"user_id": userID,
-		"uuid":    td.RefreshUuid,
+		"uuid":    td.RefreshUUID,
 		"exp":     td.RtExpires,
 		"iat":     now.Unix(),
 	}
