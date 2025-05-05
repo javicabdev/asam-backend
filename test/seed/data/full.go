@@ -13,7 +13,7 @@ type FullDataset struct {
 }
 
 // NewFullDataset creates a new full dataset
-func NewFullDataset(db *sqlx.DB, seeder Seeder) *FullDataset {
+func NewFullDataset(db *sqlx.DB, seeder Seeder) Seedable {
 	return &FullDataset{
 		BaseDataset: BaseDataset{
 			DB:     db,

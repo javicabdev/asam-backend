@@ -13,7 +13,7 @@ type MinimalDataset struct {
 }
 
 // NewMinimalDataset creates a new minimal dataset
-func NewMinimalDataset(db *sqlx.DB, seeder Seeder) *MinimalDataset {
+func NewMinimalDataset(db *sqlx.DB, seeder Seeder) Seedable {
 	return &MinimalDataset{
 		BaseDataset: BaseDataset{
 			DB:     db,
