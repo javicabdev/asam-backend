@@ -522,8 +522,8 @@ func TestListMembers(t *testing.T) {
 		{
 			name: "successful listing",
 			filters: input.MemberFilters{
-				Estado:        test.StringPtr(models.EstadoActivo),
-				TipoMembresia: test.StringPtr(models.TipoMembresiaPIndividual),
+				State:          test.StringPtr(models.EstadoActivo),
+				MembershipType: test.StringPtr(models.TipoMembresiaPIndividual),
 			},
 			setupRepo: func(repo *mockMemberRepository) {
 				repo.On("List", mock.Anything, mock.AnythingOfType("output.MemberFilters")).
@@ -537,7 +537,7 @@ func TestListMembers(t *testing.T) {
 		{
 			name: "repository error",
 			filters: input.MemberFilters{
-				Estado: test.StringPtr(models.EstadoActivo),
+				State: test.StringPtr(models.EstadoActivo),
 			},
 			setupRepo: func(repo *mockMemberRepository) {
 				// Database error
