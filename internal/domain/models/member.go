@@ -25,7 +25,7 @@ type Member struct {
 	FechaNacimiento    *time.Time `gorm:"type:date;column:fecha_nacimiento"`
 	DocumentoIdentidad *string    `gorm:"column:documento_identidad"`
 	CorreoElectronico  *string    `gorm:"column:correo_electronico"`
-	Profesion          *string
+	Profession         *string
 	Nacionalidad       string `gorm:"default:Senegal"`
 	Observaciones      *string
 	CreatedAt          time.Time

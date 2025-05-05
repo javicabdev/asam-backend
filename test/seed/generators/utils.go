@@ -192,7 +192,7 @@ func GenerateRandomPhone(r *rand.Rand) string {
 // GenerateRandomProfession generates a random profession
 func GenerateRandomProfession(r *rand.Rand) string {
 	professions := []string{
-		"Profesor/a", "Médico/a", "Abogado/a", "Ingeniero/a", "Comerciante",
+		"Professor/a", "Médico/a", "Abogado/a", "Ingeniero/a", "Comerciante",
 		"Administrativo/a", "Cocinero/a", "Conductor/a", "Electricista", "Empresario/a",
 		"Fontanero/a", "Funcionario/a", "Mecánico/a", "Obrero/a", "Peluquero/a",
 		"Autónomo/a", "Dependiente/a", "Estudiante", "Jubilado/a", "Desempleado/a",

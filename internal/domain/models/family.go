@@ -2,9 +2,10 @@ package models
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/javicabdev/asam-backend/internal/domain/services/validation"
 	"gorm.io/gorm"
-	"time"
 )
 
 // Family representa una familia en el sistema ASAM
