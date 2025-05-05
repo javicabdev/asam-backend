@@ -84,8 +84,8 @@ func TestCreateMember(t *testing.T) {
 			},
 			setupMock: func(ms *test.MockMemberService) {
 				ms.On("CreateMember", mock.Anything, mock.MatchedBy(func(m *models.Member) bool {
-					return m.TipoMembresia == models.TipoMembresiaPIndividual &&
-						m.NumeroSocio == test.GenerateValidNumeroSocio(1)
+					return m.MembershipType == models.TipoMembresiaPIndividual &&
+						m.MembershipNumber == test.GenerateValidNumeroSocio(1)
 				})).Return(nil)
 			},
 			wantErr: false,
@@ -166,7 +166,7 @@ func TestCreateMember(t *testing.T) {
 			tt.checkErr(t, err)
 			if !tt.wantErr {
 				assert.NotNil(t, got)
-				assert.Equal(t, models.TipoMembresiaPIndividual, got.TipoMembresia)
+				assert.Equal(t, models.TipoMembresiaPIndividual, got.MembershipType)
 			} else {
 				assert.Nil(t, got)
 			}
@@ -219,7 +219,7 @@ func TestDeactivateMember(t *testing.T) {
 			setupRepo: func(repo *mockMemberRepository) {
 				member := test.CreateValidMember()
 				member.ID = 2
-				member.Estado = models.EstadoInactivo
+				member.State = models.EstadoInactivo
 				repo.On("GetByID", mock.Anything, uint(2)).Return(member, nil)
 			},
 			wantErr: true,
@@ -273,8 +273,8 @@ func TestUpdateMember(t *testing.T) {
 			member: func() *models.Member {
 				m := test.CreateValidMember()
 				m.ID = 1
-				m.Nombre = "Juan Actualizado"
-				m.Profesion = test.StringPtr("Ingeniero")
+				m.Name = "Juan Actualizado"
+				m.Profession = test.StringPtr("Ingeniero")
 				return m
 			}(),
 			setupRepo: func(repo *mockMemberRepository) {
@@ -307,7 +307,7 @@ func TestUpdateMember(t *testing.T) {
 			member: func() *models.Member {
 				m := test.CreateValidMember()
 				m.ID = 1
-				m.CalleNumeroPiso = ""
+				m.Address = ""
 				return m
 			}(),
 			setupRepo: func(repo *mockMemberRepository) {
@@ -324,7 +324,7 @@ func TestUpdateMember(t *testing.T) {
 			member: func() *models.Member {
 				m := test.CreateValidMember()
 				m.ID = 1
-				m.TipoMembresia = "invalid_type"
+				m.MembershipType = "invalid_type"
 				return m
 			}(),
 			setupRepo: func(repo *mockMemberRepository) {
@@ -341,7 +341,7 @@ func TestUpdateMember(t *testing.T) {
 			member: func() *models.Member {
 				m := test.CreateValidMember()
 				m.ID = 1
-				m.Nombre = "Juan Actualizado"
+				m.Name = "Juan Actualizado"
 				return m
 			}(),
 			setupRepo: func(repo *mockMemberRepository) {

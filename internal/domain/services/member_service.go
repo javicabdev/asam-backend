@@ -34,49 +34,49 @@ func NewMemberService(repository output.MemberRepository, appLogger logger.Logge
 func (s *memberService) CreateMember(ctx context.Context, member *models.Member) error {
 	// Logging al inicio de la operación
 	s.appLogger.Info("Creating new member",
-		zap.String("numero_socio", member.NumeroSocio),
-		zap.String("tipo_membresia", member.TipoMembresia))
+		zap.String("numero_socio", member.MembershipNumber),
+		zap.String("tipo_membresia", member.MembershipType))
 
 	// Verificar si ya existe un miembro con el mismo número de socio
-	existing, err := s.repository.GetByNumeroSocio(ctx, member.NumeroSocio)
+	existing, err := s.repository.GetByNumeroSocio(ctx, member.MembershipNumber)
 	if err != nil {
 		s.appLogger.Error("Error checking existing member",
-			zap.String("numero_socio", member.NumeroSocio),
+			zap.String("numero_socio", member.MembershipNumber),
 			zap.Error(err))
-		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.NumeroSocio,
+		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
 			"Error al verificar miembro existente", err)
 		return errors.DB(err, "error verificando miembro existente")
 	}
 
 	if existing != nil {
 		s.appLogger.Warn("Attempted to create duplicate member",
-			zap.String("numero_socio", member.NumeroSocio))
-		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.NumeroSocio,
+			zap.String("numero_socio", member.MembershipNumber))
+		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
 			"Intento de crear miembro duplicado", nil)
 		return errors.New(errors.ErrDuplicateEntry,
-			"ya existe un miembro con el número de socio "+member.NumeroSocio)
+			"ya existe un miembro con el número de socio "+member.MembershipNumber)
 	}
 
 	// Establecer valores por defecto
-	if member.Estado == "" {
-		member.Estado = models.EstadoActivo
+	if member.State == "" {
+		member.State = models.EstadoActivo
 	}
-	if member.Provincia == "" {
-		member.Provincia = "Barcelona"
+	if member.Province == "" {
+		member.Province = "Barcelona"
 	}
-	if member.Pais == "" {
-		member.Pais = "España"
+	if member.Country == "" {
+		member.Country = "España"
 	}
-	if member.Nacionalidad == "" {
-		member.Nacionalidad = "Senegal"
+	if member.Nationality == "" {
+		member.Nationality = "Senegal"
 	}
 
 	// Validar el miembro antes de crear
 	if err := member.Validate(); err != nil {
 		s.appLogger.Error("Member validation failed",
-			zap.String("numero_socio", member.NumeroSocio),
+			zap.String("numero_socio", member.MembershipNumber),
 			zap.Error(err))
-		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.NumeroSocio,
+		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
 			"Error en la validación del miembro", err)
 
 		// Conservar el error de validación si ya es un AppError, sino convertirlo
@@ -90,28 +90,28 @@ func (s *memberService) CreateMember(ctx context.Context, member *models.Member)
 	// Crear el miembro en la base de datos
 	if err := s.repository.Create(ctx, member); err != nil {
 		s.appLogger.Error("Failed to create member",
-			zap.String("numero_socio", member.NumeroSocio),
+			zap.String("numero_socio", member.MembershipNumber),
 			zap.Error(err))
-		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.NumeroSocio,
+		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
 			"Error al crear miembro en base de datos", err)
 		return errors.DB(err, "error creando miembro")
 	}
 
 	// Actualizar métricas de miembros
 	metrics.MembersByStatus.WithLabelValues(
-		member.Estado,
-		member.TipoMembresia,
+		member.State,
+		member.MembershipType,
 	).Inc()
 
 	// Registrar la acción en el log de auditoría
 	s.auditLogger.LogAction(ctx,
 		audit.ActionCreate,
 		audit.EntityMember,
-		member.NumeroSocio,
+		member.MembershipNumber,
 		"Created new member")
 
 	s.appLogger.Info("Member created successfully",
-		zap.String("numero_socio", member.NumeroSocio),
+		zap.String("numero_socio", member.MembershipNumber),
 		zap.Uint("member_id", member.ID))
 
 	return nil
@@ -174,8 +174,8 @@ func (s *memberService) UpdateMember(ctx context.Context, member *models.Member)
 	}
 
 	// No permitir cambios en campos inmutables
-	member.NumeroSocio = existing.NumeroSocio
-	member.FechaAlta = existing.FechaAlta
+	member.MembershipNumber = existing.MembershipNumber
+	member.RegistrationDate = existing.RegistrationDate
 
 	// Validar el miembro antes de actualizar
 	if err := member.Validate(); err != nil {
@@ -210,10 +210,10 @@ func (s *memberService) UpdateMember(ctx context.Context, member *models.Member)
 		numToStr(member.ID),
 		existing, // datos anteriores
 		member,   // datos nuevos
-		"Updated member with numero_socio "+member.NumeroSocio)
+		"Updated member with numero_socio "+member.MembershipNumber)
 
 	s.appLogger.Info("Member updated successfully",
-		zap.String("numero_socio", member.NumeroSocio),
+		zap.String("numero_socio", member.MembershipNumber),
 		zap.Uint("member_id", member.ID))
 
 	return nil
@@ -242,11 +242,11 @@ func (s *memberService) DeactivateMember(ctx context.Context, id uint, fechaBaja
 	}
 
 	// Guardar estado anterior para métricas
-	previousStatus := member.Estado
-	previousType := member.TipoMembresia
+	previousStatus := member.State
+	previousType := member.MembershipType
 
 	// Verificar que no esté ya inactivo
-	if member.Estado == models.EstadoInactivo {
+	if member.State == models.EstadoInactivo {
 		s.appLogger.Warn("Member already inactive", zap.Uint("id", id))
 		s.auditLogger.LogError(ctx, audit.ActionUpdate, audit.EntityMember,
 			numToStr(id),
@@ -262,8 +262,8 @@ func (s *memberService) DeactivateMember(ctx context.Context, id uint, fechaBaja
 		now := time.Now()
 		fechaBaja = &now
 	}
-	member.FechaBaja = fechaBaja
-	member.Estado = models.EstadoInactivo
+	member.LeavingDate = fechaBaja
+	member.State = models.EstadoInactivo
 
 	// Validar y guardar cambios
 	if err := member.Validate(); err != nil {
@@ -296,10 +296,10 @@ func (s *memberService) DeactivateMember(ctx context.Context, id uint, fechaBaja
 		numToStr(id),
 		&previousState,
 		member,
-		"Deactivated member with numero_socio "+member.NumeroSocio)
+		"Deactivated member with numero_socio "+member.MembershipNumber)
 
 	s.appLogger.Info("Member deactivated successfully",
-		zap.String("numero_socio", member.NumeroSocio),
+		zap.String("numero_socio", member.MembershipNumber),
 		zap.Uint("member_id", member.ID))
 
 	// Actualizar métricas
@@ -309,8 +309,8 @@ func (s *memberService) DeactivateMember(ctx context.Context, id uint, fechaBaja
 	).Dec()
 
 	metrics.MembersByStatus.WithLabelValues(
-		member.Estado,
-		member.TipoMembresia,
+		member.State,
+		member.MembershipType,
 	).Inc()
 
 	return nil

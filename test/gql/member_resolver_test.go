@@ -63,7 +63,7 @@ var _ = Describe("Member", func() {
 				input := createValidMemberInput()
 
 				memberService.On("CreateMember", mock.Anything, mock.MatchedBy(func(m *models.Member) bool {
-					return m.TipoMembresia == models.TipoMembresiaPIndividual
+					return m.MembershipType == models.TipoMembresiaPIndividual
 				})).Return(nil)
 
 				// Usar ctx autenticado en lugar de context.Background()
@@ -71,7 +71,7 @@ var _ = Describe("Member", func() {
 
 				Expect(err).NotTo(HaveOccurred())
 				Expect(member).NotTo(BeNil())
-				Expect(member.TipoMembresia).To(Equal(models.TipoMembresiaPIndividual))
+				Expect(member.MembershipType).To(Equal(models.TipoMembresiaPIndividual))
 			})
 		})
 
@@ -81,7 +81,7 @@ var _ = Describe("Member", func() {
 				input.TipoMembresia = model.MembershipTypeFamily
 
 				memberService.On("CreateMember", mock.Anything, mock.MatchedBy(func(m *models.Member) bool {
-					return m.TipoMembresia == models.TipoMembresiaPFamiliar
+					return m.MembershipType == models.TipoMembresiaPFamiliar
 				})).Return(nil)
 
 				// Usar ctx autenticado en lugar de context.Background()
@@ -89,7 +89,7 @@ var _ = Describe("Member", func() {
 
 				Expect(err).NotTo(HaveOccurred())
 				Expect(member).NotTo(BeNil())
-				Expect(member.TipoMembresia).To(Equal(models.TipoMembresiaPFamiliar))
+				Expect(member.MembershipType).To(Equal(models.TipoMembresiaPFamiliar))
 			})
 		})
 
@@ -137,18 +137,18 @@ var _ = Describe("Member", func() {
 		When("member exists", func() {
 			It("updates successfully", func() {
 				existingMember := &models.Member{
-					ID:              1,
-					NumeroSocio:     test.GenerateValidNumeroSocio(1),
-					TipoMembresia:   models.TipoMembresiaPIndividual,
-					Nombre:          "Juan",
-					Apellidos:       "García",
-					CalleNumeroPiso: "Calle Test 1",
-					CodigoPostal:    "08001",
-					Poblacion:       "Barcelona",
-					Provincia:       "Barcelona",
-					Pais:            "España",
-					Estado:          models.EstadoActivo,
-					FechaAlta:       time.Now(),
+					ID:               1,
+					MembershipNumber: test.GenerateValidNumeroSocio(1),
+					MembershipType:   models.TipoMembresiaPIndividual,
+					Name:             "Juan",
+					Surnames:         "García",
+					Address:          "Calle Test 1",
+					Postcode:         "08001",
+					City:             "Barcelona",
+					Province:         "Barcelona",
+					Country:          "España",
+					State:            models.EstadoActivo,
+					RegistrationDate: time.Now(),
 				}
 
 				input := model.UpdateMemberInput{
@@ -159,7 +159,7 @@ var _ = Describe("Member", func() {
 
 				memberService.On("GetMemberByID", mock.Anything, uint(1)).Return(existingMember, nil)
 				memberService.On("UpdateMember", mock.Anything, mock.MatchedBy(func(m *models.Member) bool {
-					return m.ID == 1 && m.Poblacion == "Nueva Ciudad"
+					return m.ID == 1 && m.City == "Nueva Ciudad"
 				})).Return(nil)
 
 				// Usar ctx autenticado en lugar de context.Background()
@@ -167,8 +167,8 @@ var _ = Describe("Member", func() {
 
 				Expect(err).NotTo(HaveOccurred())
 				Expect(member).NotTo(BeNil())
-				Expect(member.Poblacion).To(Equal("Nueva Ciudad"))
-				Expect(member.TipoMembresia).To(Equal(existingMember.TipoMembresia))
+				Expect(member.City).To(Equal("Nueva Ciudad"))
+				Expect(member.MembershipType).To(Equal(existingMember.MembershipType))
 			})
 		})
 

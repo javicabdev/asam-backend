@@ -56,7 +56,7 @@ func (r *paymentResolver) validatePayment(ctx context.Context, payment *models.P
 		if member == nil {
 			return appErrors.NotFound("member", nil)
 		}
-		if member.Estado != models.EstadoActivo {
+		if member.State != models.EstadoActivo {
 			return appErrors.NewValidationError(
 				"Cannot register payment for inactive member",
 				map[string]string{

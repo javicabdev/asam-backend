@@ -30,7 +30,7 @@ Después de implementar el sistema de autenticación básico, nos encontramos co
    - **Solución**: Eliminar `auth_models.go` y usar los tipos generados por gqlgen
 
 2. **Referencias a campos incorrectos**:
-   - Campo `input.CalleNumeroPiso` vs `input.CalleNumeroPiso`
+   - Campo `input.Address` vs `input.Address`
    - **Solución**: Actualizar las referencias para usar los nombres correctos de los campos
 
 3. **Funciones no declaradas**:

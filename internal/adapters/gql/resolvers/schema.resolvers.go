@@ -39,7 +39,7 @@ func (r *memberResolver) MiembroID(ctx context.Context, obj *models.Member) (str
 
 // TipoMembresia is the resolver for the tipo_membresia field.
 func (r *memberResolver) TipoMembresia(ctx context.Context, obj *models.Member) (model.MembershipType, error) {
-	switch obj.TipoMembresia {
+	switch obj.MembershipType {
 	case models.TipoMembresiaPIndividual: // "individual"
 		return model.MembershipTypeIndividual, nil
 	case models.TipoMembresiaPFamiliar: // "familiar"
@@ -47,7 +47,7 @@ func (r *memberResolver) TipoMembresia(ctx context.Context, obj *models.Member) 
 	default:
 		return "",
 			appErrors.NewValidationError(
-				fmt.Sprintf("tipo_membresia desconocido: %s", obj.TipoMembresia),
+				fmt.Sprintf("tipo_membresia desconocido: %s", obj.MembershipType),
 				map[string]string{"tipo_membresia": "desconocido"},
 			)
 	}
@@ -55,7 +55,7 @@ func (r *memberResolver) TipoMembresia(ctx context.Context, obj *models.Member) 
 
 // Estado is the resolver for the estado field.
 func (r *memberResolver) Estado(ctx context.Context, obj *models.Member) (model.MemberStatus, error) {
-	switch obj.Estado {
+	switch obj.State {
 	case models.EstadoActivo: // "activo"
 		return model.MemberStatusActive, nil
 	case models.EstadoInactivo: // "inactivo"
@@ -63,7 +63,7 @@ func (r *memberResolver) Estado(ctx context.Context, obj *models.Member) (model.
 	default:
 		return "",
 			appErrors.NewValidationError(
-				fmt.Sprintf("estado desconocido: %s", obj.TipoMembresia),
+				fmt.Sprintf("estado desconocido: %s", obj.MembershipType),
 				map[string]string{"estado": "desconocido"},
 			)
 	}
@@ -452,7 +452,7 @@ func (r *queryResolver) ListMembers(ctx context.Context, filter *model.MemberFil
 			page = filter.Pagination.Page
 			pageSize = filter.Pagination.PageSize
 		}
-		// 3) Estado (ACTIVE / INACTIVE) → (activo / inactivo)
+		// 3) State (ACTIVE / INACTIVE) → (activo / inactivo)
 		if filter.Estado != nil {
 			tmp := ""
 			switch *filter.Estado {
@@ -863,7 +863,7 @@ type userResolver struct{ *Resolver }
 //    it when you're done.
 //  - You have helper methods in this file. Move them out to keep these resolver files clean.
 /*
-	func (r *memberResolver) CalleNumeroPiso(ctx context.Context, obj *models.Member) (string, error) {
-	return obj.CalleNumeroPiso, nil
+	func (r *memberResolver) Address(ctx context.Context, obj *models.Member) (string, error) {
+	return obj.Address, nil
 }
 */

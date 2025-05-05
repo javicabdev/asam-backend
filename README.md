@@ -117,7 +117,7 @@ Un workflow es una serie de tareas automatizadas definidas en un archivo YAML qu
 ### Estructura básica de un workflow
 
 ```yaml
-name: Nombre del Workflow
+name: Name del Workflow
 
 on:
   evento1:
@@ -127,7 +127,7 @@ on:
 
 jobs:
   trabajo1:
-    name: Nombre del Trabajo
+    name: Name del Trabajo
     runs-on: sistema-operativo
     steps:
       - name: Primer paso
@@ -365,7 +365,7 @@ Para que el pipeline funcione correctamente, es necesario configurar los siguien
 - `AIVEN_DB_PORT`: Puerto de la base de datos
 - `AIVEN_DB_USER`: Usuario de la base de datos
 - `AIVEN_DB_PASSWORD`: Contraseña de la base de datos
-- `AIVEN_DB_NAME`: Nombre de la base de datos
+- `AIVEN_DB_NAME`: Name de la base de datos
 - `JWT_SECRET`: Clave secreta para la generación de tokens JWT
 
 ### Configuración en GitHub

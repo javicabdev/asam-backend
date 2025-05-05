@@ -79,9 +79,9 @@ func updateBusinessMetrics(ctx context.Context,
 	)
 
 	for _, m := range members {
-		if m.Estado == models.EstadoActivo {
+		if m.State == models.EstadoActivo {
 			active++
-			if m.TipoMembresia == models.TipoMembresiaPIndividual {
+			if m.MembershipType == models.TipoMembresiaPIndividual {
 				individualActive++
 			} else {
 				familyActive++

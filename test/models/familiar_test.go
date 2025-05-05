@@ -35,22 +35,22 @@ func TestFamiliarValidation(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "ID de familia es requerido")
 
-	// Caso: Nombre faltante
+	// Caso: Name faltante
 	familiar.FamiliaID = 1 // Restaurar FamiliaID válido
 	familiar.Nombre = ""
 	err = familiar.Validate()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "nombre es requerido")
 
-	// Caso: Apellidos faltantes
-	familiar.Nombre = "Juan" // Restaurar Nombre válido
+	// Caso: Surnames faltantes
+	familiar.Nombre = "Juan" // Restaurar Name válido
 	familiar.Apellidos = ""
 	err = familiar.Validate()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "apellidos son requeridos")
 
 	// Caso: Parentesco faltante
-	familiar.Apellidos = "Pérez" // Restaurar Apellidos válidos
+	familiar.Apellidos = "Pérez" // Restaurar Surnames válidos
 	familiar.Parentesco = ""
 	err = familiar.Validate()
 	assert.Error(t, err)
