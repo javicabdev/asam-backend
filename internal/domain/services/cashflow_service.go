@@ -181,7 +181,7 @@ func (s *CashFlowService) GetCurrentBalance(ctx context.Context) (*input.Balance
 	}
 
 	// Convertir map a slice
-	var summaries []input.MovementSummary
+	summaries := make([]input.MovementSummary, 0, len(summaryMap))
 	for _, summary := range summaryMap {
 		summaries = append(summaries, *summary)
 	}
@@ -235,7 +235,7 @@ func (s *CashFlowService) GetBalanceByPeriod(ctx context.Context, startDate, end
 		}
 	}
 
-	var summaries []input.MovementSummary
+	var summaries = make([]input.MovementSummary, 0, len(summaryMap))
 	for _, summary := range summaryMap {
 		summaries = append(summaries, *summary)
 	}
@@ -433,7 +433,7 @@ func (s *CashFlowService) GetCashFlowTrends(ctx context.Context, period input.Pe
 	}
 
 	// Calcular tendencias mensuales
-	var trends []input.MonthlyTrend
+	trends := make([]input.MonthlyTrend, 0, len(monthlyData))
 	var prevBalance float64
 
 	// Ordenar meses
@@ -586,7 +586,7 @@ func calculateMonthlyAverages(movements []*models.CashFlow) monthlyAverages {
 
 	// Calcular promedios
 	numMonths := float64(len(monthlyData))
-	var balances []float64
+	var balances = make([]float64, 0, len(monthlyData))
 
 	for _, monthly := range monthlyData {
 		stats.avgIncome += monthly.income
