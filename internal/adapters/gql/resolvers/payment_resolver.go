@@ -192,29 +192,3 @@ func (r *paymentResolver) updatePayment(ctx context.Context, payment *models.Pay
 }
 
 // Helper methods for handling specific payment operations
-
-func (r *paymentResolver) validatePaymentInput(input *model.PaymentInput) error {
-	fields := make(map[string]string)
-
-	// Either member_id or family_id must be provided
-	if input.MemberID == nil && input.FamilyID == nil {
-		fields["member_id"] = "Either member_id or family_id is required"
-		fields["family_id"] = "Either member_id or family_id is required"
-	}
-
-	// Amount must be positive
-	if input.Amount <= 0 {
-		fields["amount"] = "Amount must be greater than zero"
-	}
-
-	// Payment method is required
-	if input.PaymentMethod == "" {
-		fields["payment_method"] = "Payment method is required"
-	}
-
-	if len(fields) > 0 {
-		return appErrors.NewValidationError("Invalid payment input", fields)
-	}
-
-	return nil
-}

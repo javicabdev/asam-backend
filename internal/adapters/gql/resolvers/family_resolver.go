@@ -119,35 +119,6 @@ func (r *familyResolver) handleFamilyMutation(ctx context.Context, family *model
 	return family, nil
 }
 
-func (r *familyResolver) handleFamiliarMutation(ctx context.Context, familyID uint, familiar *models.Familiar) (*models.Family, error) {
-	// Verify that the family exists
-	family, err := r.familyService.GetByID(ctx, familyID)
-	if err != nil {
-		return nil, errors.Wrap(err, errors.ErrDatabaseError, "Error fetching family")
-	}
-	if family == nil {
-		return nil, errors.NotFound("familia con ID "+fmt.Sprintf("%d", familyID), nil)
-	}
-
-	// Validate familiar data
-	if err := familiar.Validate(); err != nil {
-		var appErr *errors.AppError
-		if stdErrors.As(err, &appErr) {
-			return nil, appErr
-		}
-		return nil, errors.NewValidationError(err.Error(), nil)
-	}
-
-	// Add the familiar
-	err = r.familyService.AddFamiliar(ctx, familyID, familiar)
-	if err != nil {
-		return nil, errors.Wrap(err, errors.ErrInternalError, "Error adding familiar")
-	}
-
-	// Reload the family with updated familiares
-	return r.familyService.GetByID(ctx, familyID)
-}
-
 func (r *familyResolver) validateCreateFamilyInput(input *model.CreateFamilyInput) error {
 	fields := make(map[string]string)
 
