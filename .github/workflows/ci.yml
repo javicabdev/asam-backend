@@ -30,23 +30,20 @@ jobs:
       - name: Generate GraphQL code
         run: go run ./cmd/generate
 
-      # 2. Ordenar y descargar dependencias finales
+      # 2. Aplicar parches al código generado para hacerlo compatible con Go 1.24
+      - name: Fix GraphQL Generated Code
+        run: |
+          chmod +x ./.github/workflows/fix-gql.sh
+          ./.github/workflows/fix-gql.sh
+
+      # 3. Ordenar y descargar dependencias finales
       #    Aunque la caché esté activa, estos pasos aseguran consistencia.
       - name: Tidy Go modules
         run: go mod tidy
       - name: Download Go modules
         run: go mod download
 
-      # --- PASOS DE VERIFICACIÓN (Opcionales pero útiles si sigue fallando) ---
-      # - name: Verify Go Build
-      #   run: go build ./...
-      # - name: Verify Go Test Compilation
-      #   run: go test ./...
-      # - name: Verify sync/atomic build
-      #   run: go build sync/atomic
-      # --------------------------------------------------------------------
-
-      # 3. Ejecutar Linter usando la Acción Oficial
+      # 4. Ejecutar Linter usando la Acción Oficial
       - name: Run golangci-lint using Action
         uses: golangci/golangci-lint-action@v6 # Usar la acción oficial
         with:
@@ -55,16 +52,7 @@ jobs:
           version: v1.58.0
 
           # Argumentos para golangci-lint.
-          # Ya no necesitamos -v aquí, la acción tiene su propia verbosidad.
-          # Ya no necesitamos -E typecheck, ejecutaremos la configuración completa de .golangci.yml
-          # Ya no necesitamos --skip-cache, la acción maneja su caché.
           args: --timeout=5m
-
-          # Opcional: Especificar el directorio de trabajo si no es la raíz
-          # working-directory: subdir
-
-          # Opcional: Solo mostrar nuevos issues en PRs (más rápido en PRs)
-          # only-new-issues: true
 
       # --- Resto de verificaciones (Formato) ---
       # Estos pasos pueden permanecer como estaban
@@ -114,6 +102,12 @@ jobs:
       - name: Generate GraphQL code
         run: go run ./cmd/generate
 
+      # Aplicar parches al código generado
+      - name: Fix GraphQL Generated Code
+        run: |
+          chmod +x ./.github/workflows/fix-gql.sh
+          ./.github/workflows/fix-gql.sh
+
       - name: Build application
         run: go build -v ./cmd/api
 
@@ -136,6 +130,12 @@ jobs:
 
       - name: Generate GraphQL code
         run: go run ./cmd/generate
+
+      # Aplicar parches al código generado
+      - name: Fix GraphQL Generated Code
+        run: |
+          chmod +x ./.github/workflows/fix-gql.sh
+          ./.github/workflows/fix-gql.sh
 
       - name: Run unit tests
         run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./internal/... ./pkg/...
@@ -182,6 +182,12 @@ jobs:
       - name: Generate GraphQL code
         run: go run ./cmd/generate
 
+      # Aplicar parches al código generado
+      - name: Fix GraphQL Generated Code
+        run: |
+          chmod +x ./.github/workflows/fix-gql.sh
+          ./.github/workflows/fix-gql.sh
+
       - name: Setup test environment
         run: |
           cp .env.test .env
@@ -224,6 +230,12 @@ jobs:
       - name: Generate GraphQL code
         run: go run ./cmd/generate
 
+      # Aplicar parches al código generado
+      - name: Fix GraphQL Generated Code
+        run: |
+          chmod +x ./.github/workflows/fix-gql.sh
+          ./.github/workflows/fix-gql.sh
+
       - name: Run go vet
         run: go vet ./...
 
@@ -259,4 +271,3 @@ jobs:
 
       - name: Validate Conventional Commits
         uses: wagoid/commitlint-github-action@v5
-
