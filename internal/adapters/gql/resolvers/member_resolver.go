@@ -2,12 +2,14 @@ package resolvers
 
 import (
 	"context"
+	"time"
+
 	stdErrors "errors"
+
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/pkg/constants"
 	"github.com/javicabdev/asam-backend/pkg/errors"
-	"time"
 )
 
 func (r *memberResolver) handleMemberMutation(ctx context.Context, member *models.Member) (*models.Member, error) {

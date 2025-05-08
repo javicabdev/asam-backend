@@ -216,9 +216,7 @@ func PresentError(ctx context.Context, err error) *gqlerror.Error {
 
 // ConfigErrorPresenter configures the error presenter in gqlgen
 func ConfigErrorPresenter() graphql.ErrorPresenterFunc {
-	return func(ctx context.Context, err error) *gqlerror.Error {
-		return PresentError(ctx, err)
-	}
+	return PresentError
 }
 
 // LogPanic is a function to handle panic in resolvers

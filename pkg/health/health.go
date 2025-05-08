@@ -71,7 +71,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 
-	_ = json.NewEncoder(w).Encode(health)
+	if err := json.NewEncoder(w).Encode(health); err != nil {
+		// Log error pero no cambia la respuesta HTTP
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"status":"DOWN","components":{},"error":"Failed to encode health check"}`))
+	}
 }
 
 func (h *Handler) CheckHealth(ctx context.Context) Check {
