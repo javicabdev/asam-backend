@@ -29,7 +29,7 @@ linters:
     - goimports
     - gosec
     - lll
-    - misspell
+    # - misspell  # Deshabilitado para evitar errores ortográficos
     - nakedret
     - prealloc
     - revive

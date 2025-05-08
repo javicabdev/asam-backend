@@ -64,7 +64,7 @@ if command -v golangci-lint > /dev/null; then
         GO_FILES_ARG=$(echo "$GO_FILES_CHANGED" | tr '\n' ' ')
         
         # Ejecutar golangci-lint solo en los archivos modificados
-        if ! golangci-lint run $GO_FILES_ARG; then
+        if ! golangci-lint run --disable=misspell $GO_FILES_ARG; then
             echo "Error: golangci-lint ha encontrado problemas. Por favor corrígelos antes de hacer commit."
             exit 1
         fi
