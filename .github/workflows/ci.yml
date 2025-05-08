@@ -22,32 +22,24 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24' # Asegúrate que coincida con tu go.mod y toolchain
-          cache: true # Puedes volver a habilitar la caché una vez que funcione
+          cache: true # Re-habilitar caché
 
-      # --- CORRECCIÓN DE ORDEN ---
-      # 1. Descargar dependencias *necesarias para generar* (si cmd/generate las necesita)
-      #    Este paso asume que go mod download puede funcionar incluso si el código generado
-      #    aún no existe, descargando solo las dependencias del código existente y de cmd/generate.
-      #    Si `go run ./cmd/generate` falla aquí, podría necesitar un `go mod download` más específico
-      #    o que las dependencias de generate sean mínimas.
-      - name: Download Go modules (Initial for Generator)
-        run: go mod download
-
-      # 2. Generar el código GraphQL (u otro código generado)
+      # --- NUEVO ORDEN ---
+      # 1. Generar el código GraphQL (u otro código generado) PRIMERO
+      #    (Necesita las dependencias para 'cmd/generate' - asumimos que 'go mod download' implícito o la caché las proveen)
+      #    Si este paso falla por dependencias, podríamos necesitar un 'go mod download' *antes* de este.
       - name: Generate GraphQL code
         run: go run ./cmd/generate
 
-      # 3. Ordenar dependencias (Ahora que el código generado existe)
+      # 2. Ordenar dependencias DESPUÉS de generar (para que vea los nuevos imports)
       - name: Tidy Go modules
         run: go mod tidy
 
-      # 4. Descargar *todas* las dependencias (incluyendo las del código generado si añadió nuevas)
-      #    Este paso podría ser redundante si el primer download y tidy ya lo hicieron all,
-      #    pero es seguro incluirlo.
-      - name: Download Go modules (Final)
-        run: go mod download -v
+      # 3. Descargar *todas* las dependencias requeridas por el go.mod final
+      - name: Download Go modules
+        run: go mod download # Eliminado el flag -v inválido
 
-      # 5. Verificar estado (Opcional, para depuración)
+      # 4. Verificar estado (Opcional, para depuración)
       - name: Verify Go modules state and environment
         run: |
           echo "--- go version ---"
@@ -59,12 +51,13 @@ jobs:
           echo "--- Listing GOPATH/pkg/mod ---"
           ls -lR $(go env GOPATH)/pkg/mod || echo "GOPATH/pkg/mod not found or error listing."
 
-      # 6. Instalar y ejecutar el Linter (Ahora debería encontrar all)
+      # 5. Instalar y ejecutar el Linter (Ahora debería encontrar all)
       - name: Install golangci-lint
         run: |
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.58.0
 
-      - name: Run golangci-lint (Verbose)
+      - name: Run golangci-lint
+        # El flag -v aquí es para golangci-lint, no para go mod download
         run: golangci-lint run -v ./... --timeout=5m
 
       # --- Resto de verificaciones ---
@@ -105,10 +98,10 @@ jobs:
           go-version: ${{ matrix.go-version }}
           cache: true
 
+      # Orden corregido también aquí: generar ANTES de compilar
       - name: Get dependencies
         run: go mod download
 
-      # Generar código ANTES de construir la aplicación principal
       - name: Generate GraphQL code
         run: go run ./cmd/generate
 
@@ -129,10 +122,10 @@ jobs:
           go-version: '1.24'
           cache: true
 
+      # Orden corregido: generar ANTES de testear
       - name: Get dependencies
         run: go mod download
 
-      # Generar código ANTES de ejecutar tests que lo usen
       - name: Generate GraphQL code
         run: go run ./cmd/generate
 
@@ -175,18 +168,16 @@ jobs:
           go-version: '1.24'
           cache: true
 
+      # Orden corregido: generar ANTES de migrar/testear
       - name: Get dependencies
         run: go mod download
 
-      # Generar código ANTES de ejecutar migraciones o tests que lo usen
       - name: Generate GraphQL code
         run: go run ./cmd/generate
 
       - name: Setup test environment
         run: |
           cp .env.test .env
-          # Asumiendo que cmd/migrate no depende del código generado,
-          # pero si lo hiciera, generate debe ir antes.
           go run cmd/migrate/main.go -env local -cmd up
         env:
           DB_HOST: localhost
@@ -220,10 +211,10 @@ jobs:
           go-version: '1.24'
           cache: true
 
+      # Orden corregido: generar ANTES de analizar
       - name: Download Go modules (optional for static analysis, but safe)
         run: go mod download
 
-      # Generar código ANTES de análisis estático que lo necesite (como go vet)
       - name: Generate GraphQL code
         run: go run ./cmd/generate
 
