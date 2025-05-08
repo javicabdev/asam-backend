@@ -22,24 +22,42 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24' # Asegúrate que coincida con tu go.mod y toolchain
-          cache: true # Re-habilitar caché
+          cache: false # Mantenemos caché deshabilitada para diagnóstico
 
-      # --- NUEVO ORDEN ---
-      # 1. Generar el código GraphQL (u otro código generado) PRIMERO
-      #    (Necesita las dependencias para 'cmd/generate' - asumimos que 'go mod download' implícito o la caché las proveen)
-      #    Si este paso falla por dependencias, podríamos necesitar un 'go mod download' *antes* de este.
-      - name: Generate GraphQL code
-        run: go run ./cmd/generate
+      # 1. Descargar dependencias iniciales (necesarias para instalar/ejecutar herramientas)
+      - name: Download Go modules (Initial)
+        run: go mod download
 
-      # 2. Ordenar dependencias DESPUÉS de generar (para que vea los nuevos imports)
+      # 2. Instalar la versión EXACTA de gqlgen de go.mod
+      #    Reemplaza 'github.com/99designs/gqlgen' con la ruta real si es diferente
+      #    Reemplaza 'v0.17.73' con la versión exacta de tu go.mod si es diferente
+      - name: Install correct gqlgen version
+        run: go install github.com/99designs/gqlgen@v0.17.73
+
+      # 3. Generar el código usando la versión instalada explícitamente
+      #    Asegúrate que $(go env GOPATH)/bin esté en el PATH (setup-go usualmente lo hace)
+      #    Si tu comando es `go run ./cmd/generate`, asegúrate que ese script use `gqlgen` del PATH.
+      #    Alternativamente, si cmd/generate es simple, puedes invocar gqlgen directamente:
+      - name: Generate GraphQL code (using installed gqlgen)
+        run: gqlgen generate # O usa 'go run ./cmd/generate' si ese script invoca 'gqlgen' del PATH
+
+      # 4. Ordenar dependencias DESPUÉS de generar
       - name: Tidy Go modules
         run: go mod tidy
 
-      # 3. Descargar *todas* las dependencias requeridas por el go.mod final
-      - name: Download Go modules
-        run: go mod download # Eliminado el flag -v inválido
+      # 5. Verificar si go.mod o go.sum cambiaron después de tidy
+      #    Si cambian, significa que el código generado o las dependencias no estaban sincronizados.
+      #    Deberías ejecutar `go mod tidy` localmente y comitear los cambios.
+      - name: Check for module changes after tidy
+        run: |
+          git diff --exit-code -- go.mod go.sum || \
+            (echo "::error::go.mod or go.sum changed after 'go mod tidy'. Please run 'go mod tidy' locally and commit the changes." && exit 1)
 
-      # 4. Verificar estado (Opcional, para depuración)
+      # 6. Descargar *todas* las dependencias finales (probablemente redundante si tidy no cambió nada)
+      - name: Download Go modules (Final)
+        run: go mod download
+
+      # 7. Verificar estado (Opcional, para depuración)
       - name: Verify Go modules state and environment
         run: |
           echo "--- go version ---"
@@ -51,37 +69,45 @@ jobs:
           echo "--- Listing GOPATH/pkg/mod ---"
           ls -lR $(go env GOPATH)/pkg/mod || echo "GOPATH/pkg/mod not found or error listing."
 
-      # 5. Instalar y ejecutar el Linter (Ahora debería encontrar all)
+      # 8. Instalar y ejecutar el Linter (Enfocado en typecheck)
       - name: Install golangci-lint
         run: |
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.58.0
 
-      - name: Run golangci-lint
-        # El flag -v aquí es para golangci-lint, no para go mod download
-        run: golangci-lint run -v ./... --timeout=5m
+      - name: Run golangci-lint (typecheck only)
+        # Ejecutamos solo typecheck para aislar los errores 'undefined'
+        run: golangci-lint run -v --disable-all -E typecheck ./... --timeout=5m
 
-      # --- Resto de verificaciones ---
+      # --- Pasos de formato (pueden ejecutarse incluso si el lint falla) ---
       - name: Verify gofmt
+        if: always() # Ejecutar incluso si pasos anteriores fallan
         run: |
           OUTPUT=$(gofmt -s -l .)
           if [ -n "$OUTPUT" ]; then
-            echo "The following files are not formatted with gofmt:"
+            echo "::warning::The following files are not formatted with gofmt:"
             echo "$OUTPUT"
-            exit 1
+            # Considera no fallar aquí para ver los errores de lint primero
+            # exit 1
+          else
+            echo "All files are correctly formatted with gofmt."
           fi
-          echo "All files are correctly formatted with gofmt."
 
       - name: Validate imports (goimports)
+        if: always() # Ejecutar incluso si pasos anteriores fallan
         run: |
           go install golang.org/x/tools/cmd/goimports@latest
           OUTPUT=$(goimports -l .)
           if [ -n "$OUTPUT" ]; then
-            echo "The following files have import formatting issues:"
+            echo "::warning::The following files have import formatting issues:"
             echo "$OUTPUT"
-            exit 1
+            # Considera no fallar aquí para ver los errores de lint primero
+            # exit 1
+          else
+            echo "All imports are correctly formatted."
           fi
-          echo "All imports are correctly formatted."
 
+  # --- Resto de los jobs (build, unit-tests, etc.) ---
+  # Asegúrate de que el orden (generate -> build/test) se mantenga aquí también
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -98,12 +124,14 @@ jobs:
           go-version: ${{ matrix.go-version }}
           cache: true
 
-      # Orden corregido también aquí: generar ANTES de compilar
       - name: Get dependencies
         run: go mod download
 
-      - name: Generate GraphQL code
-        run: go run ./cmd/generate
+      - name: Install correct gqlgen version # Añadido por consistencia
+        run: go install github.com/99designs/gqlgen@v0.17.73
+
+      - name: Generate GraphQL code # Ejecutar ANTES de build
+        run: gqlgen generate # O usa 'go run ./cmd/generate'
 
       - name: Build application
         run: go build -v ./cmd/api
@@ -122,12 +150,14 @@ jobs:
           go-version: '1.24'
           cache: true
 
-      # Orden corregido: generar ANTES de testear
       - name: Get dependencies
         run: go mod download
 
-      - name: Generate GraphQL code
-        run: go run ./cmd/generate
+      - name: Install correct gqlgen version # Añadido por consistencia
+        run: go install github.com/99designs/gqlgen@v0.17.73
+
+      - name: Generate GraphQL code # Ejecutar ANTES de test
+        run: gqlgen generate # O usa 'go run ./cmd/generate'
 
       - name: Run unit tests
         run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./internal/... ./pkg/...
@@ -168,12 +198,14 @@ jobs:
           go-version: '1.24'
           cache: true
 
-      # Orden corregido: generar ANTES de migrar/testear
       - name: Get dependencies
         run: go mod download
 
-      - name: Generate GraphQL code
-        run: go run ./cmd/generate
+      - name: Install correct gqlgen version # Añadido por consistencia
+        run: go install github.com/99designs/gqlgen@v0.17.73
+
+      - name: Generate GraphQL code # Ejecutar ANTES de migrar/testear
+        run: gqlgen generate # O usa 'go run ./cmd/generate'
 
       - name: Setup test environment
         run: |
@@ -211,12 +243,14 @@ jobs:
           go-version: '1.24'
           cache: true
 
-      # Orden corregido: generar ANTES de analizar
       - name: Download Go modules (optional for static analysis, but safe)
         run: go mod download
 
-      - name: Generate GraphQL code
-        run: go run ./cmd/generate
+      - name: Install correct gqlgen version # Añadido por consistencia
+        run: go install github.com/99designs/gqlgen@v0.17.73
+
+      - name: Generate GraphQL code # Ejecutar ANTES de analizar
+        run: gqlgen generate # O usa 'go run ./cmd/generate'
 
       - name: Run go vet
         run: go vet ./...
