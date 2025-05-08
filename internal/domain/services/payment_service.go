@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"log"
 	"strconv"
 	"time"
 
@@ -53,7 +54,10 @@ func (s *paymentService) RegisterPayment(ctx context.Context, payment *models.Pa
 	}
 
 	// Registrar métricas del pago
-	s.recordPaymentMetrics(ctx, payment)
+	if err := s.recordPaymentMetrics(ctx, payment); err != nil {
+		// Registrar el error sin interrumpir el flujo principal
+		log.Printf("Error registrando métricas de pago: %v", err)
+	}
 
 	return nil
 }

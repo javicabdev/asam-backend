@@ -80,7 +80,6 @@ func (s *familyService) Update(ctx context.Context, family *models.Family) error
 	if family.MiembroOrigenID != nil &&
 		(existingFamily.MiembroOrigenID == nil ||
 			*existingFamily.MiembroOrigenID != *family.MiembroOrigenID) {
-
 		member, err := s.memberRepo.GetByID(ctx, *family.MiembroOrigenID)
 		if err != nil {
 			return errors.DB(err, "error verificando miembro origen")

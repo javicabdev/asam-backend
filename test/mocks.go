@@ -42,7 +42,11 @@ func (m *MockMemberRepository) GetByID(ctx context.Context, id uint) (*models.Me
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.Member), args.Error(1)
+	result, ok := args.Get(0).(*models.Member)
+	if !ok {
+		return nil, args.Error(1)
+	}
+	return result, args.Error(1)
 }
 
 func (m *MockMemberRepository) Update(ctx context.Context, member *models.Member) error {
@@ -55,7 +59,11 @@ func (m *MockMemberRepository) List(ctx context.Context, filters output.MemberFi
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]models.Member), args.Error(1)
+	result, ok := args.Get(0).([]models.Member)
+	if !ok {
+		return nil, args.Error(1)
+	}
+	return result, args.Error(1)
 }
 
 // MockLogger es un mock de Logger
@@ -99,7 +107,11 @@ func (m *MockFamilyRepository) GetByID(ctx context.Context, id uint) (*models.Fa
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.Family), args.Error(1)
+	result, ok := args.Get(0).(*models.Family)
+	if !ok {
+		return nil, args.Error(1)
+	}
+	return result, args.Error(1)
 }
 
 func (m *MockFamilyRepository) Update(ctx context.Context, family *models.Family) error {
@@ -117,7 +129,11 @@ func (m *MockFamilyRepository) GetByNumeroSocio(ctx context.Context, numeroSocio
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.Family), args.Error(1)
+	result, ok := args.Get(0).(*models.Family)
+	if !ok {
+		return nil, args.Error(1)
+	}
+	return result, args.Error(1)
 }
 
 func (m *MockFamilyRepository) List(ctx context.Context, page, pageSize int, searchTerm *string, orderBy string) ([]*models.Family, int, error) {
@@ -156,7 +172,11 @@ func (m *MockMemberRepository) GetByNumeroSocio(ctx context.Context, numeroSocio
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.Member), args.Error(1)
+	result, ok := args.Get(0).(*models.Member)
+	if !ok {
+		return nil, args.Error(1)
+	}
+	return result, args.Error(1)
 }
 
 func (m *MockMemberRepository) Delete(ctx context.Context, id uint) error {
@@ -358,7 +378,11 @@ func (m *MockFamilyService) GetByID(ctx context.Context, id uint) (*models.Famil
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.Family), args.Error(1)
+	result, ok := args.Get(0).(*models.Family)
+	if !ok {
+		return nil, args.Error(1)
+	}
+	return result, args.Error(1)
 }
 
 func (m *MockFamilyService) GetByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Family, error) {

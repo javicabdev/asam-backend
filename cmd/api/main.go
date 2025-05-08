@@ -60,11 +60,7 @@ func initLogging() (logger.Logger, audit.Logger, error) {
 }
 
 // updateBusinessMetrics actualiza periódicamente las métricas de negocio
-func updateBusinessMetrics(ctx context.Context,
-	memberService input.MemberService,
-	paymentService input.PaymentService,
-	cashFlowService input.CashFlowService) error {
-
+func updateBusinessMetrics(ctx context.Context, memberService input.MemberService, paymentService input.PaymentService, cashFlowService input.CashFlowService) error {
 	// Actualizar métricas de miembros
 	members, err := memberService.ListMembers(ctx, input.MemberFilters{})
 	if err != nil {
@@ -129,12 +125,7 @@ func updateBusinessMetrics(ctx context.Context,
 }
 
 // updateMetricsPeriodically actualiza las métricas de negocio cada minuto
-func updateMetricsPeriodically(ctx context.Context,
-	logger logger.Logger,
-	memberService input.MemberService,
-	paymentService input.PaymentService,
-	cashFlowService input.CashFlowService) {
-
+func updateMetricsPeriodically(ctx context.Context, logger logger.Logger, memberService input.MemberService, paymentService input.PaymentService, cashFlowService input.CashFlowService) {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
@@ -181,7 +172,6 @@ func createNotificationService(cfg *config.Config, logger logger.Logger) input.N
 }
 
 func main() {
-
 	// 1) Crear contexto base con cancelación
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

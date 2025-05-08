@@ -3,10 +3,11 @@ package db
 import (
 	"context"
 	"errors"
+	"time"
+
 	"github.com/javicabdev/asam-backend/internal/ports/output"
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 	"gorm.io/gorm"
-	"time"
 )
 
 // RefreshToken model for storing refresh tokens
