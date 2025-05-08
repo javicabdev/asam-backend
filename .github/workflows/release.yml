@@ -10,27 +10,27 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # Necesario para crear releases y subir artefactos
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-      
+          fetch-depth: 0 # Necesario para changelog-builder
+
       - name: Generate Changelog
         id: changelog
         uses: mikepenz/release-changelog-builder-action@v4
         with:
-          configuration: ".github/changelog-config.json"
-          commitMode: true
+          configuration: ".github/changelog-config.json" # Asegúrate que este archivo exista
+          commitMode: true # O false, dependiendo de tu estrategia
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
           body: ${{ steps.changelog.outputs.changelog }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          draft: true
+          draft: true # O false si quieres publicar directamente
           prerelease: contains(github.ref, '-rc') || contains(github.ref, '-beta') || contains(github.ref, '-alpha')
 
   build-binaries:
@@ -46,21 +46,21 @@ jobs:
             goarch: arm64
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
           cache: true
-      
+
       - name: Get dependencies
         run: go mod download
-      
+
       - name: Get version
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
         shell: bash
-      
+
       - name: Build
         env:
           GOOS: ${{ matrix.goos }}
@@ -68,13 +68,14 @@ jobs:
           CGO_ENABLED: 0
         run: |
           mkdir -p dist
-          OUTPUT_NAME=asam-backend_${{ steps.get_version.outputs.VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
+          OUTPUT_NAME="asam-backend_${{ steps.get_version.outputs.VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}"
           if [ "${{ matrix.goos }}" = "windows" ]; then
             OUTPUT_NAME="${OUTPUT_NAME}.exe"
           fi
+          # Asegúrate que la ruta a config.Version sea correcta
           go build -ldflags="-X 'github.com/javicabdev/asam-backend/internal/config.Version=${{ steps.get_version.outputs.VERSION }}'" -o "dist/${OUTPUT_NAME}" ./cmd/api
         shell: bash
-      
+
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
         with:
@@ -83,37 +84,41 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-and-deploy:
-    name: Build and Deploy to Google Cloud Run
+    name: Build and Deploy to Google Cloud Run (on Release)
     needs: create-release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Get version
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
         shell: bash
-      
-      # Autenticar con Google Cloud
+
+      # Paso 1: Autenticar en Google Cloud
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }} # Usar credentials_json para la SA Key
+
+      # Paso 2: Configurar Google Cloud CLI (gcloud)
+      # Ya no necesita parámetros de autenticación, ya que se hizo en el paso anterior.
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          export_default_credentials: true
-      
-      # Configurar Docker para usar gcloud como credencial helper
+          # service_account_key y export_default_credentials eliminados de aquí
+
       - name: Configure Docker for GCR
-        run: gcloud auth configure-docker gcr.io
-      
-      # Construir y publicar la imagen en Google Container Registry
+        run: gcloud auth configure-docker gcr.io --quiet
+
       - name: Build and Push Docker Image
         run: |
           docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/asam-backend:${{ steps.get_version.outputs.VERSION }} -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/asam-backend:latest .
           docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/asam-backend:${{ steps.get_version.outputs.VERSION }}
           docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/asam-backend:latest
-      
-      # Desplegar en Cloud Run
+
       - name: Deploy to Cloud Run
         id: deploy
         uses: google-github-actions/deploy-cloudrun@v2
@@ -127,10 +132,21 @@ jobs:
             DB_USER=${{ secrets.AIVEN_DB_USER }}
             DB_PASSWORD=${{ secrets.AIVEN_DB_PASSWORD }}
             DB_NAME=${{ secrets.AIVEN_DB_NAME }}
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
-            ENV=production
-      
-      # Ejecutar migraciones en la base de datos
+            DB_SSL_MODE=require
+            JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}
+            JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+            ENVIRONMENT=production
+            PORT=8080
+
+      - name: Set up Go for migrate tool
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Download dependencies for migrate tool
+        run: go mod download
+
       - name: Run Database Migrations
         run: |
           go build -o migrate ./cmd/migrate
@@ -141,13 +157,14 @@ jobs:
           DB_USER: ${{ secrets.AIVEN_DB_USER }}
           DB_PASSWORD: ${{ secrets.AIVEN_DB_PASSWORD }}
           DB_NAME: ${{ secrets.AIVEN_DB_NAME }}
-      
-      # Publicar la URL del servicio en la release
+          DB_SSL_MODE: require
+
       - name: Update Release with Service URL
         uses: softprops/action-gh-release@v1
         with:
           body: |
-            ${{ steps.deploy.outputs.url }}
+            Deployment successful!
+            Service URL: ${{ steps.deploy.outputs.url }}
           append_body: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -19,13 +19,16 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.24' # Asegúrate que coincida con tu go.mod
           cache: true
-      
+
+      - name: Download dependencies # <--- CORRECCIÓN AÑADIDA
+        run: go mod download
+
       - name: Install golangci-lint
         run: |
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.58.0
-      
+
       - name: Run golangci-lint
         run: golangci-lint run ./... --timeout=5m
 
@@ -36,7 +39,7 @@ jobs:
             echo "Code is not formatted with gofmt"
             exit 1
           fi
-      
+
       - name: Validate imports
         run: |
           go install golang.org/x/tools/cmd/goimports@latest
@@ -51,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ['1.23', '1.24']
+        go-version: ['1.23', '1.24'] # Mantén la matriz si necesitas probar con múltiples versiones
     steps:
       - uses: actions/checkout@v4
       - name: Set up Go ${{ matrix.go-version }}
@@ -59,20 +62,20 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
           cache: true
-      
+
       - name: Get dependencies
         run: go mod download
-      
-      - name: Generate GraphQL code
+
+      - name: Generate GraphQL code # Asumiendo que este comando existe y es necesario
         run: go run ./cmd/generate
-      
+
       - name: Build
         run: go build -v ./cmd/api
 
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
-    needs: [lint, build]
+    needs: [lint, build] # Depende de lint y build
     steps:
       - uses: actions/checkout@v4
       - name: Set up Go
@@ -80,27 +83,27 @@ jobs:
         with:
           go-version: '1.24'
           cache: true
-      
+
       - name: Get dependencies
         run: go mod download
-      
-      - name: Generate GraphQL code
+
+      - name: Generate GraphQL code # Asumiendo que este comando existe y es necesario
         run: go run ./cmd/generate
-        
+
       - name: Run unit tests
         run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./internal/... ./pkg/...
-      
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
           file: ./coverage.txt
           flags: unittests
-          fail_ci_if_error: true
+          fail_ci_if_error: true # Considerar si quieres que falle el CI si Codecov falla
 
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
-    needs: [lint, build]
+    needs: [lint, build] # Depende de lint y build
     services:
       postgres:
         image: postgres:15
@@ -115,7 +118,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    
+
     steps:
       - uses: actions/checkout@v4
       - name: Set up Go
@@ -123,22 +126,22 @@ jobs:
         with:
           go-version: '1.24'
           cache: true
-      
+
       - name: Get dependencies
         run: go mod download
-      
+
       - name: Setup test environment
         run: |
-          cp .env.test .env
-          go run cmd/migrate/main.go up
-      
+          cp .env.test .env # Asegúrate que .env.test exista y esté configurado
+          go run cmd/migrate/main.go up # Asume que el binario de migración se ejecuta así
+
       - name: Run integration tests
         run: go test -v -tags=integration ./test/integration/...
 
   code-quality:
     name: Code Quality Analysis
     runs-on: ubuntu-latest
-    needs: [unit-tests, integration-tests]
+    needs: [unit-tests, integration-tests] # Depende de tests
     steps:
       - uses: actions/checkout@v4
       - name: Set up Go
@@ -146,29 +149,33 @@ jobs:
         with:
           go-version: '1.24'
           cache: true
-      
+
+      # No es necesario go mod download aquí si solo se ejecutan herramientas estáticas
+      # y las dependencias no afectan a go vet directamente de una manera que falle sin ellas.
+      # Sin embargo, si go vet da problemas, añadir go mod download aquí.
+
       - name: Run go vet
         run: go vet ./...
-      
+
       - name: Check cyclomatic complexity
         run: |
           go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
           gocyclo -over 15 .
-      
-      - name: Generate coverage report
+
+      - name: Generate coverage report (consolidated if needed, or use unit test one)
+        # Este paso podría ser redundante si ya tienes coverage.txt de unit-tests
+        # y Codecov ya lo ha subido. O puedes generar un reporte consolidado.
         run: go test -coverprofile=coverage.out ./...
-      
+
       - name: Check coverage
         run: |
           go tool cover -func=coverage.out
-          # Fail if coverage is below threshold
           COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
           if (( $(echo "$COVERAGE < 70" | bc -l) )); then
             echo "Code coverage is below 70%: $COVERAGE%"
             exit 1
           fi
 
-  # Job para validar convenciones de commits
   validate-commits:
     name: Validate Commit Messages
     runs-on: ubuntu-latest
@@ -176,7 +183,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-      
+          fetch-depth: 0 # Necesario para commitlint
+
       - name: Validate Conventional Commits
         uses: wagoid/commitlint-github-action@v5
