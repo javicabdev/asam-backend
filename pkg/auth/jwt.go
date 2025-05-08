@@ -2,9 +2,10 @@ package auth
 
 import (
 	"fmt"
-	jwt "github.com/golang-jwt/jwt/v4"
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 )
 
 // TokenDetails contiene la información de los tokens generados

@@ -2,8 +2,9 @@ package input
 
 import (
 	"context"
-	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"time"
+
+	"github.com/javicabdev/asam-backend/internal/domain/models"
 )
 
 // MemberService define las operaciones de negocio disponibles para la gestión de miembros

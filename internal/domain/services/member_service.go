@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/internal/ports/output"
@@ -12,7 +14,6 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/logger"
 	"github.com/javicabdev/asam-backend/pkg/logger/audit"
 	"github.com/javicabdev/asam-backend/pkg/metrics"
-	"go.uber.org/zap"
 )
 
 type memberService struct {

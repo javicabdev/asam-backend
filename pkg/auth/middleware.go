@@ -3,10 +3,11 @@ package auth
 import (
 	"context"
 	"encoding/json"
-	"github.com/javicabdev/asam-backend/internal/ports/input"
-	"github.com/javicabdev/asam-backend/pkg/constants"
 	"net/http"
 	"strings"
+
+	"github.com/javicabdev/asam-backend/internal/ports/input"
+	"github.com/javicabdev/asam-backend/pkg/constants"
 )
 
 type Middleware struct {

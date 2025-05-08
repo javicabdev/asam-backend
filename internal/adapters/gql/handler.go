@@ -3,9 +3,16 @@ package gql
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/vektah/gqlparser/v2/gqlerror"
+	"go.uber.org/zap"
+	"golang.org/x/time/rate"
+	"gorm.io/gorm"
+
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/generated"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/middleware"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
@@ -15,11 +22,6 @@ import (
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/pkg/logger"
 	"github.com/javicabdev/asam-backend/pkg/metrics"
-	"github.com/vektah/gqlparser/v2/gqlerror"
-	"go.uber.org/zap"
-	"golang.org/x/time/rate"
-	"gorm.io/gorm"
-	"net/http"
 )
 
 // corsMiddleware es un middleware simple para CORS

@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/javicabdev/asam-backend/pkg/logger"
 	"go.uber.org/zap"
+
+	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
 type Logger interface {

@@ -1,12 +1,14 @@
 package auth
 
 import (
-	"github.com/javicabdev/asam-backend/pkg/logger"
-	"go.uber.org/zap"
-	"golang.org/x/time/rate"
 	"net/http"
 	"sync"
 	"time"
+
+	"go.uber.org/zap"
+	"golang.org/x/time/rate"
+
+	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
 type RateLimiter struct {

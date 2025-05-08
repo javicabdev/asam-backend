@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/vektah/gqlparser/v2/gqlerror"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"net/http"
 
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/pkg/logger"
-	"go.uber.org/zap"
 )
 
 // ErrorHandlerKey is a typed key for context

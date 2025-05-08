@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/99designs/gqlgen/graphql"
-	"github.com/javicabdev/asam-backend/internal/adapters/gql/middleware"
-	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 	"gorm.io/gorm"
+
+	"github.com/javicabdev/asam-backend/internal/adapters/gql/middleware"
+	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 )
 
 // CustomErrorPresenter transforms errors into GraphQL errors

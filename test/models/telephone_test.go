@@ -1,9 +1,11 @@
 package models_test
 
 import (
-	"github.com/javicabdev/asam-backend/internal/domain/models"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/javicabdev/asam-backend/internal/domain/models"
 )
 
 // Helper para crear un Telephone válido
