@@ -7,7 +7,7 @@ import (
 
 var (
 	// Métrica para total de requests HTTP
-	HttpRequestsTotal = promauto.NewCounterVec(
+	HTTPRequestsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "asam_http_requests_total",
 			Help: "Total number of HTTP requests",
@@ -16,7 +16,7 @@ var (
 	)
 
 	// Métrica para duración de requests HTTP
-	HttpRequestDuration = promauto.NewHistogramVec(
+	HTTPRequestDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "asam_http_request_duration_seconds",
 			Help:    "Duration of HTTP requests in seconds",
@@ -26,7 +26,7 @@ var (
 	)
 
 	// Métrica para total de operaciones de BD
-	DbOperationsTotal = promauto.NewCounterVec(
+	DBOperationsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "asam_db_operations_total",
 			Help: "Total number of database operations",
@@ -35,7 +35,7 @@ var (
 	)
 
 	// Métrica para duración de operaciones de BD
-	DbOperationDuration = promauto.NewHistogramVec(
+	DBOperationDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "asam_db_operation_duration_seconds",
 			Help:    "Duration of database operations in seconds",

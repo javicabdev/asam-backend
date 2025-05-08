@@ -47,7 +47,7 @@ func endOperation(db *gorm.DB, operation string) {
 			status = "error"
 		}
 
-		DbOperationsTotal.WithLabelValues(operation, table, status).Inc()
-		DbOperationDuration.WithLabelValues(operation, table).Observe(duration)
+		DBOperationsTotal.WithLabelValues(operation, table, status).Inc()
+		DBOperationDuration.WithLabelValues(operation, table).Observe(duration)
 	}
 }

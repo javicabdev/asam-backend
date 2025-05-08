@@ -320,8 +320,9 @@ func main() {
 
 	// 13) Crear servidor HTTP
 	server := &http.Server{
-		Addr:    ":8080",
-		Handler: mux,
+		Addr:              ":8080",
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second, // Previene ataques Slowloris
 	}
 
 	// 14) Canal para errores del servidor
