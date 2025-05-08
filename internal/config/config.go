@@ -2,10 +2,11 @@ package config
 
 import (
 	"context"
+	"time"
+
 	"github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/joho/godotenv"
 	envconfig "github.com/sethvargo/go-envconfig"
-	"time"
 )
 
 // Config define las variables de entorno que tu aplicación necesita.
