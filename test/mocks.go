@@ -41,14 +41,18 @@ func (m *MockMemberRepository) Create(ctx context.Context, member *models.Member
 
 func (m *MockMemberRepository) GetByID(ctx context.Context, id uint) (*models.Member, error) {
 	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+
+	var member *models.Member
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		member, ok = ret0.(*models.Member)
+		if !ok {
+			return nil, err // Return zero value for member if type assertion fails
+		}
 	}
-	result, ok := args.Get(0).(*models.Member)
-	if !ok {
-		return nil, args.Error(1)
-	}
-	return result, args.Error(1)
+	return member, err
 }
 
 func (m *MockMemberRepository) Update(ctx context.Context, member *models.Member) error {
@@ -58,14 +62,39 @@ func (m *MockMemberRepository) Update(ctx context.Context, member *models.Member
 
 func (m *MockMemberRepository) List(ctx context.Context, filters output.MemberFilters) ([]models.Member, error) {
 	args := m.Called(ctx, filters)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+
+	var members []models.Member
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		members, ok = ret0.([]models.Member)
+		if !ok {
+			return nil, err // Return zero value for members if type assertion fails
+		}
 	}
-	result, ok := args.Get(0).([]models.Member)
-	if !ok {
-		return nil, args.Error(1)
+	return members, err
+}
+
+func (m *MockMemberRepository) GetByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Member, error) {
+	args := m.Called(ctx, numeroSocio)
+	err := args.Error(1)
+
+	var member *models.Member
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		member, ok = ret0.(*models.Member)
+		if !ok {
+			return nil, err
+		}
 	}
-	return result, args.Error(1)
+	return member, err
+}
+
+func (m *MockMemberRepository) Delete(ctx context.Context, id uint) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
 }
 
 // MockLogger es un mock de Logger
@@ -106,14 +135,18 @@ func (m *MockFamilyRepository) Create(ctx context.Context, family *models.Family
 
 func (m *MockFamilyRepository) GetByID(ctx context.Context, id uint) (*models.Family, error) {
 	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+
+	var family *models.Family
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		family, ok = ret0.(*models.Family)
+		if !ok {
+			return nil, err
+		}
 	}
-	result, ok := args.Get(0).(*models.Family)
-	if !ok {
-		return nil, args.Error(1)
-	}
-	return result, args.Error(1)
+	return family, err
 }
 
 func (m *MockFamilyRepository) Update(ctx context.Context, family *models.Family) error {
@@ -128,22 +161,39 @@ func (m *MockFamilyRepository) Delete(ctx context.Context, id uint) error {
 
 func (m *MockFamilyRepository) GetByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Family, error) {
 	args := m.Called(ctx, numeroSocio)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+
+	var family *models.Family
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		family, ok = ret0.(*models.Family)
+		if !ok {
+			return nil, err
+		}
 	}
-	result, ok := args.Get(0).(*models.Family)
-	if !ok {
-		return nil, args.Error(1)
-	}
-	return result, args.Error(1)
+	return family, err
 }
 
 func (m *MockFamilyRepository) List(ctx context.Context, page, pageSize int, searchTerm *string, orderBy string) ([]*models.Family, int, error) {
 	args := m.Called(ctx, page, pageSize, searchTerm, orderBy)
-	if args.Get(0) == nil {
-		return nil, 0, args.Error(2)
+	err := args.Error(2) // Error is the third return value (index 2)
+
+	var families []*models.Family
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		families, ok = ret0.([]*models.Family)
+		if !ok {
+			// If type assertion for families fails, return zero values for both families and count
+			return nil, 0, err
+		}
 	}
-	return args.Get(0).([]*models.Family), args.Int(1), args.Error(2)
+
+	// Get the count, args.Int is safe and returns 0 if not set or wrong type
+	count := args.Int(1)
+
+	return families, count, err
 }
 
 func (m *MockFamilyRepository) AddFamiliar(ctx context.Context, familyID uint, familiar *models.Familiar) error {
@@ -163,27 +213,18 @@ func (m *MockFamilyRepository) RemoveFamiliar(ctx context.Context, familiarID ui
 
 func (m *MockFamilyRepository) GetFamiliares(ctx context.Context, familyID uint) ([]*models.Familiar, error) {
 	args := m.Called(ctx, familyID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]*models.Familiar), args.Error(1)
-}
+	err := args.Error(1) // Error is the second return value (index 1)
 
-func (m *MockMemberRepository) GetByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Member, error) {
-	args := m.Called(ctx, numeroSocio)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	var familiares []*models.Familiar
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		familiares, ok = ret0.([]*models.Familiar)
+		if !ok {
+			return nil, err // Return zero value for slice if type assertion fails
+		}
 	}
-	result, ok := args.Get(0).(*models.Member)
-	if !ok {
-		return nil, args.Error(1)
-	}
-	return result, args.Error(1)
-}
-
-func (m *MockMemberRepository) Delete(ctx context.Context, id uint) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
+	return familiares, err
 }
 
 // MockPaymentRepository es un mock de PaymentRepository
@@ -208,20 +249,50 @@ func (m *MockPaymentRepository) Delete(ctx context.Context, id uint) error {
 
 func (m *MockPaymentRepository) FindByID(ctx context.Context, id uint) (*models.Payment, error) {
 	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1) // Error is the second return value (index 1)
+
+	var payment *models.Payment
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		payment, ok = ret0.(*models.Payment)
+		if !ok {
+			return nil, err // Return zero value for pointer if type assertion fails
+		}
 	}
-	return args.Get(0).(*models.Payment), args.Error(1)
+	return payment, err
 }
 
 func (m *MockPaymentRepository) FindByMember(ctx context.Context, memberID uint, from, to time.Time) ([]models.Payment, error) {
 	args := m.Called(ctx, memberID, from, to)
-	return args.Get(0).([]models.Payment), args.Error(1)
+	err := args.Error(1)
+
+	var payments []models.Payment
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		payments, ok = ret0.([]models.Payment)
+		if !ok {
+			return nil, err
+		}
+	}
+	return payments, err
 }
 
 func (m *MockPaymentRepository) FindByFamily(ctx context.Context, familyID uint, from, to time.Time) ([]models.Payment, error) {
 	args := m.Called(ctx, familyID, from, to)
-	return args.Get(0).([]models.Payment), args.Error(1)
+	err := args.Error(1)
+
+	var payments []models.Payment
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		payments, ok = ret0.([]models.Payment)
+		if !ok {
+			return nil, err
+		}
+	}
+	return payments, err
 }
 
 // MockMembershipFeeRepository es un mock de MembershipFeeRepository
@@ -241,23 +312,50 @@ func (m *MockMembershipFeeRepository) Update(ctx context.Context, fee *models.Me
 
 func (m *MockMembershipFeeRepository) FindByYearMonth(ctx context.Context, year, month int) (*models.MembershipFee, error) {
 	args := m.Called(ctx, year, month)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+
+	var fee *models.MembershipFee
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		fee, ok = ret0.(*models.MembershipFee)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*models.MembershipFee), args.Error(1)
+	return fee, err
 }
 
 func (m *MockMembershipFeeRepository) FindPendingByMember(ctx context.Context, memberID uint) ([]models.MembershipFee, error) {
 	args := m.Called(ctx, memberID)
-	return args.Get(0).([]models.MembershipFee), args.Error(1)
+	err := args.Error(1)
+
+	var fees []models.MembershipFee
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		fees, ok = ret0.([]models.MembershipFee)
+		if !ok {
+			return nil, err
+		}
+	}
+	return fees, err
 }
 
 func (m *MockMembershipFeeRepository) FindByID(ctx context.Context, id uint) (*models.MembershipFee, error) {
 	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+
+	var fee *models.MembershipFee
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		fee, ok = ret0.(*models.MembershipFee)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*models.MembershipFee), args.Error(1)
+	return fee, err
 }
 
 // MockCashFlowRepository es un mock de CashFlowRepository
@@ -272,18 +370,34 @@ func (m *MockCashFlowRepository) Create(ctx context.Context, cashFlow *models.Ca
 
 func (m *MockCashFlowRepository) GetByID(ctx context.Context, id uint) (*models.CashFlow, error) {
 	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+
+	var cashFlow *models.CashFlow
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		cashFlow, ok = ret0.(*models.CashFlow)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*models.CashFlow), args.Error(1)
+	return cashFlow, err
 }
 
 func (m *MockCashFlowRepository) GetByPaymentID(ctx context.Context, paymentID uint) (*models.CashFlow, error) {
 	args := m.Called(ctx, paymentID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+
+	var cashFlow *models.CashFlow
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		cashFlow, ok = ret0.(*models.CashFlow)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*models.CashFlow), args.Error(1)
+	return cashFlow, err
 }
 
 func (m *MockCashFlowRepository) Update(ctx context.Context, cashFlow *models.CashFlow) error {
@@ -298,15 +412,36 @@ func (m *MockCashFlowRepository) Delete(ctx context.Context, id uint) error {
 
 func (m *MockCashFlowRepository) List(ctx context.Context, filter output.CashFlowFilter) ([]*models.CashFlow, error) {
 	args := m.Called(ctx, filter)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+
+	var cashFlows []*models.CashFlow
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		cashFlows, ok = ret0.([]*models.CashFlow)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).([]*models.CashFlow), args.Error(1)
+	return cashFlows, err
 }
 
 func (m *MockCashFlowRepository) GetBalance(ctx context.Context) (float64, error) {
 	args := m.Called(ctx)
-	return args.Get(0).(float64), args.Error(1)
+	err := args.Error(1)
+	// For simple types like float64, args.Float() is safer as it handles type assertion
+	// and defaults to 0.0 if not configured or wrong type.
+	balance := args.Get(0) // Get raw value
+	if balance == nil {
+		return 0.0, err // Return 0.0 if not configured
+	}
+
+	floatBalance, ok := balance.(float64)
+	if !ok {
+		// If it's not a float64, it's a mock setup issue. Return 0.0 and the error.
+		return 0.0, err
+	}
+	return floatBalance, err
 }
 
 // MockMemberService es un mock de MemberService
@@ -321,18 +456,32 @@ func (m *MockMemberService) CreateMember(ctx context.Context, member *models.Mem
 
 func (m *MockMemberService) GetMemberByID(ctx context.Context, id uint) (*models.Member, error) {
 	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+	var member *models.Member
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		member, ok = ret0.(*models.Member)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*models.Member), args.Error(1)
+	return member, err
 }
 
 func (m *MockMemberService) GetMemberByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Member, error) {
 	args := m.Called(ctx, numeroSocio)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+	var member *models.Member
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		member, ok = ret0.(*models.Member)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*models.Member), args.Error(1)
+	return member, err
 }
 
 func (m *MockMemberService) UpdateMember(ctx context.Context, member *models.Member) error {
@@ -347,12 +496,17 @@ func (m *MockMemberService) DeactivateMember(ctx context.Context, id uint, fecha
 
 func (m *MockMemberService) ListMembers(ctx context.Context, filters input.MemberFilters) ([]*models.Member, error) {
 	args := m.Called(ctx, filters)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+	var members []*models.Member
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		members, ok = ret0.([]*models.Member)
+		if !ok {
+			return nil, err
+		}
 	}
-	// Convert the returned slice to []*models.Member
-	members := args.Get(0).([]*models.Member)
-	return members, args.Error(1)
+	return members, err
 }
 
 // MockFamilyService es un mock de FamilyService
@@ -377,30 +531,48 @@ func (m *MockFamilyService) Delete(ctx context.Context, id uint) error {
 
 func (m *MockFamilyService) GetByID(ctx context.Context, id uint) (*models.Family, error) {
 	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+	var family *models.Family
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		family, ok = ret0.(*models.Family)
+		if !ok {
+			return nil, err
+		}
 	}
-	result, ok := args.Get(0).(*models.Family)
-	if !ok {
-		return nil, args.Error(1)
-	}
-	return result, args.Error(1)
+	return family, err
 }
 
 func (m *MockFamilyService) GetByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Family, error) {
 	args := m.Called(ctx, numeroSocio)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+	var family *models.Family
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		family, ok = ret0.(*models.Family)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*models.Family), args.Error(1)
+	return family, err
 }
 
 func (m *MockFamilyService) List(ctx context.Context, page, pageSize int, searchTerm *string, orderBy string) ([]*models.Family, int, error) {
 	args := m.Called(ctx, page, pageSize, searchTerm, orderBy)
-	if args.Get(0) == nil {
-		return nil, 0, args.Error(2)
+	err := args.Error(2)
+	var families []*models.Family
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		families, ok = ret0.([]*models.Family)
+		if !ok {
+			return nil, 0, err
+		}
 	}
-	return args.Get(0).([]*models.Family), args.Int(1), args.Error(2)
+	count := args.Int(1)
+	return families, count, err
 }
 
 func (m *MockFamilyService) AddFamiliar(ctx context.Context, familyID uint, familiar *models.Familiar) error {
@@ -420,10 +592,17 @@ func (m *MockFamilyService) RemoveFamiliar(ctx context.Context, familiarID uint)
 
 func (m *MockFamilyService) GetFamiliares(ctx context.Context, familyID uint) ([]*models.Familiar, error) {
 	args := m.Called(ctx, familyID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+	var familiares []*models.Familiar
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		familiares, ok = ret0.([]*models.Familiar)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).([]*models.Familiar), args.Error(1)
+	return familiares, err
 }
 
 // MockPaymentService es un mock de input.PaymentService
@@ -443,20 +622,47 @@ func (m *MockPaymentService) CancelPayment(ctx context.Context, paymentID uint, 
 
 func (m *MockPaymentService) GetPayment(ctx context.Context, paymentID uint) (*models.Payment, error) {
 	args := m.Called(ctx, paymentID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+	var payment *models.Payment
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		payment, ok = ret0.(*models.Payment)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*models.Payment), args.Error(1)
+	return payment, err
 }
 
 func (m *MockPaymentService) GetMemberPayments(ctx context.Context, memberID uint) ([]*models.Payment, error) {
 	args := m.Called(ctx, memberID)
-	return args.Get(0).([]*models.Payment), args.Error(1)
+	err := args.Error(1)
+	var payments []*models.Payment
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		payments, ok = ret0.([]*models.Payment)
+		if !ok {
+			return nil, err
+		}
+	}
+	return payments, err
 }
 
 func (m *MockPaymentService) GetFamilyPayments(ctx context.Context, familyID uint) ([]*models.Payment, error) {
 	args := m.Called(ctx, familyID)
-	return args.Get(0).([]*models.Payment), args.Error(1)
+	err := args.Error(1)
+	var payments []*models.Payment
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		payments, ok = ret0.([]*models.Payment)
+		if !ok {
+			return nil, err
+		}
+	}
+	return payments, err
 }
 
 func (m *MockPaymentService) GenerateMonthlyFees(ctx context.Context, year, month int, baseAmount float64) error {
@@ -466,10 +672,17 @@ func (m *MockPaymentService) GenerateMonthlyFees(ctx context.Context, year, mont
 
 func (m *MockPaymentService) GetMembershipFee(ctx context.Context, year, month int) (*models.MembershipFee, error) {
 	args := m.Called(ctx, year, month)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+	var fee *models.MembershipFee
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		fee, ok = ret0.(*models.MembershipFee)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*models.MembershipFee), args.Error(1)
+	return fee, err
 }
 
 func (m *MockPaymentService) UpdateFeeAmount(ctx context.Context, feeID uint, newAmount float64) error {
@@ -479,23 +692,47 @@ func (m *MockPaymentService) UpdateFeeAmount(ctx context.Context, feeID uint, ne
 
 func (m *MockPaymentService) GetMemberStatement(ctx context.Context, memberID uint) (*input.AccountStatement, error) {
 	args := m.Called(ctx, memberID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+	var statement *input.AccountStatement
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		statement, ok = ret0.(*input.AccountStatement)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*input.AccountStatement), args.Error(1)
+	return statement, err
 }
 
 func (m *MockPaymentService) GetFamilyStatement(ctx context.Context, familyID uint) (*input.AccountStatement, error) {
 	args := m.Called(ctx, familyID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+	var statement *input.AccountStatement
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		statement, ok = ret0.(*input.AccountStatement)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*input.AccountStatement), args.Error(1)
+	return statement, err
 }
 
 func (m *MockPaymentService) GetDefaulters(ctx context.Context) ([]input.AccountStatement, error) {
 	args := m.Called(ctx)
-	return args.Get(0).([]input.AccountStatement), args.Error(1)
+	err := args.Error(1) // Assuming error is the second return value (index 1)
+	var statements []input.AccountStatement
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		statements, ok = ret0.([]input.AccountStatement)
+		if !ok {
+			return nil, err
+		}
+	}
+	return statements, err
 }
 
 func (m *MockPaymentService) SendPaymentReminder(ctx context.Context, memberID uint) error {
@@ -525,10 +762,17 @@ func (m *MockCashFlowService) RegisterMovement(ctx context.Context, movement *mo
 
 func (m *MockCashFlowService) GetMovement(ctx context.Context, id uint) (*models.CashFlow, error) {
 	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+	var movement *models.CashFlow
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		movement, ok = ret0.(*models.CashFlow)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*models.CashFlow), args.Error(1)
+	return movement, err
 }
 
 func (m *MockCashFlowService) UpdateMovement(ctx context.Context, movement *models.CashFlow) error {
@@ -543,60 +787,122 @@ func (m *MockCashFlowService) DeleteMovement(ctx context.Context, id uint) error
 
 func (m *MockCashFlowService) GetMovementsByPeriod(ctx context.Context, filter input.CashFlowFilter) ([]*models.CashFlow, error) {
 	args := m.Called(ctx, filter)
-	return args.Get(0).([]*models.CashFlow), args.Error(1)
+	err := args.Error(1) // Assuming error is the second return value (index 1)
+	var movements []*models.CashFlow
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		movements, ok = ret0.([]*models.CashFlow)
+		if !ok {
+			return nil, err
+		}
+	}
+	return movements, err
 }
 
 func (m *MockCashFlowService) GetCurrentBalance(ctx context.Context) (*input.BalanceReport, error) {
 	args := m.Called(ctx)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+	var report *input.BalanceReport
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		report, ok = ret0.(*input.BalanceReport)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*input.BalanceReport), args.Error(1)
+	return report, err
 }
 
 func (m *MockCashFlowService) GetBalanceByPeriod(ctx context.Context, startDate, endDate time.Time) (*input.BalanceReport, error) {
 	args := m.Called(ctx, startDate, endDate)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+	var report *input.BalanceReport
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		report, ok = ret0.(*input.BalanceReport)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*input.BalanceReport), args.Error(1)
+	return report, err
 }
 
 func (m *MockCashFlowService) ValidateBalance(ctx context.Context) (*input.BalanceValidation, error) {
 	args := m.Called(ctx)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+	var validation *input.BalanceValidation
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		validation, ok = ret0.(*input.BalanceValidation)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*input.BalanceValidation), args.Error(1)
+	return validation, err
 }
 
 func (m *MockCashFlowService) GetFinancialReport(ctx context.Context, reportType input.ReportType, period input.Period) (*input.FinancialReport, error) {
 	args := m.Called(ctx, reportType, period)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+	var report *input.FinancialReport
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		report, ok = ret0.(*input.FinancialReport)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*input.FinancialReport), args.Error(1)
+	return report, err
 }
 
 func (m *MockCashFlowService) GetCashFlowTrends(ctx context.Context, period input.Period) (*input.TrendAnalysis, error) {
 	args := m.Called(ctx, period)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+	var analysis *input.TrendAnalysis
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		analysis, ok = ret0.(*input.TrendAnalysis)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*input.TrendAnalysis), args.Error(1)
+	return analysis, err
 }
 
 func (m *MockCashFlowService) GetProjections(ctx context.Context, months int) (*input.FinancialProjection, error) {
 	args := m.Called(ctx, months)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+	var projection *input.FinancialProjection
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		projection, ok = ret0.(*input.FinancialProjection)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*input.FinancialProjection), args.Error(1)
+	return projection, err
 }
 
 func (m *MockCashFlowService) GetFinancialAlerts(ctx context.Context) ([]input.FinancialAlert, error) {
 	args := m.Called(ctx)
-	return args.Get(0).([]input.FinancialAlert), args.Error(1)
+	err := args.Error(1) // Assuming error is the second return value (index 1)
+	var alerts []input.FinancialAlert
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		alerts, ok = ret0.([]input.FinancialAlert)
+		if !ok {
+			return nil, err
+		}
+	}
+	return alerts, err
 }
 
 // MockAuthService es un mock de input.AuthService
@@ -606,10 +912,17 @@ type MockAuthService struct {
 
 func (m *MockAuthService) Login(ctx context.Context, username, password string) (*input.TokenDetails, error) {
 	args := m.Called(ctx, username, password)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+	var details *input.TokenDetails
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		details, ok = ret0.(*input.TokenDetails)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*input.TokenDetails), args.Error(1)
+	return details, err
 }
 
 func (m *MockAuthService) Logout(ctx context.Context, accessToken string) error {
@@ -619,16 +932,30 @@ func (m *MockAuthService) Logout(ctx context.Context, accessToken string) error 
 
 func (m *MockAuthService) RefreshToken(ctx context.Context, refreshToken string) (*input.TokenDetails, error) {
 	args := m.Called(ctx, refreshToken)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+	var details *input.TokenDetails
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		details, ok = ret0.(*input.TokenDetails)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*input.TokenDetails), args.Error(1)
+	return details, err
 }
 
 func (m *MockAuthService) ValidateToken(ctx context.Context, token string) (*models.User, error) {
 	args := m.Called(ctx, token)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+	err := args.Error(1)
+	var user *models.User
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		user, ok = ret0.(*models.User)
+		if !ok {
+			return nil, err
+		}
 	}
-	return args.Get(0).(*models.User), args.Error(1)
+	return user, err
 }
