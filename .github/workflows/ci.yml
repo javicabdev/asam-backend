@@ -21,58 +21,54 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
-          cache: false # Mantenemos caché deshabilitada para diagnóstico
+          go-version: '1.24' # Asegúrate que coincida con tu go.mod y toolchain
+          cache: true # Volvemos a habilitar la caché
 
-      # 1. Generar código
+      # 1. Generar código (Necesario antes de lint, build, test)
+      #    Asegurarse que las dependencias para esto se descarguen si no están en caché.
+      #    `go mod download` implícito en `go run` o caché debería manejarlo.
       - name: Generate GraphQL code
         run: go run ./cmd/generate
 
-      # 2. Ordenar dependencias
+      # 2. Ordenar y descargar dependencias finales
+      #    Aunque la caché esté activa, estos pasos aseguran consistencia.
       - name: Tidy Go modules
         run: go mod tidy
-
-      # 3. Descargar dependencias
       - name: Download Go modules
         run: go mod download
 
-      # 4. Verificar compilación estándar
-      - name: Verify Go Build
-        run: go build ./...
+      # --- PASOS DE VERIFICACIÓN (Opcionales pero útiles si sigue fallando) ---
+      # - name: Verify Go Build
+      #   run: go build ./...
+      # - name: Verify Go Test Compilation
+      #   run: go test ./...
+      # - name: Verify sync/atomic build
+      #   run: go build sync/atomic
+      # --------------------------------------------------------------------
 
-      # 5. Verificar compilación de tests estándar
-      - name: Verify Go Test Compilation
-        run: go test ./...
+      # 3. Ejecutar Linter usando la Acción Oficial
+      - name: Run golangci-lint using Action
+        uses: golangci/golangci-lint-action@v6 # Usar la acción oficial
+        with:
+          # La versión de golangci-lint a usar. 'latest' o una específica como 'v1.58.0'
+          # Si se omite, la acción usa una versión por defecto razonable.
+          version: v1.58.0
 
-      # --- NUEVO PASO DE DIAGNÓSTICO ---
-      # 6. Intentar construir 'sync/atomic' explícitamente
-      - name: Verify sync/atomic build
-        run: go build sync/atomic
+          # Argumentos para golangci-lint.
+          # Ya no necesitamos -v aquí, la acción tiene su propia verbosidad.
+          # Ya no necesitamos -E typecheck, ejecutaremos la configuración completa de .golangci.yml
+          # Ya no necesitamos --skip-cache, la acción maneja su caché.
+          args: --timeout=5m
 
-      # 7. Verificar estado (Opcional)
-      - name: Verify Go modules state and environment
-        run: |
-          echo "--- go version ---"
-          go version
-          echo "--- go env ---"
-          go env
-          echo "--- go list -m all ---"
-          go list -m all
-          echo "--- Listing GOPATH/pkg/mod ---"
-          ls -lR $(go env GOPATH)/pkg/mod || echo "GOPATH/pkg/mod not found or error listing."
+          # Opcional: Especificar el directorio de trabajo si no es la raíz
+          # working-directory: subdir
 
-      # 8. Instalar y ejecutar el Linter (con --skip-cache)
-      - name: Install golangci-lint
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.58.0
-
-      - name: Run golangci-lint (typecheck only, skip cache)
-        # CORRECCIÓN: Añadido --skip-cache
-        run: golangci-lint run -v -E typecheck ./... --timeout=5m --skip-cache
+          # Opcional: Solo mostrar nuevos issues en PRs (más rápido en PRs)
+          # only-new-issues: true
 
       # --- Resto de verificaciones (Formato) ---
+      # Estos pasos pueden permanecer como estaban
       - name: Verify gofmt
-        if: always()
         run: |
           OUTPUT=$(gofmt -s -l .)
           if [ -n "$OUTPUT" ]; then
@@ -83,7 +79,6 @@ jobs:
           fi
 
       - name: Validate imports (goimports)
-        if: always()
         run: |
           go install golang.org/x/tools/cmd/goimports@latest
           OUTPUT=$(goimports -l .)
@@ -95,13 +90,10 @@ jobs:
           fi
 
   # --- Jobs dependientes ---
-  # (build, unit-tests, integration-tests, code-quality, validate-commits)
-  # Se mantienen igual que en la versión anterior (ci_yml_corrected_v5)
-  # ... (copiar los jobs restantes aquí) ...
-
+  # Ahora dependen de 'lint-and-prepare'
   build:
     name: Build
-    needs: [lint-and-prepare] # Depende del job renombrado
+    needs: [lint-and-prepare]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -127,7 +119,7 @@ jobs:
 
   unit-tests:
     name: Unit Tests
-    needs: [lint-and-prepare] # Depende del job renombrado
+    needs: [lint-and-prepare]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -157,7 +149,7 @@ jobs:
 
   integration-tests:
     name: Integration Tests
-    needs: [lint-and-prepare] # Depende del job renombrado
+    needs: [lint-and-prepare]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -214,7 +206,7 @@ jobs:
 
   code-quality:
     name: Code Quality Analysis
-    needs: [lint-and-prepare] # Depende del job renombrado
+    needs: [lint-and-prepare]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -256,7 +248,7 @@ jobs:
 
   validate-commits:
     name: Validate Commit Messages
-    needs: [lint-and-prepare] # Depende del job renombrado
+    needs: [lint-and-prepare]
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
