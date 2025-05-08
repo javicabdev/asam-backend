@@ -69,7 +69,9 @@ func (g *CashflowGenerator) Generate(ctx context.Context, n int) error {
 		}
 
 		if err := g.generateBatch(ctx, tx, members, families, i, end); err != nil {
-			tx.Rollback()
+			if err := tx.Rollback(); err != nil {
+				return fmt.Errorf("failed to rollback transaction: %w", err)
+			}
 			return err
 		}
 	}

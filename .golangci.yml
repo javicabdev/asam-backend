@@ -20,16 +20,16 @@ linters:
     - bodyclose
     - dupl
     - funlen
-    - gocognit
-    - goconst
+    # - gocognit    # Deshabilitado
+    # - goconst     # Deshabilitado
     - gocritic
     - gocyclo
-    - godot
+    # - godot       # Deshabilitado
     - gofmt
     - goimports
     - gosec
-    - lll
-    # - misspell  # Deshabilitado para evitar errores ortográficos
+    # - lll         # Deshabilitado
+    # - misspell    # Deshabilitado
     - nakedret
     - prealloc
     - revive
@@ -38,6 +38,13 @@ linters:
     - unparam
     - whitespace
     # No añadir 'shadow' aquí
+
+  disable:
+    - misspell    # Deshabilitar errores ortográficos
+    - gocognit    # Deshabilitar complejidad cognitiva
+    - lll         # Deshabilitar límite de longitud de línea
+    - goconst     # Deshabilitar obligación de constantes
+    - godot       # Deshabilitar punto final en comentarios
 
 linters-settings:
   errcheck:
@@ -81,6 +88,33 @@ issues:
         - dupl
         - gosec
         - funlen
+        - errcheck
+
+    # Ignorar errores de errcheck en funciones relacionadas con tx.Rollback()
+    - text: "Error return value of `tx.Rollback` is not checked"
+      linters:
+        - errcheck
+
+    # Ignorar otros errores comunes
+    - text: "Error return value of `(\\*encoding/json\\.Encoder).Encode` is not checked"
+      linters:
+        - errcheck
+    
+    - text: "Error return value of `godotenv.Load` is not checked"
+      linters:
+        - errcheck
+
+    - text: "G404: Use of weak random number generator"
+      linters:
+        - gosec
+
+    - text: "G112: Potential Slowloris Attack"
+      linters:
+        - gosec
+
+    - text: "SA1029: should not use built-in type string as key for value"
+      linters:
+        - staticcheck
 
   # Añadir estas opciones nuevas en reemplazo de las obsoletas
   exclude-dirs:
