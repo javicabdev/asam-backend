@@ -21,41 +21,55 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24' # Asegúrate que coincida con tu go.mod y toolchain
-          cache: true # Volvemos a habilitar la caché
+          go-version: '1.24'
+          cache: true
 
       # 1. Generar código (Necesario antes de lint, build, test)
-      #    Asegurarse que las dependencias para esto se descarguen si no están en caché.
-      #    `go mod download` implícito en `go run` o caché debería manejarlo.
       - name: Generate GraphQL code
         run: go run ./cmd/generate
 
       # 2. Aplicar parches al código generado para hacerlo compatible con Go 1.24
       - name: Fix GraphQL Generated Code
         run: |
-          chmod +x ./.github/workflows/fix-gql.sh
-          ./.github/workflows/fix-gql.sh
+          GENERATED_FILE=internal/adapters/gql/generated/generated.go
+          if [ -f "$GENERATED_FILE" ]; then
+            echo "Aplicando parches al código generado..."
+            
+            # 1. Cambiar la importación de sync/atomic
+            sed -i 's/"sync\/atomic"/"sync\/atomic\/v2"/g' "$GENERATED_FILE"
+            
+            # 2. Corregir referencias a DisableIntrospection
+            sed -i 's/if ec.DisableIntrospection {/if ec.OperationContext.DisableIntrospection {/g' "$GENERATED_FILE"
+            
+            # 3. Corregir referencias a Error y Recover
+            sed -i 's/ec.Error(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, ec.Recover(ctx, r))/g' "$GENERATED_FILE"
+            sed -i 's/ec.Error(ctx, err)/graphql.AddError(ctx, err)/g' "$GENERATED_FILE"
+            sed -i 's/ec.Errorf(ctx, "must not be null")/graphql.AddError(ctx, fmt.Errorf("must not be null"))/g' "$GENERATED_FILE"
+            
+            # 4. Corregir referencias a ResolverMiddleware
+            sed -i 's/resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/resTmp, err := ec.OperationContext.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/g' "$GENERATED_FILE"
+            
+            echo "Parches aplicados correctamente."
+          else
+            echo "Error: No se encontró el archivo generado en $GENERATED_FILE"
+            exit 1
+          fi
 
       # 3. Ordenar y descargar dependencias finales
-      #    Aunque la caché esté activa, estos pasos aseguran consistencia.
       - name: Tidy Go modules
         run: go mod tidy
+
       - name: Download Go modules
         run: go mod download
 
       # 4. Ejecutar Linter usando la Acción Oficial
       - name: Run golangci-lint using Action
-        uses: golangci/golangci-lint-action@v6 # Usar la acción oficial
+        uses: golangci/golangci-lint-action@v6
         with:
-          # La versión de golangci-lint a usar. 'latest' o una específica como 'v1.58.0'
-          # Si se omite, la acción usa una versión por defecto razonable.
           version: v1.58.0
-
-          # Argumentos para golangci-lint.
           args: --timeout=5m
 
       # --- Resto de verificaciones (Formato) ---
-      # Estos pasos pueden permanecer como estaban
       - name: Verify gofmt
         run: |
           OUTPUT=$(gofmt -s -l .)
@@ -78,7 +92,6 @@ jobs:
           fi
 
   # --- Jobs dependientes ---
-  # Ahora dependen de 'lint-and-prepare'
   build:
     name: Build
     needs: [lint-and-prepare]
@@ -105,8 +118,24 @@ jobs:
       # Aplicar parches al código generado
       - name: Fix GraphQL Generated Code
         run: |
-          chmod +x ./.github/workflows/fix-gql.sh
-          ./.github/workflows/fix-gql.sh
+          GENERATED_FILE=internal/adapters/gql/generated/generated.go
+          if [ -f "$GENERATED_FILE" ]; then
+            echo "Aplicando parches al código generado..."
+            # 1. Cambiar la importación de sync/atomic
+            sed -i 's/"sync\/atomic"/"sync\/atomic\/v2"/g' "$GENERATED_FILE"
+            # 2. Corregir referencias a DisableIntrospection
+            sed -i 's/if ec.DisableIntrospection {/if ec.OperationContext.DisableIntrospection {/g' "$GENERATED_FILE"
+            # 3. Corregir referencias a Error y Recover
+            sed -i 's/ec.Error(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, ec.Recover(ctx, r))/g' "$GENERATED_FILE"
+            sed -i 's/ec.Error(ctx, err)/graphql.AddError(ctx, err)/g' "$GENERATED_FILE"
+            sed -i 's/ec.Errorf(ctx, "must not be null")/graphql.AddError(ctx, fmt.Errorf("must not be null"))/g' "$GENERATED_FILE"
+            # 4. Corregir referencias a ResolverMiddleware
+            sed -i 's/resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/resTmp, err := ec.OperationContext.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/g' "$GENERATED_FILE"
+            echo "Parches aplicados correctamente."
+          else
+            echo "Error: No se encontró el archivo generado en $GENERATED_FILE"
+            exit 1
+          fi
 
       - name: Build application
         run: go build -v ./cmd/api
@@ -134,8 +163,24 @@ jobs:
       # Aplicar parches al código generado
       - name: Fix GraphQL Generated Code
         run: |
-          chmod +x ./.github/workflows/fix-gql.sh
-          ./.github/workflows/fix-gql.sh
+          GENERATED_FILE=internal/adapters/gql/generated/generated.go
+          if [ -f "$GENERATED_FILE" ]; then
+            echo "Aplicando parches al código generado..."
+            # 1. Cambiar la importación de sync/atomic
+            sed -i 's/"sync\/atomic"/"sync\/atomic\/v2"/g' "$GENERATED_FILE"
+            # 2. Corregir referencias a DisableIntrospection
+            sed -i 's/if ec.DisableIntrospection {/if ec.OperationContext.DisableIntrospection {/g' "$GENERATED_FILE"
+            # 3. Corregir referencias a Error y Recover
+            sed -i 's/ec.Error(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, ec.Recover(ctx, r))/g' "$GENERATED_FILE"
+            sed -i 's/ec.Error(ctx, err)/graphql.AddError(ctx, err)/g' "$GENERATED_FILE"
+            sed -i 's/ec.Errorf(ctx, "must not be null")/graphql.AddError(ctx, fmt.Errorf("must not be null"))/g' "$GENERATED_FILE"
+            # 4. Corregir referencias a ResolverMiddleware
+            sed -i 's/resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/resTmp, err := ec.OperationContext.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/g' "$GENERATED_FILE"
+            echo "Parches aplicados correctamente."
+          else
+            echo "Error: No se encontró el archivo generado en $GENERATED_FILE"
+            exit 1
+          fi
 
       - name: Run unit tests
         run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./internal/... ./pkg/...
@@ -185,8 +230,24 @@ jobs:
       # Aplicar parches al código generado
       - name: Fix GraphQL Generated Code
         run: |
-          chmod +x ./.github/workflows/fix-gql.sh
-          ./.github/workflows/fix-gql.sh
+          GENERATED_FILE=internal/adapters/gql/generated/generated.go
+          if [ -f "$GENERATED_FILE" ]; then
+            echo "Aplicando parches al código generado..."
+            # 1. Cambiar la importación de sync/atomic
+            sed -i 's/"sync\/atomic"/"sync\/atomic\/v2"/g' "$GENERATED_FILE"
+            # 2. Corregir referencias a DisableIntrospection
+            sed -i 's/if ec.DisableIntrospection {/if ec.OperationContext.DisableIntrospection {/g' "$GENERATED_FILE"
+            # 3. Corregir referencias a Error y Recover
+            sed -i 's/ec.Error(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, ec.Recover(ctx, r))/g' "$GENERATED_FILE"
+            sed -i 's/ec.Error(ctx, err)/graphql.AddError(ctx, err)/g' "$GENERATED_FILE"
+            sed -i 's/ec.Errorf(ctx, "must not be null")/graphql.AddError(ctx, fmt.Errorf("must not be null"))/g' "$GENERATED_FILE"
+            # 4. Corregir referencias a ResolverMiddleware
+            sed -i 's/resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/resTmp, err := ec.OperationContext.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/g' "$GENERATED_FILE"
+            echo "Parches aplicados correctamente."
+          else
+            echo "Error: No se encontró el archivo generado en $GENERATED_FILE"
+            exit 1
+          fi
 
       - name: Setup test environment
         run: |
@@ -233,8 +294,24 @@ jobs:
       # Aplicar parches al código generado
       - name: Fix GraphQL Generated Code
         run: |
-          chmod +x ./.github/workflows/fix-gql.sh
-          ./.github/workflows/fix-gql.sh
+          GENERATED_FILE=internal/adapters/gql/generated/generated.go
+          if [ -f "$GENERATED_FILE" ]; then
+            echo "Aplicando parches al código generado..."
+            # 1. Cambiar la importación de sync/atomic
+            sed -i 's/"sync\/atomic"/"sync\/atomic\/v2"/g' "$GENERATED_FILE"
+            # 2. Corregir referencias a DisableIntrospection
+            sed -i 's/if ec.DisableIntrospection {/if ec.OperationContext.DisableIntrospection {/g' "$GENERATED_FILE"
+            # 3. Corregir referencias a Error y Recover
+            sed -i 's/ec.Error(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, ec.Recover(ctx, r))/g' "$GENERATED_FILE"
+            sed -i 's/ec.Error(ctx, err)/graphql.AddError(ctx, err)/g' "$GENERATED_FILE"
+            sed -i 's/ec.Errorf(ctx, "must not be null")/graphql.AddError(ctx, fmt.Errorf("must not be null"))/g' "$GENERATED_FILE"
+            # 4. Corregir referencias a ResolverMiddleware
+            sed -i 's/resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/resTmp, err := ec.OperationContext.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/g' "$GENERATED_FILE"
+            echo "Parches aplicados correctamente."
+          else
+            echo "Error: No se encontró el archivo generado en $GENERATED_FILE"
+            exit 1
+          fi
 
       - name: Run go vet
         run: go vet ./...
