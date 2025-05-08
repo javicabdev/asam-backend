@@ -122,15 +122,15 @@ func (g *MemberGenerator) generateMember() Member {
 	address, postalCode, city, province := GenerateRandomAddress(g.rand)
 
 	// Generate ID based on nationality
-	var documentId string
+	var documentID string
 	var nationality string
 
 	// 70% Spanish, 30% Senegalese
 	if g.rand.Float64() < 0.7 {
-		documentId = GenerateRandomDNI(g.rand)
+		documentID = GenerateRandomDNI(g.rand)
 		nationality = "España"
 	} else {
-		documentId = GenerateRandomNIE(g.rand)
+		documentID = GenerateRandomNIE(g.rand)
 		nationality = "Senegal"
 	}
 
@@ -191,7 +191,7 @@ func (g *MemberGenerator) generateMember() Member {
 		FechaAlta:          signupDate,
 		FechaBaja:          cancellationDate,
 		FechaNacimiento:    &birthDate,
-		DocumentoIdentidad: documentId,
+		DocumentoIdentidad: documentID,
 		CorreoElectronico:  email,
 		Profession:         profession,
 		Nacionalidad:       nationality,

@@ -27,10 +27,10 @@ func NewTokenRepository(db *gorm.DB) output.TokenRepository {
 }
 
 // SaveRefreshToken stores a refresh token in the database
-func (r *tokenRepository) SaveRefreshToken(ctx context.Context, uuid string, userId uint, expires int64) error {
+func (r *tokenRepository) SaveRefreshToken(ctx context.Context, uuid string, userID uint, expires int64) error {
 	token := RefreshToken{
 		UUID:      uuid,
-		UserID:    userId,
+		UserID:    userID,
 		ExpiresAt: expires,
 	}
 
@@ -61,7 +61,7 @@ func (r *tokenRepository) CleanupExpiredTokens(ctx context.Context) error {
 }
 
 // ValidateRefreshToken checks if a token exists and is valid
-func (r *tokenRepository) ValidateRefreshToken(ctx context.Context, uuid string, userId uint) error {
+func (r *tokenRepository) ValidateRefreshToken(ctx context.Context, uuid string, userID uint) error {
 	// First clean up expired tokens
 	if err := r.CleanupExpiredTokens(ctx); err != nil {
 		// Log error but continue - not critical
@@ -72,7 +72,7 @@ func (r *tokenRepository) ValidateRefreshToken(ctx context.Context, uuid string,
 	// Then validate the specific token
 	var token RefreshToken
 	result := r.db.WithContext(ctx).
-		Where("uuid = ? AND user_id = ?", uuid, userId).
+		Where("uuid = ? AND user_id = ?", uuid, userID).
 		First(&token)
 
 	if result.Error != nil {

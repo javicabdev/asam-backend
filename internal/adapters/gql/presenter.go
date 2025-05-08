@@ -71,7 +71,7 @@ func CustomErrorPresenter(ctx context.Context, err error) *gqlerror.Error {
 		}
 
 		// Add validation fields if they exist
-		if appErr.Fields != nil && len(appErr.Fields) > 0 {
+		if len(appErr.Fields) > 0 {
 			extensions["fields"] = appErr.Fields
 		}
 

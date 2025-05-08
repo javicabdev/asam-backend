@@ -119,7 +119,7 @@ func (m *ErrorMiddleware) handleAppError(ctx context.Context, err *appErrors.App
 	}
 
 	// Add validation fields if they exist
-	if err.Fields != nil && len(err.Fields) > 0 {
+	if len(err.Fields) > 0 {
 		extensions["fields"] = err.Fields
 	}
 
