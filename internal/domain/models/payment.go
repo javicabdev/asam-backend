@@ -1,8 +1,9 @@
 package models
 
 import (
-	"gorm.io/gorm"
 	"time"
+
+	"gorm.io/gorm"
 
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 )
