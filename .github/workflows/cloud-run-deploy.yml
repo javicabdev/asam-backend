@@ -8,12 +8,12 @@ on:
   workflow_dispatch:  # Para despliegues manuales
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}  # ID de tu nuevo proyecto en GCP
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   SERVICE_NAME: asam-backend
-  REGION: europe-west1  # Región de Cloud Run (ajustar según necesidades)
+  REGION: europe-west1
 
 jobs:
-  test:
+  test: # Este job ya tiene go mod download, lo cual es correcto.
     name: Test
     runs-on: ubuntu-latest
     services:
@@ -30,30 +30,32 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
           cache: true
-      
+
       - name: Get dependencies
         run: go mod download
-      
+
       - name: Generate GraphQL code
         run: go run ./cmd/generate
-      
+
       - name: Run unit tests
         run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./internal/... ./pkg/...
-      
-      - name: Setup test environment
+
+      - name: Setup test environment for integration tests
         run: |
           cp .env.test .env
-          go run cmd/migrate/main.go up
-      
+          # No es necesario go mod download aquí si el paso anterior ya lo hizo y la caché funciona.
+          # Sin embargo, si la compilación de migrate falla por dependencias, añadirlo.
+          go run cmd/migrate/main.go up # Asume que esto compila y ejecuta
+
       - name: Run integration tests
         run: go test -v -tags=integration ./test/integration/...
 
@@ -63,34 +65,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      # Autenticar en Google Cloud
+
       - name: Authenticate to Google Cloud
         id: auth
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
-      
-      # Configurar Google Cloud CLI
+
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
-      
-      # Configurar Docker para usar Google Container Registry
+
       - name: Configure Docker
-        run: gcloud auth configure-docker --quiet
-      
-      # Generar SHA corto para el tag de la imagen
+        run: gcloud auth configure-docker --quiet # O gcr.io si usas GCR
+
       - name: Generate Image Tag
         id: tag
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-      
+
       # Construir y publicar imagen Docker
+      # El Dockerfile es responsable de `go mod download` dentro de la construcción de la imagen.
       - name: Build and Push Container
         run: |
           docker build -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ steps.tag.outputs.sha_short }} .
           docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ steps.tag.outputs.sha_short }}
-      
-      # Desplegar a Cloud Run
+
       - name: Deploy to Cloud Run
         id: deploy
         uses: google-github-actions/deploy-cloudrun@v2
@@ -100,8 +98,17 @@ jobs:
           image: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ steps.tag.outputs.sha_short }}
           env_vars: DB_HOST=${{ secrets.AIVEN_DB_HOST }},DB_PORT=${{ secrets.AIVEN_DB_PORT }},DB_USER=${{ secrets.AIVEN_DB_USER }},DB_PASSWORD=${{ secrets.AIVEN_DB_PASSWORD }},DB_NAME=${{ secrets.AIVEN_DB_NAME }},DB_SSL_MODE=require,JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }},JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }},ENVIRONMENT=production,PORT=8080
           flags: --allow-unauthenticated --cpu=1 --memory=512Mi --concurrency=80 --min-instances=0 --max-instances=3 --timeout=60s
-      
-      # Ejecutar migraciones de base de datos
+
+      # Este paso de setup-go es para compilar la herramienta de migración en el runner.
+      - name: Set up Go for migrate tool # <--- AÑADIDO PARA CLARIDAD (opcional si la caché global funciona)
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true # La caché podría ya tener las dependencias
+
+      - name: Download dependencies for migrate tool # <--- CORRECCIÓN AÑADIDA
+        run: go mod download
+
       - name: Run Database Migrations
         run: |
           go build -o migrate ./cmd/migrate
@@ -113,8 +120,7 @@ jobs:
           DB_PASSWORD: ${{ secrets.AIVEN_DB_PASSWORD }}
           DB_NAME: ${{ secrets.AIVEN_DB_NAME }}
           DB_SSL_MODE: require
-      
-      # Publicar URL del servicio
+
       - name: Show Service URL
         run: |
           echo "Service URL: ${{ steps.deploy.outputs.url }}"
