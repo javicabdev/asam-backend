@@ -249,7 +249,7 @@ func findBaseError(errs []error) (*AppError, map[string]string) {
 }
 
 // collectAdditionalFields recolecta campos de los errores adicionales
-func collectAdditionalFields(baseError *AppError, errs []error, fields map[string]string) {
+func collectAdditionalFields(errs []error, fields map[string]string) {
 	// Saltamos el primer error que ya se procesó como base
 	firstErrorProcessed := false
 
@@ -277,7 +277,7 @@ func Combine(errs ...error) error {
 		return nil
 	}
 
-	collectAdditionalFields(baseError, errs, fields)
+	collectAdditionalFields(errs, fields)
 
 	// Asignamos los campos combinados
 	baseError.Fields = fields

@@ -21,7 +21,6 @@ func NewAuthMiddleware(authService input.AuthService) *Middleware {
 
 func (m *Middleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 		// Añadir IP y User-Agent al contexto
 		ip := r.RemoteAddr
 		if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {

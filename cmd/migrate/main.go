@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -189,6 +190,10 @@ func runMigrations(envFile string, cmd string, args []string) error {
 		v, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
 			return fmt.Errorf("invalid version number: %w", err)
+		}
+		// Verificar que el valor no exceda el máximo de int
+		if v > uint64(math.MaxInt) {
+			return fmt.Errorf("version %d exceeds maximum int value", v)
 		}
 		if err := m.Force(int(v)); err != nil {
 			return fmt.Errorf("failed to force version %d: %w", v, err)

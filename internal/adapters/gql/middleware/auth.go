@@ -250,7 +250,9 @@ func respondWithAuthError(w http.ResponseWriter, message string) {
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		// Si ocurre un error al codificar, enviar una respuesta simple
 		if _, writeErr := w.Write([]byte(`{"errors":[{"message":"Unauthorized","extensions":{"code":"UNAUTHORIZED"}}],"data":null}`)); writeErr != nil {
-			// No hay mucho que podamos hacer si también falla Write
+			// No podemos usar logger.Logger{} directamente, usemos un log simple
+			log := zap.NewExample().Sugar()
+			log.Errorf("Error writing unauthorized response: %v", writeErr)
 		}
 	}
 }

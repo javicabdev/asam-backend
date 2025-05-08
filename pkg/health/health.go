@@ -3,6 +3,7 @@ package health
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -75,7 +76,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Log error pero no cambia la respuesta HTTP
 		w.WriteHeader(http.StatusInternalServerError)
 		if _, err := w.Write([]byte(`{"status":"DOWN","components":{},"error":"Failed to encode health check"}`)); err != nil {
-			// En caso de error al escribir, no hay mucho que podamos hacer
+			// Si ocurre un error al escribir, registrarlo
+			log.Printf("Error al escribir respuesta de health check: %v", err)
 		}
 	}
 }

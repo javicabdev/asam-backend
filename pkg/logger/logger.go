@@ -1,10 +1,11 @@
 package logger
 
 import (
+	"os"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
-	"os"
 )
 
 // Movemos tus tipos y structs aquí (Config, Level, etc.):
