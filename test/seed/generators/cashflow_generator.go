@@ -2,9 +2,10 @@ package generators
 
 import (
 	"context"
-	"database/sql"
-	"errors"
+	"database/sql" // Added for sql.ErrNoRows
+	"errors"       // Added for errors.Is (used in Get methods)
 	"fmt"
+	"log" // Added for logging rollback errors
 	"math/rand"
 	"time"
 
@@ -74,15 +75,6 @@ func NewCashflowGenerator(db *sqlx.DB, seed int64) *CashflowGenerator {
 	}
 }
 
-// GenerateRandomAmount generates a random float64 amount within a given range.
-// This function was also present in payment_generator.go.
-// func GenerateRandomAmount(r *rand.Rand, min, max float64) float64 {
-// 	if min >= max {
-// 		return min
-// 	}
-// 	return min + r.Float64()*(max-min)
-// }
-
 // Generate creates n random cash movements, inserting them in batches.
 func (g *CashflowGenerator) Generate(ctx context.Context, n int) error {
 	if n <= 0 {
@@ -107,12 +99,15 @@ func (g *CashflowGenerator) Generate(ctx context.Context, n int) error {
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer func(tx *sqlx.Tx) {
-		err := tx.Rollback()
-		if err != nil {
-
+	// Defer rollback. It will be executed if an error occurs or if Commit is not called.
+	defer func(txToRollback *sqlx.Tx) {
+		// Attempt to rollback. This is a cleanup action.
+		// The primary error (if any) from the main function body is more important.
+		if rollbackErr := txToRollback.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+			// Log the rollback error if it's not sql.ErrTxDone (which means Commit or another Rollback already happened)
+			log.Printf("Error during deferred transaction rollback: %v", rollbackErr)
 		}
-	}(tx) // nolint:errcheck // Rollback errors are usually secondary to the main error
+	}(tx)
 
 	batchSize := 100 // Optimal batch size can vary
 	for i := 0; i < n; i += batchSize {
@@ -122,17 +117,22 @@ func (g *CashflowGenerator) Generate(ctx context.Context, n int) error {
 		}
 
 		if err := g.generateAndInsertBatch(ctx, tx, members, families, itemsInThisBatch); err != nil {
-			// Rollback is handled by defer, just return the error
+			// No need to explicitly call Rollback here, the defer will handle it.
 			return fmt.Errorf("failed to generate or insert cashflow batch: %w", err)
 		}
 	}
 
-	return tx.Commit()
+	// If all batches succeeded, commit the transaction.
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	return nil
 }
 
-// determineCashflowAssociation decides if a cashflow is linked to a member or family.
-func (g *CashflowGenerator) determineCashflowAssociation(
-	operationType string,
+// attemptSetAssociation tries to associate with a member or family based on probability.
+// It prioritizes the choice with higher probability and falls back if the primary choice is unavailable.
+func (g *CashflowGenerator) attemptSetAssociation(
+	memberProb float64,
 	members []MemberIDInfo,
 	families []FamilyIDInfo,
 ) (*int, *int) {
@@ -156,47 +156,44 @@ func (g *CashflowGenerator) determineCashflowAssociation(
 		return nil
 	}
 
-	switch operationType {
-	case "ingreso_cuota":
-		// Associate with a member 80% of the time, otherwise with a family (if available)
-		if g.rand.Float64() < 0.80 {
-			miembroID = getRandomMemberID()
-		} else {
-			familiaID = getRandomFamilyID()
+	if g.rand.Float64() < memberProb { // Prioritize member
+		miembroID = getRandomMemberID()
+		if miembroID == nil { // If member assignment failed (e.g., no members)
+			familiaID = getRandomFamilyID() // Try to assign family as fallback
 		}
-		// If the primary choice was unavailable and the other is, try the other.
-		if miembroID == nil && familiaID == nil {
-			if len(members) > 0 {
-				miembroID = getRandomMemberID()
-			} else if len(families) > 0 {
-				familiaID = getRandomFamilyID()
-			}
-		}
-
-	case "entrega_fondo":
-		// Always try to associate with a member or family
-		if g.rand.Float64() < 0.50 {
-			miembroID = getRandomMemberID()
-			if miembroID == nil { // If no member, try family
-				familiaID = getRandomFamilyID()
-			}
-		} else {
-			familiaID = getRandomFamilyID()
-			if familiaID == nil { // If no family, try member
-				miembroID = getRandomMemberID()
-			}
-		}
-	case "gasto_corriente", "otros_ingresos":
-		// Usually not associated, but 20% chance to associate
-		if g.rand.Float64() < 0.20 {
-			if g.rand.Float64() < 0.50 {
-				miembroID = getRandomMemberID()
-			} else {
-				familiaID = getRandomFamilyID()
-			}
+	} else { // Prioritize family
+		familiaID = getRandomFamilyID()
+		if familiaID == nil { // If family assignment failed (e.g., no families)
+			miembroID = getRandomMemberID() // Try to assign member as fallback
 		}
 	}
 	return miembroID, familiaID
+}
+
+// determineCashflowAssociation decides if a cashflow is linked to a member or family.
+func (g *CashflowGenerator) determineCashflowAssociation(
+	operationType string,
+	members []MemberIDInfo,
+	families []FamilyIDInfo,
+) (*int, *int) {
+	switch operationType {
+	case "ingreso_cuota":
+		// 80% member, 20% family, with fallback
+		return g.attemptSetAssociation(0.80, members, families)
+	case "entrega_fondo":
+		// 50% member, 50% family, with fallback
+		return g.attemptSetAssociation(0.50, members, families)
+	case "gasto_corriente", "otros_ingresos":
+		// Usually not associated, but 20% chance to associate
+		if g.rand.Float64() < 0.20 {
+			// If associating, 50/50 chance for member or family
+			return g.attemptSetAssociation(0.50, members, families)
+		}
+		return nil, nil // No association for the 80% case
+	}
+	// Should ideally not be reached if operationType is always one of the known types.
+	// Consider logging a warning or returning an error if operationType is unexpected.
+	return nil, nil
 }
 
 // determineCashflowAmount generates the monetary amount for the cashflow.
@@ -213,6 +210,7 @@ func (g *CashflowGenerator) determineCashflowAmount(operationType string) float6
 		amount = GenerateRandomAmount(g.rand, 50, 2000)
 	default:
 		amount = 0 // Should not happen if operationType is from predefined list
+		log.Printf("Warning: unknown operation type '%s' in determineCashflowAmount, setting amount to 0", operationType)
 	}
 	return amount
 }
@@ -236,6 +234,8 @@ func (g *CashflowGenerator) generateSingleCashflowData(
 	detail := ""
 	if len(detailsList) > 0 {
 		detail = detailsList[g.rand.Intn(len(detailsList))]
+	} else {
+		log.Printf("Warning: no details found for operation type '%s'", operationType)
 	}
 
 	return Cashflow{
@@ -267,7 +267,10 @@ func (g *CashflowGenerator) generateAndInsertBatch(
 	}
 
 	if len(cashflows) == 0 {
-		// Should only happen if numToGenerateInBatch was 0.
+		// This case should ideally not be hit if numToGenerateInBatch > 0.
+		// If it is, it means generateSingleCashflowData is consistently failing to produce data,
+		// which might indicate a deeper issue or edge case in data generation logic.
+		log.Println("Warning: generateAndInsertBatch produced an empty cashflows slice despite numToGenerateInBatch > 0.")
 		return nil
 	}
 
@@ -293,7 +296,7 @@ func (g *CashflowGenerator) GetCashflowsByPeriod(ctx context.Context, startDate,
 
 	err := g.db.SelectContext(ctx, &cashflows, query, startDate, endDate)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) { // Use errors.Is for checking specific errors
 			return []Cashflow{}, nil
 		}
 		return nil, fmt.Errorf("failed to get cash movements for period: %w", err)
