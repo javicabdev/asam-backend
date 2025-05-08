@@ -1,12 +1,14 @@
 package models_test
 
 import (
-	"github.com/javicabdev/asam-backend/test"
 	"testing"
 	"time"
 
-	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/test"
+
 	"github.com/stretchr/testify/assert"
+
+	"github.com/javicabdev/asam-backend/internal/domain/models"
 )
 
 // Helper para crear un Familiar válido

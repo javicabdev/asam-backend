@@ -4,9 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/joho/godotenv"
-	envconfig "github.com/sethvargo/go-envconfig"
+	"github.com/sethvargo/go-envconfig"
+
+	"github.com/javicabdev/asam-backend/pkg/errors"
 )
 
 // Config define las variables de entorno que tu aplicación necesita.

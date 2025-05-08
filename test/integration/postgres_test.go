@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/joho/godotenv"
+	"gorm.io/gorm"
+
 	"github.com/javicabdev/asam-backend/internal/adapters/db"
 	"github.com/javicabdev/asam-backend/internal/config"
 	"github.com/javicabdev/asam-backend/pkg/errors"
-	"github.com/joho/godotenv"
-	"gorm.io/gorm"
 )
 
 // TestMain asegura que las variables de entorno necesarias estén disponibles

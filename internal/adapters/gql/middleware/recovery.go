@@ -3,11 +3,13 @@ package middleware
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/javicabdev/asam-backend/pkg/errors"
-	"github.com/javicabdev/asam-backend/pkg/logger"
-	"go.uber.org/zap"
 	"net/http"
 	"runtime/debug"
+
+	"go.uber.org/zap"
+
+	"github.com/javicabdev/asam-backend/pkg/errors"
+	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
 // RecoveryMiddleware recupera de pánicos y los convierte en errores manejables

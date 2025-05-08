@@ -2,16 +2,17 @@ package services
 
 import (
 	"context"
-	"github.com/javicabdev/asam-backend/internal/domain/models"
-	"github.com/javicabdev/asam-backend/internal/ports/input"
-	"github.com/javicabdev/asam-backend/internal/ports/output"
-	"github.com/javicabdev/asam-backend/pkg/errors"
-	"github.com/javicabdev/asam-backend/pkg/metrics"
 	"math"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/internal/ports/input"
+	"github.com/javicabdev/asam-backend/internal/ports/output"
+	"github.com/javicabdev/asam-backend/pkg/errors"
+	"github.com/javicabdev/asam-backend/pkg/metrics"
 )
 
 // CashFlowService implementa input.CashFlowService

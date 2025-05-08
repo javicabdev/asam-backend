@@ -10,14 +10,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"gorm.io/gorm"
+
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/middleware"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/pkg/constants"
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/test"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"gorm.io/gorm"
 )
 
 // setupMockAuth configura un servicio de autenticación mock para pruebas

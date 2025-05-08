@@ -5,10 +5,11 @@ import (
 	"errors"
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/output"
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
-	"gorm.io/gorm"
 )
 
 type paymentRepository struct {

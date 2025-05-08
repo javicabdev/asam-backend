@@ -2,8 +2,9 @@ package services
 
 import (
 	"context"
-	"go.uber.org/zap"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/input"

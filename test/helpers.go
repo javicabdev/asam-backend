@@ -2,9 +2,10 @@ package test
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
-	"time"
 )
 
 // Helper para crear un número de socio válido

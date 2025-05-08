@@ -4,9 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/gorm"
+
+	"github.com/javicabdev/asam-backend/internal/domain/models"
 )
 
 // Helper para crear un CashFlow válido

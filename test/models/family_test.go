@@ -1,14 +1,16 @@
 package models_test
 
 import (
-	"github.com/javicabdev/asam-backend/pkg/errors"
-	"github.com/javicabdev/asam-backend/test"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/pkg/errors"
+	"github.com/javicabdev/asam-backend/test"
+
 	"github.com/stretchr/testify/assert"
+
+	"github.com/javicabdev/asam-backend/internal/domain/models"
 )
 
 func TestFamilyValidation_BasicFields(t *testing.T) {

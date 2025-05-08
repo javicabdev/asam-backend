@@ -6,11 +6,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/javicabdev/asam-backend/internal/config"
-	"github.com/javicabdev/asam-backend/pkg/errors"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"github.com/javicabdev/asam-backend/internal/config"
+	"github.com/javicabdev/asam-backend/pkg/errors"
 )
 
 // InitDB initializes the database connection.

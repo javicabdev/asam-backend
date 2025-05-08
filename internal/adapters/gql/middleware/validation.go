@@ -2,9 +2,10 @@ package middleware
 
 import (
 	"context"
-	"github.com/javicabdev/asam-backend/pkg/errors"
 	"net/http"
 	"strings"
+
+	"github.com/javicabdev/asam-backend/pkg/errors"
 )
 
 type ValidationMiddleware struct {
