@@ -11,7 +11,7 @@ on:
       - '**/*.md'
 
 jobs:
-  lint-and-prepare: # Renombrado para reflejar que hace más que linting
+  lint-and-prepare:
     name: Lint and Prepare
     runs-on: ubuntu-latest
     steps:
@@ -21,32 +21,35 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24' # Asegúrate que coincida con tu go.mod y toolchain
+          go-version: '1.24'
           cache: false # Mantenemos caché deshabilitada para diagnóstico
 
-      # 1. Generar el código GraphQL
+      # 1. Generar código
       - name: Generate GraphQL code
-        run: go run ./cmd/generate # O usa 'gqlgen generate'
+        run: go run ./cmd/generate
 
-      # 2. Ordenar dependencias DESPUÉS de generar
+      # 2. Ordenar dependencias
       - name: Tidy Go modules
         run: go mod tidy
 
-      # 3. Descargar *todas* las dependencias
+      # 3. Descargar dependencias
       - name: Download Go modules
         run: go mod download
 
-      # --- NUEVO PASO DE DIAGNÓSTICO ---
-      # 4. Intentar compilar proyecto
+      # 4. Verificar compilación estándar
       - name: Verify Go Build
         run: go build ./...
 
-      # --- NUEVO PASO DE DIAGNÓSTICO ---
-      # 5. Intentar ejecutar tests (sin flags de cobertura por ahora, solo para ver si compilan y pasan)
+      # 5. Verificar compilación de tests estándar
       - name: Verify Go Test Compilation
         run: go test ./...
 
-      # 6. Verificar estado (Opcional, si los pasos anteriores fallan, esto puede dar pistas)
+      # --- NUEVO PASO DE DIAGNÓSTICO ---
+      # 6. Intentar construir 'sync/atomic' explícitamente
+      - name: Verify sync/atomic build
+        run: go build sync/atomic
+
+      # 7. Verificar estado (Opcional)
       - name: Verify Go modules state and environment
         run: |
           echo "--- go version ---"
@@ -58,18 +61,18 @@ jobs:
           echo "--- Listing GOPATH/pkg/mod ---"
           ls -lR $(go env GOPATH)/pkg/mod || echo "GOPATH/pkg/mod not found or error listing."
 
-      # 7. Instalar y ejecutar el Linter (Solo si build y test pasan)
+      # 8. Instalar y ejecutar el Linter (con --skip-cache)
       - name: Install golangci-lint
         run: |
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.58.0
 
-      - name: Run golangci-lint (typecheck only)
-        # Ejecutamos solo typecheck para aislar los errores 'undefined'
-        run: golangci-lint run -v -E typecheck ./... --timeout=5m
+      - name: Run golangci-lint (typecheck only, skip cache)
+        # CORRECCIÓN: Añadido --skip-cache
+        run: golangci-lint run -v -E typecheck ./... --timeout=5m --skip-cache
 
       # --- Resto de verificaciones (Formato) ---
       - name: Verify gofmt
-        if: always() # Ejecutar incluso si pasos anteriores fallan
+        if: always()
         run: |
           OUTPUT=$(gofmt -s -l .)
           if [ -n "$OUTPUT" ]; then
@@ -80,7 +83,7 @@ jobs:
           fi
 
       - name: Validate imports (goimports)
-        if: always() # Ejecutar incluso si pasos anteriores fallan
+        if: always()
         run: |
           go install golang.org/x/tools/cmd/goimports@latest
           OUTPUT=$(goimports -l .)
@@ -92,7 +95,10 @@ jobs:
           fi
 
   # --- Jobs dependientes ---
-  # Ahora dependen de 'lint-and-prepare'
+  # (build, unit-tests, integration-tests, code-quality, validate-commits)
+  # Se mantienen igual que en la versión anterior (ci_yml_corrected_v5)
+  # ... (copiar los jobs restantes aquí) ...
+
   build:
     name: Build
     needs: [lint-and-prepare] # Depende del job renombrado
