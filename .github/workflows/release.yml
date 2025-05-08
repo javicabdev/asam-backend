@@ -18,7 +18,7 @@ jobs:
 
       - name: Generate Changelog
         id: changelog
-        uses: mikepenz/release-changelog-builder-action@v4
+        uses: mikepenz/release-changelog-builder-action@v5
         with:
           configuration: ".github/changelog-config.json" # Asegúrate que este archivo exista
           commitMode: true # O false, dependiendo de tu estrategia
@@ -77,7 +77,7 @@ jobs:
         shell: bash
 
       - name: Upload Release Asset
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: ./dist/asam-backend_${{ steps.get_version.outputs.VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }}
         env:
@@ -160,7 +160,7 @@ jobs:
           DB_SSL_MODE: require
 
       - name: Update Release with Service URL
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           body: |
             Deployment successful!
