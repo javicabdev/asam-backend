@@ -74,7 +74,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(health); err != nil {
 		// Log error pero no cambia la respuesta HTTP
 		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(`{"status":"DOWN","components":{},"error":"Failed to encode health check"}`))
+		if _, err := w.Write([]byte(`{"status":"DOWN","components":{},"error":"Failed to encode health check"}`)); err != nil {
+			// En caso de error al escribir, no hay mucho que podamos hacer
+		}
 	}
 }
 
