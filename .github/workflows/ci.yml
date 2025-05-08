@@ -126,7 +126,7 @@ jobs:
         run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./internal/... ./pkg/...
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           file: ./coverage.txt
           flags: unittests
@@ -236,5 +236,5 @@ jobs:
           fetch-depth: 0
 
       - name: Validate Conventional Commits
-        uses: wagoid/commitlint-github-action@v5
+        uses: wagoid/commitlint-github-action@v6
 
