@@ -35,18 +35,26 @@ jobs:
           if [ -f "$GENERATED_FILE" ]; then
             echo "Aplicando parches al código generado..."
             
-            # 1. Cambiar la importación de sync/atomic
+            # 1. Cambiar la importación de sync/atomic y ajustar todas las referencias
             sed -i 's/"sync\/atomic"/"sync\/atomic\/v2"/g' "$GENERATED_FILE"
+            sed -i 's/atomic\.LoadInt32/atomic\/v2.LoadInt32/g' "$GENERATED_FILE"
+            sed -i 's/atomic\.AddInt32/atomic\/v2.AddInt32/g' "$GENERATED_FILE"
             
             # 2. Corregir referencias a DisableIntrospection
             sed -i 's/if ec.DisableIntrospection {/if ec.OperationContext.DisableIntrospection {/g' "$GENERATED_FILE"
+            sed -i 's/ec.DisableIntrospection/ec.OperationContext.DisableIntrospection/g' "$GENERATED_FILE"
             
-            # 3. Corregir referencias a Error y Recover
-            sed -i 's/ec.Error(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, ec.Recover(ctx, r))/g' "$GENERATED_FILE"
+            # 3. Corregir referencias a Error, Recover, Errorf y otras
+            sed -i 's/ec.Error(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, graphql.Recover(ctx, r))/g' "$GENERATED_FILE"
+            sed -i 's/graphql.AddError(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, graphql.Recover(ctx, r))/g' "$GENERATED_FILE"
             sed -i 's/ec.Error(ctx, err)/graphql.AddError(ctx, err)/g' "$GENERATED_FILE"
             sed -i 's/ec.Errorf(ctx, "must not be null")/graphql.AddError(ctx, fmt.Errorf("must not be null"))/g' "$GENERATED_FILE"
+            sed -i 's/ec.Errorf(ctx, /graphql.AddError(ctx, fmt.Errorf(/g' "$GENERATED_FILE"
             
-            # 4. Corregir referencias a ResolverMiddleware
+            # 4. Corregir referencias a Variables
+            sed -i 's/ec.Variables/ec.OperationContext.Variables/g' "$GENERATED_FILE"
+            
+            # 5. Corregir referencias a ResolverMiddleware
             sed -i 's/resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/resTmp, err := ec.OperationContext.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/g' "$GENERATED_FILE"
             
             echo "Parches aplicados correctamente."
@@ -121,15 +129,26 @@ jobs:
           GENERATED_FILE=internal/adapters/gql/generated/generated.go
           if [ -f "$GENERATED_FILE" ]; then
             echo "Aplicando parches al código generado..."
-            # 1. Cambiar la importación de sync/atomic
+            # 1. Cambiar la importación de sync/atomic y ajustar todas las referencias
             sed -i 's/"sync\/atomic"/"sync\/atomic\/v2"/g' "$GENERATED_FILE"
+            sed -i 's/atomic\.LoadInt32/atomic\/v2.LoadInt32/g' "$GENERATED_FILE"
+            sed -i 's/atomic\.AddInt32/atomic\/v2.AddInt32/g' "$GENERATED_FILE"
+            
             # 2. Corregir referencias a DisableIntrospection
             sed -i 's/if ec.DisableIntrospection {/if ec.OperationContext.DisableIntrospection {/g' "$GENERATED_FILE"
-            # 3. Corregir referencias a Error y Recover
-            sed -i 's/ec.Error(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, ec.Recover(ctx, r))/g' "$GENERATED_FILE"
+            sed -i 's/ec.DisableIntrospection/ec.OperationContext.DisableIntrospection/g' "$GENERATED_FILE"
+            
+            # 3. Corregir referencias a Error, Recover, Errorf y otras
+            sed -i 's/ec.Error(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, graphql.Recover(ctx, r))/g' "$GENERATED_FILE"
+            sed -i 's/graphql.AddError(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, graphql.Recover(ctx, r))/g' "$GENERATED_FILE"
             sed -i 's/ec.Error(ctx, err)/graphql.AddError(ctx, err)/g' "$GENERATED_FILE"
             sed -i 's/ec.Errorf(ctx, "must not be null")/graphql.AddError(ctx, fmt.Errorf("must not be null"))/g' "$GENERATED_FILE"
-            # 4. Corregir referencias a ResolverMiddleware
+            sed -i 's/ec.Errorf(ctx, /graphql.AddError(ctx, fmt.Errorf(/g' "$GENERATED_FILE"
+            
+            # 4. Corregir referencias a Variables
+            sed -i 's/ec.Variables/ec.OperationContext.Variables/g' "$GENERATED_FILE"
+            
+            # 5. Corregir referencias a ResolverMiddleware
             sed -i 's/resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/resTmp, err := ec.OperationContext.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/g' "$GENERATED_FILE"
             echo "Parches aplicados correctamente."
           else
@@ -166,15 +185,26 @@ jobs:
           GENERATED_FILE=internal/adapters/gql/generated/generated.go
           if [ -f "$GENERATED_FILE" ]; then
             echo "Aplicando parches al código generado..."
-            # 1. Cambiar la importación de sync/atomic
+            # 1. Cambiar la importación de sync/atomic y ajustar todas las referencias
             sed -i 's/"sync\/atomic"/"sync\/atomic\/v2"/g' "$GENERATED_FILE"
+            sed -i 's/atomic\.LoadInt32/atomic\/v2.LoadInt32/g' "$GENERATED_FILE"
+            sed -i 's/atomic\.AddInt32/atomic\/v2.AddInt32/g' "$GENERATED_FILE"
+            
             # 2. Corregir referencias a DisableIntrospection
             sed -i 's/if ec.DisableIntrospection {/if ec.OperationContext.DisableIntrospection {/g' "$GENERATED_FILE"
-            # 3. Corregir referencias a Error y Recover
-            sed -i 's/ec.Error(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, ec.Recover(ctx, r))/g' "$GENERATED_FILE"
+            sed -i 's/ec.DisableIntrospection/ec.OperationContext.DisableIntrospection/g' "$GENERATED_FILE"
+            
+            # 3. Corregir referencias a Error, Recover, Errorf y otras
+            sed -i 's/ec.Error(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, graphql.Recover(ctx, r))/g' "$GENERATED_FILE"
+            sed -i 's/graphql.AddError(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, graphql.Recover(ctx, r))/g' "$GENERATED_FILE"
             sed -i 's/ec.Error(ctx, err)/graphql.AddError(ctx, err)/g' "$GENERATED_FILE"
             sed -i 's/ec.Errorf(ctx, "must not be null")/graphql.AddError(ctx, fmt.Errorf("must not be null"))/g' "$GENERATED_FILE"
-            # 4. Corregir referencias a ResolverMiddleware
+            sed -i 's/ec.Errorf(ctx, /graphql.AddError(ctx, fmt.Errorf(/g' "$GENERATED_FILE"
+            
+            # 4. Corregir referencias a Variables
+            sed -i 's/ec.Variables/ec.OperationContext.Variables/g' "$GENERATED_FILE"
+            
+            # 5. Corregir referencias a ResolverMiddleware
             sed -i 's/resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/resTmp, err := ec.OperationContext.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/g' "$GENERATED_FILE"
             echo "Parches aplicados correctamente."
           else
