@@ -6,22 +6,34 @@ import (
 	"os/exec"
 )
 
-// This script automates the generation of GraphQL code using gqlgen.
-// It's used in CI/CD pipelines and can be run locally before building.
 func main() {
-	log.Println("Generating GraphQL code...")
+	log.Println("Generando código GraphQL...")
 
-	// Create the command to run "go run github.com/99designs/gqlgen generate"
+	// Verificar que los directorios existan
+	dirModel := "internal/adapters/gql/model"
+	if _, err := os.Stat(dirModel); os.IsNotExist(err) {
+		err := os.MkdirAll(dirModel, 0755)
+		if err != nil {
+			log.Fatalf("Error al crear directorio %s: %v", dirModel, err)
+		}
+	}
+
+	dirGenerated := "internal/adapters/gql/generated"
+	if _, err := os.Stat(dirGenerated); os.IsNotExist(err) {
+		err := os.MkdirAll(dirGenerated, 0755)
+		if err != nil {
+			log.Fatalf("Error al crear directorio %s: %v", dirGenerated, err)
+		}
+	}
+
+	// Generar código GraphQL
 	cmd := exec.Command("go", "run", "github.com/99designs/gqlgen", "generate")
-
-	// Set the command's standard output and error to be the same as this process
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	// Run the command
 	if err := cmd.Run(); err != nil {
-		log.Fatalf("Error generating GraphQL code: %v", err)
+		log.Fatalf("Error al generar código GraphQL: %v", err)
 	}
 
-	log.Println("GraphQL code generation complete!")
+	log.Println("Código GraphQL generado exitosamente.")
 }
