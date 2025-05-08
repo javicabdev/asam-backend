@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	"github.com/sethvargo/go-envconfig"
+	envconfigpkg "github.com/sethvargo/go-envconfig"
 
 	"github.com/javicabdev/asam-backend/pkg/errors"
 )
@@ -50,7 +50,7 @@ func LoadConfig() (*Config, error) {
 	_ = godotenv.Load()
 	ctx := context.Background()
 	var c Config
-	if err := envconfig.Process(ctx, &c); err != nil {
+	if err := envconfigpkg.Process(ctx, &c); err != nil {
 		return nil, errors.InternalError("failed to parse env config", err)
 	}
 	return &c, nil

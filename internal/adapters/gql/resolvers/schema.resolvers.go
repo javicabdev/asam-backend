@@ -37,6 +37,11 @@ func (r *memberResolver) MiembroID(ctx context.Context, obj *models.Member) (str
 	return fmt.Sprintf("%d", obj.ID), nil
 }
 
+// NumeroSocio is the resolver for the numero_socio field.
+func (r *memberResolver) NumeroSocio(ctx context.Context, obj *models.Member) (string, error) {
+	panic(fmt.Errorf("not implemented: NumeroSocio - numero_socio"))
+}
+
 // TipoMembresia is the resolver for the tipo_membresia field.
 func (r *memberResolver) TipoMembresia(ctx context.Context, obj *models.Member) (model.MembershipType, error) {
 	switch obj.MembershipType {
@@ -53,6 +58,41 @@ func (r *memberResolver) TipoMembresia(ctx context.Context, obj *models.Member) 
 	}
 }
 
+// Nombre is the resolver for the nombre field.
+func (r *memberResolver) Nombre(ctx context.Context, obj *models.Member) (string, error) {
+	panic(fmt.Errorf("not implemented: Nombre - nombre"))
+}
+
+// Apellidos is the resolver for the apellidos field.
+func (r *memberResolver) Apellidos(ctx context.Context, obj *models.Member) (string, error) {
+	panic(fmt.Errorf("not implemented: Apellidos - apellidos"))
+}
+
+// CalleNumeroPiso is the resolver for the calle_numero_piso field.
+func (r *memberResolver) CalleNumeroPiso(ctx context.Context, obj *models.Member) (string, error) {
+	panic(fmt.Errorf("not implemented: CalleNumeroPiso - calle_numero_piso"))
+}
+
+// CodigoPostal is the resolver for the codigo_postal field.
+func (r *memberResolver) CodigoPostal(ctx context.Context, obj *models.Member) (string, error) {
+	panic(fmt.Errorf("not implemented: CodigoPostal - codigo_postal"))
+}
+
+// Poblacion is the resolver for the poblacion field.
+func (r *memberResolver) Poblacion(ctx context.Context, obj *models.Member) (string, error) {
+	panic(fmt.Errorf("not implemented: Poblacion - poblacion"))
+}
+
+// Provincia is the resolver for the provincia field.
+func (r *memberResolver) Provincia(ctx context.Context, obj *models.Member) (string, error) {
+	panic(fmt.Errorf("not implemented: Provincia - provincia"))
+}
+
+// Pais is the resolver for the pais field.
+func (r *memberResolver) Pais(ctx context.Context, obj *models.Member) (string, error) {
+	panic(fmt.Errorf("not implemented: Pais - pais"))
+}
+
 // Estado is the resolver for the estado field.
 func (r *memberResolver) Estado(ctx context.Context, obj *models.Member) (model.MemberStatus, error) {
 	switch obj.State {
@@ -67,6 +107,46 @@ func (r *memberResolver) Estado(ctx context.Context, obj *models.Member) (model.
 				map[string]string{"estado": "desconocido"},
 			)
 	}
+}
+
+// FechaAlta is the resolver for the fecha_alta field.
+func (r *memberResolver) FechaAlta(ctx context.Context, obj *models.Member) (*time.Time, error) {
+	panic(fmt.Errorf("not implemented: FechaAlta - fecha_alta"))
+}
+
+// FechaBaja is the resolver for the fecha_baja field.
+func (r *memberResolver) FechaBaja(ctx context.Context, obj *models.Member) (*time.Time, error) {
+	panic(fmt.Errorf("not implemented: FechaBaja - fecha_baja"))
+}
+
+// FechaNacimiento is the resolver for the fecha_nacimiento field.
+func (r *memberResolver) FechaNacimiento(ctx context.Context, obj *models.Member) (*time.Time, error) {
+	panic(fmt.Errorf("not implemented: FechaNacimiento - fecha_nacimiento"))
+}
+
+// DocumentoIdentidad is the resolver for the documento_identidad field.
+func (r *memberResolver) DocumentoIdentidad(ctx context.Context, obj *models.Member) (*string, error) {
+	panic(fmt.Errorf("not implemented: DocumentoIdentidad - documento_identidad"))
+}
+
+// CorreoElectronico is the resolver for the correo_electronico field.
+func (r *memberResolver) CorreoElectronico(ctx context.Context, obj *models.Member) (*string, error) {
+	panic(fmt.Errorf("not implemented: CorreoElectronico - correo_electronico"))
+}
+
+// Profesion is the resolver for the profesion field.
+func (r *memberResolver) Profesion(ctx context.Context, obj *models.Member) (*string, error) {
+	panic(fmt.Errorf("not implemented: Profesion - profesion"))
+}
+
+// Nacionalidad is the resolver for the nacionalidad field.
+func (r *memberResolver) Nacionalidad(ctx context.Context, obj *models.Member) (*string, error) {
+	panic(fmt.Errorf("not implemented: Nacionalidad - nacionalidad"))
+}
+
+// Observaciones is the resolver for the observaciones field.
+func (r *memberResolver) Observaciones(ctx context.Context, obj *models.Member) (*string, error) {
+	panic(fmt.Errorf("not implemented: Observaciones - observaciones"))
 }
 
 // CreateMember is the resolver for the createMember field.
@@ -855,15 +935,3 @@ type mutationResolver struct{ *Resolver }
 type paymentResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type userResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//    it when you're done.
-//  - You have helper methods in this file. Move them out to keep these resolver files clean.
-/*
-	func (r *memberResolver) Address(ctx context.Context, obj *models.Member) (string, error) {
-	return obj.Address, nil
-}
-*/
