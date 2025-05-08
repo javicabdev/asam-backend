@@ -1,18 +1,18 @@
 package main
 
 import (
+	"errors" // Added standard errors package
 	"flag"
 	"fmt"
 	"log"
-	"math"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres" // PostgreSQL driver
+	_ "github.com/golang-migrate/migrate/v4/source/file"       // File source driver
 	"github.com/joho/godotenv"
 )
 
@@ -28,8 +28,8 @@ const (
 	AivenEnvFile = ".env.aiven"
 )
 
-// Lista de variables de entorno que necesitamos limpiar entre ejecuciones
-var envVars = []string{
+// envVarsToClear is a list of environment variables to clear between runs for different .env files.
+var envVarsToClear = []string{
 	"DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "DB_SSL_MODE",
 	"DATABASE_URL", "DB_MAX_IDLE_CONNS", "DB_MAX_OPEN_CONNS", "DB_CONN_MAX_LIFETIME",
 }
@@ -37,34 +37,30 @@ var envVars = []string{
 func init() {
 	// Setup command line flags
 	flag.StringVar(&environment, "env", "local", "Environment to use (local, aiven, all)")
-	flag.StringVar(&command, "cmd", "up", "Migration command (up, down, force, version, etc.)")
+	flag.StringVar(&command, "cmd", "up", "Migration command (up, down, force, version, goto, drop)")
 }
 
 func main() {
 	flag.Parse()
 
-	// Validate environment
+	// Validate environment flag
 	environment = strings.ToLower(environment)
 	if environment != "local" && environment != "aiven" && environment != "all" {
-		log.Fatalf("Invalid environment. Must be 'local', 'aiven', or 'all'")
+		log.Fatalf("Invalid environment '%s'. Must be 'local', 'aiven', or 'all'", environment)
 	}
 
-	// Get remaining arguments for potential migration numbers
+	// Get remaining arguments (e.g., number for 'up'/'down', version for 'force'/'goto')
 	args := flag.Args()
 
-	// Run migrations for specified environment(s)
+	// Execute migrations for the specified environment(s)
 	if environment == "local" || environment == "all" {
 		log.Println("==================================================")
 		log.Println("Running migrations on LOCAL database")
 		log.Println("==================================================")
-
-		// Limpiar las variables de entorno antes de cargar el archivo local
-		clearEnvVars()
-
-		if err := runMigrations(LocalEnvFile, command, args); err != nil {
+		clearEnvironmentVariables()
+		if err := executeMigrationsForEnv(LocalEnvFile, command, args); err != nil {
 			log.Printf("Error migrating local database: %v", err)
-			// Si solo estamos ejecutando migraciones para un entorno y falla,
-			// salir con error para que el script PowerShell reciba un código de error
+			// If only running for 'local' and it fails, exit with error for scripting purposes.
 			if environment == "local" {
 				os.Exit(1)
 			}
@@ -75,185 +71,261 @@ func main() {
 		log.Println("==================================================")
 		log.Println("Running migrations on AIVEN database")
 		log.Println("==================================================")
-
-		// Limpiar las variables de entorno antes de cargar el archivo Aiven
-		clearEnvVars()
-
-		if err := runMigrations(AivenEnvFile, command, args); err != nil {
+		clearEnvironmentVariables()
+		if err := executeMigrationsForEnv(AivenEnvFile, command, args); err != nil {
 			log.Printf("Error migrating Aiven database: %v", err)
-			os.Exit(1)
+			os.Exit(1) // Exit with error if Aiven migration fails.
+		}
+	}
+
+	log.Println("All specified migrations completed.")
+}
+
+// clearEnvironmentVariables unsets database-related environment variables.
+func clearEnvironmentVariables() {
+	log.Println("Clearing database-related environment variables...")
+	for _, envVar := range envVarsToClear {
+		if err := os.Unsetenv(envVar); err != nil {
+			// Log the error but don't necessarily fail the whole process for an unset error.
+			log.Printf("Warning: could not unset environment variable %s: %v", envVar, err)
 		}
 	}
 }
 
-// clearEnvVars limpia las variables de entorno relacionadas con la base de datos
-func clearEnvVars() {
-	for _, envVar := range envVars {
-		os.Unsetenv(envVar)
-	}
-}
-
-// runMigrations ejecuta las migraciones con el archivo .env especificado
-func runMigrations(envFile string, cmd string, args []string) error {
-	// Cargar las variables de entorno del archivo específico
+// executeMigrationsForEnv loads a specific .env file and runs migrations.
+func executeMigrationsForEnv(envFile string, cmd string, args []string) error {
+	log.Printf("Loading environment variables from: %s", envFile)
 	if err := godotenv.Load(envFile); err != nil {
 		return fmt.Errorf("error loading %s file: %w", envFile, err)
 	}
 
-	// Construir la URL de conexión a la base de datos
+	// Construct database connection URL
 	dbUser := os.Getenv("DB_USER")
 	dbPass := os.Getenv("DB_PASSWORD")
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
 	dbName := os.Getenv("DB_NAME")
-	sslMode := os.Getenv("DB_SSL_MODE")
+	sslMode := os.Getenv("DB_SSL_MODE") // Default to "disable" if not set, or handle as needed
 
-	// Verificar que todas las variables necesarias estén definidas
 	if dbHost == "" || dbPort == "" || dbUser == "" || dbName == "" {
-		return fmt.Errorf("database connection parameters not found in environment file %s", envFile)
+		return fmt.Errorf("one or more database connection parameters (DB_HOST, DB_PORT, DB_USER, DB_NAME) not found in environment file %s", envFile)
+	}
+	if sslMode == "" {
+		sslMode = "disable" // Default SSL mode if not specified
+		log.Printf("DB_SSL_MODE not set, defaulting to '%s'", sslMode)
 	}
 
-	// Imprimir la configuración de la base de datos para depuración
-	log.Printf("Database configuration: Host=%s, Port=%s, User=%s, DB=%s, SSL=%s",
+	log.Printf("Database configuration: Host=%s, Port=%s, User=%s, DB=%s, SSLMode=%s",
 		dbHost, dbPort, dbUser, dbName, sslMode)
 
-	// Construir el connection string en formato URL para la biblioteca migrate
 	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
 		dbUser, dbPass, dbHost, dbPort, dbName, sslMode)
 
-	// Obtener la ruta del proyecto
-	projectDir, err := getProjectDir()
+	// Determine migrations path
+	projectDir, err := getProjectRootDirectory()
 	if err != nil {
 		return fmt.Errorf("failed to get project directory: %w", err)
 	}
-
-	// Construir la ruta absoluta al directorio de migraciones
 	migrationsPath := filepath.Join(projectDir, "migrations")
 	migrationsURL := fmt.Sprintf("file://%s", filepath.ToSlash(migrationsPath))
+	log.Printf("Using migrations from: %s", migrationsURL)
 
-	// Crear una nueva instancia de migrate
+	// Create migrate instance
 	m, err := migrate.New(migrationsURL, dbURL)
 	if err != nil {
-		return fmt.Errorf("failed to create migrate instance: %w", err)
+		return fmt.Errorf("failed to create migrate instance: %w. Check DB connection and migrations path", err)
 	}
-	defer m.Close()
+	defer func() {
+		srcErr, dbErr := m.Close()
+		if srcErr != nil {
+			log.Printf("Error closing migration source: %v", srcErr)
+		}
+		if dbErr != nil {
+			log.Printf("Error closing migration database connection: %v", dbErr)
+		}
+	}()
 
-	// Ejecutar el comando especificado
-	switch cmd {
-	case "up":
-		// Obtener el número de migraciones a aplicar si se especificó
-		if len(args) > 0 {
-			n, err := strconv.Atoi(args[0])
-			if err != nil {
-				return fmt.Errorf("invalid number of migrations: %w", err)
-			}
-			if err := m.Steps(n); err != nil && err != migrate.ErrNoChange {
-				return fmt.Errorf("failed to apply %d migrations: %w", n, err)
-			}
-		} else {
-			// Aplicar todas las migraciones
-			if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-				return fmt.Errorf("failed to apply all migrations: %w", err)
-			}
-		}
-
-	case "down":
-		// Obtener el número de migraciones a revertir si se especificó
-		if len(args) > 0 {
-			n, err := strconv.Atoi(args[0])
-			if err != nil {
-				return fmt.Errorf("invalid number of migrations: %w", err)
-			}
-			if err := m.Steps(-n); err != nil && err != migrate.ErrNoChange {
-				return fmt.Errorf("failed to revert %d migrations: %w", n, err)
-			}
-		} else {
-			// Revertir todas las migraciones
-			if err := m.Down(); err != nil && err != migrate.ErrNoChange {
-				return fmt.Errorf("failed to revert all migrations: %w", err)
-			}
-		}
-
-	case "version":
-		// Mostrar la versión actual
-		version, dirty, err := m.Version()
-		if err != nil {
-			return fmt.Errorf("failed to get migration version: %w", err)
-		}
-		log.Printf("Current migration version: %d (dirty: %t)", version, dirty)
-
-	case "force":
-		// Forzar la versión de la base de datos
-		if len(args) == 0 {
-			return fmt.Errorf("force command requires a version number")
-		}
-		v, err := strconv.ParseUint(args[0], 10, 64)
-		if err != nil {
-			return fmt.Errorf("invalid version number: %w", err)
-		}
-		// Verificar que el valor no exceda el máximo de int
-		if v > uint64(math.MaxInt) {
-			return fmt.Errorf("version %d exceeds maximum int value", v)
-		}
-		if err := m.Force(int(v)); err != nil {
-			return fmt.Errorf("failed to force version %d: %w", v, err)
-		}
-
-	case "goto":
-		// Migrar a una versión específica
-		if len(args) == 0 {
-			return fmt.Errorf("goto command requires a version number")
-		}
-		v, err := strconv.ParseUint(args[0], 10, 64)
-		if err != nil {
-			return fmt.Errorf("invalid version number: %w", err)
-		}
-		if err := m.Migrate(uint(v)); err != nil && err != migrate.ErrNoChange {
-			return fmt.Errorf("failed to migrate to version %d: %w", v, err)
-		}
-
-	case "drop":
-		// Eliminar todas las tablas
-		if err := m.Drop(); err != nil {
-			return fmt.Errorf("failed to drop all tables: %w", err)
-		}
-
-	default:
-		return fmt.Errorf("unknown command: %s", cmd)
+	// Execute the specified migration command
+	log.Printf("Executing command: '%s' with arguments: %v", cmd, args)
+	// Assign the result of runMigrationCommand to err to check it later
+	migrationErr := runMigrationCommand(m, cmd, args)
+	if migrationErr != nil {
+		return migrationErr // Error is already contextualized by runMigrationCommand
 	}
 
-	log.Printf("Migrations completed successfully")
+	log.Printf("Migrations command '%s' completed successfully for %s", cmd, envFile)
 	return nil
 }
 
-// getProjectDir obtiene la ruta al directorio raíz del proyecto
-func getProjectDir() (string, error) {
-	// Obtener la ruta actual
+// runMigrationCommand dispatches to specific command handlers.
+func runMigrationCommand(m *migrate.Migrate, cmd string, args []string) error {
+	switch cmd {
+	case "up":
+		return handleMigrationUp(m, args)
+	case "down":
+		return handleMigrationDown(m, args)
+	case "version":
+		return handleMigrationVersion(m)
+	case "force":
+		return handleMigrationForce(m, args)
+	case "goto":
+		return handleMigrationGoto(m, args)
+	case "drop":
+		return handleMigrationDrop(m)
+	default:
+		return fmt.Errorf("unknown command: '%s'. Supported commands are: up, down, version, force, goto, drop", cmd)
+	}
+}
+
+// handleMigrationUp applies migrations.
+func handleMigrationUp(m *migrate.Migrate, args []string) error {
+	var err error // Declare err here to check for migrate.ErrNoChange at the end
+	if len(args) > 0 {
+		n, convErr := strconv.Atoi(args[0])
+		if convErr != nil || n < 0 { // Also check for negative numbers
+			return fmt.Errorf("invalid number of migrations for 'up' command: '%s'. Must be a non-negative integer: %w", args[0], convErr)
+		}
+		log.Printf("Applying next %d migration(s)...", n)
+		err = m.Steps(n)
+		if err != nil && !errors.Is(err, migrate.ErrNoChange) {
+			return fmt.Errorf("failed to apply %d migrations: %w", n, err)
+		}
+	} else {
+		log.Println("Applying all available 'up' migrations...")
+		err = m.Up()
+		if err != nil && !errors.Is(err, migrate.ErrNoChange) {
+			return fmt.Errorf("failed to apply all 'up' migrations: %w", err)
+		}
+	}
+	if errors.Is(err, migrate.ErrNoChange) {
+		log.Println("No new 'up' migrations to apply.")
+	}
+	return nil
+}
+
+// handleMigrationDown reverts migrations.
+func handleMigrationDown(m *migrate.Migrate, args []string) error {
+	var err error // Declare err to be accessible for the final ErrNoChange check
+	if len(args) > 0 {
+		n, convErr := strconv.Atoi(args[0])
+		if convErr != nil || n < 0 { // Also check for negative numbers
+			return fmt.Errorf("invalid number of migrations for 'down' command: '%s'. Must be a non-negative integer: %w", args[0], convErr)
+		}
+		log.Printf("Reverting last %d migration(s)...", n)
+		if n == 0 { // Reverting 0 steps is a no-op.
+			log.Println("Reverting 0 migrations means no change.")
+			return nil // Or set err to migrate.ErrNoChange if preferred
+		}
+		err = m.Steps(-n) // Pass negative n to revert
+		if err != nil && !errors.Is(err, migrate.ErrNoChange) {
+			return fmt.Errorf("failed to revert %d migrations: %w", n, err)
+		}
+	} else {
+		log.Println("Reverting last migration (or all if 'all' specified)...")
+		// m.Down() typically reverts one migration.
+		// If "revert all" is truly desired, m.Goto(0) is more explicit.
+		// This matches the original behavior of reverting one step if no arg.
+		err = m.Down()
+		if err != nil && !errors.Is(err, migrate.ErrNoChange) {
+			return fmt.Errorf("failed to revert last migration: %w", err)
+		}
+	}
+	if errors.Is(err, migrate.ErrNoChange) {
+		log.Println("No 'down' migrations to revert or already at the initial state.")
+	}
+	return nil
+}
+
+// handleMigrationVersion shows the current migration version.
+func handleMigrationVersion(m *migrate.Migrate) error {
+	version, dirty, err := m.Version()
+	if err != nil {
+		// Special case: if ErrNilVersion, it means no migrations have been applied yet.
+		if errors.Is(err, migrate.ErrNilVersion) {
+			log.Println("No migrations have been applied yet. Version is considered 0 (not dirty).")
+			return nil
+		}
+		return fmt.Errorf("failed to get migration version: %w", err)
+	}
+	log.Printf("Current migration version: %d (dirty: %t)", version, dirty)
+	return nil
+}
+
+// handleMigrationForce sets the database migration version.
+func handleMigrationForce(m *migrate.Migrate, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("force command requires a version number argument")
+	}
+	vStr := args[0]
+	// Use ParseInt as m.Force takes an int. MaxInt check was removed in previous version,
+	// but it's good practice if there's a specific range. For now, rely on int conversion.
+	v, err := strconv.ParseInt(vStr, 10, 0) // bitSize 0 means int
+	if err != nil {
+		return fmt.Errorf("invalid version number '%s' for force command: %w", vStr, err)
+	}
+	if v < 0 { // Migration versions are typically non-negative.
+		return fmt.Errorf("version number for force command must be non-negative, got: %d", v)
+	}
+	log.Printf("Forcing migration version to: %d", v)
+	if err := m.Force(int(v)); err != nil {
+		return fmt.Errorf("failed to force version %d: %w", v, err)
+	}
+	return nil
+}
+
+// handleMigrationGoto migrates to a specific version.
+func handleMigrationGoto(m *migrate.Migrate, args []string) error {
+	var err error // Declare err here to check for migrate.ErrNoChange at the end
+	if len(args) == 0 {
+		return fmt.Errorf("goto command requires a version number argument")
+	}
+	vStr := args[0]
+	v, convErr := strconv.ParseUint(vStr, 10, 0) // m.Migrate takes uint, bitSize 0 means uint
+	if convErr != nil {
+		return fmt.Errorf("invalid version number '%s' for goto command: %w", vStr, convErr)
+	}
+	log.Printf("Migrating to version: %d...", v)
+	err = m.Migrate(uint(v))
+	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("failed to migrate to version %d: %w", v, err)
+	}
+	if errors.Is(err, migrate.ErrNoChange) {
+		log.Printf("Already at version %d or no migrations needed to reach it.", v)
+	}
+	return nil
+}
+
+// handleMigrationDrop removes all tables (drops all migrations).
+func handleMigrationDrop(m *migrate.Migrate) error {
+	log.Println("Dropping all tables (reverting all migrations)...")
+	if err := m.Drop(); err != nil {
+		return fmt.Errorf("failed to drop all tables: %w", err)
+	}
+	return nil
+}
+
+// getProjectRootDirectory determines the project's root directory by looking for a 'migrations' folder.
+// It navigates up from the current working directory.
+func getProjectRootDirectory() (string, error) {
 	currentDir, err := os.Getwd()
 	if err != nil {
-		return "", fmt.Errorf("failed to get current directory: %w", err)
+		return "", fmt.Errorf("failed to get current working directory: %w", err)
 	}
 
-	// Comprobar si estamos ya en el directorio raíz del proyecto
-	if _, err := os.Stat(filepath.Join(currentDir, "migrations")); err == nil {
-		return currentDir, nil
+	// Check up to a certain number of parent directories to avoid infinite loops on strange filesystems.
+	for i := 0; i < 10; i++ { // Limit search depth
+		migrationsDir := filepath.Join(currentDir, "migrations")
+		if _, err := os.Stat(migrationsDir); err == nil {
+			// Found migrations directory, this is the project root.
+			return currentDir, nil
+		}
+		// Move to parent directory
+		parentDir := filepath.Dir(currentDir)
+		if parentDir == currentDir {
+			// Reached the root of the filesystem without finding 'migrations'
+			break
+		}
+		currentDir = parentDir
 	}
-
-	// Si estamos en cmd/migrate, subir dos niveles
-	if strings.HasSuffix(currentDir, filepath.Join("cmd", "migrate")) {
-		return filepath.Dir(filepath.Dir(currentDir)), nil
-	}
-
-	// Si estamos en cmd, subir un nivel
-	if strings.HasSuffix(currentDir, "cmd") {
-		return filepath.Dir(currentDir), nil
-	}
-
-	// Comprobar si el directorio padre es el raíz del proyecto
-	parentDir := filepath.Dir(currentDir)
-	if _, err := os.Stat(filepath.Join(parentDir, "migrations")); err == nil {
-		return parentDir, nil
-	}
-
-	return "", fmt.Errorf("could not find project root directory")
+	return "", fmt.Errorf("could not find project root directory containing 'migrations' folder (searched upwards from initial CWD: %s)", currentDir) // Added initial CWD for clarity
 }
