@@ -22,23 +22,38 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24' # Asegúrate que coincida con tu go.mod
-          cache: true
+          cache: false # <--- DIAGNÓSTICO: Deshabilitar caché temporalmente
 
-      - name: Download Go modules # <--- CORRECCIÓN CLAVE AÑADIDA
-        run: go mod download
+      - name: Tidy Go modules
+        run: go mod tidy
+
+      - name: Download Go modules (Verbose) # <--- DIAGNÓSTICO: Añadido -v
+        run: go mod download -v
+
+      - name: Verify Go modules state and environment
+        run: |
+          echo "--- go version ---"
+          go version
+          echo "--- go env ---"
+          go env
+          echo "--- go list -m all ---"
+          go list -m all
+          echo "--- go mod graph ---"
+          go mod graph
+          echo "--- Listing GOPATH/pkg/mod ---" # <--- DIAGNÓSTICO: Listar contenido
+          ls -lR $(go env GOPATH)/pkg/mod || echo "GOPATH/pkg/mod not found or error listing."
+          echo "--- ls -la vendor (if exists) ---"
+          ls -la vendor || echo "Vendor directory does not exist."
 
       - name: Install golangci-lint
         run: |
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.58.0
 
-      - name: Run golangci-lint
-        # El flag --fix puede ser útil pero úsalo con precaución en CI si no quieres auto-correcciones.
-        # Considera ejecutarlo sin --fix para solo reportar errores.
-        run: golangci-lint run ./... --timeout=5m
+      - name: Run golangci-lint (Verbose) # <--- DIAGNÓSTICO: Añadido -v
+        run: golangci-lint run -v ./... --timeout=5m
 
       - name: Verify gofmt
         run: |
-          # Verifica si hay archivos que necesitan ser formateados
           OUTPUT=$(gofmt -s -l .)
           if [ -n "$OUTPUT" ]; then
             echo "The following files are not formatted with gofmt:"
@@ -49,9 +64,7 @@ jobs:
 
       - name: Validate imports (goimports)
         run: |
-          # Instala goimports si no está disponible o usa una versión específica
           go install golang.org/x/tools/cmd/goimports@latest
-          # Verifica si hay archivos que necesitan ser formateados con goimports
           OUTPUT=$(goimports -l .)
           if [ -n "$OUTPUT" ]; then
             echo "The following files have import formatting issues:"
@@ -65,7 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ['1.23', '1.24'] # Mantén la matriz si necesitas probar con múltiples versiones
+        go-version: ['1.23', '1.24']
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -74,22 +87,25 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
-          cache: true # La caché intentará restaurar dependencias aquí
+          cache: true # Mantenemos caché aquí, el error de tar es secundario por ahora
 
       - name: Get dependencies
-        run: go mod download # Asegura que las dependencias estén presentes incluso si la caché falla
+        run: go mod download
 
-      - name: Generate GraphQL code # Asumiendo que este comando existe y es necesario
-        # Si este comando tiene sus propias dependencias, asegúrate que estén cubiertas
+      - name: Generate GraphQL code
         run: go run ./cmd/generate
 
       - name: Build application
         run: go build -v ./cmd/api
 
+  # --- Resto de los jobs (unit-tests, integration-tests, code-quality, validate-commits) ---
+  # Se mantienen igual que en la versión anterior del artefacto ci_yml_corrected_v2
+  # ... (copiar los jobs restantes aquí) ...
+
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
-    needs: [lint, build] # Depende de lint y build
+    needs: [lint, build]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -103,7 +119,7 @@ jobs:
       - name: Get dependencies
         run: go mod download
 
-      - name: Generate GraphQL code # Asumiendo que este comando existe y es necesario
+      - name: Generate GraphQL code
         run: go run ./cmd/generate
 
       - name: Run unit tests
@@ -113,14 +129,13 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           file: ./coverage.txt
-          flags: unittests # Opcional: flags para categorizar la cobertura
-          # token: ${{ secrets.CODECOV_TOKEN }} # Opcional, a veces necesario para repos privados
-          fail_ci_if_error: true # Falla el CI si la subida a Codecov falla
+          flags: unittests
+          fail_ci_if_error: true
 
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
-    needs: [lint, build] # Depende de lint y build
+    needs: [lint, build]
     services:
       postgres:
         image: postgres:15
@@ -129,7 +144,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: asam_test
         ports:
-          - 5432:5432 # El puerto del host es irrelevante para la comunicación entre servicios dentro de la red de Actions
+          - 5432:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -151,35 +166,30 @@ jobs:
 
       - name: Setup test environment
         run: |
-          cp .env.test .env # Asegúrate que .env.test exista y esté configurado
-          # Compila y ejecuta la herramienta de migración
-          # Si cmd/migrate/main.go es un ejecutable simple, `go run` es suficiente.
-          # Si es más complejo o quieres un binario, `go build` primero.
-          go run cmd/migrate/main.go -env local -cmd up # Especifica el entorno si es necesario
-        env: # Variables de entorno para el script de migración
-          DB_HOST: localhost # El servicio postgres está disponible en localhost para otros steps
-          DB_PORT: 5432
-          DB_USER: postgres
-          DB_PASSWORD: postgres
-          DB_NAME: asam_test
-          DB_SSL_MODE: disable # Generalmente disable para tests locales con Docker
-          # Otras variables que tu script de migración pueda necesitar
-
-      - name: Run integration tests
-        run: go test -v -tags=integration ./test/integration/...
-        env: # Variables de entorno para tus tests de integración
+          cp .env.test .env
+          go run cmd/migrate/main.go -env local -cmd up
+        env:
           DB_HOST: localhost
           DB_PORT: 5432
           DB_USER: postgres
           DB_PASSWORD: postgres
           DB_NAME: asam_test
           DB_SSL_MODE: disable
-          # Otras variables de entorno que tus tests puedan necesitar
+
+      - name: Run integration tests
+        run: go test -v -tags=integration ./test/integration/...
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_NAME: asam_test
+          DB_SSL_MODE: disable
 
   code-quality:
     name: Code Quality Analysis
     runs-on: ubuntu-latest
-    needs: [unit-tests, integration-tests] # Depende de tests
+    needs: [unit-tests, integration-tests]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -190,9 +200,6 @@ jobs:
           go-version: '1.24'
           cache: true
 
-      # `go mod download` no es estrictamente necesario aquí si `go vet` y `gocyclo`
-      # no dependen de la compilación completa o si la caché ya tiene lo necesario.
-      # Sin embargo, añadirlo no perjudica y puede prevenir problemas sutiles.
       - name: Download Go modules (optional for static analysis, but safe)
         run: go mod download
 
@@ -202,12 +209,9 @@ jobs:
       - name: Check cyclomatic complexity
         run: |
           go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
-          gocyclo -over 15 . || true # Permite que el pipeline continúe si gocyclo falla, para ver el output
-                                    # O elimina `|| true` para que falle el pipeline si la complejidad es muy alta.
+          gocyclo -over 15 . || true
 
       - name: Generate coverage report (consolidated)
-        # This step assumes that you want a project-wide coverage report.
-        # It may be different from the unit-tests specific coverage.txt.
         run: go test -coverprofile=coverage.out ./...
 
       - name: Check coverage percentage
@@ -215,7 +219,7 @@ jobs:
           go tool cover -func=coverage.out
           COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
           echo "Current total coverage: $COVERAGE%"
-          if (( $(echo "$COVERAGE < 70.0" | bc -l) )); then # Asegúrate de usar un número decimal para bc
+          if (( $(echo "$COVERAGE < 70.0" | bc -l) )); then
             echo "Error: Code coverage is below 70% ($COVERAGE%)"
             exit 1
           fi
@@ -229,7 +233,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Necesario para commitlint
+          fetch-depth: 0
 
       - name: Validate Conventional Commits
         uses: wagoid/commitlint-github-action@v5
+
