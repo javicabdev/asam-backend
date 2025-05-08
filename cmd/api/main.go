@@ -3,29 +3,29 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/javicabdev/asam-backend/internal/domain/models"
-	"github.com/javicabdev/asam-backend/internal/ports/input"
-	"github.com/javicabdev/asam-backend/pkg/health"
-	"github.com/javicabdev/asam-backend/pkg/logger/audit"
-	"github.com/javicabdev/asam-backend/pkg/metrics"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/collectors"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 
 	"github.com/javicabdev/asam-backend/internal/adapters/db"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
 	"github.com/javicabdev/asam-backend/internal/config"
+	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/domain/services"
+	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/pkg/auth"
+	"github.com/javicabdev/asam-backend/pkg/health"
 	"github.com/javicabdev/asam-backend/pkg/logger"
+	"github.com/javicabdev/asam-backend/pkg/logger/audit"
+	"github.com/javicabdev/asam-backend/pkg/metrics"
 )
 
 func initLogging() (logger.Logger, audit.Logger, error) {
