@@ -34,7 +34,7 @@ type Member struct {
 	FechaNacimiento    *time.Time `db:"fecha_nacimiento"`
 	DocumentoIdentidad string     `db:"documento_identidad"`
 	CorreoElectronico  string     `db:"correo_electronico"`
-	Profession         string     `db:"profession"`
+	Profession         string     `db:"profesion"`
 	Nacionalidad       string     `db:"nacionalidad"`
 	Observaciones      string     `db:"observaciones"`
 }
@@ -88,12 +88,12 @@ func (g *MemberGenerator) generateBatch(ctx context.Context, tx *sqlx.Tx, start,
 			numero_socio, tipo_membresia, nombre, apellidos, 
 			calle_numero_piso, codigo_postal, poblacion, provincia, pais,
 			estado, fecha_alta, fecha_baja, fecha_nacimiento, 
-			documento_identidad, correo_electronico, profession, nacionalidad, observaciones
+			documento_identidad, correo_electronico, profesion, nacionalidad, observaciones
 		) VALUES (
 			:numero_socio, :tipo_membresia, :nombre, :apellidos, 
 			:calle_numero_piso, :codigo_postal, :poblacion, :provincia, :pais,
 			:estado, :fecha_alta, :fecha_baja, :fecha_nacimiento, 
-			:documento_identidad, :correo_electronico, :profession, :nacionalidad, :observaciones
+			:documento_identidad, :correo_electronico, :profesion, :nacionalidad, :observaciones
 		)
 	`
 
@@ -208,7 +208,7 @@ func (g *MemberGenerator) GetLastInsertedMembers(ctx context.Context, n int) ([]
 			miembro_id, numero_socio, tipo_membresia, nombre, apellidos,
 			calle_numero_piso, codigo_postal, poblacion, provincia, pais,
 			estado, fecha_alta, fecha_baja, fecha_nacimiento,
-			documento_identidad, correo_electronico, profession, nacionalidad, observaciones
+			documento_identidad, correo_electronico, profesion, nacionalidad, observaciones
 		FROM miembros
 		ORDER BY miembro_id DESC
 		LIMIT $1
@@ -231,7 +231,7 @@ func (g *MemberGenerator) FindIndividualMembers(ctx context.Context, limit int) 
 			miembro_id, numero_socio, tipo_membresia, nombre, apellidos,
 			calle_numero_piso, codigo_postal, poblacion, provincia, pais,
 			estado, fecha_alta, fecha_baja, fecha_nacimiento,
-			documento_identidad, correo_electronico, profession, nacionalidad, observaciones
+			documento_identidad, correo_electronico, profesion, nacionalidad, observaciones
 		FROM miembros
 		WHERE tipo_membresia = 'individual' AND estado = 'activo'
 		LIMIT $1
@@ -254,7 +254,7 @@ func (g *MemberGenerator) FindFamilyMembers(ctx context.Context, limit int) ([]M
 			miembro_id, numero_socio, tipo_membresia, nombre, apellidos,
 			calle_numero_piso, codigo_postal, poblacion, provincia, pais,
 			estado, fecha_alta, fecha_baja, fecha_nacimiento,
-			documento_identidad, correo_electronico, profession, nacionalidad, observaciones
+			documento_identidad, correo_electronico, profesion, nacionalidad, observaciones
 		FROM miembros
 		WHERE tipo_membresia = 'familiar' AND estado = 'activo'
 		LIMIT $1

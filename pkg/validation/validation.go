@@ -1,9 +1,10 @@
 package validation
 
 import (
-	"github.com/javicabdev/asam-backend/pkg/errors"
 	"regexp"
 	"time"
+
+	"github.com/javicabdev/asam-backend/pkg/errors"
 )
 
 var (

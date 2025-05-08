@@ -249,6 +249,8 @@ func respondWithAuthError(w http.ResponseWriter, message string) {
 	// Enviar respuesta
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		// Si ocurre un error al codificar, enviar una respuesta simple
-		_, _ = w.Write([]byte(`{"errors":[{"message":"Unauthorized","extensions":{"code":"UNAUTHORIZED"}}],"data":null}`))
+		if _, writeErr := w.Write([]byte(`{"errors":[{"message":"Unauthorized","extensions":{"code":"UNAUTHORIZED"}}],"data":null}`)); writeErr != nil {
+			// No hay mucho que podamos hacer si también falla Write
+		}
 	}
 }
