@@ -28,13 +28,13 @@ func (m *MetricsMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Record metrics
 	duration := time.Since(start).Seconds()
 
-	HttpRequestsTotal.WithLabelValues(
+	HTTPRequestsTotal.WithLabelValues(
 		r.Method,
 		r.URL.Path,
 		strconv.Itoa(wrapped.status),
 	).Inc()
 
-	HttpRequestDuration.WithLabelValues(
+	HTTPRequestDuration.WithLabelValues(
 		r.Method,
 		r.URL.Path,
 	).Observe(duration)

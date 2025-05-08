@@ -144,7 +144,8 @@ func (s *Seeder) Clean(ctx context.Context) error {
 			}
 
 			// Reset sequence after DELETE
-			seqName := fmt.Sprintf("%s_id_seq", table) // Assuming standard sequence name convention
+			// Determine the sequence name based on the table name
+			var seqName string
 			parts := splitTableName(table)
 			if len(parts) == 2 {
 				seqName = fmt.Sprintf("%s_%s_id_seq", parts[0], parts[1]) // e.g. public_users_id_seq

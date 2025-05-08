@@ -144,9 +144,9 @@ func GenerateRandomEmail(r *rand.Rand, firstName, lastName string) string {
 
 	// Normalize names for email
 	firstName = strings.ToLower(firstName)
-	firstName = strings.Replace(firstName, " ", "", -1)
+	firstName = strings.ReplaceAll(firstName, " ", "")
 	lastName = strings.ToLower(lastName)
-	lastName = strings.Replace(lastName, " ", "", -1)
+	lastName = strings.ReplaceAll(lastName, " ", "")
 
 	// Remove accents
 	replacements := map[string]string{
@@ -155,8 +155,8 @@ func GenerateRandomEmail(r *rand.Rand, firstName, lastName string) string {
 	}
 
 	for old, new := range replacements {
-		firstName = strings.Replace(firstName, old, new, -1)
-		lastName = strings.Replace(lastName, old, new, -1)
+		firstName = strings.ReplaceAll(firstName, old, new)
+		lastName = strings.ReplaceAll(lastName, old, new)
 	}
 
 	// Email generation types
