@@ -385,7 +385,7 @@ func (s *Seeder) SeedTelefonos(_ context.Context) error {
 	return nil
 }
 
-func (s *Seeder) SeedHistorialMembresia(ctx context.Context) error {
+func (s *Seeder) SeedHistorialMembresia(_ context.Context) error {
 	s.Logf("--> Seeding Historial Membresia table (Placeholder - Implement if needed)")
 	// Add actual historial membresia seeding logic here, likely dependent on miembros
 	return nil

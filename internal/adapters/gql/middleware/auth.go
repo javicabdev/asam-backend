@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 
@@ -188,7 +189,9 @@ func isPublicOperation(r *http.Request) (bool, string) {
 		return false, "unknown"
 	}
 
-	defer bodyBytes.Close()
+	defer func(bodyBytes io.ReadCloser) {
+		_ = bodyBytes.Close()
+	}(bodyBytes)
 
 	if err := json.NewDecoder(bodyBytes).Decode(&gqlRequest); err != nil {
 		// Si no podemos decodificar, asumir que necesita autenticación

@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// Callback para métricas de GORM
+// RegisterMetrics Callback para métricas de GORM
 func RegisterMetrics(db *gorm.DB) {
 	err := db.Callback().Create().Before("gorm:create").Register("metrics:create", func(db *gorm.DB) {
 		startOperation(db)

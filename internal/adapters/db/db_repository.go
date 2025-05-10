@@ -78,39 +78,3 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 	log.Printf("Successfully connected to database %s at %s:%s", cfg.DBName, cfg.DBHost, cfg.DBPort)
 	return db, nil
 }
-
-// Additional helper functions for database operations
-
-// IsConnected checks if the database connection is still active
-func IsConnected(db *gorm.DB) error {
-	sqlDB, err := db.DB()
-	if err != nil {
-		return errors.Wrap(err, errors.ErrDatabaseError, "Failed to get underlying database connection")
-	}
-
-	if err := sqlDB.Ping(); err != nil {
-		return errors.Wrap(err, errors.ErrDatabaseError, "Database connection lost")
-	}
-
-	return nil
-}
-
-// GetDBStats returns statistics about the database connection pool
-func GetDBStats(db *gorm.DB) (map[string]any, error) {
-	sqlDB, err := db.DB()
-	if err != nil {
-		return nil, errors.Wrap(err, errors.ErrDatabaseError, "Failed to get underlying database connection")
-	}
-
-	stats := sqlDB.Stats()
-	return map[string]any{
-		"max_open_connections": stats.MaxOpenConnections,
-		"open_connections":     stats.OpenConnections,
-		"in_use":               stats.InUse,
-		"idle":                 stats.Idle,
-		"wait_count":           stats.WaitCount,
-		"wait_duration":        stats.WaitDuration,
-		"max_idle_closed":      stats.MaxIdleClosed,
-		"max_lifetime_closed":  stats.MaxLifetimeClosed,
-	}, nil
-}

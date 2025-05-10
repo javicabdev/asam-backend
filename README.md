@@ -6,7 +6,7 @@
 - [Guía para Frontend](docs/guia-frontend.md) - Documentación detallada para desarrolladores frontend
 - [Autenticación](docs/auth.md) - Información sobre el sistema de autenticación
 - [Base de Datos](docs/database.md) - Detalles sobre el modelado de datos y migraciones
-- [Manejo de Errores](docs/errors.md) - Sistema de manejo de errores
+- [Manejo de Errores](docs/errs.md) - Sistema de manejo de errores
 - [Configuración de GCP](docs/gcp-project-setup.md) - Guía para configurar el proyecto en Google Cloud
 - [Configuración de GitHub Secrets](docs/github-secrets-setup.md) - Guía para configurar los secretos en GitHub
 

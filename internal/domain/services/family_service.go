@@ -15,7 +15,6 @@ const (
 	msgFamilyNotFound      = "familia no encontrada"
 	msgInvalidFamilyData   = "datos de familia inválidos"
 	msgInvalidFamiliarData = "datos de familiar inválidos"
-	msgFamiliarNotFound    = "familiar no encontrado"
 	msgMemberNotFound      = "miembro no encontrado"
 )
 

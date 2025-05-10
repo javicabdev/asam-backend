@@ -8,17 +8,14 @@ import (
 
 // FamilyRepository defines the operations available for family persistence
 type FamilyRepository interface {
-	// Main operations
 	Create(ctx context.Context, family *models.Family) error
 	GetByID(ctx context.Context, id uint) (*models.Family, error)
 	Update(ctx context.Context, family *models.Family) error
 	Delete(ctx context.Context, id uint) error
 
-	// Search operations
 	GetByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Family, error)
 	List(ctx context.Context, page, pageSize int, searchTerm *string, orderBy string) ([]*models.Family, int, error)
 
-	// Family operations
 	AddFamiliar(ctx context.Context, familyID uint, familiar *models.Familiar) error
 	UpdateFamiliar(ctx context.Context, familiar *models.Familiar) error
 	RemoveFamiliar(ctx context.Context, familiarID uint) error

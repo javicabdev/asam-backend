@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	// Métrica para total de requests HTTP
+	// HTTPRequestsTotal Métrica para total de requests HTTP
 	HTTPRequestsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "asam_http_requests_total",
@@ -15,7 +15,7 @@ var (
 		[]string{"method", "path", "status"},
 	)
 
-	// Métrica para duración de requests HTTP
+	// HTTPRequestDuration Métrica para duración de requests HTTP
 	HTTPRequestDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "asam_http_request_duration_seconds",
@@ -25,7 +25,7 @@ var (
 		[]string{"method", "path"},
 	)
 
-	// Métrica para total de operaciones de BD
+	// DBOperationsTotal Métrica para total de operaciones de BD
 	DBOperationsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "asam_db_operations_total",
@@ -34,7 +34,7 @@ var (
 		[]string{"operation", "table", "status"},
 	)
 
-	// Métrica para duración de operaciones de BD
+	// DBOperationDuration Métrica para duración de operaciones de BD
 	DBOperationDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "asam_db_operation_duration_seconds",
@@ -42,28 +42,5 @@ var (
 			Buckets: prometheus.DefBuckets,
 		},
 		[]string{"operation", "table"},
-	)
-
-	// Métricas de negocio
-	ActiveMembersTotal = promauto.NewGauge(
-		prometheus.GaugeOpts{
-			Name: "asam_active_members_total",
-			Help: "Total number of active members",
-		},
-	)
-
-	PaymentsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "asam_payments_total",
-			Help: "Total number of payments",
-		},
-		[]string{"status", "type"},
-	)
-
-	CashFlowBalance = promauto.NewGauge(
-		prometheus.GaugeOpts{
-			Name: "asam_cashflow_balance",
-			Help: "Current cash flow balance",
-		},
 	)
 )

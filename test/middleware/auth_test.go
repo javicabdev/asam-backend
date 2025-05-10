@@ -70,12 +70,12 @@ func TestAuthMiddleware_NoToken(t *testing.T) {
 	fmt.Printf("\nCuerpo de respuesta raw en NoToken: %s\n", w.Body.String())
 
 	// Verificar que hay errores en la respuesta
-	errors, ok := response["errors"].([]any)
+	errs, ok := response["errors"].([]any)
 	assert.True(t, ok, "La respuesta debería contener errores")
-	assert.NotEmpty(t, errors, "La lista de errores no debería estar vacía")
+	assert.NotEmpty(t, errs, "La lista de errores no debería estar vacía")
 
 	// Verificar que el error tiene el código correcto
-	firstError := errors[0].(map[string]any)
+	firstError := errs[0].(map[string]any)
 	assert.Equal(t, "Se requiere autenticación para esta operación", firstError["message"])
 	assert.Equal(t, "UNAUTHORIZED", firstError["extensions"].(map[string]any)["code"])
 }
@@ -219,12 +219,12 @@ func TestAuthMiddleware_InvalidTokenFormat(t *testing.T) {
 			fmt.Printf("\nCuerpo de respuesta raw: %s\n", w.Body.String())
 
 			// Verificar que hay errores en la respuesta
-			errors, ok := response["errors"].([]any)
+			errs, ok := response["errors"].([]any)
 			assert.True(t, ok, "La respuesta debería contener errores")
-			assert.NotEmpty(t, errors, "La lista de errores no debería estar vacía")
+			assert.NotEmpty(t, errs, "La lista de errores no debería estar vacía")
 
 			// Verificar que el error tiene el código correcto
-			firstError := errors[0].(map[string]any)
+			firstError := errs[0].(map[string]any)
 			assert.Equal(t, tc.errorMsg, firstError["message"])
 			assert.Equal(t, "UNAUTHORIZED", firstError["extensions"].(map[string]any)["code"])
 		})
@@ -278,12 +278,12 @@ func TestAuthMiddleware_InvalidToken(t *testing.T) {
 	fmt.Printf("\nCuerpo de respuesta raw: %s\n", w.Body.String())
 
 	// Verificar que hay errores en la respuesta
-	errors, ok := response["errors"].([]any)
+	errs, ok := response["errors"].([]any)
 	assert.True(t, ok, "La respuesta debería contener errores")
-	assert.NotEmpty(t, errors, "La lista de errores no debería estar vacía")
+	assert.NotEmpty(t, errs, "La lista de errores no debería estar vacía")
 
 	// Verificar que el error tiene el código correcto
-	firstError := errors[0].(map[string]any)
+	firstError := errs[0].(map[string]any)
 	assert.Equal(t, "Token expirado", firstError["message"])
 	assert.Equal(t, "UNAUTHORIZED", firstError["extensions"].(map[string]any)["code"])
 }
@@ -395,11 +395,11 @@ func TestAuthMiddleware_ServerError(t *testing.T) {
 	fmt.Printf("\nCuerpo de respuesta raw: %s\n", w.Body.String())
 
 	// Verificar que hay errores en la respuesta
-	errors, ok := response["errors"].([]any)
+	errs, ok := response["errors"].([]any)
 	assert.True(t, ok, "La respuesta debería contener errores")
-	assert.NotEmpty(t, errors, "La lista de errores no debería estar vacía")
+	assert.NotEmpty(t, errs, "La lista de errores no debería estar vacía")
 
 	// Verificar el mensaje de error predeterminado para errores no específicos
-	firstError := errors[0].(map[string]any)
+	firstError := errs[0].(map[string]any)
 	assert.Equal(t, "Token inválido o expirado", firstError["message"])
 }

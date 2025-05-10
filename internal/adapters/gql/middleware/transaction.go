@@ -76,10 +76,3 @@ func (w *ResponseWriter) WriteHeader(code int) {
 	w.statusCode = code
 	w.ResponseWriter.WriteHeader(code)
 }
-
-func GetTransaction(ctx context.Context) *gorm.DB {
-	if tx, ok := ctx.Value(transactionKey{}).(*gorm.DB); ok {
-		return tx
-	}
-	return nil
-}

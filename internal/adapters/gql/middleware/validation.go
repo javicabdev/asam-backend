@@ -4,8 +4,6 @@ import (
 	"context"
 	"net/http"
 	"strings"
-
-	"github.com/javicabdev/asam-backend/pkg/errors"
 )
 
 // Tipo para keys de contexto
@@ -54,26 +52,4 @@ func (m *ValidationMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request)
 
 	// Continuar con el siguiente handler
 	m.next.ServeHTTP(w, r)
-}
-
-// ValidateAndSanitize función helper para sanitizar inputs
-func ValidateAndSanitize(input string) (string, error) {
-	// Validar longitud
-	if len(input) > 255 {
-		return "", errors.NewValidationError("Input too long", map[string]string{
-			"max_length": "255",
-		})
-	}
-
-	// Remover caracteres peligrosos
-	sanitized := strings.Map(func(r rune) rune {
-		switch {
-		case r == '<', r == '>', r == '\'', r == '"', r == ';':
-			return -1 // eliminar estos caracteres
-		default:
-			return r
-		}
-	}, input)
-
-	return sanitized, nil
 }
