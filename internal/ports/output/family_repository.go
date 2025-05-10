@@ -22,6 +22,7 @@ type FamilyRepository interface {
 	GetFamiliares(ctx context.Context, familyID uint) ([]*models.Familiar, error)
 }
 
+// FamilyFilters define los filtros para consultar familias
 type FamilyFilters struct {
 	SearchTerm *string
 	Page       int

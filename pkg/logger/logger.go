@@ -10,14 +10,21 @@ import (
 
 // Movemos tus tipos y structs aquí (Config, Level, etc.):
 
+// Level define el nivel de log
 type Level string
 
 const (
+	// DebugLevel nivel de log para depuración
 	DebugLevel Level = "debug"
+	// InfoLevel nivel de log para información
 	InfoLevel  Level = "info"
+	// WarnLevel nivel de log para advertencias
 	WarnLevel  Level = "warn"
+	// ErrorLevel nivel de log para errores
 	ErrorLevel Level = "error"
+	// FatalLevel nivel de log fatal (termina el programa)
 	FatalLevel Level = "fatal"
+	// PanicLevel nivel de log de pánico (causa un panic)
 	PanicLevel Level = "panic"
 )
 

@@ -11,7 +11,9 @@ import (
 type Role string
 
 const (
+	// RoleAdmin representa el rol de administrador
 	RoleAdmin Role = "admin"
+	// RoleUser representa el rol de usuario normal
 	RoleUser  Role = "user"
 )
 

@@ -9,9 +9,13 @@ import (
 )
 
 var (
+	// ErrInvalidOperationType error que se produce cuando el tipo de operación no es válido
 	ErrInvalidOperationType = errors.New("tipo de operación inválido")
+	// ErrInvalidAmount error que se produce cuando el monto no es válido
 	ErrInvalidAmount        = errors.New("monto inválido")
+	// ErrInvalidDate error que se produce cuando la fecha no es válida
 	ErrInvalidDate          = errors.New("fecha inválida")
+	// ErrMissingDetail error que se produce cuando falta el detalle
 	ErrMissingDetail        = errors.New("detalle requerido")
 )
 
@@ -81,7 +85,7 @@ func NewFromPayment(payment *Payment) (*CashFlow, error) {
 	}
 
 	// Convertir uint a *uint
-	paymentID := payment.Model.ID
+	paymentID := payment.ID
 
 	cashFlow := &CashFlow{
 		PaymentID:     &paymentID,

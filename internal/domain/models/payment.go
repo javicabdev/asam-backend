@@ -8,14 +8,19 @@ import (
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 )
 
+// PaymentStatus representa el estado de un pago
 type PaymentStatus string
 
 const (
+	// PaymentStatusPending estado de un pago pendiente
 	PaymentStatusPending   PaymentStatus = "pending"
+	// PaymentStatusPaid estado de un pago completado
 	PaymentStatusPaid      PaymentStatus = "paid"
+	// PaymentStatusCancelled estado de un pago cancelado
 	PaymentStatusCancelled PaymentStatus = "cancelled"
 )
 
+// Payment representa un pago realizado por un miembro o familia
 type Payment struct {
 	gorm.Model
 	MemberID        uint
@@ -32,6 +37,7 @@ type Payment struct {
 	CashFlow        *CashFlow      `gorm:"foreignKey:PaymentID"` // Relación inversa
 }
 
+// MembershipFee representa una cuota de membresía
 type MembershipFee struct {
 	gorm.Model
 	Year           int
@@ -44,6 +50,7 @@ type MembershipFee struct {
 	Payment        *Payment `gorm:"foreignKey:PaymentID"`
 }
 
+// Validate verifica que el pago cumpla con las reglas de negocio
 func (p *Payment) Validate() error {
 	if p.MemberID == 0 && p.FamilyID == nil {
 		return appErrors.NewValidationError(
@@ -67,6 +74,7 @@ func (p *Payment) Validate() error {
 	return nil
 }
 
+// Calculate calcula el monto de la cuota según si es familiar o individual
 func (mf *MembershipFee) Calculate(isFamily bool) float64 {
 	amount := mf.BaseFeeAmount
 	if isFamily {
@@ -75,10 +83,12 @@ func (mf *MembershipFee) Calculate(isFamily bool) float64 {
 	return amount
 }
 
+// BeforeCreate hook de GORM que se ejecuta antes de crear un registro
 func (p *Payment) BeforeCreate(_ *gorm.DB) error {
 	return p.Validate()
 }
 
+// BeforeUpdate hook de GORM que se ejecuta antes de actualizar un registro
 func (p *Payment) BeforeUpdate(_ *gorm.DB) error {
 	return p.Validate()
 }

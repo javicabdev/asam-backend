@@ -6,6 +6,7 @@ import (
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 )
 
+// UserRepository define las operaciones para persistir usuarios
 type UserRepository interface {
 	Create(ctx context.Context, user *models.User) error
 	FindByID(ctx context.Context, id uint) (*models.User, error)

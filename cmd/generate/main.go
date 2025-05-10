@@ -1,3 +1,4 @@
+// Package main implementa un generador de código automático para GraphQL
 package main
 
 import (

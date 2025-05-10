@@ -16,6 +16,7 @@ type TokenDetails struct {
 	RtExpires    int64
 }
 
+// AuthService define las operaciones relacionadas con la autenticación
 type AuthService interface {
 	Login(ctx context.Context, username, password string) (*TokenDetails, error)
 	Logout(ctx context.Context, accessToken string) error

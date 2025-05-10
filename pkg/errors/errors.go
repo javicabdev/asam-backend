@@ -10,25 +10,25 @@ import (
 type ErrorCode string
 
 const (
-	// Errores de validación
+	// ErrValidationFailed error de validación general
 	ErrValidationFailed ErrorCode = "VALIDATION_FAILED"
 	ErrInvalidFormat    ErrorCode = "INVALID_FORMAT"
 	ErrInvalidDate      ErrorCode = "INVALID_DATE"
 	ErrInvalidAmount    ErrorCode = "INVALID_AMOUNT"
 	ErrInvalidStatus    ErrorCode = "INVALID_STATUS"
 
-	// Errores de negocio
+	// ErrDuplicateEntry error de entrada duplicada
 	ErrDuplicateEntry    ErrorCode = "DUPLICATE_ENTRY"
 	ErrNotFound          ErrorCode = "NOT_FOUND"
 	ErrInvalidOperation  ErrorCode = "INVALID_OPERATION"
 	ErrInsufficientFunds ErrorCode = "INSUFFICIENT_FUNDS"
 
-	// Errores de sistema
+	// ErrDatabaseError error de base de datos
 	ErrDatabaseError ErrorCode = "DATABASE_ERROR"
 	ErrInternalError ErrorCode = "INTERNAL_ERROR"
 	ErrNetworkError  ErrorCode = "NETWORK_ERROR"
 
-	// Errores de autenticación
+	// ErrUnauthorized error de autenticación
 	ErrUnauthorized ErrorCode = "UNAUTHORIZED"
 	ErrForbidden    ErrorCode = "FORBIDDEN"
 	ErrInvalidToken ErrorCode = "INVALID_TOKEN"
@@ -404,6 +404,7 @@ func NetworkError(message string, err error) error {
 	}
 }
 
+// IsNetworkError verifica si es un error de red
 func IsNetworkError(err error) bool {
 	return Is(err, ErrNetworkError)
 }

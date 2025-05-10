@@ -342,7 +342,7 @@ func TestAuthMiddleware_ValidToken(t *testing.T) {
 
 	// Verificar que el siguiente handler recibió la información correcta en el contexto
 	assert.NotNil(t, contextUser, "El usuario debería estar en el contexto")
-	assert.Equal(t, mockUser.Model.ID, contextUser.Model.ID, "El ID del usuario en el contexto debería ser correcto")
+	assert.Equal(t, mockUser.ID, contextUser.ID, "El ID del usuario en el contexto debería ser correcto")
 	assert.Equal(t, mockUser.Username, contextUser.Username, "El username del usuario en el contexto debería ser correcto")
 	assert.Equal(t, mockUser.Role, contextUser.Role, "El rol del usuario en el contexto debería ser correcto")
 	assert.True(t, isAuthorized, "isAuthorized debería ser true en el contexto")
