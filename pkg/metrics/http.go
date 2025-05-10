@@ -10,6 +10,11 @@ type Middleware struct {
 	next http.Handler
 }
 
+// NewMetricsMiddleware crea un nuevo middleware para métricas HTTP
+func NewMetricsMiddleware() func(http.Handler) http.Handler {
+	return NewMiddleware()
+}
+
 func NewMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return &Middleware{next: next}

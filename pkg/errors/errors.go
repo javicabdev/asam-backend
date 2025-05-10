@@ -144,12 +144,12 @@ func GetMessage(err error) (string, bool) {
 }
 
 // GetCause obtiene la causa subyacente del error, si existe
-func GetCause(err error) (error, bool) {
+func GetCause(err error) (bool, error) {
 	appErr, ok := AsAppError(err)
 	if !ok || appErr.Cause == nil {
-		return nil, false
+		return false, nil
 	}
-	return appErr.Cause, true
+	return true, appErr.Cause
 }
 
 // New crea un nuevo AppError con el código y mensaje dados

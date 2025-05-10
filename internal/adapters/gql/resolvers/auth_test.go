@@ -134,8 +134,11 @@ func TestLogout(t *testing.T) {
 		authService: mockAuthService,
 	}
 
+	// Definir tipo para clave de contexto
+	type contextKey string
+
 	// Crear contexto con token
-	ctx := context.WithValue(context.Background(), "authorization", "Bearer test-token")
+	ctx := context.WithValue(context.Background(), contextKey("authorization"), "Bearer test-token")
 
 	// Configurar mock
 	mockAuthService.On("Logout", ctx, "test-token").Return(nil)

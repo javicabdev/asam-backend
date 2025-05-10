@@ -3,8 +3,8 @@ package gql_test
 import (
 	"context"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
 	"gorm.io/gorm"
 
@@ -16,7 +16,7 @@ import (
 	"github.com/javicabdev/asam-backend/test"
 )
 
-var _ = Describe("Permissions", func() {
+var _ = ginkgo.Describe("Permissions", func() {
 	var (
 		resolver        *resolvers.Resolver
 		memberService   *test.MockMemberService
@@ -28,7 +28,7 @@ var _ = Describe("Permissions", func() {
 		regularUser     *models.User
 	)
 
-	BeforeEach(func() {
+	ginkgo.BeforeEach(func() {
 		memberService = new(test.MockMemberService)
 		familyService = new(test.MockFamilyService)
 		paymentService = new(test.MockPaymentService)
@@ -56,9 +56,9 @@ var _ = Describe("Permissions", func() {
 		}
 	})
 
-	Describe("Member Operations", func() {
-		When("user is admin", func() {
-			It("can create member", func() {
+	ginkgo.Describe("Member Operations", func() {
+		ginkgo.When("user is admin", func() {
+			ginkgo.It("can create member", func() {
 				ctx := context.WithValue(context.Background(), constants.UserContextKey, adminUser)
 				input := model.CreateMemberInput{
 					NumeroSocio:     "001",
@@ -74,18 +74,18 @@ var _ = Describe("Permissions", func() {
 
 				member, err := resolver.Mutation().CreateMember(ctx, input)
 
-				Expect(err).NotTo(HaveOccurred())
-				Expect(member).NotTo(BeNil())
-				memberService.AssertExpectations(GinkgoT())
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(member).NotTo(gomega.BeNil())
+				memberService.AssertExpectations(ginkgo.GinkgoT())
 			})
 		})
 
-		When("user is not admin", func() {
-			BeforeEach(func() {
+		ginkgo.When("user is not admin", func() {
+			ginkgo.BeforeEach(func() {
 				memberService.ExpectedCalls = nil // Limpiamos las expectativas anteriores
 			})
 
-			It("cannot create member", func() {
+			ginkgo.It("cannot create member", func() {
 				ctx := context.WithValue(context.Background(), constants.UserContextKey, regularUser)
 				input := model.CreateMemberInput{
 					NumeroSocio:     "001",
@@ -99,45 +99,45 @@ var _ = Describe("Permissions", func() {
 
 				member, err := resolver.Mutation().CreateMember(ctx, input)
 
-				Expect(err).To(HaveOccurred())
-				Expect(errors.Is(err, errors.ErrForbidden)).To(BeTrue(), "Debería ser un error de permisos insuficientes")
-				Expect(member).To(BeNil())
-				memberService.AssertNotCalled(GinkgoT(), "CreateMember")
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(errors.Is(err, errors.ErrForbidden)).To(gomega.BeTrue(), "Debería ser un error de permisos insuficientes")
+				gomega.Expect(member).To(gomega.BeNil())
+				memberService.AssertNotCalled(ginkgo.GinkgoT(), "CreateMember")
 			})
 		})
 	})
 
-	Describe("Balance Operations", func() {
-		When("user is not authenticated", func() {
-			It("cannot access protected endpoints", func() {
+	ginkgo.Describe("Balance Operations", func() {
+		ginkgo.When("user is not authenticated", func() {
+			ginkgo.It("cannot access protected endpoints", func() {
 				ctx := context.Background() // Sin usuario en el contexto
 				cashFlowService.On("GetCurrentBalance", mock.Anything).Return(nil, errors.New(errors.ErrUnauthorized, "no debería llegar aquí"))
 
 				balance, err := resolver.Query().GetBalance(ctx)
 
-				Expect(err).To(HaveOccurred())
-				Expect(errors.IsAuthError(err)).To(BeTrue(), "Debería ser un error de autenticación")
-				Expect(balance).To(BeZero())
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(errors.IsAuthError(err)).To(gomega.BeTrue(), "Debería ser un error de autenticación")
+				gomega.Expect(balance).To(gomega.BeZero())
 			})
 		})
 
-		When("user is admin", func() {
-			It("can adjust balance", func() {
+		ginkgo.When("user is admin", func() {
+			ginkgo.It("can adjust balance", func() {
 				ctx := context.WithValue(context.Background(), constants.UserContextKey, adminUser)
 
 				cashFlowService.On("RegisterMovement", mock.Anything, mock.AnythingOfType("*models.CashFlow")).Return(nil)
 
 				response, err := resolver.Mutation().AdjustBalance(ctx, 100.0, "Ajuste manual")
 
-				Expect(err).NotTo(HaveOccurred(), "No debería haber error para un usuario admin")
-				Expect(response).NotTo(BeNil())
-				Expect(response.Success).To(BeTrue())
-				cashFlowService.AssertExpectations(GinkgoT())
+				gomega.Expect(err).NotTo(gomega.HaveOccurred(), "No debería haber error para un usuario admin")
+				gomega.Expect(response).NotTo(gomega.BeNil())
+				gomega.Expect(response.Success).To(gomega.BeTrue())
+				cashFlowService.AssertExpectations(ginkgo.GinkgoT())
 			})
 		})
 
-		When("user is not admin", func() {
-			It("cannot adjust balance", func() {
+		ginkgo.When("user is not admin", func() {
+			ginkgo.It("cannot adjust balance", func() {
 				ctx := context.WithValue(context.Background(), constants.UserContextKey, regularUser)
 
 				// Configuramos el mock para capturar cualquier llamada
@@ -145,16 +145,16 @@ var _ = Describe("Permissions", func() {
 
 				response, err := resolver.Mutation().AdjustBalance(ctx, 100.0, "Ajuste manual")
 
-				Expect(err).To(HaveOccurred(), "Debería haber error para un usuario no admin")
-				Expect(errors.Is(err, errors.ErrForbidden)).To(BeTrue(), "Debería ser un error de tipo 'acceso prohibido'")
-				Expect(response).To(BeNil())
+				gomega.Expect(err).To(gomega.HaveOccurred(), "Debería haber error para un usuario no admin")
+				gomega.Expect(errors.Is(err, errors.ErrForbidden)).To(gomega.BeTrue(), "Debería ser un error de tipo 'acceso prohibido'")
+				gomega.Expect(response).To(gomega.BeNil())
 			})
 		})
 	})
 
-	Describe("User Management", func() {
-		When("user is admin", func() {
-			It("can access management features", func() {
+	ginkgo.Describe("User Management", func() {
+		ginkgo.When("user is admin", func() {
+			ginkgo.It("can access management features", func() {
 				ctx := context.WithValue(context.Background(), constants.UserContextKey, adminUser)
 
 				// Cambiamos el tipo de retorno a []*models.Member en lugar de []models.Member
@@ -164,14 +164,14 @@ var _ = Describe("Permissions", func() {
 
 				result, err := resolver.Query().ListMembers(ctx, nil)
 
-				Expect(err).NotTo(HaveOccurred())
-				Expect(result).NotTo(BeNil())
-				memberService.AssertExpectations(GinkgoT())
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(result).NotTo(gomega.BeNil())
+				memberService.AssertExpectations(ginkgo.GinkgoT())
 			})
 		})
 
-		When("user is not admin", func() {
-			It("cannot access management features", func() {
+		ginkgo.When("user is not admin", func() {
+			ginkgo.It("cannot access management features", func() {
 				ctx := context.WithValue(context.Background(), constants.UserContextKey, regularUser)
 
 				// Configuramos el mock para capturar cualquier llamada
@@ -181,9 +181,9 @@ var _ = Describe("Permissions", func() {
 
 				result, err := resolver.Query().ListMembers(ctx, nil)
 
-				Expect(err).To(HaveOccurred(), "Debería haber error para un usuario no admin")
-				Expect(errors.Is(err, errors.ErrForbidden)).To(BeTrue(), "Debería ser un error de tipo 'acceso prohibido'")
-				Expect(result).To(BeNil())
+				gomega.Expect(err).To(gomega.HaveOccurred(), "Debería haber error para un usuario no admin")
+				gomega.Expect(errors.Is(err, errors.ErrForbidden)).To(gomega.BeTrue(), "Debería ser un error de tipo 'acceso prohibido'")
+				gomega.Expect(result).To(gomega.BeNil())
 			})
 		})
 	})
