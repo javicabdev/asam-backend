@@ -1,3 +1,4 @@
+// Package health proporciona funcionalidades para verificar el estado de salud del sistema
 package health
 
 import (
@@ -5,8 +6,12 @@ import (
 	"runtime"
 )
 
+// SystemChecker verifica el estado general del sistema operativo y recursos disponibles
+// para la aplicación, como la utilización de memoria.
 type SystemChecker struct{}
 
+// Check verifica el estado del sistema monitorizando el uso de memoria y otros recursos.
+// Retorna un ComponentHealth con estado DOWN si el uso de memoria supera el 90%.
 func (c *SystemChecker) Check(ctx context.Context) ComponentHealth {
 	// Verificar si el contexto está cancelado antes de ejecutar la lógica
 	select {

@@ -1,3 +1,6 @@
+// Package generators contiene generadores para poblar la base de datos con datos de prueba
+// que se utilizan en entornos de desarrollo y pruebas automatizadas. Estos generadores
+// crean datos ficticios pero realistas para simular el comportamiento del sistema.
 package generators
 
 import (

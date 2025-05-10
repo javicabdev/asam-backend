@@ -15,7 +15,9 @@ import (
 type Status string
 
 const (
-	StatusUp   Status = "UP"
+	// StatusUp indica que el componente está funcionando correctamente
+	StatusUp Status = "UP"
+	// StatusDown indica que el componente no está funcionando correctamente
 	StatusDown Status = "DOWN"
 )
 
@@ -44,6 +46,8 @@ type Handler struct {
 	mu       sync.RWMutex
 }
 
+// NewHandler crea un nuevo handler para los health checks con los checkers predeterminados
+// para la base de datos y el sistema. Recibe una conexión a la base de datos como parámetro.
 func NewHandler(db *gorm.DB) *Handler {
 	h := &Handler{
 		db:       db,
@@ -57,6 +61,8 @@ func NewHandler(db *gorm.DB) *Handler {
 	return h
 }
 
+// RegisterChecker registra un checker para un componente con el nombre especificado.
+// Permite añadir nuevos componentes a verificar en los health checks del sistema.
 func (h *Handler) RegisterChecker(name string, checker Checker) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -82,6 +88,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// CheckHealth ejecuta todos los health checks registrados y devuelve un objeto Check
+// con el estado general del sistema y el estado individual de cada componente.
+// Si alguno de los componentes está caído, el estado general será DOWN.
 func (h *Handler) CheckHealth(ctx context.Context) Check {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
