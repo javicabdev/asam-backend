@@ -95,11 +95,11 @@ func TestRegisterPayment(t *testing.T) {
 		name      string
 		payment   *models.Payment
 		setupMock func(
-			pr *test.MockPaymentRepository,
-			mfr *test.MockMembershipFeeRepository,
-			mr *test.MockMemberRepository,
-			ns *mockNotificationService,
-			fc *mockFeeCalculator,
+			_ *test.MockPaymentRepository,
+			_ *test.MockMembershipFeeRepository,
+			_ *test.MockMemberRepository,
+			_ *mockNotificationService,
+			_ *mockFeeCalculator,
 		)
 		wantErr  bool
 		checkErr func(t *testing.T, err error)
@@ -185,7 +185,7 @@ func TestRegisterPayment(t *testing.T) {
 			setupMock: func(
 				_ *test.MockPaymentRepository,
 				_ *test.MockMembershipFeeRepository,
-				mr *test.MockMemberRepository,
+				_ *test.MockMemberRepository,
 				_ *mockNotificationService,
 				_ *mockFeeCalculator,
 			) {
@@ -209,8 +209,8 @@ func TestRegisterPayment(t *testing.T) {
 				_ *test.MockPaymentRepository,
 				mfr *test.MockMembershipFeeRepository,
 				mr *test.MockMemberRepository,
-				ns *mockNotificationService,
-				fc *mockFeeCalculator,
+				_ *mockNotificationService,
+				_ *mockFeeCalculator,
 			) {
 				// Validate member exists and is active
 				mr.On("GetByID", mock.Anything, uint(1)).Return(test.CreateValidMember(), nil)
@@ -232,8 +232,8 @@ func TestRegisterPayment(t *testing.T) {
 				_ *test.MockPaymentRepository,
 				_ *test.MockMembershipFeeRepository,
 				mr *test.MockMemberRepository,
-				ns *mockNotificationService,
-				fc *mockFeeCalculator,
+				_ *mockNotificationService,
+				_ *mockFeeCalculator,
 			) {
 				// Member not found
 				mr.On("GetByID", mock.Anything, uint(1)).Return(nil, nil)
@@ -248,11 +248,11 @@ func TestRegisterPayment(t *testing.T) {
 			name:    "inactive member",
 			payment: createValidPayment(),
 			setupMock: func(
-				pr *test.MockPaymentRepository,
-				mfr *test.MockMembershipFeeRepository,
+				_ *test.MockPaymentRepository,
+				_ *test.MockMembershipFeeRepository,
 				mr *test.MockMemberRepository,
-				ns *mockNotificationService,
-				fc *mockFeeCalculator,
+				_ *mockNotificationService,
+				_ *mockFeeCalculator,
 			) {
 				// Return inactive member
 				member := test.CreateValidMember()
@@ -272,10 +272,10 @@ func TestRegisterPayment(t *testing.T) {
 			payment: createValidPayment(),
 			setupMock: func(
 				pr *test.MockPaymentRepository,
-				mfr *test.MockMembershipFeeRepository,
+				_ *test.MockMembershipFeeRepository,
 				mr *test.MockMemberRepository,
-				ns *mockNotificationService,
-				fc *mockFeeCalculator,
+				_ *mockNotificationService,
+				_ *mockFeeCalculator,
 			) {
 				member := test.CreateValidMember()
 				mr.On("GetByID", mock.Anything, uint(1)).Return(member, nil)
@@ -300,11 +300,11 @@ func TestRegisterPayment(t *testing.T) {
 				return p
 			}(),
 			setupMock: func(
-				pr *test.MockPaymentRepository,
+				_ *test.MockPaymentRepository,
 				mfr *test.MockMembershipFeeRepository,
 				mr *test.MockMemberRepository,
-				ns *mockNotificationService,
-				fc *mockFeeCalculator,
+				_ *mockNotificationService,
+				_ *mockFeeCalculator,
 			) {
 				member := test.CreateValidMember()
 				mr.On("GetByID", mock.Anything, uint(1)).Return(member, nil)
@@ -403,10 +403,10 @@ func TestCancelPayment(t *testing.T) {
 			reason:    "cancelado por solicitud",
 			setupMock: func(
 				pr *test.MockPaymentRepository,
-				mfr *test.MockMembershipFeeRepository,
-				mr *test.MockMemberRepository,
-				ns *mockNotificationService,
-				fc *mockFeeCalculator,
+				_ *test.MockMembershipFeeRepository,
+				_ *test.MockMemberRepository,
+				_ *mockNotificationService,
+				_ *mockFeeCalculator,
 			) {
 				// Configurar un payment con ID válido
 				payment := &models.Payment{
@@ -444,10 +444,10 @@ func TestCancelPayment(t *testing.T) {
 			reason:    "cancelado por solicitud",
 			setupMock: func(
 				pr *test.MockPaymentRepository,
-				mfr *test.MockMembershipFeeRepository,
-				mr *test.MockMemberRepository,
-				ns *mockNotificationService,
-				fc *mockFeeCalculator,
+				_ *test.MockMembershipFeeRepository,
+				_ *test.MockMemberRepository,
+				_ *mockNotificationService,
+				_ *mockFeeCalculator,
 			) {
 				pr.On("FindByID", mock.Anything, uint(1)).Return(nil, nil)
 			},
@@ -463,10 +463,10 @@ func TestCancelPayment(t *testing.T) {
 			reason:    "cancelado nuevamente",
 			setupMock: func(
 				pr *test.MockPaymentRepository,
-				mfr *test.MockMembershipFeeRepository,
-				mr *test.MockMemberRepository,
-				ns *mockNotificationService,
-				fc *mockFeeCalculator,
+				_ *test.MockMembershipFeeRepository,
+				_ *test.MockMemberRepository,
+				_ *mockNotificationService,
+				_ *mockFeeCalculator,
 			) {
 				pr.On("FindByID", mock.Anything, uint(1)).
 					Return(&models.Payment{
@@ -489,10 +489,10 @@ func TestCancelPayment(t *testing.T) {
 			reason:    "cancelado por solicitud",
 			setupMock: func(
 				pr *test.MockPaymentRepository,
-				mfr *test.MockMembershipFeeRepository,
-				mr *test.MockMemberRepository,
-				ns *mockNotificationService,
-				fc *mockFeeCalculator,
+				_ *test.MockMembershipFeeRepository,
+				_ *test.MockMemberRepository,
+				_ *mockNotificationService,
+				_ *mockFeeCalculator,
 			) {
 				payment := &models.Payment{
 					Model: gorm.Model{
@@ -558,10 +558,10 @@ func TestGetPayment(t *testing.T) {
 			paymentID: 1,
 			setupMock: func(
 				pr *test.MockPaymentRepository,
-				mfr *test.MockMembershipFeeRepository,
-				mr *test.MockMemberRepository,
-				ns *mockNotificationService,
-				fc *mockFeeCalculator,
+				_ *test.MockMembershipFeeRepository,
+				_ *test.MockMemberRepository,
+				_ *mockNotificationService,
+				_ *mockFeeCalculator,
 			) {
 				expectedPayment := &models.Payment{
 					Model: gorm.Model{
@@ -593,10 +593,10 @@ func TestGetPayment(t *testing.T) {
 			paymentID: 1,
 			setupMock: func(
 				pr *test.MockPaymentRepository,
-				mfr *test.MockMembershipFeeRepository,
-				mr *test.MockMemberRepository,
-				ns *mockNotificationService,
-				fc *mockFeeCalculator,
+				_ *test.MockMembershipFeeRepository,
+				_ *test.MockMemberRepository,
+				_ *mockNotificationService,
+				_ *mockFeeCalculator,
 			) {
 				pr.On("FindByID", mock.Anything, uint(1)).Return(nil, nil)
 			},
@@ -612,10 +612,10 @@ func TestGetPayment(t *testing.T) {
 			paymentID: 1,
 			setupMock: func(
 				pr *test.MockPaymentRepository,
-				mfr *test.MockMembershipFeeRepository,
-				mr *test.MockMemberRepository,
-				ns *mockNotificationService,
-				fc *mockFeeCalculator,
+				_ *test.MockMembershipFeeRepository,
+				_ *test.MockMemberRepository,
+				_ *mockNotificationService,
+				_ *mockFeeCalculator,
 			) {
 				pr.On("FindByID", mock.Anything, uint(1)).Return(nil, errors.New("database error"))
 			},
@@ -718,7 +718,7 @@ func TestGetMemberPayments(t *testing.T) {
 			name:     "member not found",
 			memberID: 1,
 			setupMock: func(
-				pr *test.MockPaymentRepository,
+				_ *test.MockPaymentRepository,
 				mr *test.MockMemberRepository,
 			) {
 				// Member doesn't exist
@@ -918,8 +918,8 @@ func TestGenerateMonthlyFees(t *testing.T) {
 			month:      5,
 			baseAmount: -10.0, // Negative amount
 			setupMock: func(
-				mfr *test.MockMembershipFeeRepository,
-				fc *mockFeeCalculator,
+				_ *test.MockMembershipFeeRepository,
+				_ *mockFeeCalculator,
 			) {
 				// No mocks needed - will fail validation
 			},
@@ -936,7 +936,7 @@ func TestGenerateMonthlyFees(t *testing.T) {
 			baseAmount: 50.0,
 			setupMock: func(
 				mfr *test.MockMembershipFeeRepository,
-				fc *mockFeeCalculator,
+				_ *mockFeeCalculator,
 			) {
 				// Fee already exists
 				mfr.On("FindByYearMonth", mock.Anything, 2023, 5).

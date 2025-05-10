@@ -164,7 +164,7 @@ func TestUpdateFamily(t *testing.T) {
 				EsposoDocumentoIdentidad: "12345678A",
 				EsposaDocumentoIdentidad: "87654321B",
 			},
-			setupRepo: func(fr *test.MockFamilyRepository, mr *test.MockMemberRepository) {
+			setupRepo: func(fr *test.MockFamilyRepository, _ *test.MockMemberRepository) {
 				// Se debe devolver una familia completa con documentos para que pase la validación
 				validFamily := &models.Family{
 					ID:                       1,
