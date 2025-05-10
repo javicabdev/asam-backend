@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
@@ -15,7 +15,7 @@ import (
 	"github.com/javicabdev/asam-backend/test"
 )
 
-var _ = Describe("Family", func() {
+var _ = ginkgo.Describe("Family", func() {
 	var (
 		resolver        *resolvers.Resolver
 		memberService   *test.MockMemberService
@@ -25,7 +25,7 @@ var _ = Describe("Family", func() {
 		authService     *test.MockAuthService
 	)
 
-	BeforeEach(func() {
+	ginkgo.BeforeEach(func() {
 		memberService = new(test.MockMemberService)
 		familyService = new(test.MockFamilyService)
 		paymentService = new(test.MockPaymentService)
@@ -41,9 +41,9 @@ var _ = Describe("Family", func() {
 		)
 	})
 
-	Describe("GetFamily", func() {
-		When("family exists", func() {
-			It("returns the family", func() {
+	ginkgo.Describe("GetFamily", func() {
+		ginkgo.When("family exists", func() {
+			ginkgo.It("returns the family", func() {
 				expectedFamily := &models.Family{
 					ID:              1,
 					NumeroSocio:     "A0001",
@@ -55,43 +55,43 @@ var _ = Describe("Family", func() {
 
 				family, err := resolver.Query().GetFamily(context.Background(), "1")
 
-				Expect(err).NotTo(HaveOccurred())
-				Expect(family.ID).To(Equal(expectedFamily.ID))
-				Expect(family.NumeroSocio).To(Equal(expectedFamily.NumeroSocio))
-				Expect(family.EsposoNombre).To(Equal(expectedFamily.EsposoNombre))
-				Expect(family.EsposoApellidos).To(Equal(expectedFamily.EsposoApellidos))
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(family.ID).To(gomega.Equal(expectedFamily.ID))
+				gomega.Expect(family.NumeroSocio).To(gomega.Equal(expectedFamily.NumeroSocio))
+				gomega.Expect(family.EsposoNombre).To(gomega.Equal(expectedFamily.EsposoNombre))
+				gomega.Expect(family.EsposoApellidos).To(gomega.Equal(expectedFamily.EsposoApellidos))
 			})
 		})
 
-		When("family does not exist", func() {
-			It("returns not found error", func() {
+		ginkgo.When("family does not exist", func() {
+			ginkgo.It("returns not found error", func() {
 				familyService.On("GetByID", mock.Anything, uint(999)).Return(nil, appErrors.NewNotFoundError("familia"))
 
 				family, err := resolver.Query().GetFamily(context.Background(), "999")
 
-				Expect(err).To(HaveOccurred())
-				Expect(appErrors.IsNotFoundError(err)).To(BeTrue(), "Debería ser un error de tipo 'no encontrado'")
-				Expect(family).To(BeNil())
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(appErrors.IsNotFoundError(err)).To(gomega.BeTrue(), "Debería ser un error de tipo 'no encontrado'")
+				gomega.Expect(family).To(gomega.BeNil())
 			})
 		})
 	})
 
-	Describe("CreateFamily", func() {
-		When("input is valid", func() {
-			It("creates the family", func() {
+	ginkgo.Describe("CreateFamily", func() {
+		ginkgo.When("input is valid", func() {
+			ginkgo.It("creates the family", func() {
 				input := createValidFamilyInput()
 
 				familyService.On("Create", mock.Anything, mock.AnythingOfType("*models.Family")).Return(nil)
 
 				family, err := resolver.Mutation().CreateFamily(context.Background(), input)
 
-				Expect(err).NotTo(HaveOccurred())
-				Expect(family).NotTo(BeNil())
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(family).NotTo(gomega.BeNil())
 			})
 		})
 
-		When("input is invalid", func() {
-			It("returns validation error", func() {
+		ginkgo.When("input is invalid", func() {
+			ginkgo.It("returns validation error", func() {
 				input := model.CreateFamilyInput{
 					NumeroSocio:  "",
 					EsposoNombre: "",
@@ -104,20 +104,20 @@ var _ = Describe("Family", func() {
 
 				family, err := resolver.Mutation().CreateFamily(context.Background(), input)
 
-				Expect(err).To(HaveOccurred())
-				Expect(appErrors.IsValidationError(err)).To(BeTrue(), "Debería ser un error de validación")
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(appErrors.IsValidationError(err)).To(gomega.BeTrue(), "Debería ser un error de validación")
 
 				// Verificar que contiene errores en los campos esperados
 				fields := appErrors.GetFields(err)
-				Expect(fields).To(HaveKey("numeroSocio"), "Debería tener error en el campo 'numeroSocio'")
-				Expect(family).To(BeNil())
+				gomega.Expect(fields).To(gomega.HaveKey("numeroSocio"), "Debería tener error en el campo 'numeroSocio'")
+				gomega.Expect(family).To(gomega.BeNil())
 			})
 		})
 	})
 
-	Describe("AddFamilyMember", func() {
-		When("family exists", func() {
-			It("adds the family member", func() {
+	ginkgo.Describe("AddFamilyMember", func() {
+		ginkgo.When("family exists", func() {
+			ginkgo.It("adds the family member", func() {
 				familyID := "1"
 				fechaNacimiento := time.Now()
 				familiar := model.FamiliarInput{
@@ -136,13 +136,13 @@ var _ = Describe("Family", func() {
 
 				member, err := resolver.Mutation().AddFamilyMember(context.Background(), familyID, familiar)
 
-				Expect(err).NotTo(HaveOccurred())
-				Expect(member).NotTo(BeNil())
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(member).NotTo(gomega.BeNil())
 			})
 		})
 
-		When("family does not exist", func() {
-			It("returns not found error", func() {
+		ginkgo.When("family does not exist", func() {
+			ginkgo.It("returns not found error", func() {
 				familyID := "999"
 				familiar := model.FamiliarInput{
 					Nombre:     "Pedro",
@@ -154,9 +154,9 @@ var _ = Describe("Family", func() {
 
 				member, err := resolver.Mutation().AddFamilyMember(context.Background(), familyID, familiar)
 
-				Expect(err).To(HaveOccurred())
-				Expect(appErrors.IsNotFoundError(err)).To(BeTrue(), "Debería ser un error de tipo 'no encontrado'")
-				Expect(member).To(BeNil())
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(appErrors.IsNotFoundError(err)).To(gomega.BeTrue(), "Debería ser un error de tipo 'no encontrado'")
+				gomega.Expect(member).To(gomega.BeNil())
 			})
 		})
 	})

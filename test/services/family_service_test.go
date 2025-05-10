@@ -24,7 +24,7 @@ func TestCreateFamily(t *testing.T) {
 		{
 			name:   "successful creation",
 			family: test.CreateValidFamily(),
-			setupRepo: func(fr *test.MockFamilyRepository, mr *test.MockMemberRepository) {
+			setupRepo: func(fr *test.MockFamilyRepository, _ *test.MockMemberRepository) {
 				fr.On("Create", mock.Anything, mock.AnythingOfType("*models.Family")).Return(nil)
 			},
 			wantErr: false,
@@ -37,7 +37,7 @@ func TestCreateFamily(t *testing.T) {
 			family: &models.Family{
 				NumeroSocio: "",
 			},
-			setupRepo: func(fr *test.MockFamilyRepository, mr *test.MockMemberRepository) {
+			setupRepo: func(_ *test.MockFamilyRepository, mr *test.MockMemberRepository) {
 				// No se llama al repositorio porque la validación falla antes
 			},
 			wantErr: true,
@@ -58,7 +58,7 @@ func TestCreateFamily(t *testing.T) {
 				EsposoDocumentoIdentidad: "12345678A",
 				EsposaDocumentoIdentidad: "87654321B",
 			},
-			setupRepo: func(fr *test.MockFamilyRepository, mr *test.MockMemberRepository) {
+			setupRepo: func(_ *test.MockFamilyRepository, _ *test.MockMemberRepository) {
 				mr.On("GetByID", mock.Anything, uint(999)).Return(nil, errors.NewNotFoundError("member"))
 			},
 			wantErr: true,
@@ -70,7 +70,7 @@ func TestCreateFamily(t *testing.T) {
 		{
 			name:   "repository error",
 			family: test.CreateValidFamily(),
-			setupRepo: func(fr *test.MockFamilyRepository, mr *test.MockMemberRepository) {
+			setupRepo: func(fr *test.MockFamilyRepository, _ *test.MockMemberRepository) {
 				fr.On("Create", mock.Anything, mock.AnythingOfType("*models.Family")).Return(errors.NewDatabaseError("database failure", nil))
 			},
 			wantErr: true,
@@ -117,7 +117,7 @@ func TestUpdateFamily(t *testing.T) {
 				EsposoDocumentoIdentidad: "12345678A",
 				EsposaDocumentoIdentidad: "87654321B",
 			},
-			setupRepo: func(fr *test.MockFamilyRepository, mr *test.MockMemberRepository) {
+			setupRepo: func(fr *test.MockFamilyRepository, _ *test.MockMemberRepository) {
 				// Se debe devolver una familia completa con documentos para que pase la validación
 				validFamily := &models.Family{
 					ID:                       1,

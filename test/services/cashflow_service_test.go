@@ -52,7 +52,7 @@ func TestRegisterMovement(t *testing.T) {
 				Date:          time.Now(),
 				Detail:        "Test",
 			},
-			setupMock: func(cr *test.MockCashFlowRepository) {},
+			setupMock: func(_ *test.MockCashFlowRepository) {},
 			wantErr:   true,
 			checkErr: func(t *testing.T, err error) {
 				assert.Error(t, err, "Debería haber error con un monto inválido")

@@ -75,10 +75,10 @@ func (mf *MembershipFee) Calculate(isFamily bool) float64 {
 	return amount
 }
 
-func (p *Payment) BeforeCreate(tx *gorm.DB) error {
+func (p *Payment) BeforeCreate(_ *gorm.DB) error {
 	return p.Validate()
 }
 
-func (p *Payment) BeforeUpdate(tx *gorm.DB) error {
+func (p *Payment) BeforeUpdate(_ *gorm.DB) error {
 	return p.Validate()
 }
