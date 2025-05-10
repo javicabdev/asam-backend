@@ -25,16 +25,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3 # Use v3 for compatibility
+        uses: actions/checkout@v4 # Use the latest major version of actions for security and features.
 
       - name: Set up Go
-        uses: actions/setup-go@v4 # v4 is compatible
+        uses: actions/setup-go@v5 # Use the latest major version.
         with:
           go-version: ${{ env.GO_VERSION }}
 
       # Consider caching for golangci-lint if download times are significant.
       - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@v3 # Use v3 for compatibility
+        uses: golangci/golangci-lint-action@v6 # Use the latest major version.
         with:
           # Pin to a specific version of golangci-lint for reproducible builds,
           # or use 'latest' if you always want the newest.
@@ -81,15 +81,15 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }} # Use the global env var.
 
       - name: Cache Go modules
-        uses: actions/cache@v3 # Use v3 for compatibility
+        uses: actions/cache@v4 # Use the latest major version.
         with:
           # Path to cache. ~/go/pkg/mod for modules, and ~/.cache/go-build for build cache.
           path: |
@@ -112,7 +112,7 @@ jobs:
         run: go build -v -o asam-backend ./cmd/api
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v2 # Use v2 for compatibility
+        uses: actions/upload-artifact@v4 # Use the latest major version.
         with:
           name: asam-backend-${{ env.GO_VERSION }} # Consistent naming with Go version.
           path: asam-backend
@@ -124,16 +124,16 @@ jobs:
     needs: [lint, build] # Depends on lint and build jobs succeeding.
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
 
       # Cache Go modules for tests as well.
       - name: Cache Go modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/go/pkg/mod
@@ -155,7 +155,7 @@ jobs:
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./internal/... ./pkg/...
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: unit-test-coverage
           path: coverage.out
@@ -186,16 +186,16 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
 
       # Cache Go modules
       - name: Cache Go modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/go/pkg/mod
@@ -253,16 +253,16 @@ jobs:
     steps:
       - name: Checkout code
         # Required if go tool cover needs access to source files for HTML report context.
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Go
         # Needed for `go tool cover`.
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
 
       - name: Download coverage report artifact
-        uses: actions/download-artifact@v2 # Use v2 for compatibility
+        uses: actions/download-artifact@v4 # Use the latest major version.
         with:
           name: unit-test-coverage
           # No path needed if downloading to the current directory.
@@ -274,7 +274,7 @@ jobs:
         run: go tool cover -html=coverage.out -o coverage.html
 
       - name: Upload HTML coverage report
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report-html
           path: coverage.html
@@ -306,16 +306,16 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
 
       # Cache Go tools installed via 'go install'
       - name: Cache Go installed tools
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-go-tools-${{ env.GO_VERSION }}
