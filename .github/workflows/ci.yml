@@ -80,7 +80,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Build
-        run: go build -v -o asam-backend ./cmd/server
+        run: go build -v -o asam-backend ./cmd/api
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -152,7 +152,7 @@ jobs:
 
       - name: Run migrations
         run: |
-          go run ./cmd/migrations/main.go up
+          go run ./cmd/migrate/main.go up
 
       - name: Run integration tests
         run: go test -v -race -tags=integration ./test/integration/...

@@ -79,7 +79,7 @@ jobs:
             OUTPUT="asam-backend.exe"
           fi
           
-          go build -ldflags "-X main.Version=v${VERSION}" -o "dist/${OUTPUT}" ./cmd/server
+          go build -ldflags "-X main.Version=v${VERSION}" -o "dist/${OUTPUT}" ./cmd/api
           
           # Create archive
           mkdir -p release
