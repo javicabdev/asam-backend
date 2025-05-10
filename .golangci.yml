@@ -1,13 +1,12 @@
 # Configuración para golangci-lint
 
 # Especifica la versión del esquema de configuración.
-# Requerido por versiones recientes de golangci-lint (como v2.x.x).
+# Requerido por versiones recientes de golangci-lint (como v1.52.0+).
 version: "2"
 
 # Sección 'run': define cómo se ejecuta golangci-lint
 run:
   # Versión de Go para la que se analiza el código.
-  # Es una buena práctica encerrar los números de versión entre comillas para asegurar que se traten como cadenas.
   go: '1.24' # Asegúrate de que coincida con la versión de Go de tu proyecto y CI.
   # Tiempo máximo de ejecución para los linters.
   timeout: 5m
@@ -15,17 +14,11 @@ run:
   # skip-dirs: # Directorios a ignorar por todos los linters.
   #   - vendor/
   #   - internal/mocks/ # Ejemplo para directorios de mocks
-  # skip-files: # Esta sección está obsoleta, usar 'issues.exclude-rules' en su lugar para v1 o linters.exclusions.rules para v2.
 
 # Sección 'linters': controla qué linters están habilitados o deshabilitados.
 linters:
-  # Deshabilita todos los linters por defecto.
-  # Solo los linters listados en 'enable' se ejecutarán.
-  # Esto proporciona un control explícito sobre qué linters se utilizan.
-  disable-all: true
-  # Lista de linters a habilitar.
-  # Se eliminaron 'gofmt' y 'goimports' ya que son formateadores.
-  # Se eliminaron 'gosimple' y 'shadow' ya que no son reconocidos como linters habilitables por tu versión v2.1.6.
+  # Al especificar 'enable', solo los linters listados se ejecutarán.
+  # 'disable-all: true' se ha eliminado ya que es implícito y causaba error de esquema.
   enable:
     - bodyclose     # Verifica que los cuerpos de respuesta HTTP (io.ReadCloser) se cierren.
     - errcheck      # Verifica que los errores devueltos por funciones se manejen.
@@ -34,152 +27,96 @@ linters:
     - noctx         # Desaconseja pasar un contexto nulo (nil) a funciones que lo esperan.
     - staticcheck   # Un conjunto de analizadores estáticos muy completo y recomendado (incluye gosimple).
     - unused        # Detecta código no utilizado (variables, funciones, tipos, etc. SA4000-SA4029 de staticcheck).
-    - revive        # Linter rápido y configurable, sucesor de golint. Configurable mediante un archivo revive.toml.
+    - revive        # Linter rápido y configurable, sucesor de golint.
     - unconvert     # Elimina conversiones de tipo innecesarias.
     # --- Linters adicionales sugeridos (descomentar para habilitar según 'golangci-lint help linters') ---
     # - misspell
     # - gocyclo
     # - gocritic
     # - nolintlint
-    # - predeclared # Podría ser una alternativa parcial para algunos casos de shadowing de identificadores predefinidos.
-  exclusions: # << MOVED HERE FOR V2 SCHEMA >>
-    # warn-unused: true (por defecto false en v2.0.0, pero podría ser true en parches posteriores o si se establece)
-    # Habilitar esto para que golangci-lint advierta sobre reglas de exclusión no utilizadas.
-    warn-unused: true
-    # Opcional: presets: [...]
-    rules:
-      # Excluir globalmente el issue "package-comments" del linter "revive".
-      # Se eliminó el ancla '^' para una coincidencia más flexible del texto.
-      - linters:
-          - revive
-        text: "package-comments: should have a package comment"
-
-      # Excluir específicamente los issues de "unused-parameter" de "revive"
-      # para cualquier archivo que termine en "schema.resolvers.go".
-      # Path simplificado para enfocarse en el nombre del archivo.
-      # Se eliminó el ancla '^' para una coincidencia más flexible del texto.
-      - path: schema\.resolvers\.go$ # Coincide con cualquier ruta que termine en schema.resolvers.go
-        linters:
-          - revive
-        text: "unused-parameter: parameter 'ctx' seems to be unused, consider removing or renaming it as _"
-
-      # Reglas de exclusión generales existentes
-      - path: ".*_generated\\.go$"
-        text: "." # Excluye todos los linters para estos paths.
-      - path: ".*\\.pb\\.go$"
-        text: "." # Excluye todos los linters para estos paths.
-
-      # Exclusión global para cualquier archivo que termine en "schema.resolvers.go" para todos los linters.
-      # Esto es una capa adicional de seguridad.
-      # Se añade 'text: "." ' para que la regla sea válida.
-      - path: schema\.resolvers\.go$
-        text: "." # Excluye todos los issues de todos los linters en este path.
-
-      # Path corregido para pkg/errors/errors.go usando (?:/|\\\\) para los separadores.
-      - path: "pkg(?:/|\\\\)errors(?:/|\\\\)errors\\.go"
-        text: "." # Excluye todos los linters para este path.
-
-      - path: "_test\\.go$" # Asegura que termine con _test.go, más específico.
-        linters:
-          - errcheck # Los tests a menudo no comprueban todos los errores intencionadamente.
-          - funlen   # Las funciones de test pueden ser más largas.
-          # - goconst  # En tests es común repetir strings.
-      # - text: "string `(.*)` has complexity" # Expresión regular para el mensaje del problema.
-      #   linters:
-      #     - gocyclo
-      # - path: "internal[/\\]generated[/\\]" # Ejemplo para excluir un directorio generado
-      #   text: "SA1029" # Excluir un código de error específico de staticcheck para una ruta
+    # - predeclared
 
 # Sección 'linters-settings': configuraciones específicas para linters individuales.
-# (Asegúrate de que esta clave esté escrita correctamente: linters-settings y no linters-setting)
+# (Asegúrate de que esta clave esté escrita correctamente: linters-settings)
 linters-settings:
   govet:
-    # Intentando activar check-shadowing para v2.1.6, ya que el linter 'shadow' no es reconocido.
     check-shadowing: true
-    # enable-all: false # Por defecto, no todas las comprobaciones de govet están activas.
-    # disable:
-    #   - fieldalignment # Ejemplo de cómo deshabilitar una comprobación específica de govet.
   gocyclo:
-    # Establece la complejidad ciclomática mínima para que gocyclo reporte un problema.
-    # Un valor entre 10 y 15 es común.
     min-complexity: 15
-  goimports: # Aunque no esté en 'enable' como linter, se pueden mantener configuraciones si la herramienta las usa al formatear.
-    # Prefijos locales para agrupar las importaciones de tu proyecto.
-    # Esto ayuda a goimports a ordenar correctamente tus importaciones internas.
+  goimports:
     local-prefixes: github.com/javicabdev/asam-backend
   gocritic:
-    # Etiquetas de comprobaciones de gocritic a habilitar.
-    # 'diagnostic', 'style', y 'performance' son buenos puntos de partida.
-    # Puedes encontrar la lista completa de etiquetas en la documentación de gocritic.
     enabled-tags:
       - diagnostic
       - style
       - performance
-    # Ejemplo de cómo deshabilitar una comprobación específica de gocritic:
-    # disabled-checks:
-    #   - commentedOutCode
   errcheck:
-    # Habilita la comprobación de aserciones de tipo para errores.
-    # Asegura que cuando haces una aserción de tipo, también compruebas el booleano 'ok'.
     check-type-assertions: true
-    # También puedes excluir la comprobación de errores para funciones específicas si es necesario:
-    # exclude-functions:
-    #  - io/ioutil.ReadFile
-    #  - (*bytes.Buffer).Write
   funlen:
-    # Configuración para el linter 'funlen', que verifica la longitud de las funciones.
-    lines: 100      # Número máximo de líneas permitido en una función.
-    statements: 50  # Número máximo de declaraciones permitido en una función.
+    lines: 100
+    statements: 50
   revive:
-    # Si tus archivos generados (como schema.resolvers.go) tienen una cabecera
-    # que indica que son generados (ej. "// Code generated by ... DO NOT EDIT."),
-    # esta opción debería hacer que revive los ignore.
     ignore-generated-header: true
-    # confidence: 0.8 # Nivel de confianza mínimo para los problemas reportados por revive.
+    # confidence: 0.8
     # severity: "warning"
-    # La deshabilitación de reglas específicas de revive se manejará ahora en 'issues.exclude-rules' (o linters.exclusions.rules)
-    # si 'ignore-generated-header' no es suficiente o para reglas globales.
-    # rules:
-    #   - name: package-comments # Ejemplo de cómo se podría deshabilitar aquí, pero preferimos exclude-rules si esto no funciona.
-    #     disabled: true
-    # misspell:
-    # locale: US # Configura la localización para misspell (ej. US, UK, etc.)
-    # ignore-words:
-    #   - someword # Lista de palabras a ignorar por misspell
-    # La sección de configuración para 'shadow' debe eliminarse o permanecer comentada si el linter 'shadow' no existe.
-    # shadow:
-    # strict: false
 
 # Sección 'issues': controla cómo se reportan y manejan los problemas.
 issues:
   # Número máximo de problemas idénticos a reportar. 0 para ilimitado.
-  max-same-issues: 300 # Actualizado según tu cambio local.
-  # La sección 'exclude-rules' se ha movido a 'linters.exclusions.rules' para el esquema v2.
-  # Solo mostrar problemas en código nuevo desde una revisión específica (útil para CI/CD).
-  # Descomentar y ajustar según la rama principal o la estrategia de integración.
-  # new-from-rev: HEAD~1
-  # max-issues-per-linter: 0 # Límite de problemas por linter. 0 para ilimitado.
-  # exclude-use-default: false # No usar las exclusiones por defecto de golangci-lint (generalmente no recomendado cambiar).
-  # exclude: # Lista de mensajes de error exactos a ignorar globalmente (usar con precaución).
-  #   - "Error return value of `((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*printf?|os\\.(Un)?Setenv)$` is not checked" # Ejemplo de errcheck
+  max-same-issues: 300
+  # new-from-rev: HEAD~1 # Descomentar y ajustar para análisis de código nuevo.
+  # max-issues-per-linter: 0
+  # exclude-use-default: false
 
-  # Sección 'output': controla el formato de la salida.
-  # output:
-  #   formats: # Formatos de salida. 'colored-line-number' es bueno para la terminal.
-  #     - colored-line-number
-  #     # - json
-  #     # - checkstyle
-  #     # - junit-xml
-  #   print-issued-lines: true  # Imprimir las líneas de código donde se encontró el problema.
-  #   print-linter-name: true   # Mostrar el nombre del linter que reportó el problema.
-  #   sort-results: true        # Ordenar los resultados.
+  # Anteriormente 'linters.exclusions.warn-unused: true', ahora bajo 'issues'.
+  warn-unused-exclusions: true
 
-  # Sección 'severity': permite personalizar la severidad de las reglas.
-  # severity:
-  # Define reglas para anular la severidad por defecto de ciertos problemas.
-  # rules:
-  #   - linter: errcheck
-  #     severity: error # Tratar todos los problemas de errcheck como errores en lugar de warnings.
-  #   - linter: gocritic
-  #     check: "unnecessaryBlock" # Identificador de la comprobación específica de gocritic.
-  #     severity: "info" # Cambiar la severidad de esta comprobación a 'info'.
+  # Anteriormente 'linters.exclusions.rules', ahora bajo 'issues.exclude-rules'.
+  exclude-rules:
+    # Excluir globalmente el issue "package-comments" del linter "revive".
+    - linters:
+        - revive
+      text: "package-comments: should have a package comment"
+
+    # Excluir específicamente los issues de "unused-parameter" de "revive"
+    # para cualquier archivo que termine en "schema.resolvers.go".
+    - path: schema\.resolvers\.go$
+      linters:
+        - revive
+      text: "unused-parameter: parameter 'ctx' seems to be unused, consider removing or renaming it as _"
+
+    # Reglas de exclusión generales existentes
+    - path: ".*_generated\\.go$"
+      text: "." # Excluye todos los issues de todos los linters para estos paths.
+    - path: ".*\\.pb\\.go$"
+      text: "." # Excluye todos los issues de todos los linters para estos paths.
+
+    # Exclusión global para cualquier archivo que termine en "schema.resolvers.go" para todos los linters.
+    - path: schema\.resolvers\.go$
+      text: "." # Excluye todos los issues de todos los linters en este path.
+
+    # Path corregido para pkg/errors/errors.go
+    - path: "pkg(?:/|\\\\)errors(?:/|\\\\)errors\\.go"
+      text: "." # Excluye todos los linters para este path.
+
+    - path: "_test\\.go$"
+      linters:
+        - errcheck # Los tests a menudo no comprueban todos los errores intencionadamente.
+        - funlen   # Las funciones de test pueden ser más largas.
+
+# Sección 'output': controla el formato de la salida.
+# output:
+#   formats:
+#     - colored-line-number
+#   print-issued-lines: true
+#   print-linter-name: true
+#   sort-results: true
+
+# Sección 'severity': permite personalizar la severidad de las reglas.
+# severity:
+#   rules:
+#     - linter: errcheck
+#       severity: error
+#     - linter: gocritic
+#       check: "unnecessaryBlock"
+#       severity: "info"
