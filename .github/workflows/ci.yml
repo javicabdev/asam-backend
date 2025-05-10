@@ -34,7 +34,7 @@ jobs:
 
       # Consider caching for golangci-lint if download times are significant.
       - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@v6 # Use the latest major version.
+        uses: golangci/golangci-lint-action@v8 # Use the latest major version.
         with:
           # Pin to a specific version of golangci-lint for reproducible builds,
           # or use 'latest' if you always want the newest.
