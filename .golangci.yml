@@ -1,5 +1,9 @@
 # Configuración para golangci-lint
 
+# Especifica la versión del esquema de configuración.
+# Requerido por versiones recientes de golangci-lint (como v2.x.x).
+version: "2"
+
 # Sección 'run': define cómo se ejecuta golangci-lint
 run:
   # Versión de Go para la que se analiza el código.
@@ -20,13 +24,11 @@ linters:
   # Esto proporciona un control explícito sobre qué linters se utilizan.
   disable-all: true
   # Lista de linters a habilitar.
-  # Es recomendable empezar con un conjunto básico y añadir más según sea necesario.
+  # Se eliminaron 'gofmt' y 'goimports' ya que son formateadores.
+  # Se eliminaron 'gosimple' y 'shadow' ya que no son reconocidos como linters habilitables por tu versión v2.1.6.
   enable:
     - bodyclose     # Verifica que los cuerpos de respuesta HTTP (io.ReadCloser) se cierren.
     - errcheck      # Verifica que los errores devueltos por funciones se manejen.
-    - gofmt         # Formatea el código Go según los estándares.
-    - goimports     # Organiza las importaciones (las ordena y añade/elimina las necesarias) y las formatea.
-    - gosimple      # Sugiere simplificaciones en el código (S1000-S1040 de staticcheck).
     - govet         # Analiza el código en busca de construcciones sospechosas y errores comunes.
     - ineffassign   # Detecta asignaciones inefectivas (variables asignadas pero no usadas).
     - noctx         # Desaconseja pasar un contexto nulo (nil) a funciones que lo esperan.
@@ -34,27 +36,27 @@ linters:
     - unused        # Detecta código no utilizado (variables, funciones, tipos, etc. SA4000-SA4029 de staticcheck).
     - revive        # Linter rápido y configurable, sucesor de golint. Configurable mediante un archivo revive.toml.
     - unconvert     # Elimina conversiones de tipo innecesarias.
-    - shadow        # Habilitado para versiones recientes de golangci-lint. Detecta variables sombreadas.
-    # --- Linters adicionales sugeridos (descomentar para habilitar) ---
-    # - misspell      # Corrige errores ortográficos comunes en comentarios y cadenas.
-    # - gocyclo       # Calcula la complejidad ciclomática. (Ya lo tienes en linters-settings, asegúrate de habilitarlo aquí si lo quieres).
-    # - gocritic      # Proporciona diagnósticos adicionales de estilo y rendimiento. (Ya lo tienes en linters-settings).
-    # - nolintlint    # Verifica que las directivas //nolint tengan una justificación o estén bien formadas.
+    # --- Linters adicionales sugeridos (descomentar para habilitar según 'golangci-lint help linters') ---
+    # - misspell
+    # - gocyclo
+    # - gocritic
+    # - nolintlint
+    # - predeclared # Podría ser una alternativa parcial para algunos casos de shadowing de identificadores predefinidos.
 
 # Sección 'linters-settings': configuraciones específicas para linters individuales.
 # Aquí puedes ajustar el comportamiento de los linters habilitados.
 linters-settings:
   govet:
-  # 'check-shadowing' se maneja ahora por el linter 'shadow' en versiones recientes.
-  # check-shadowing: false # O eliminar esta línea si 'shadow' está habilitado.
-  # enable-all: false # Por defecto, no todas las comprobaciones de govet están activas.
-  # disable:
-  #   - fieldalignment # Ejemplo de cómo deshabilitar una comprobación específica de govet.
+    # Intentando activar check-shadowing para v2.1.6, ya que el linter 'shadow' no es reconocido.
+    check-shadowing: true
+    # enable-all: false # Por defecto, no todas las comprobaciones de govet están activas.
+    # disable:
+    #   - fieldalignment # Ejemplo de cómo deshabilitar una comprobación específica de govet.
   gocyclo:
     # Establece la complejidad ciclomática mínima para que gocyclo reporte un problema.
     # Un valor entre 10 y 15 es común.
     min-complexity: 15
-  goimports:
+  goimports: # Aunque no esté en 'enable' como linter, se pueden mantener configuraciones si la herramienta las usa al formatear.
     # Prefijos locales para agrupar las importaciones de tu proyecto.
     # Esto ayuda a goimports a ordenar correctamente tus importaciones internas.
     local-prefixes: github.com/javicabdev/asam-backend
@@ -92,7 +94,8 @@ linters-settings:
     # rules: # Ejemplo de configuración de reglas específicas para revive
     #   - name: package-comments
     #     disabled: true
-    # shadow: # Configuración específica para el linter shadow (si es necesario, los defaults suelen ser buenos)
+    # La sección de configuración para 'shadow' debe eliminarse o permanecer comentada si el linter 'shadow' no existe.
+    # shadow:
     # strict: false
 
 # Sección 'issues': controla cómo se reportan y manejan los problemas.
