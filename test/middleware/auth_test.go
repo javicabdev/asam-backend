@@ -35,7 +35,7 @@ func TestAuthMiddleware_NoToken(t *testing.T) {
 	authMiddleware := middleware.AuthMiddleware(authService, logger)
 
 	// Crear un handler de siguiente nivel que nunca debería ser llamado
-	nextHandler := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+	nextHandler := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		// Esta función no debería ser llamada
 		t.Error("Se llamó al handler siguiente cuando debió haber fallado con 401")
 	})
@@ -88,7 +88,7 @@ func TestAuthMiddleware_PublicOperations(t *testing.T) {
 
 	// Crear un handler de siguiente nivel que verifica ser llamado
 	nextCalled := false
-	nextHandler := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+	nextHandler := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		nextCalled = true
 	})
 
@@ -156,7 +156,7 @@ func TestAuthMiddleware_InvalidTokenFormat(t *testing.T) {
 	authMiddleware := middleware.AuthMiddleware(authService, logger)
 
 	// Crear un handler de siguiente nivel que nunca debería ser llamado
-	nextHandler := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+	nextHandler := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		// Esta función no debería ser llamada
 		t.Error("Se llamó al handler siguiente cuando debió haber fallado con 401")
 	})
@@ -238,7 +238,7 @@ func TestAuthMiddleware_InvalidToken(t *testing.T) {
 	authMiddleware := middleware.AuthMiddleware(authService, logger)
 
 	// Crear un handler de siguiente nivel que nunca debería ser llamado
-	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	nextHandler := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		// Esta función no debería ser llamada
 		t.Error("Se llamó al handler siguiente cuando debió haber fallado con 401")
 	})
@@ -355,7 +355,7 @@ func TestAuthMiddleware_ServerError(t *testing.T) {
 	authMiddleware := middleware.AuthMiddleware(authService, logger)
 
 	// Crear un handler de siguiente nivel que nunca debería ser llamado
-	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	nextHandler := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		// Esta función no debería ser llamada
 		t.Error("Se llamó al handler siguiente cuando debió haber fallado con 401")
 	})
