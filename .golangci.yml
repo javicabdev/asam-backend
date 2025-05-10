@@ -15,9 +15,11 @@ run:
   # skip-dirs: # Directorios a ignorar por todos los linters.
   #   - vendor/
   #   - internal/mocks/ # Ejemplo para directorios de mocks
-  # skip-files: # Patrones de archivos a ignorar.
-  #   - ".*_generated\\.go$"
-  #   - ".*\\.pb\\.go$" # Ejemplo para archivos generados por Protocol Buffers
+  skip-files:
+    - ".*_generated\\.go$" # Exclusión de archivos generados
+    - ".*\\.pb\\.go$" # Ejemplo para archivos generados por Protocol Buffers
+    - "internal/adapters/gql/resolvers/schema.resolvers.go" # Archivo específico a excluir
+    - "pkg/errors/errors.go"
 
 # Sección 'linters': controla qué linters están habilitados o deshabilitados.
 linters:

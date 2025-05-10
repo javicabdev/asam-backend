@@ -22,43 +22,12 @@ type Logger interface {
 // ActionType define los tipos de acciones que se pueden auditar
 type ActionType string
 
-const (
-	// ActionLogin indica un inicio de sesión
-	ActionLogin ActionType = "login"
-	// ActionLogout indica un cierre de sesión
-	ActionLogout ActionType = "logout"
-
-	// ActionCreate indica una acción de creación
-	ActionCreate ActionType = "create"
-	// ActionRead indica una acción de lectura
-	ActionRead ActionType = "read"
-	// ActionUpdate indica una acción de actualización
-	ActionUpdate ActionType = "update"
-	// ActionDelete indica una acción de eliminación
-	ActionDelete ActionType = "delete"
-
-	// ActionPayment indica una acción de pago
-	ActionPayment ActionType = "payment"
-	// ActionRefund indica una acción de reembolso
-	ActionRefund ActionType = "refund"
-	// ActionBalanceAdjust indica un ajuste de saldo
-	ActionBalanceAdjust ActionType = "balance_adjust"
-)
-
 // EntityType define los tipos de entidades que se pueden auditar
 type EntityType string
 
 const (
 	// EntityMember representa una entidad de tipo miembro
 	EntityMember EntityType = "member"
-	// EntityFamily representa una entidad de tipo familia
-	EntityFamily EntityType = "family"
-	// EntityFamiliar representa una entidad de tipo familiar
-	EntityFamiliar EntityType = "familiar"
-	// EntityPayment representa una entidad de tipo pago
-	EntityPayment EntityType = "payment"
-	// EntityCashFlow representa una entidad de tipo flujo de caja
-	EntityCashFlow EntityType = "cash_flow"
 )
 
 // Metadata representa información adicional para el log de auditoría

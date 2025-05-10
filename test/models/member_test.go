@@ -1,6 +1,7 @@
 package models_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -9,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/javicabdev/asam-backend/internal/domain/models"
-	"github.com/javicabdev/asam-backend/pkg/errors"
+	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 )
 
 // Tests de validaciones básicas
@@ -26,7 +27,8 @@ func TestValidateBasicFields(t *testing.T) {
 	// Verificamos que sea un error de validación
 	assert.Contains(t, err.Error(), "VALIDATION_FAILED")
 	// Verificamos que contenga el campo numeroSocio
-	appErr, ok := err.(*errors.AppError)
+	var appErr *appErrors.AppError
+	ok := errors.As(err, &appErr)
 	assert.True(t, ok)
 	assert.NotNil(t, appErr.Fields)
 	assert.Contains(t, appErr.Fields, "numeroSocio")
@@ -49,7 +51,8 @@ func TestValidateDates(t *testing.T) {
 	assert.Contains(t, err.Error(), "VALIDATION_FAILED")
 
 	// Verificamos que contenga el campo fechaBaja
-	appErr, ok := err.(*errors.AppError)
+	var appErr *appErrors.AppError
+	ok := errors.As(err, &appErr)
 	assert.True(t, ok)
 	assert.NotNil(t, appErr.Fields)
 	assert.Contains(t, appErr.Fields, "fechaBaja")
@@ -59,7 +62,7 @@ func TestValidateDates(t *testing.T) {
 	err = member.Validate()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "VALIDATION_FAILED")
-	appErr, ok = err.(*errors.AppError)
+	ok = errors.As(err, &appErr)
 	assert.True(t, ok)
 	assert.Contains(t, appErr.Fields, "fechaBaja")
 }
@@ -114,7 +117,8 @@ func TestValidateStatus(t *testing.T) {
 	assert.Contains(t, err.Error(), "VALIDATION_FAILED")
 
 	// Verificamos que contenga el campo correcto
-	appErr, ok := err.(*errors.AppError)
+	var appErr *appErrors.AppError
+	ok := errors.As(err, &appErr)
 	assert.True(t, ok)
 	assert.NotNil(t, appErr.Fields)
 	assert.Contains(t, appErr.Fields, "fechaBaja")

@@ -14,12 +14,6 @@ type Middleware struct {
 	authService input.AuthService
 }
 
-func NewAuthMiddleware(authService input.AuthService) *Middleware {
-	return &Middleware{
-		authService: authService,
-	}
-}
-
 func (m *Middleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Añadir IP y User-Agent al contexto

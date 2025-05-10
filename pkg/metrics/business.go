@@ -14,7 +14,7 @@ const (
 )
 
 var (
-	// Miembros
+	// MembersByStatus Miembros
 	MembersByStatus = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "asam_members_total",
@@ -23,15 +23,7 @@ var (
 		[]string{"status", "type"}, // status: activo/inactivo, type: individual/familiar
 	)
 
-	// Familias
-	FamiliesTotal = promauto.NewGauge(
-		prometheus.GaugeOpts{
-			Name: "asam_families_total",
-			Help: "Total number of registered families",
-		},
-	)
-
-	// Pagos y Cuotas
+	// PaymentMetrics Pagos y Cuotas
 	PaymentMetrics = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "asam_payments_amount",
@@ -49,7 +41,7 @@ var (
 		[]string{"member_type"}, // individual/familiar
 	)
 
-	// Flujo de Caja
+	// CashFlowMetrics Flujo de Caja
 	CashFlowMetrics = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "asam_cashflow_amount",
@@ -58,7 +50,7 @@ var (
 		[]string{"operation_type"}, // ingreso_cuota, gasto_corriente, entrega_fondo, otros_ingresos
 	)
 
-	// Morosidad
+	// DefaulterMetrics Morosidad
 	DefaulterMetrics = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "asam_defaulters_total",
@@ -73,16 +65,6 @@ func UpdateMemberMetrics(_, inactive, individualActive, familyActive int) {
 	MembersByStatus.WithLabelValues("activo", "individual").Set(float64(individualActive))
 	MembersByStatus.WithLabelValues("activo", "familiar").Set(float64(familyActive))
 	MembersByStatus.WithLabelValues("inactivo", "total").Set(float64(inactive))
-}
-
-// UpdatePaymentMetrics actualiza las métricas de pagos
-func UpdatePaymentMetrics(amount float64, paymentType, status string) {
-	PaymentMetrics.WithLabelValues(paymentType, status).Set(amount)
-}
-
-// RecordPaymentLatency registra el tiempo de retraso en los pagos
-func RecordPaymentLatency(daysLate float64, memberType string) {
-	PaymentLatency.WithLabelValues(memberType).Observe(daysLate)
 }
 
 // UpdateCashFlowMetrics actualiza las métricas de flujo de caja

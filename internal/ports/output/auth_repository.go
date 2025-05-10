@@ -13,7 +13,7 @@ type UserRepository interface {
 	Update(ctx context.Context, user *models.User) error
 }
 
-// internal/ports/output/auth_repository.go
+// TokenRepository internal/ports/output/auth_repository.go
 type TokenRepository interface {
 	SaveRefreshToken(ctx context.Context, uuid string, userID uint, expires int64) error
 	ValidateRefreshToken(ctx context.Context, uuid string, userID uint) error

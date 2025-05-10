@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/99designs/gqlgen/graphql"
@@ -44,18 +43,6 @@ func (m *ErrorMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Execute next handler with the new context
 	m.next.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// FromContext gets the ErrorMiddleware from context
-func FromContext(ctx context.Context) *ErrorMiddleware {
-	if handler, ok := ctx.Value(ErrorHandlerKey{}).(*ErrorMiddleware); ok {
-		return handler
-	}
-
-	// Default handler if not found in context
-	return &ErrorMiddleware{
-		logger: nil, // We should avoid this in production
-	}
 }
 
 // HandleError processes an error and transforms it for GraphQL
@@ -206,40 +193,5 @@ func (m *ErrorMiddleware) createInternalError(ctx context.Context, err error) *g
 		Extensions: map[string]any{
 			"code": appErrors.ErrInternalError,
 		},
-	}
-}
-
-// PresentError is a wrapper for integration with gqlgen
-func PresentError(ctx context.Context, err error) *gqlerror.Error {
-	handler := FromContext(ctx)
-	return handler.HandleError(ctx, err)
-}
-
-// ConfigErrorPresenter configures the error presenter in gqlgen
-func ConfigErrorPresenter() graphql.ErrorPresenterFunc {
-	return PresentError
-}
-
-// LogPanic is a function to handle panic in resolvers
-func LogPanic() graphql.RecoverFunc {
-	return func(ctx context.Context, err any) error {
-		handler := FromContext(ctx)
-
-		// Log panic
-		if handler.logger != nil {
-			handler.logger.Error("GraphQL panic recovered",
-				zap.Any("error", err),
-				zap.String("stack", fmt.Sprintf("%+v", err)),
-				zap.Any("path", graphql.GetPath(ctx)))
-		}
-
-		// Create a GraphQL error for the panic
-		return &gqlerror.Error{
-			Path:    graphql.GetPath(ctx),
-			Message: "Internal server error",
-			Extensions: map[string]any{
-				"code": appErrors.ErrInternalError,
-			},
-		}
 	}
 }

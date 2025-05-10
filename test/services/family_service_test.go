@@ -58,7 +58,7 @@ func TestCreateFamily(t *testing.T) {
 				EsposoDocumentoIdentidad: "12345678A",
 				EsposaDocumentoIdentidad: "87654321B",
 			},
-			setupRepo: func(_ *test.MockFamilyRepository, _ *test.MockMemberRepository) {
+			setupRepo: func(mr *test.MockFamilyRepository, _ *test.MockMemberRepository) {
 				mr.On("GetByID", mock.Anything, uint(999)).Return(nil, errors.NewNotFoundError("member"))
 			},
 			wantErr: true,
