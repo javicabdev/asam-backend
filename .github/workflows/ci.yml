@@ -19,19 +19,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v4
         with:
           go-version: '1.24'
-          cache: true
 
       - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v3
         with:
           version: latest
-          args: --timeout=5m
 
       - name: Verify dependencies
         run: go mod verify
@@ -63,27 +61,32 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go-version }}
-          cache: true
 
       - name: Cache Go modules
-        uses: actions/cache@v4
+        uses: actions/cache@v3
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Generate GraphQL code
+        run: go run ./cmd/generate/main.go
+
       - name: Build
         run: go build -v -o asam-backend ./cmd/api
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: asam-backend-${{ matrix.go-version }}
           path: asam-backend
@@ -96,13 +99,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v4
         with:
           go-version: '1.24'
-          cache: true
 
       - name: Install dependencies
         run: go mod download
@@ -111,7 +113,7 @@ jobs:
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./internal/... ./pkg/...
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: unit-test-coverage
           path: coverage.out
@@ -139,13 +141,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v4
         with:
           go-version: '1.24'
-          cache: true
 
       - name: Install dependencies
         run: go mod download
@@ -170,10 +171,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Download coverage report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: unit-test-coverage
 
@@ -184,7 +185,7 @@ jobs:
         run: go tool cover -html=coverage.out -o coverage.html
 
       - name: Upload HTML coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: coverage-report-html
           path: coverage.html
@@ -205,13 +206,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v4
         with:
           go-version: '1.24'
-          cache: true
 
       - name: Install gocyclo
         run: go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
