@@ -1,9 +1,15 @@
+# Name of the GitHub Actions workflow.
 name: Release Pipeline
 
+# Controls when the workflow will run - in this case, when a tag matching v* is pushed.
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*' # Triggers on tag pushes starting with 'v' (e.g., v1.0.0)
+
+# Environment variables available to all jobs and steps in the workflow.
+env:
+  GO_VERSION: '1.24' # Define Go version once to ensure consistency across jobs.
 
 jobs:
   version-check:
@@ -18,17 +24,19 @@ jobs:
       - name: Get version from tag
         id: get-version
         run: |
+          # Extract version from tag (remove 'v' prefix)
           VERSION=${GITHUB_REF#refs/tags/v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           
           # Validate semantic versioning format
+          # Format: MAJOR.MINOR.PATCH[-PRERELEASE][+BUILDMETADATA]
           if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$ ]]; then
             echo "Invalid version format: $VERSION"
             echo "Version must follow semantic versioning: MAJOR.MINOR.PATCH[-PRERELEASE][+BUILDMETADATA]"
             exit 1
           fi
           
-          # Extract SemVer components
+          # Extract SemVer components for potential use in jobs
           MAJOR=$(echo $VERSION | cut -d. -f1)
           MINOR=$(echo $VERSION | cut -d. -f2)
           PATCH=$(echo $VERSION | cut -d. -f3 | cut -d- -f1 | cut -d+ -f1)
@@ -44,11 +52,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        goos: [linux, windows, darwin]
-        goarch: [amd64, arm64]
+        goos: [linux, windows, darwin] # Operating systems to build for
+        goarch: [amd64, arm64] # CPU architectures to build for
         exclude:
           - goos: windows
-            goarch: arm64
+            goarch: arm64 # Windows on ARM64 is less common, so we exclude it
 
     steps:
       - name: Checkout code
@@ -57,15 +65,17 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.24'
+          go-version: ${{ env.GO_VERSION }}
 
       - name: Cache Go modules
         uses: actions/cache@v3
         with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ env.GO_VERSION }}-${{ hashFiles('**/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-
+            ${{ runner.os }}-go-${{ env.GO_VERSION }}-
 
       - name: Install dependencies
         run: go mod download
@@ -73,33 +83,42 @@ jobs:
       - name: Generate GraphQL code
         run: go run ./cmd/generate/main.go
 
+      - name: Create directories for artifacts
+        run: mkdir -p dist release
+
       - name: Build binary
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           VERSION: ${{ needs.version-check.outputs.version }}
         run: |
+          # Set output file name based on OS
           OUTPUT="asam-backend"
           if [ "$GOOS" = "windows" ]; then
             OUTPUT="asam-backend.exe"
           fi
           
-          go build -ldflags "-X main.Version=v${VERSION}" -o "dist/${OUTPUT}" ./cmd/api
+          # Build with version information embedded
+          echo "Building for $GOOS/$GOARCH..."
+          go build -v -ldflags "-X main.Version=v${VERSION} -X main.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" -o "dist/${OUTPUT}" ./cmd/api
+          echo "Build complete."
           
-          # Create archive
-          mkdir -p release
+          # Create archive with appropriate format for the target OS
           if [ "$GOOS" = "windows" ]; then
+            echo "Creating ZIP archive for Windows..."
             zip -j "release/asam-backend_${VERSION}_${GOOS}_${GOARCH}.zip" "dist/${OUTPUT}"
           else
+            echo "Creating tarball for Unix-like OS..."
             tar -czf "release/asam-backend_${VERSION}_${GOOS}_${GOARCH}.tar.gz" -C dist "${OUTPUT}"
           fi
+          echo "Archive created successfully."
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
         with:
           name: asam-backend_${{ needs.version-check.outputs.version }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: release/
-          retention-days: 5
+          retention-days: 7
 
   generate-changelog:
     name: Generate Changelog
@@ -109,11 +128,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # Full git history for changelog generation
 
       - name: Generate Changelog
         id: changelog
         run: |
+          # Try to find the previous tag for comparison
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
           
           if [ -z "$PREV_TAG" ]; then
@@ -121,73 +141,82 @@ jobs:
             git log --pretty=format:"* %s (%h)" > CHANGELOG.md
           else
             echo "Generating changelog between tags $PREV_TAG and ${GITHUB_REF#refs/tags/}"
+            
+            # Create the header for the changelog
             echo "# Changes since $PREV_TAG" > CHANGELOG.md
             echo "" >> CHANGELOG.md
             
-            # Features
+            # Features section - any commit starting with "feat" or "feature"
             echo "## 🚀 Features" >> CHANGELOG.md
-            git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" --grep="^feat" >> CHANGELOG.md
+            git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" --grep="^feat" >> CHANGELOG.md || echo "No new features in this release." >> CHANGELOG.md
             echo "" >> CHANGELOG.md
             echo "" >> CHANGELOG.md
             
-            # Bug Fixes
+            # Bug Fixes section - any commit starting with "fix"
             echo "## 🐛 Bug Fixes" >> CHANGELOG.md
-            git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" --grep="^fix" >> CHANGELOG.md
+            git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" --grep="^fix" >> CHANGELOG.md || echo "No bug fixes in this release." >> CHANGELOG.md
             echo "" >> CHANGELOG.md
             echo "" >> CHANGELOG.md
             
-            # Other Changes
+            # Other Changes section - other conventional commit types
             echo "## 🔄 Other Changes" >> CHANGELOG.md
-            git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" --grep="^(chore|docs|style|refactor|perf|test|ci)" >> CHANGELOG.md
+            git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" --grep="^(chore|docs|style|refactor|perf|test|ci)" >> CHANGELOG.md || echo "No other conventional commit types in this release." >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
             echo "" >> CHANGELOG.md
             
             # Include all other commits not matching our conventions
             echo "## 📝 Other commits" >> CHANGELOG.md
-            git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" --grep="^(feat|fix|chore|docs|style|refactor|perf|test|ci)" --invert-grep >> CHANGELOG.md
+            git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" --grep="^(feat|fix|chore|docs|style|refactor|perf|test|ci)" --invert-grep >> CHANGELOG.md || echo "No other commits in this release." >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
           fi
           
-          echo "Generated CHANGELOG.md"
+          echo "Generated CHANGELOG.md:"
           cat CHANGELOG.md
 
       - name: Upload Changelog
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
         with:
           name: changelog
           path: CHANGELOG.md
-          retention-days: 5
+          retention-days: 30 # Keep changelog longer for historical reference
 
   create-release:
     name: Create GitHub Release
     needs: [version-check, build, generate-changelog]
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # Required for creating releases
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v2
         with:
           path: artifacts/
 
       - name: Download changelog
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v2
         with:
           name: changelog
           path: ./
 
       - name: Organize release files
         run: |
+          # Create a directory for the release files and copy all artifacts
           mkdir -p release/
+          echo "Organizing release files..."
           find artifacts/ -name "*.zip" -o -name "*.tar.gz" | xargs -I{} cp {} release/
+          echo "Found $(ls release/ | wc -l) release files."
 
-      - name: Create Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           name: Release v${{ needs.version-check.outputs.version }}
           body_path: CHANGELOG.md
-          draft: false
+          draft: false # Set to true if you want to manually review before publishing
           prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-beta') || contains(github.ref, '-alpha') }}
           files: |
             release/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
