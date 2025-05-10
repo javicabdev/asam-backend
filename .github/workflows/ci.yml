@@ -1,17 +1,23 @@
+# Name of the GitHub Actions workflow.
 name: CI Pipeline
 
+# Controls when the workflow will run.
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop ] # Triggers on pushes to main and develop branches.
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, develop ] # Triggers on pull requests targeting main and develop branches.
 
+# Environment variables available to all jobs and steps in the workflow.
+# It's good practice to define these at the top level if they are shared.
+# For secrets, consider using GitHub Secrets.
 env:
   POSTGRES_USER: postgres
-  POSTGRES_PASSWORD: postgres
+  POSTGRES_PASSWORD: postgres # Consider using a GitHub Secret for passwords, even for testing.
   POSTGRES_DB: asam_test
-  POSTGRES_HOST: localhost
+  POSTGRES_HOST: localhost # This is fine for services within the job, but be explicit if it's an external service.
   POSTGRES_PORT: 5432
+  GO_VERSION: '1.24' # Define Go version once to ensure consistency across jobs.
 
 jobs:
   lint:
@@ -19,101 +25,137 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4 # Use the latest major version of actions for security and features.
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5 # Use the latest major version.
         with:
-          go-version: '1.24'
+          go-version: ${{ env.GO_VERSION }}
 
+      # Consider caching for golangci-lint if download times are significant.
       - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v6 # Use the latest major version.
         with:
-          version: latest
+          # Pin to a specific version of golangci-lint for reproducible builds,
+          # or use 'latest' if you always want the newest.
+          # Example: version: v1.57.2
+          version: latest # Or a specific version like v1.57.2
+          # Optional: only show new issues if you're integrating into an existing project.
+          # args: --new-from-rev=HEAD~1
 
-      - name: Verify dependencies
-        run: go mod verify
+      - name: Verify Go modules
+        run: go mod verify # Ensures dependencies haven't been tampered with.
 
       - name: Check go.mod and go.sum
         run: |
-          go mod tidy
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "go.mod or go.sum needs updating"
-            git status
+          go mod tidy -v # -v for verbose output, helps in debugging.
+          # Check if go.mod or go.sum files were changed by go mod tidy.
+          if ! git diff --quiet go.mod go.sum; then
+            echo "go.mod or go.sum needs updating. Please run 'go mod tidy' and commit the changes."
             git diff
             exit 1
           fi
 
-      - name: Check format with gofmt
+      - name: Check formatting with gofmt
         run: |
-          if [ "$(gofmt -l -s . | wc -l)" -gt 0 ]; then
-            echo "The following files need formatting:"
-            gofmt -l -s .
+          # Use 'gofmt -d' to show diffs instead of just listing files.
+          # The '-s' flag simplifies code.
+          OUTPUT=$(gofmt -l -s .)
+          if [ -n "$OUTPUT" ]; then
+            echo "The following files need formatting (run 'gofmt -w .'):"
+            echo "$OUTPUT"
+            # Optionally, to show the diffs:
+            # gofmt -d -s .
             exit 1
           fi
+          echo "All files are correctly formatted."
 
   build:
     name: Build
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go-version: ['1.24']
+    # No need for a matrix if you're only using one Go version.
+    # If you plan to test against multiple Go versions, then a matrix is useful.
+    # strategy:
+    #   matrix:
+    #     go-version: [env.GO_VERSION] # Use the env var here if matrix is needed.
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version: ${{ env.GO_VERSION }} # Use the global env var.
 
       - name: Cache Go modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4 # Use the latest major version.
         with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          # Path to cache. ~/go/pkg/mod for modules, and ~/.cache/go-build for build cache.
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ env.GO_VERSION }}-${{ hashFiles('**/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-
+            ${{ runner.os }}-go-${{ env.GO_VERSION }}-
 
       - name: Install dependencies
-        run: go mod download
+        run: go mod download # Downloads dependencies listed in go.mod.
 
       - name: Generate GraphQL code
+        # Ensure this script is executable and handles errors appropriately.
         run: go run ./cmd/generate/main.go
 
-      - name: Build
+      - name: Build application
+        # Consider adding ldflags to embed version information, commit SHA, etc.
+        # Example: go build -v -ldflags="-X main.version=1.0.0 -X main.commit=$(git rev-parse HEAD)" -o asam-backend ./cmd/api
         run: go build -v -o asam-backend ./cmd/api
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4 # Use the latest major version.
         with:
-          name: asam-backend-${{ matrix.go-version }}
+          name: asam-backend-${{ env.GO_VERSION }} # Consistent naming with Go version.
           path: asam-backend
-          retention-days: 5
+          retention-days: 5 # Number of days to keep the artifact.
 
   test-unit:
     name: Unit Tests
     runs-on: ubuntu-latest
-    needs: [lint, build]
-
+    needs: [lint, build] # Depends on lint and build jobs succeeding.
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: ${{ env.GO_VERSION }}
+
+      # Cache Go modules for tests as well.
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ env.GO_VERSION }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-${{ env.GO_VERSION }}-
 
       - name: Install dependencies
+        # This might be redundant if build job already downloaded them and cache is effective.
+        # However, it ensures the job is self-contained if run independently.
         run: go mod download
 
       - name: Run unit tests
+        # -race: Enables the race detector.
+        # -coverprofile: Generates a coverage profile.
+        # -covermode: Mode for coverage analysis (atomic is good for concurrent tests).
+        # ./internal/... ./pkg/... : Specifies packages to test.
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./internal/... ./pkg/...
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: unit-test-coverage
           path: coverage.out
@@ -122,17 +164,20 @@ jobs:
   test-integration:
     name: Integration Tests
     runs-on: ubuntu-latest
-    needs: [lint, build]
+    needs: [lint, build] # Depends on lint and build jobs succeeding.
 
     services:
+      # Defines a PostgreSQL service container for integration tests.
       postgres:
-        image: postgres:16
+        image: postgres:16 # Use a specific version for consistency.
         env:
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
           POSTGRES_DB: ${{ env.POSTGRES_DB }}
         ports:
+          # Maps port 5432 of the service container to port 5432 on the runner.
           - 5432:5432
+        # Health check options for the PostgreSQL service.
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -141,86 +186,169 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: ${{ env.GO_VERSION }}
+
+      # Cache Go modules
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ env.GO_VERSION }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-${{ env.GO_VERSION }}-
 
       - name: Install dependencies
         run: go mod download
 
-      - name: Run migrations
+      - name: Wait for PostgreSQL to be ready
+        # A more robust wait script might be needed if pg_isready isn't sufficient
+        # or if the service takes longer to initialize.
+        # This simple loop tries to connect for up to 30 seconds.
         run: |
-          go run ./cmd/migrate/main.go up
-
-      - name: Run integration tests
-        run: go test -v -race -tags=integration ./test/integration/...
+          echo "Waiting for PostgreSQL to start..."
+          for i in {1..15}; do
+            pg_isready -h ${{ env.POSTGRES_HOST }} -p ${{ env.POSTGRES_PORT }} -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }} && break
+            echo "PostgreSQL not ready yet, waiting..."
+            sleep 2
+          done
+          pg_isready -h ${{ env.POSTGRES_HOST }} -p ${{ env.POSTGRES_PORT }} -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }}
+          echo "PostgreSQL is up and running!"
         env:
+          PGPASSWORD: ${{ env.POSTGRES_PASSWORD }} # pg_isready might need PGPASSWORD
+
+      - name: Run database migrations
+        # Ensure your migration tool/script exits with a non-zero code on failure.
+        run: go run ./cmd/migrate/main.go up
+        env: # Pass necessary env vars for migrations
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
           POSTGRES_DB: ${{ env.POSTGRES_DB }}
-          POSTGRES_HOST: ${{ env.POSTGRES_HOST }}
+          POSTGRES_HOST: ${{ env.POSTGRES_HOST }} # Should be 'localhost' or 'postgres' if using service name
+          POSTGRES_PORT: ${{ env.POSTGRES_PORT }}
+
+      - name: Run integration tests
+        # -tags=integration: Runs tests with the 'integration' build tag.
+        run: go test -v -race -tags=integration ./test/integration/...
+        env: # These are correctly passed to the test execution environment.
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_HOST: ${{ env.POSTGRES_HOST }} # For tests connecting to the service, this should be 'localhost'
+            # because of the port mapping. If your tests use the service name 'postgres',
+          # then it would be 'postgres' and the port would be 5432 (internal to Docker network).
           POSTGRES_PORT: ${{ env.POSTGRES_PORT }}
 
   code-coverage:
     name: Code Coverage Analysis
     runs-on: ubuntu-latest
-    needs: [test-unit]
+    needs: [test-unit] # Depends on unit tests completing and producing coverage.out.
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        # Required if go tool cover needs access to source files for HTML report context.
+        uses: actions/checkout@v4
 
-      - name: Download coverage report
-        uses: actions/download-artifact@v3
+      - name: Set up Go
+        # Needed for `go tool cover`.
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download coverage report artifact
+        uses: actions/download-artifact@v4 # Use the latest major version.
         with:
           name: unit-test-coverage
+          # No path needed if downloading to the current directory.
 
-      - name: Display coverage
+      - name: Display coverage summary
         run: go tool cover -func=coverage.out
 
       - name: Convert coverage to HTML
         run: go tool cover -html=coverage.out -o coverage.html
 
       - name: Upload HTML coverage report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report-html
           path: coverage.html
+          retention-days: 7 # Maybe keep coverage reports a bit longer.
 
-      - name: Check coverage threshold
+      - name: Check coverage threshold (70%)
         run: |
-          total_coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
-          if (( $(echo "$total_coverage < 70" | bc -l) )); then
-            echo "Code coverage is below 70%: $total_coverage%"
+          # Extracts the total coverage percentage.
+          # Example output of 'go tool cover -func=coverage.out':
+          # ...
+          # total:                          (statements)    75.0%
+          total_coverage=$(go tool cover -func=coverage.out | grep 'total:' | awk '{print $3}' | sed 's/%//')
+          echo "Current total coverage: $total_coverage%"
+
+          # Using bc for floating point comparison.
+          if (( $(echo "$total_coverage < 70.0" | bc -l) )); then
+            echo "Error: Code coverage ($total_coverage%) is below the required 70% threshold."
             exit 1
+          else
+            echo "Code coverage meets the 70% threshold."
           fi
-          echo "Code coverage is: $total_coverage%"
 
   complexity-analysis:
     name: Code Complexity Analysis
     runs-on: ubuntu-latest
+    # Consider if this should depend on 'build' as well,
+    # or if it can run in parallel with 'test-*' jobs after 'lint'.
     needs: [lint]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: ${{ env.GO_VERSION }}
+
+      # Cache Go tools installed via 'go install'
+      - name: Cache Go installed tools
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin
+          key: ${{ runner.os }}-go-tools-${{ env.GO_VERSION }}
 
       - name: Install gocyclo
+        # Installs to ~/go/bin, ensure this is in PATH or call directly.
+        # The 'go install' command now requires a version suffix like @latest or @vX.Y.Z
         run: go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
 
-      - name: Run complexity analysis
+      - name: Run cyclomatic complexity analysis
+        # Ensure gocyclo is in PATH or use full path: $(go env GOPATH)/bin/gocyclo
+        # The `|| true` or `|| echo "Warning..."` pattern is good for non-blocking warnings.
+        # To make it fail the build if complexity is too high, remove `|| echo ...` and let it exit with error.
         run: |
-          gocyclo -over 15 -avg ./ || echo "Warning: Some functions have high cyclomatic complexity"
+          echo "Running gocyclo (threshold > 15)..."
+          OUTPUT=$($(go env GOPATH)/bin/gocyclo -over 15 -avg ./...)
+          if [ -n "$OUTPUT" ]; then
+            echo "Warning: Some functions have high cyclomatic complexity (over 15):"
+            echo "$OUTPUT"
+            # To fail the build:
+            # exit 1
+          else
+            echo "No functions exceed cyclomatic complexity of 15."
+          fi
+          $(go env GOPATH)/bin/gocyclo -avg ./... # Print average complexity
 
-      - name: Run ineffassign
+      - name: Install ineffassign
+        run: go install github.com/gordonklaus/ineffassign@latest
+
+      - name: Run ineffassign (check for ineffectual assignments)
+        # Similar to gocyclo, ensure it's in PATH or use full path.
+        # This command will fail if ineffectual assignments are found.
         run: |
-          go install github.com/gordonklaus/ineffassign@latest
-          ineffassign ./...
+          echo "Running ineffassign..."
+          $(go env GOPATH)/bin/ineffassign ./...
+          echo "ineffassign found no issues."
