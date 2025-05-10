@@ -14,6 +14,7 @@ var (
 	phoneRegex = regexp.MustCompile(`^(?:(?:\+|00)?34)?[6789]\d{8}$`)
 )
 
+// Validator proporciona métodos para validar diferentes tipos de datos
 type Validator struct{}
 
 // ValidateDocumentID valida DNI/NIE

@@ -18,6 +18,7 @@ type TokenDetails struct {
 	RtExpires    int64
 }
 
+// JWTUtil proporciona funcionalidad para generar y validar tokens JWT
 type JWTUtil struct {
 	accessSecret  string
 	refreshSecret string
@@ -25,6 +26,7 @@ type JWTUtil struct {
 	refreshTTL    time.Duration
 }
 
+// NewJWTUtil crea una nueva instancia de JWTUtil
 func NewJWTUtil(accessSecret, refreshSecret string, accessTTL, refreshTTL time.Duration) *JWTUtil {
 	return &JWTUtil{
 		accessSecret:  accessSecret,
@@ -34,6 +36,7 @@ func NewJWTUtil(accessSecret, refreshSecret string, accessTTL, refreshTTL time.D
 	}
 }
 
+// GenerateTokenPair genera un par de tokens (acceso y refresco) para un usuario
 func (j *JWTUtil) GenerateTokenPair(userID uint, role string) (*TokenDetails, error) {
 	td := &TokenDetails{}
 	now := time.Now()
@@ -78,6 +81,7 @@ func (j *JWTUtil) GenerateTokenPair(userID uint, role string) (*TokenDetails, er
 	return td, nil
 }
 
+// ValidateToken valida un token JWT
 func (j *JWTUtil) ValidateToken(tokenString string, isRefreshToken bool) (*jwt.Token, error) {
 	secret := j.accessSecret
 	if isRefreshToken {

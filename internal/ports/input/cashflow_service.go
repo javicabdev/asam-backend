@@ -40,8 +40,11 @@ type Period struct {
 type ReportType string
 
 const (
+	// ReportTypeBalance reporte de balance
 	ReportTypeBalance  ReportType = "balance"
+	// ReportTypeIncome reporte de ingresos
 	ReportTypeIncome   ReportType = "income"
+	// ReportTypeCashFlow reporte de flujo de caja
 	ReportTypeCashFlow ReportType = "cashflow"
 )
 
@@ -136,6 +139,7 @@ type FinancialAlert struct {
 	CreatedAt    time.Time
 }
 
+// CashFlowFilter define los filtros para consultar movimientos de caja
 type CashFlowFilter struct {
 	StartDate     *time.Time
 	EndDate       *time.Time

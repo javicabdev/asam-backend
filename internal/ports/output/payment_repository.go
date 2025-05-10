@@ -7,6 +7,7 @@ import (
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 )
 
+// PaymentRepository define las operaciones para persistir pagos
 type PaymentRepository interface {
 	Create(ctx context.Context, payment *models.Payment) error
 	Update(ctx context.Context, payment *models.Payment) error
@@ -16,6 +17,7 @@ type PaymentRepository interface {
 	FindByFamily(ctx context.Context, familyID uint, from, to time.Time) ([]models.Payment, error)
 }
 
+// MembershipFeeRepository define las operaciones para persistir cuotas de membresía
 type MembershipFeeRepository interface {
 	Create(ctx context.Context, fee *models.MembershipFee) error
 	Update(ctx context.Context, fee *models.MembershipFee) error

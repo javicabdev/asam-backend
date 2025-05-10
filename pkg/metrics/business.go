@@ -14,7 +14,7 @@ const (
 )
 
 var (
-	// MembersByStatus Miembros
+	// MembersByStatus métrica que registra el número de miembros por estado
 	MembersByStatus = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "asam_members_total",
@@ -32,7 +32,8 @@ var (
 		[]string{"type", "status"}, // type: cuota/otros, status: pending/paid/cancelled
 	)
 
-	PaymentLatency = promauto.NewHistogramVec(
+	// PaymentLatency métrica que registra el tiempo de pago
+PaymentLatency = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "asam_payment_latency_days",
 			Help:    "Days between due date and payment date",

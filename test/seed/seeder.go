@@ -364,6 +364,7 @@ func (s *Seeder) SeedFullDataset(ctx context.Context) error {
 // the generators or data packages handle them internally. Keep them if you need
 // separate control over seeding these tables from the main `seed` package.
 
+// SeedUsers seeds the users table
 func (s *Seeder) SeedUsers(_ context.Context) error {
 	s.Logf("--> Seeding Users table (Placeholder - Implement if needed)")
 	// Example:
@@ -373,18 +374,21 @@ func (s *Seeder) SeedUsers(_ context.Context) error {
 	return nil // Return nil if users are seeded elsewhere or not needed here
 }
 
+// SeedRefreshTokens seeds the refresh tokens table
 func (s *Seeder) SeedRefreshTokens(_ context.Context) error {
 	s.Logf("--> Seeding Refresh Tokens table (Placeholder - Implement if needed)")
 	// Add actual refresh token seeding logic here, likely dependent on users
 	return nil
 }
 
+// SeedTelefonos seeds the telefonos table
 func (s *Seeder) SeedTelefonos(_ context.Context) error {
 	s.Logf("--> Seeding Telefonos table (Placeholder - Implement if needed)")
 	// Add actual telefono seeding logic here, likely dependent on miembros
 	return nil
 }
 
+// SeedHistorialMembresia seeds the historial membresia table
 func (s *Seeder) SeedHistorialMembresia(_ context.Context) error {
 	s.Logf("--> Seeding Historial Membresia table (Placeholder - Implement if needed)")
 	// Add actual historial membresia seeding logic here, likely dependent on miembros

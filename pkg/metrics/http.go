@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// Middleware middleware para recolectar métricas HTTP
 type Middleware struct {
 	next http.Handler
 }
@@ -15,6 +16,7 @@ func NewMetricsMiddleware() func(http.Handler) http.Handler {
 	return NewMiddleware()
 }
 
+// NewMiddleware crea un nuevo middleware para métricas HTTP
 func NewMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return &Middleware{next: next}

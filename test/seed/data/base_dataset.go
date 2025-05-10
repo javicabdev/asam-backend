@@ -1,3 +1,4 @@
+// Package data contiene los datos utilizados para las pruebas
 package data
 
 import (

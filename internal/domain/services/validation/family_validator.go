@@ -8,6 +8,7 @@ import (
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 )
 
+// FamilyValidator define la interfaz para validar familias
 type FamilyValidator interface {
 	ValidateNumeroSocio(numeroSocio string) error
 	ValidateConyuges(esposoNombre, esposoApellidos, esposaNombre, esposaApellidos string) error
@@ -16,8 +17,10 @@ type FamilyValidator interface {
 	ValidateDates(esposoFechaNac, esposaFechaNac *time.Time) error
 }
 
+// DefaultFamilyValidator implementación por defecto del validador de familias
 type DefaultFamilyValidator struct{}
 
+// NewFamilyValidator crea una nueva instancia del validador de familias
 func NewFamilyValidator() FamilyValidator {
 	return &DefaultFamilyValidator{}
 }

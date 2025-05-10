@@ -9,8 +9,10 @@ import (
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 )
 
+// DefaultMemberValidator implementación por defecto del validador de miembros
 type DefaultMemberValidator struct{}
 
+// NewMemberValidator crea una nueva instancia del validador de miembros
 func NewMemberValidator() MemberValidator {
 	return &DefaultMemberValidator{}
 }
