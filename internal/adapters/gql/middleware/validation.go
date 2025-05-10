@@ -8,6 +8,12 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/errors"
 )
 
+// Tipo para keys de contexto
+type validationContextKey string
+
+// Clave para sanitización
+const sanitizeKey validationContextKey = "sanitize"
+
 type ValidationMiddleware struct {
 	next http.Handler
 }
@@ -44,7 +50,7 @@ func (m *ValidationMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	}
 
 	// 4. Validar caracteres especiales en inputs (sanitización básica)
-	r = r.WithContext(context.WithValue(r.Context(), "sanitize", true))
+	r = r.WithContext(context.WithValue(r.Context(), sanitizeKey, true))
 
 	// Continuar con el siguiente handler
 	m.next.ServeHTTP(w, r)

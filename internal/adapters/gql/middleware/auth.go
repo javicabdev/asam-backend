@@ -16,6 +16,12 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
+// Tipo para las claves de contexto personalizadas
+type contextKey string
+
+// Clave personalizada para token de autorización
+const authTokenKey contextKey = "authorization"
+
 // publicOperations contiene las operaciones GraphQL que no requieren autenticación
 var publicOperations = map[string]bool{
 	"login":              true,
@@ -49,7 +55,7 @@ func enrichContextWithUserInfo(ctx context.Context, user *models.User, token str
 	// Añadir información básica al contexto
 	ctx = context.WithValue(ctx, constants.UserContextKey, user)
 	ctx = context.WithValue(ctx, constants.AuthorizedContextKey, true)
-	ctx = context.WithValue(ctx, "authorization", token) // Para la función getAccessTokenFromContext
+	ctx = context.WithValue(ctx, authTokenKey, token) // Para la función getAccessTokenFromContext
 
 	// Guardar información para auditoría
 	ctx = context.WithValue(ctx, constants.UserIDContextKey, user.ID)

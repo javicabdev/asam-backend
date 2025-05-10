@@ -81,7 +81,10 @@ func (g *FamilyGenerator) Generate(ctx context.Context, n int) error {
 		}
 
 		if err := g.generateBatch(ctx, tx, originMembers, i, end); err != nil {
-			tx.Rollback()
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				// Log rollback error but continue with original error
+				fmt.Printf("rollback error: %v\n", rollbackErr)
+			}
 			return err
 		}
 	}

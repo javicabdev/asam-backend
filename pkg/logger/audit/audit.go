@@ -1,3 +1,4 @@
+// Package audit proporciona funcionalidad para el registro de eventos de auditoría
 package audit
 
 import (
@@ -10,10 +11,11 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
+// Logger defines the interface for audit logging operations
 type Logger interface {
 	LogAction(ctx context.Context, action ActionType, entity EntityType, entityID string, description string)
 	LogChange(ctx context.Context, action ActionType, entity EntityType, entityID string,
-		previous, new any, description string)
+		previous, newData any, description string)
 	LogError(ctx context.Context, action ActionType, entity EntityType, entityID string, description string, err error)
 }
 
@@ -21,19 +23,25 @@ type Logger interface {
 type ActionType string
 
 const (
-	// Acciones de autenticación
-	ActionLogin  ActionType = "login"
+	// ActionLogin indica un inicio de sesión
+	ActionLogin ActionType = "login"
+	// ActionLogout indica un cierre de sesión
 	ActionLogout ActionType = "logout"
 
-	// Acciones CRUD
+	// ActionCreate indica una acción de creación
 	ActionCreate ActionType = "create"
-	ActionRead   ActionType = "read"
+	// ActionRead indica una acción de lectura
+	ActionRead ActionType = "read"
+	// ActionUpdate indica una acción de actualización
 	ActionUpdate ActionType = "update"
+	// ActionDelete indica una acción de eliminación
 	ActionDelete ActionType = "delete"
 
-	// Acciones financieras
-	ActionPayment       ActionType = "payment"
-	ActionRefund        ActionType = "refund"
+	// ActionPayment indica una acción de pago
+	ActionPayment ActionType = "payment"
+	// ActionRefund indica una acción de reembolso
+	ActionRefund ActionType = "refund"
+	// ActionBalanceAdjust indica un ajuste de saldo
 	ActionBalanceAdjust ActionType = "balance_adjust"
 )
 
@@ -41,10 +49,15 @@ const (
 type EntityType string
 
 const (
-	EntityMember   EntityType = "member"
-	EntityFamily   EntityType = "family"
+	// EntityMember representa una entidad de tipo miembro
+	EntityMember EntityType = "member"
+	// EntityFamily representa una entidad de tipo familia
+	EntityFamily EntityType = "family"
+	// EntityFamiliar representa una entidad de tipo familiar
 	EntityFamiliar EntityType = "familiar"
-	EntityPayment  EntityType = "payment"
+	// EntityPayment representa una entidad de tipo pago
+	EntityPayment EntityType = "payment"
+	// EntityCashFlow representa una entidad de tipo flujo de caja
 	EntityCashFlow EntityType = "cash_flow"
 )
 
@@ -65,45 +78,63 @@ type Entry struct {
 	Status       string     `json:"status"`
 }
 
-type AuditLogger struct {
-	Logger logger.Logger
+// loggerImpl is the concrete implementation of the Logger interface
+type loggerImpl struct {
+	logger logger.Logger
 }
 
-func NewAudit(logger logger.Logger) Logger {
-	return &AuditLogger{
-		Logger: logger,
+// NewLogger creates a new instance of the audit logger
+func NewLogger(logger logger.Logger) Logger {
+	return &loggerImpl{
+		logger: logger,
 	}
 }
 
-// logAuditEntry registra la entrada de auditoría usando el logger principal
-func (a *AuditLogger) logAuditEntry(entry Entry) {
+// logAuditEntry registers the audit entry using the main logger
+func (a *loggerImpl) logAuditEntry(entry Entry) {
 	// Convertir la entrada a JSON para un logging estructurado
 	jsonData, err := json.Marshal(entry)
 	if err != nil {
-		a.Logger.Error("Failed to marshal audit entry",
-			zap.Error(err),
-			zap.String("action", string(entry.Action)),
-			zap.String("entity", string(entry.Entity)),
-		)
+		// Check if the logger supports zap fields
+		if zapLogger, ok := a.logger.(interface {
+			Error(msg string, fields ...zap.Field)
+		}); ok {
+			zapLogger.Error("Failed to marshal audit entry",
+				zap.Error(err),
+				zap.String("action", string(entry.Action)),
+				zap.String("entity", string(entry.Entity)),
+			)
+		} else {
+			// Fallback for non-zap loggers
+			a.logger.Error("Failed to marshal audit entry: " + err.Error())
+		}
 		return
 	}
 
-	// Crear campos para el log
-	fields := []zap.Field{
-		zap.String("audit_type", "audit_log"),
-		zap.String("action", string(entry.Action)),
-		zap.String("entity", string(entry.Entity)),
-		zap.String("entity_id", entry.EntityID),
-		zap.String("user_id", entry.UserID),
-		zap.String("status", entry.Status),
-		zap.ByteString("audit_data", jsonData),
-	}
+	// If logger supports zap fields, use them
+	if zapLogger, ok := a.logger.(interface {
+		Info(msg string, fields ...zap.Field)
+	}); ok {
+		// Crear campos para el log
+		fields := []zap.Field{
+			zap.String("audit_type", "audit_log"),
+			zap.String("action", string(entry.Action)),
+			zap.String("entity", string(entry.Entity)),
+			zap.String("entity_id", entry.EntityID),
+			zap.String("user_id", entry.UserID),
+			zap.String("status", entry.Status),
+			zap.ByteString("audit_data", jsonData),
+		}
 
-	a.Logger.Info(entry.Description, fields...)
+		zapLogger.Info(entry.Description, fields...)
+	} else {
+		// Fallback for non-zap loggers
+		a.logger.Info(entry.Description + " - Audit data: " + string(jsonData))
+	}
 }
 
 // LogAction registra una acción simple en el log de auditoría
-func (a *AuditLogger) LogAction(ctx context.Context, action ActionType, entity EntityType,
+func (a *loggerImpl) LogAction(ctx context.Context, action ActionType, entity EntityType,
 	entityID string, description string) {
 	entry := Entry{
 		Timestamp:   time.Now().UTC(),
@@ -119,8 +150,8 @@ func (a *AuditLogger) LogAction(ctx context.Context, action ActionType, entity E
 }
 
 // LogChange registra un cambio en una entidad, incluyendo los datos anteriores y nuevos
-func (a *AuditLogger) LogChange(ctx context.Context, action ActionType, entity EntityType,
-	entityID string, previous, new any, description string) {
+func (a *loggerImpl) LogChange(ctx context.Context, action ActionType, entity EntityType,
+	entityID string, previous, newData any, description string) {
 	entry := Entry{
 		Timestamp:    time.Now().UTC(),
 		Action:       action,
@@ -129,7 +160,7 @@ func (a *AuditLogger) LogChange(ctx context.Context, action ActionType, entity E
 		UserID:       getUserFromContext(ctx),
 		Description:  description,
 		PreviousData: previous,
-		NewData:      new,
+		NewData:      newData,
 		Status:       "success",
 	}
 
@@ -137,7 +168,7 @@ func (a *AuditLogger) LogChange(ctx context.Context, action ActionType, entity E
 }
 
 // LogError registra una acción fallida en el log de auditoría
-func (a *AuditLogger) LogError(ctx context.Context, action ActionType, entity EntityType,
+func (a *loggerImpl) LogError(ctx context.Context, action ActionType, entity EntityType,
 	entityID string, description string, err error) {
 	entry := Entry{
 		Timestamp:   time.Now().UTC(),
@@ -156,8 +187,8 @@ func (a *AuditLogger) LogError(ctx context.Context, action ActionType, entity En
 }
 
 // getUserFromContext obtiene el ID del usuario del contexto
-// TODO: Implementar cuando tengamos la autenticación
-func getUserFromContext(ctx context.Context) string {
+func getUserFromContext(_ context.Context) string {
 	// Por ahora retornamos un valor por defecto
+	// TODO: Implementar cuando tengamos la autenticación
 	return "system"
 }
