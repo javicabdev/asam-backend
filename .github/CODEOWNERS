@@ -1,16 +1,25 @@
-# Global owners
+# These owners will be the default owners for everything in the repo
+# Unless a later match takes precedence, they will be requested for
+# review when someone opens a pull request.
 * @javicabdev
 
-# Core code
-/cmd/ @javicabdev
-/internal/ @javicabdev
-/pkg/ @javicabdev
+# Backend core team owns all Go code
+*.go @javicabdev
 
-# CI/CD workflows
-/.github/workflows/ @javicabdev
+# Infrastructure and CI/CD files
+.github/workflows/* @javicabdev
+Dockerfile* @javicabdev
+docker-compose* @javicabdev
 
 # Database migrations
-/migrations/ @javicabdev
+migrations/* @javicabdev
 
-# GraphQL schemas
-/gqlgen.yml @javicabdev
+# Documentation
+docs/* @javicabdev
+README.md @javicabdev
+
+# Configuration files
+*.yml @javicabdev
+*.yaml @javicabdev
+*.toml @javicabdev
+*.env* @javicabdev
