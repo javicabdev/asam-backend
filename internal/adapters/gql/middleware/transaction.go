@@ -9,17 +9,23 @@ import (
 
 type transactionKey struct{}
 
+// TransactionMiddleware implementa un middleware HTTP que gestiona transacciones
+// de base de datos para las peticiones GraphQL, asegurando la integridad de los datos.
 type TransactionMiddleware struct {
 	db   *gorm.DB
 	next http.Handler
 }
 
+// NewTransactionMiddleware crea una nueva instancia de TransactionMiddleware
+// con la conexión a la base de datos proporcionada.
 func NewTransactionMiddleware(db *gorm.DB) *TransactionMiddleware {
 	return &TransactionMiddleware{
 		db: db,
 	}
 }
 
+// Handler configura el siguiente middleware en la cadena.
+// Retorna el middleware actual para permitir su uso en la cadena de middlewares.
 func (m *TransactionMiddleware) Handler(next http.Handler) http.Handler {
 	m.next = next
 	return m
@@ -68,10 +74,14 @@ type ResponseWriter struct {
 	statusCode int
 }
 
+// NewResponseWriter crea un nuevo ResponseWriter para rastrear el código de estado HTTP.
+// Envuelve el ResponseWriter original para añadir funcionalidad adicional.
 func NewResponseWriter(w http.ResponseWriter) *ResponseWriter {
 	return &ResponseWriter{w, http.StatusOK}
 }
 
+// WriteHeader guarda el código de estado HTTP y luego llama al WriteHeader del ResponseWriter original.
+// Esta función es importante para rastrear si ocurrió un error en el proceso de respuesta.
 func (w *ResponseWriter) WriteHeader(code int) {
 	w.statusCode = code
 	w.ResponseWriter.WriteHeader(code)

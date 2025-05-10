@@ -30,6 +30,8 @@ func CreateValidFamily() *models.Family {
 	}
 }
 
+// CreateValidMember crea y retorna un objeto Member con datos válidos para usar en pruebas.
+// El miembro creado incluye todos los campos requeridos con valores de ejemplo realistas.
 func CreateValidMember() *models.Member {
 	email := "test@example.com"
 	return &models.Member{

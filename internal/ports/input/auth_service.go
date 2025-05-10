@@ -1,3 +1,5 @@
+// Package input define las interfaces para los servicios de entrada (casos de uso)
+// que implementan la lógica de negocio de la aplicación.
 package input
 
 import (

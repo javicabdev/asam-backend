@@ -17,18 +17,18 @@ import (
 )
 
 // ID is the resolver for the id field.
-func (r *cashFlowResolver) ID(ctx context.Context, obj *models.CashFlow) (string, error) {
+func (r *cashFlowResolver) ID(_ context.Context, obj *models.CashFlow) (string, error) {
 	// Asumiendo que obj.ID es de tipo uint o uint64
 	return fmt.Sprintf("%d", obj.ID), nil
 }
 
 // ID is the resolver for the id field.
-func (r *familiarResolver) ID(ctx context.Context, obj *models.Familiar) (string, error) {
+func (r *familiarResolver) ID(_ context.Context, obj *models.Familiar) (string, error) {
 	return fmt.Sprintf("%d", obj.ID), nil
 }
 
 // ID is the resolver for the id field.
-func (r *familyResolver) ID(ctx context.Context, obj *models.Family) (string, error) {
+func (r *familyResolver) ID(_ context.Context, obj *models.Family) (string, error) {
 	return fmt.Sprintf("%d", obj.ID), nil
 }
 

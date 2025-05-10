@@ -1,3 +1,5 @@
+// Package validation proporciona funcionalidades de validación para las entidades de dominio,
+// implementando reglas de negocio específicas para verificar la integridad de los datos.
 package validation
 
 import (

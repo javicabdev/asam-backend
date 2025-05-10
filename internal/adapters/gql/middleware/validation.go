@@ -12,14 +12,20 @@ type validationContextKey string
 // Clave para sanitización
 const sanitizeKey validationContextKey = "sanitize"
 
+// ValidationMiddleware implementa un middleware HTTP para validación básica de peticiones GraphQL,
+// asegurando que cumplan con requisitos de formato y tamaño.
 type ValidationMiddleware struct {
 	next http.Handler
 }
 
+// NewValidationMiddleware crea una nueva instancia de ValidationMiddleware
+// con la configuración predeterminada.
 func NewValidationMiddleware() *ValidationMiddleware {
 	return &ValidationMiddleware{}
 }
 
+// Handler configura el siguiente middleware en la cadena.
+// Retorna el middleware actual para permitir su uso en la cadena de middlewares.
 func (m *ValidationMiddleware) Handler(next http.Handler) http.Handler {
 	m.next = next
 	return m

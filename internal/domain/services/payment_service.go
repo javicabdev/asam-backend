@@ -21,6 +21,8 @@ type paymentService struct {
 	feeCalculator       input.FeeCalculator
 }
 
+// NewPaymentService crea una nueva instancia del servicio de pagos
+// que implementa la interfaz input.PaymentService.
 func NewPaymentService(
 	paymentRepo output.PaymentRepository,
 	membershipFeeRepo output.MembershipFeeRepository,

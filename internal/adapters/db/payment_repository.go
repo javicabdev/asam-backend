@@ -16,6 +16,8 @@ type paymentRepository struct {
 	db *gorm.DB
 }
 
+// NewPaymentRepository crea una nueva instancia del repositorio de pagos
+// que implementa la interfaz output.PaymentRepository.
 func NewPaymentRepository(db *gorm.DB) output.PaymentRepository {
 	return &paymentRepository{db: db}
 }
@@ -126,6 +128,8 @@ type membershipFeeRepository struct {
 	db *gorm.DB
 }
 
+// NewMembershipFeeRepository crea una nueva instancia del repositorio de cuotas de membresía
+// que implementa la interfaz output.MembershipFeeRepository.
 func NewMembershipFeeRepository(db *gorm.DB) output.MembershipFeeRepository {
 	return &membershipFeeRepository{db: db}
 }
