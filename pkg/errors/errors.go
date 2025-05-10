@@ -1,3 +1,5 @@
+// Package errors proporciona una implementación de manejo de errores estructurados
+// para la aplicación, permitiendo categorizar, envolver y extraer información de errores.
 package errors
 
 import (
@@ -9,13 +11,18 @@ import (
 // ErrorCode representa los códigos de error del sistema
 type ErrorCode string
 
+// Códigos de error definidos en el sistema
 const (
 	// ErrValidationFailed error de validación general
 	ErrValidationFailed ErrorCode = "VALIDATION_FAILED"
-	ErrInvalidFormat    ErrorCode = "INVALID_FORMAT"
-	ErrInvalidDate      ErrorCode = "INVALID_DATE"
-	ErrInvalidAmount    ErrorCode = "INVALID_AMOUNT"
-	ErrInvalidStatus    ErrorCode = "INVALID_STATUS"
+	// ErrInvalidFormat indica un error cuando los datos tienen un formato inválido
+	ErrInvalidFormat ErrorCode = "INVALID_FORMAT"
+	// ErrInvalidDate error de fecha inválida
+	ErrInvalidDate ErrorCode = "INVALID_DATE"
+	// ErrInvalidAmount error de monto inválido
+	ErrInvalidAmount ErrorCode = "INVALID_AMOUNT"
+	// ErrInvalidStatus error de estado inválido
+	ErrInvalidStatus ErrorCode = "INVALID_STATUS"
 
 	// ErrDuplicateEntry error de entrada duplicada
 	ErrDuplicateEntry    ErrorCode = "DUPLICATE_ENTRY"

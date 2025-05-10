@@ -1,3 +1,5 @@
+// Package test proporciona utilidades y mocks para las pruebas unitarias y de integración
+// del sistema, facilitando la simulación de servicios y repositorios.
 package test
 
 import (
@@ -34,11 +36,15 @@ type MockMemberRepository struct {
 	mock.Mock
 }
 
+// Create crea un nuevo miembro en el repositorio.
+// Implementa la funcionalidad correspondiente del repositorio simulando la creación de miembros.
 func (m *MockMemberRepository) Create(ctx context.Context, member *models.Member) error {
 	args := m.Called(ctx, member)
 	return args.Error(0)
 }
 
+// GetByID obtiene un miembro por su ID.
+// Simula la búsqueda en base de datos y permite controlar el comportamiento en pruebas.
 func (m *MockMemberRepository) GetByID(ctx context.Context, id uint) (*models.Member, error) {
 	args := m.Called(ctx, id)
 	err := args.Error(1)
@@ -55,11 +61,15 @@ func (m *MockMemberRepository) GetByID(ctx context.Context, id uint) (*models.Me
 	return member, err
 }
 
+// Update actualiza la información de un miembro existente.
+// Permite simular éxito o fallos en la operación de actualización durante las pruebas.
 func (m *MockMemberRepository) Update(ctx context.Context, member *models.Member) error {
 	args := m.Called(ctx, member)
 	return args.Error(0)
 }
 
+// List obtiene una lista de miembros aplicando los filtros especificados.
+// Permite personalizar los resultados que se devuelven según las necesidades de las pruebas.
 func (m *MockMemberRepository) List(ctx context.Context, filters output.MemberFilters) ([]models.Member, error) {
 	args := m.Called(ctx, filters)
 	err := args.Error(1)
@@ -76,6 +86,8 @@ func (m *MockMemberRepository) List(ctx context.Context, filters output.MemberFi
 	return members, err
 }
 
+// GetByNumeroSocio obtiene un miembro por su número de socio.
+// Simula la consulta en la base de datos para pruebas de búsqueda por número de socio.
 func (m *MockMemberRepository) GetByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Member, error) {
 	args := m.Called(ctx, numeroSocio)
 	err := args.Error(1)
@@ -92,6 +104,8 @@ func (m *MockMemberRepository) GetByNumeroSocio(ctx context.Context, numeroSocio
 	return member, err
 }
 
+// Delete elimina un miembro del repositorio por su ID.
+// Simula la operación de eliminación para pruebas.
 func (m *MockMemberRepository) Delete(ctx context.Context, id uint) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
@@ -100,25 +114,55 @@ func (m *MockMemberRepository) Delete(ctx context.Context, id uint) error {
 // MockLogger es un mock de Logger
 type MockLogger struct{}
 
-func (m *MockLogger) Info(string, ...zap.Field)  {}
+// Info registra mensajes en el nivel Info.
+// Implementa la interfaz de logger para pruebas sin realizar acciones reales.
+func (m *MockLogger) Info(string, ...zap.Field) {}
+
+// Error registra mensajes en el nivel Error.
+// Implementa la interfaz de logger para pruebas sin realizar acciones reales.
 func (m *MockLogger) Error(string, ...zap.Field) {}
+
+// Warn registra mensajes en el nivel Warn
+// Warn registra mensajes en el nivel Warn.
+func (m *MockLogger) Warn(string, ...zap.Field) {}
+
 func (m *MockLogger) Warn(string, ...zap.Field)  {}
+// Debug registra mensajes en el nivel Debug.
+// Implementa la interfaz de logger para pruebas sin realizar acciones reales.
+ger) Debug(string, ...zap.Field) {}
+
+// Panic regis
 func (m *MockLogger) Debug(string, ...zap.Field) {}
+rfaz de logger para pruebas sin realizar acci
+// Panic registra mensajes en el nivel Panic.
+// Implementa la interfaz de logger para pruebas sin realizar acciones reales.
 func (m *MockLogger) Panic(string, ...zap.Field) {}
+ones reales.
+func (m *MockLogger) Fatal(strin
+// Fatal registra mensajes en el nivel Fatal.
+func (m *MockLogger) Sync() error { return nil }
 func (m *MockLogger) Fatal(string, ...zap.Field) {}
+// Sync sincroniza y vacía cualquier entrada de log almacenada en búfer.
+// Implementa la interfaz de logger para pruebas sin realizar acciones reales.
 func (m *MockLogger) Sync() error                { return nil }
 
 // MockAuditLogger es un mock de audit.Logger
 type MockAuditLogger struct{}
 
+// LogAction registra una acción en el log de auditoría.
+// Simula el registro de acciones para pruebas sin realizar registro real.
 func (m *MockAuditLogger) LogAction(_ context.Context, _ audit.ActionType, _ audit.EntityType, _ string, _ string) {
 	// Simulación de logging
 }
 
+// LogChange registra un cambio en el log de auditoría.
+// Simula el registro de cambios para pruebas sin realizar registro real.
 func (m *MockAuditLogger) LogChange(_ context.Context, _ audit.ActionType, _ audit.EntityType, _ string, _, _ any, _ string) {
 	// Simulación de logging
 }
 
+// LogError registra un error en el log de auditoría.
+// Simula el registro de errores para pruebas sin realizar registro real.
 func (m *MockAuditLogger) LogError(_ context.Context, _ audit.ActionType, _ audit.EntityType, _ string, _ string, _ error) {
 	// Simulación de logging
 }
@@ -128,11 +172,15 @@ type MockFamilyRepository struct {
 	mock.Mock
 }
 
+// Create crea una nueva familia en el repositorio.
+// Simula la creación de una familia para pruebas sin usar base de datos real.
 func (m *MockFamilyRepository) Create(ctx context.Context, family *models.Family) error {
 	args := m.Called(ctx, family)
 	return args.Error(0)
 }
 
+// GetByID obtiene una familia por su ID.
+// Simula la búsqueda en base de datos y permite controlar el comportamiento en pruebas.
 func (m *MockFamilyRepository) GetByID(ctx context.Context, id uint) (*models.Family, error) {
 	args := m.Called(ctx, id)
 	err := args.Error(1)
@@ -149,16 +197,22 @@ func (m *MockFamilyRepository) GetByID(ctx context.Context, id uint) (*models.Fa
 	return family, err
 }
 
+// Update actualiza la información de una familia existente.
+// Permite simular éxito o fallos en la operación de actualización durante las pruebas.
 func (m *MockFamilyRepository) Update(ctx context.Context, family *models.Family) error {
 	args := m.Called(ctx, family)
 	return args.Error(0)
 }
 
+// Delete elimina una familia del repositorio por su ID.
+// Simula la operación de eliminación para pruebas.
 func (m *MockFamilyRepository) Delete(ctx context.Context, id uint) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
 }
 
+// GetByNumeroSocio obtiene una familia por su número de socio.
+// Simula la consulta en la base de datos para pruebas de búsqueda por número de socio.
 func (m *MockFamilyRepository) GetByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Family, error) {
 	args := m.Called(ctx, numeroSocio)
 	err := args.Error(1)
@@ -175,6 +229,8 @@ func (m *MockFamilyRepository) GetByNumeroSocio(ctx context.Context, numeroSocio
 	return family, err
 }
 
+// List obtiene una lista de familias aplicando paginación, búsqueda y ordenación.
+// Permite personalizar los resultados que se devuelven según las necesidades de las pruebas.
 func (m *MockFamilyRepository) List(ctx context.Context, page, pageSize int, searchTerm *string, orderBy string) ([]*models.Family, int, error) {
 	args := m.Called(ctx, page, pageSize, searchTerm, orderBy)
 	err := args.Error(2) // Error is the third return value (index 2)
@@ -196,21 +252,29 @@ func (m *MockFamilyRepository) List(ctx context.Context, page, pageSize int, sea
 	return families, count, err
 }
 
+// AddFamiliar añade un familiar a una familia existente.
+// Simula la adición de relaciones entre entidades para pruebas.
 func (m *MockFamilyRepository) AddFamiliar(ctx context.Context, familyID uint, familiar *models.Familiar) error {
 	args := m.Called(ctx, familyID, familiar)
 	return args.Error(0)
 }
 
+// UpdateFamiliar actualiza la información de un familiar existente.
+// Simula la actualización de datos para pruebas.
 func (m *MockFamilyRepository) UpdateFamiliar(ctx context.Context, familiar *models.Familiar) error {
 	args := m.Called(ctx, familiar)
 	return args.Error(0)
 }
 
+// RemoveFamiliar elimina un familiar de una familia.
+// Simula la eliminación de relaciones entre entidades para pruebas.
 func (m *MockFamilyRepository) RemoveFamiliar(ctx context.Context, familiarID uint) error {
 	args := m.Called(ctx, familiarID)
 	return args.Error(0)
 }
 
+// GetFamiliares obtiene todos los familiares asociados a una familia.
+// Simula la recuperación de relaciones entre entidades para pruebas.
 func (m *MockFamilyRepository) GetFamiliares(ctx context.Context, familyID uint) ([]*models.Familiar, error) {
 	args := m.Called(ctx, familyID)
 	err := args.Error(1) // Error is the second return value (index 1)
@@ -232,21 +296,29 @@ type MockPaymentRepository struct {
 	mock.Mock
 }
 
+// Create registra un nuevo pago en el repositorio.
+// Simula la creación de pagos para pruebas sin utilizar la base de datos real.
 func (m *MockPaymentRepository) Create(ctx context.Context, payment *models.Payment) error {
 	args := m.Called(ctx, payment)
 	return args.Error(0)
 }
 
+// Update actualiza la información de un pago existente.
+// Simula la actualización de pagos para pruebas.
 func (m *MockPaymentRepository) Update(ctx context.Context, payment *models.Payment) error {
 	args := m.Called(ctx, payment)
 	return args.Error(0)
 }
 
+// Delete elimina un pago del repositorio por su ID.
+// Simula la eliminación de pagos para pruebas.
 func (m *MockPaymentRepository) Delete(ctx context.Context, id uint) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
 }
 
+// FindByID busca un pago por su ID.
+// Simula la consulta de pagos individuales para pruebas.
 func (m *MockPaymentRepository) FindByID(ctx context.Context, id uint) (*models.Payment, error) {
 	args := m.Called(ctx, id)
 	err := args.Error(1) // Error is the second return value (index 1)
@@ -263,6 +335,8 @@ func (m *MockPaymentRepository) FindByID(ctx context.Context, id uint) (*models.
 	return payment, err
 }
 
+// FindByMember busca pagos realizados por un miembro en un rango de fechas.
+// Simula la consulta de pagos filtrados por miembro para pruebas.
 func (m *MockPaymentRepository) FindByMember(ctx context.Context, memberID uint, from, to time.Time) ([]models.Payment, error) {
 	args := m.Called(ctx, memberID, from, to)
 	err := args.Error(1)
@@ -279,6 +353,8 @@ func (m *MockPaymentRepository) FindByMember(ctx context.Context, memberID uint,
 	return payments, err
 }
 
+// FindByFamily busca pagos realizados por una familia en un rango de fechas.
+// Simula la consulta de pagos filtrados por familia para pruebas.
 func (m *MockPaymentRepository) FindByFamily(ctx context.Context, familyID uint, from, to time.Time) ([]models.Payment, error) {
 	args := m.Called(ctx, familyID, from, to)
 	err := args.Error(1)
@@ -300,16 +376,22 @@ type MockMembershipFeeRepository struct {
 	mock.Mock
 }
 
+// Create crea una nueva cuota de membresía en el repositorio.
+// Simula la creación de cuotas para pruebas sin usar la base de datos real.
 func (m *MockMembershipFeeRepository) Create(ctx context.Context, fee *models.MembershipFee) error {
 	args := m.Called(ctx, fee)
 	return args.Error(0)
 }
 
+// Update actualiza la información de una cuota de membresía existente.
+// Simula la actualización de cuotas para pruebas.
 func (m *MockMembershipFeeRepository) Update(ctx context.Context, fee *models.MembershipFee) error {
 	args := m.Called(ctx, fee)
 	return args.Error(0)
 }
 
+// FindByYearMonth busca una cuota de membresía por año y mes.
+// Simula la consulta de cuotas filtradas por período para pruebas.
 func (m *MockMembershipFeeRepository) FindByYearMonth(ctx context.Context, year, month int) (*models.MembershipFee, error) {
 	args := m.Called(ctx, year, month)
 	err := args.Error(1)
@@ -326,6 +408,8 @@ func (m *MockMembershipFeeRepository) FindByYearMonth(ctx context.Context, year,
 	return fee, err
 }
 
+// FindPendingByMember busca cuotas de membresía pendientes de pago para un miembro.
+// Simula la consulta de cuotas pendientes para pruebas.
 func (m *MockMembershipFeeRepository) FindPendingByMember(ctx context.Context, memberID uint) ([]models.MembershipFee, error) {
 	args := m.Called(ctx, memberID)
 	err := args.Error(1)
@@ -342,6 +426,8 @@ func (m *MockMembershipFeeRepository) FindPendingByMember(ctx context.Context, m
 	return fees, err
 }
 
+// FindByID busca una cuota de membresía por su ID.
+// Simula la consulta de cuotas individuales para pruebas.
 func (m *MockMembershipFeeRepository) FindByID(ctx context.Context, id uint) (*models.MembershipFee, error) {
 	args := m.Called(ctx, id)
 	err := args.Error(1)
@@ -363,11 +449,15 @@ type MockCashFlowRepository struct {
 	mock.Mock
 }
 
+// Create registra un nuevo movimiento de caja en el repositorio.
+// Simula la creación de movimientos para pruebas sin usar la base de datos real.
 func (m *MockCashFlowRepository) Create(ctx context.Context, cashFlow *models.CashFlow) error {
 	args := m.Called(ctx, cashFlow)
 	return args.Error(0)
 }
 
+// GetByID obtiene un movimiento de caja por su ID.
+// Simula la consulta de movimientos individuales para pruebas.
 func (m *MockCashFlowRepository) GetByID(ctx context.Context, id uint) (*models.CashFlow, error) {
 	args := m.Called(ctx, id)
 	err := args.Error(1)
@@ -384,6 +474,8 @@ func (m *MockCashFlowRepository) GetByID(ctx context.Context, id uint) (*models.
 	return cashFlow, err
 }
 
+// GetByPaymentID obtiene un movimiento de caja asociado a un pago específico.
+// Simula la consulta de movimientos por relación con pagos para pruebas.
 func (m *MockCashFlowRepository) GetByPaymentID(ctx context.Context, paymentID uint) (*models.CashFlow, error) {
 	args := m.Called(ctx, paymentID)
 	err := args.Error(1)
@@ -400,16 +492,22 @@ func (m *MockCashFlowRepository) GetByPaymentID(ctx context.Context, paymentID u
 	return cashFlow, err
 }
 
+// Update actualiza la información de un movimiento de caja existente.
+// Simula la actualización de movimientos para pruebas.
 func (m *MockCashFlowRepository) Update(ctx context.Context, cashFlow *models.CashFlow) error {
 	args := m.Called(ctx, cashFlow)
 	return args.Error(0)
 }
 
+// Delete elimina un movimiento de caja del repositorio por su ID.
+// Simula la eliminación de movimientos para pruebas.
 func (m *MockCashFlowRepository) Delete(ctx context.Context, id uint) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
 }
 
+// List obtiene una lista de movimientos de caja aplicando filtros.
+// Permite personalizar los resultados devueltos según las necesidades de las pruebas.
 func (m *MockCashFlowRepository) List(ctx context.Context, filter output.CashFlowFilter) ([]*models.CashFlow, error) {
 	args := m.Called(ctx, filter)
 	err := args.Error(1)
@@ -426,6 +524,8 @@ func (m *MockCashFlowRepository) List(ctx context.Context, filter output.CashFlo
 	return cashFlows, err
 }
 
+// GetBalance obtiene el saldo actual de caja.
+// Simula el cálculo del saldo para pruebas.
 func (m *MockCashFlowRepository) GetBalance(ctx context.Context) (float64, error) {
 	args := m.Called(ctx)
 	err := args.Error(1)

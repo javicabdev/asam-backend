@@ -1,3 +1,6 @@
+// Package main implementa un servicio para ejecutar migraciones de base de datos
+// y proporciona comandos para gestionar la evolución del esquema de la base de datos
+// en diferentes entornos (local, desarrollo, producción, etc).
 package main
 
 import (
