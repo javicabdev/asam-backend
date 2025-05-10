@@ -1,5 +1,15 @@
 # ASAM Backend
 
+## Documentación
+
+- [Descripción General de la API](docs/api-overview.md) - Visión general de la arquitectura y API del backend
+- [Guía para Frontend](docs/guia-frontend.md) - Documentación detallada para desarrolladores frontend
+- [Autenticación](docs/auth.md) - Información sobre el sistema de autenticación
+- [Base de Datos](docs/database.md) - Detalles sobre el modelado de datos y migraciones
+- [Manejo de Errores](docs/errors.md) - Sistema de manejo de errores
+- [Configuración de GCP](docs/gcp-project-setup.md) - Guía para configurar el proyecto en Google Cloud
+- [Configuración de GitHub Secrets](docs/github-secrets-setup.md) - Guía para configurar los secretos en GitHub
+
 ## Pipeline de CI/CD
 
 Este proyecto utiliza GitHub Actions para automatizar los procesos de Integración Continua (CI) y Despliegue Continuo (CD). A continuación, se explica en detalle cómo está configurado el sistema y cómo utilizarlo.
