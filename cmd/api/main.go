@@ -268,7 +268,7 @@ func newHTTPServerAndMux(deps *appDependencies, cfg *config.Config, appLogger lo
 
 	// Health check endpoints
 	mux.Handle("/health", healthHandler)                                                                                        // General health check
-	mux.Handle("/health/live", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })) // Liveness probe
+	mux.Handle("/health/live", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })) // Liveness probe
 	mux.Handle("/health/ready", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {                                 // Readiness probe
 		healthCheck := healthHandler.CheckHealth(r.Context()) // Ensure healthHandler.CheckHealth exists
 		if healthCheck.Status == health.StatusDown {
