@@ -102,6 +102,8 @@ func (j *JWTUtil) ValidateToken(tokenString string, isRefreshToken bool) (*jwt.T
 	return token, nil
 }
 
+// ExtractClaims extracts and validates the claims from a JWT token.
+// Returns the claims as a map and an error if the token is invalid or expired.
 func (j *JWTUtil) ExtractClaims(token *jwt.Token) (jwt.MapClaims, error) {
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || !token.Valid {

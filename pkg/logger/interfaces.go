@@ -1,3 +1,5 @@
+// Package logger proporciona interfaces y utilidades para el registro de eventos
+// y errores en la aplicación de manera uniforme.
 package logger
 
 import "go.uber.org/zap"

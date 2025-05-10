@@ -4,14 +4,20 @@ import (
 	"net/http"
 )
 
+// SecurityHeadersMiddleware implements HTTP middleware to add security-related
+// headers to all responses to improve application security.
 type SecurityHeadersMiddleware struct {
 	// Podríamos añadir opciones configurables si fuera necesario
 }
 
+// NewSecurityHeadersMiddleware creates a new instance of SecurityHeadersMiddleware
+// with default settings.
 func NewSecurityHeadersMiddleware() *SecurityHeadersMiddleware {
 	return &SecurityHeadersMiddleware{}
 }
 
+// Middleware returns an HTTP middleware function that adds security headers
+// to all HTTP responses to protect against common web vulnerabilities.
 func (m *SecurityHeadersMiddleware) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Security Headers

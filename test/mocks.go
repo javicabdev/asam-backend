@@ -545,11 +545,15 @@ type MockMemberService struct {
 	mock.Mock
 }
 
+// CreateMember creates a new member in the system.
+// It simulates the creation process without accessing real database.
 func (m *MockMemberService) CreateMember(ctx context.Context, member *models.Member) error {
 	args := m.Called(ctx, member)
 	return args.Error(0)
 }
 
+// GetMemberByID retrieves a member by their unique identifier.
+// Returns the member object or an error if not found or other issues occur.
 func (m *MockMemberService) GetMemberByID(ctx context.Context, id uint) (*models.Member, error) {
 	args := m.Called(ctx, id)
 	err := args.Error(1)
@@ -565,6 +569,8 @@ func (m *MockMemberService) GetMemberByID(ctx context.Context, id uint) (*models
 	return member, err
 }
 
+// GetMemberByNumeroSocio retrieves a member by their membership number.
+// This method simulates database lookup without actual database access.
 func (m *MockMemberService) GetMemberByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Member, error) {
 	args := m.Called(ctx, numeroSocio)
 	err := args.Error(1)
@@ -580,16 +586,22 @@ func (m *MockMemberService) GetMemberByNumeroSocio(ctx context.Context, numeroSo
 	return member, err
 }
 
+// UpdateMember updates an existing member's information.
+// Returns an error if the update operation fails.
 func (m *MockMemberService) UpdateMember(ctx context.Context, member *models.Member) error {
 	args := m.Called(ctx, member)
 	return args.Error(0)
 }
 
+// DeactivateMember sets a member as inactive with an optional deactivation date.
+// Returns an error if the deactivation process fails.
 func (m *MockMemberService) DeactivateMember(ctx context.Context, id uint, fechaBaja *time.Time) error {
 	args := m.Called(ctx, id, fechaBaja)
 	return args.Error(0)
 }
 
+// ListMembers retrieves a list of members based on the provided filters.
+// Returns the filtered list and an error if the operation fails.
 func (m *MockMemberService) ListMembers(ctx context.Context, filters input.MemberFilters) ([]*models.Member, error) {
 	args := m.Called(ctx, filters)
 	err := args.Error(1)
@@ -610,21 +622,29 @@ type MockFamilyService struct {
 	mock.Mock
 }
 
+// Create creates a new family record in the system.
+// Returns an error if the operation fails.
 func (m *MockFamilyService) Create(ctx context.Context, family *models.Family) error {
 	args := m.Called(ctx, family)
 	return args.Error(0)
 }
 
+// Update updates an existing family's information.
+// Returns an error if the update operation fails.
 func (m *MockFamilyService) Update(ctx context.Context, family *models.Family) error {
 	args := m.Called(ctx, family)
 	return args.Error(0)
 }
 
+// Delete removes a family record by its ID.
+// Returns an error if the deletion fails.
 func (m *MockFamilyService) Delete(ctx context.Context, id uint) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
 }
 
+// GetByID retrieves a family record by its unique identifier.
+// Returns the family object or an error if not found or other issues occur.
 func (m *MockFamilyService) GetByID(ctx context.Context, id uint) (*models.Family, error) {
 	args := m.Called(ctx, id)
 	err := args.Error(1)
@@ -640,6 +660,8 @@ func (m *MockFamilyService) GetByID(ctx context.Context, id uint) (*models.Famil
 	return family, err
 }
 
+// GetByNumeroSocio retrieves a family by their membership number.
+// Returns the family object or an error if not found or other issues occur.
 func (m *MockFamilyService) GetByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Family, error) {
 	args := m.Called(ctx, numeroSocio)
 	err := args.Error(1)
@@ -655,6 +677,8 @@ func (m *MockFamilyService) GetByNumeroSocio(ctx context.Context, numeroSocio st
 	return family, err
 }
 
+// List retrieves families with pagination, search and sorting options.
+// Returns the list of families, the total count, and an error if the operation fails.
 func (m *MockFamilyService) List(ctx context.Context, page, pageSize int, searchTerm *string, orderBy string) ([]*models.Family, int, error) {
 	args := m.Called(ctx, page, pageSize, searchTerm, orderBy)
 	err := args.Error(2)
@@ -671,21 +695,29 @@ func (m *MockFamilyService) List(ctx context.Context, page, pageSize int, search
 	return families, count, err
 }
 
+// AddFamiliar adds a new family member to an existing family.
+// Returns an error if the operation fails.
 func (m *MockFamilyService) AddFamiliar(ctx context.Context, familyID uint, familiar *models.Familiar) error {
 	args := m.Called(ctx, familyID, familiar)
 	return args.Error(0)
 }
 
+// UpdateFamiliar updates information of an existing family member.
+// Returns an error if the update operation fails.
 func (m *MockFamilyService) UpdateFamiliar(ctx context.Context, familiar *models.Familiar) error {
 	args := m.Called(ctx, familiar)
 	return args.Error(0)
 }
 
+// RemoveFamiliar removes a family member from a family by their ID.
+// Returns an error if the removal fails.
 func (m *MockFamilyService) RemoveFamiliar(ctx context.Context, familiarID uint) error {
 	args := m.Called(ctx, familiarID)
 	return args.Error(0)
 }
 
+// GetFamiliares retrieves all family members for a specific family.
+// Returns the list of family members and an error if the retrieval fails.
 func (m *MockFamilyService) GetFamiliares(ctx context.Context, familyID uint) ([]*models.Familiar, error) {
 	args := m.Called(ctx, familyID)
 	err := args.Error(1)
@@ -706,16 +738,22 @@ type MockPaymentService struct {
 	mock.Mock
 }
 
+// RegisterPayment records a new payment in the system.
+// Returns an error if the registration fails.
 func (m *MockPaymentService) RegisterPayment(ctx context.Context, payment *models.Payment) error {
 	args := m.Called(ctx, payment)
 	return args.Error(0)
 }
 
+// CancelPayment cancels an existing payment with a specified reason.
+// Returns an error if the cancellation process fails.
 func (m *MockPaymentService) CancelPayment(ctx context.Context, paymentID uint, reason string) error {
 	args := m.Called(ctx, paymentID, reason)
 	return args.Error(0)
 }
 
+// GetPayment retrieves a payment record by its ID.
+// Returns the payment object or an error if not found or other issues occur.
 func (m *MockPaymentService) GetPayment(ctx context.Context, paymentID uint) (*models.Payment, error) {
 	args := m.Called(ctx, paymentID)
 	err := args.Error(1)
@@ -731,6 +769,8 @@ func (m *MockPaymentService) GetPayment(ctx context.Context, paymentID uint) (*m
 	return payment, err
 }
 
+// GetMemberPayments retrieves all payments made by a specific member.
+// Returns the list of payments and an error if the retrieval fails.
 func (m *MockPaymentService) GetMemberPayments(ctx context.Context, memberID uint) ([]*models.Payment, error) {
 	args := m.Called(ctx, memberID)
 	err := args.Error(1)
@@ -746,6 +786,8 @@ func (m *MockPaymentService) GetMemberPayments(ctx context.Context, memberID uin
 	return payments, err
 }
 
+// GetFamilyPayments retrieves all payments made by a specific family.
+// Returns the list of payments and an error if the retrieval fails.
 func (m *MockPaymentService) GetFamilyPayments(ctx context.Context, familyID uint) ([]*models.Payment, error) {
 	args := m.Called(ctx, familyID)
 	err := args.Error(1)
@@ -761,11 +803,15 @@ func (m *MockPaymentService) GetFamilyPayments(ctx context.Context, familyID uin
 	return payments, err
 }
 
+// GenerateMonthlyFees creates monthly membership fees for all active members.
+// Returns an error if the generation process fails.
 func (m *MockPaymentService) GenerateMonthlyFees(ctx context.Context, year, month int, baseAmount float64) error {
 	args := m.Called(ctx, year, month, baseAmount)
 	return args.Error(0)
 }
 
+// GetMembershipFee retrieves the membership fee for a specific month and year.
+// Returns the fee object or an error if not found or other issues occur.
 func (m *MockPaymentService) GetMembershipFee(ctx context.Context, year, month int) (*models.MembershipFee, error) {
 	args := m.Called(ctx, year, month)
 	err := args.Error(1)
@@ -781,11 +827,15 @@ func (m *MockPaymentService) GetMembershipFee(ctx context.Context, year, month i
 	return fee, err
 }
 
+// UpdateFeeAmount changes the amount of a specific membership fee.
+// Returns an error if the update operation fails.
 func (m *MockPaymentService) UpdateFeeAmount(ctx context.Context, feeID uint, newAmount float64) error {
 	args := m.Called(ctx, feeID, newAmount)
 	return args.Error(0)
 }
 
+// GetMemberStatement generates an account statement for a specific member.
+// Returns the statement with balance and payment history or an error if the process fails.
 func (m *MockPaymentService) GetMemberStatement(ctx context.Context, memberID uint) (*input.AccountStatement, error) {
 	args := m.Called(ctx, memberID)
 	err := args.Error(1)
@@ -801,6 +851,8 @@ func (m *MockPaymentService) GetMemberStatement(ctx context.Context, memberID ui
 	return statement, err
 }
 
+// GetFamilyStatement generates an account statement for a specific family.
+// Returns the statement with balance and payment history or an error if the process fails.
 func (m *MockPaymentService) GetFamilyStatement(ctx context.Context, familyID uint) (*input.AccountStatement, error) {
 	args := m.Called(ctx, familyID)
 	err := args.Error(1)
@@ -816,6 +868,8 @@ func (m *MockPaymentService) GetFamilyStatement(ctx context.Context, familyID ui
 	return statement, err
 }
 
+// GetDefaulters retrieves a list of members who are behind on payments.
+// Returns the list of defaulters with their account statements or an error if the retrieval fails.
 func (m *MockPaymentService) GetDefaulters(ctx context.Context) ([]input.AccountStatement, error) {
 	args := m.Called(ctx)
 	err := args.Error(1) // Assuming error is the second return value (index 1)
@@ -831,16 +885,23 @@ func (m *MockPaymentService) GetDefaulters(ctx context.Context) ([]input.Account
 	return statements, err
 }
 
+// SendPaymentReminder sends a payment reminder notification to a specific member.
+// Returns an error if the notification sending process fails.
 func (m *MockPaymentService) SendPaymentReminder(ctx context.Context, memberID uint) error {
 	args := m.Called(ctx, memberID)
 	return args.Error(0)
 }
 
+// SendPaymentConfirmation sends a payment confirmation notification for a specific payment.
+// Returns an error if the notification sending process fails.
 func (m *MockPaymentService) SendPaymentConfirmation(ctx context.Context, paymentID uint) error {
 	args := m.Called(ctx, paymentID)
 	return args.Error(0)
 }
 
+// SendDefaulterNotification sends a notification to a member who is behind on payments.
+// The days parameter specifies how many days the member is late on payment.
+// Returns an error if the notification sending process fails.
 func (m *MockPaymentService) SendDefaulterNotification(ctx context.Context, memberID uint, days int) error {
 	args := m.Called(ctx, memberID, days)
 	return args.Error(0)
@@ -851,11 +912,15 @@ type MockCashFlowService struct {
 	mock.Mock
 }
 
+// RegisterMovement records a new cash flow movement in the system.
+// Returns an error if the registration fails.
 func (m *MockCashFlowService) RegisterMovement(ctx context.Context, movement *models.CashFlow) error {
 	args := m.Called(ctx, movement)
 	return args.Error(0)
 }
 
+// GetMovement retrieves a cash flow movement by its ID.
+// Returns the movement object or an error if not found or other issues occur.
 func (m *MockCashFlowService) GetMovement(ctx context.Context, id uint) (*models.CashFlow, error) {
 	args := m.Called(ctx, id)
 	err := args.Error(1)
@@ -871,16 +936,22 @@ func (m *MockCashFlowService) GetMovement(ctx context.Context, id uint) (*models
 	return movement, err
 }
 
+// UpdateMovement updates an existing cash flow movement.
+// Returns an error if the update operation fails.
 func (m *MockCashFlowService) UpdateMovement(ctx context.Context, movement *models.CashFlow) error {
 	args := m.Called(ctx, movement)
 	return args.Error(0)
 }
 
+// DeleteMovement removes a cash flow movement by its ID.
+// Returns an error if the deletion fails.
 func (m *MockCashFlowService) DeleteMovement(ctx context.Context, id uint) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
 }
 
+// GetMovementsByPeriod retrieves cash flow movements for a specific time period with filtering options.
+// Returns the list of movements and an error if the retrieval fails.
 func (m *MockCashFlowService) GetMovementsByPeriod(ctx context.Context, filter input.CashFlowFilter) ([]*models.CashFlow, error) {
 	args := m.Called(ctx, filter)
 	err := args.Error(1) // Assuming error is the second return value (index 1)
@@ -896,6 +967,8 @@ func (m *MockCashFlowService) GetMovementsByPeriod(ctx context.Context, filter i
 	return movements, err
 }
 
+// GetCurrentBalance calculates and returns the current balance of all accounts.
+// Returns a balance report or an error if the calculation fails.
 func (m *MockCashFlowService) GetCurrentBalance(ctx context.Context) (*input.BalanceReport, error) {
 	args := m.Called(ctx)
 	err := args.Error(1)
@@ -911,6 +984,8 @@ func (m *MockCashFlowService) GetCurrentBalance(ctx context.Context) (*input.Bal
 	return report, err
 }
 
+// GetBalanceByPeriod calculates and returns the balance for a specific time period.
+// Returns a balance report or an error if the calculation fails.
 func (m *MockCashFlowService) GetBalanceByPeriod(ctx context.Context, startDate, endDate time.Time) (*input.BalanceReport, error) {
 	args := m.Called(ctx, startDate, endDate)
 	err := args.Error(1)
@@ -926,6 +1001,8 @@ func (m *MockCashFlowService) GetBalanceByPeriod(ctx context.Context, startDate,
 	return report, err
 }
 
+// ValidateBalance performs a validation of the current balance against expected values.
+// Returns a validation report or an error if the validation process fails.
 func (m *MockCashFlowService) ValidateBalance(ctx context.Context) (*input.BalanceValidation, error) {
 	args := m.Called(ctx)
 	err := args.Error(1)
