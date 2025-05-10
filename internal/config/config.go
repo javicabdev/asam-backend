@@ -1,3 +1,5 @@
+// Package config proporciona funcionalidades para cargar y gestionar la configuración de la aplicación
+// desde variables de entorno o archivos .env.
 package config
 
 import (

@@ -11,6 +11,8 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
+// RateLimiter implements rate limiting functionality for HTTP requests
+// to protect the API from abuse and excessive traffic.
 type RateLimiter struct {
 	visitors map[string]*visitor
 	mtx      sync.RWMutex
@@ -26,6 +28,12 @@ type visitor struct {
 	lastSeen time.Time
 }
 
+// NewRateLimiter creates a new rate limiter with the specified configuration.
+// Parameters:
+// - rps: requests per second limit
+// - burst: maximum burst size allowed
+// - cleanup: interval for cleaning up old visitor records
+// - log: logger instance for recording rate limit events
 func NewRateLimiter(rps rate.Limit, burst int, cleanup time.Duration, log logger.Logger) *RateLimiter {
 	rl := &RateLimiter{
 		visitors:        make(map[string]*visitor),
@@ -78,6 +86,8 @@ func (rl *RateLimiter) cleanupVisitors() {
 	}
 }
 
+// Middleware returns an HTTP middleware function that applies rate limiting
+// to incoming requests based on client IP address.
 func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Obtener IP del visitante

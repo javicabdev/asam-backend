@@ -10,10 +10,13 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/constants"
 )
 
+// Middleware provides authentication middleware for HTTP requests.
 type Middleware struct {
 	authService input.AuthService
 }
 
+// Handler returns an HTTP middleware function that authenticates requests
+// by validating JWT tokens from the Authorization header and adding user info to the request context.
 func (m *Middleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Añadir IP y User-Agent al contexto

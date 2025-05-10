@@ -1,3 +1,5 @@
+// Package metrics proporciona funcionalidades para recopilar, gestionar y exponer
+// métricas de negocio de la aplicación para su monitoreo y análisis.
 package metrics
 
 import (
@@ -33,7 +35,7 @@ var (
 	)
 
 	// PaymentLatency métrica que registra el tiempo de pago
-PaymentLatency = promauto.NewHistogramVec(
+	PaymentLatency = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "asam_payment_latency_days",
 			Help:    "Days between due date and payment date",
