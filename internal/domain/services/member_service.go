@@ -179,20 +179,20 @@ func (s *memberService) UpdateMember(ctx context.Context, member *models.Member)
 	member.RegistrationDate = existing.RegistrationDate
 
 	// Validar el miembro antes de actualizar
-	if err := member.Validate(); err != nil {
+	if validateErr := member.Validate(); validateErr != nil {
 		s.appLogger.Error("Member validation failed",
 			zap.Uint("id", member.ID),
-			zap.Error(err))
+			zap.Error(validateErr))
 		s.auditLogger.LogError(ctx, audit.ActionUpdate, audit.EntityMember,
 			numToStr(member.ID),
-			"Error en la validación del miembro", err)
+			"Error en la validación del miembro", validateErr)
 
 		// Conservar el error de validación si ya es un AppError, sino convertirlo
-		appErr, ok := errors.AsAppError(err)
+		appErr, ok := errors.AsAppError(validateErr)
 		if ok {
 			return appErr
 		}
-		return errors.Validation("Error validando miembro", "", err.Error())
+		return errors.Validation("Error validando miembro", "", validateErr.Error())
 	}
 
 	// Actualizar el miembro

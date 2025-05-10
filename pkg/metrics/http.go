@@ -6,17 +6,17 @@ import (
 	"time"
 )
 
-type MetricsMiddleware struct {
+type Middleware struct {
 	next http.Handler
 }
 
-func NewMetricsMiddleware() func(http.Handler) http.Handler {
+func NewMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		return &MetricsMiddleware{next: next}
+		return &Middleware{next: next}
 	}
 }
 
-func (m *MetricsMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
 	// Wrap ResponseWriter to capture status code

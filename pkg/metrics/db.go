@@ -26,9 +26,15 @@ func RegisterMetrics(db *gorm.DB) {
 	// Registrar callbacks similares para Update, Delete, Query...
 }
 
+// Define key type para context
+type contextKey string
+
+// Constante para key de tiempo de inicio
+const startTimeKey contextKey = "metrics:start_time"
+
 func startOperation(db *gorm.DB) {
 	ctx := db.Statement.Context
-	ctx = context.WithValue(ctx, "metrics:start_time", time.Now())
+	ctx = context.WithValue(ctx, startTimeKey, time.Now())
 	db.Statement.Context = ctx
 }
 
@@ -38,7 +44,7 @@ func endOperation(db *gorm.DB, operation string) {
 		return
 	}
 
-	if startTime, ok := ctx.Value("metrics:start_time").(time.Time); ok {
+	if startTime, ok := ctx.Value(startTimeKey).(time.Time); ok {
 		duration := time.Since(startTime).Seconds()
 		table := db.Statement.Table
 

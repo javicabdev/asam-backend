@@ -214,13 +214,13 @@ func GenerateRandomDate(r *rand.Rand, start, end time.Time) time.Time {
 }
 
 // GenerateRandomAmount generates a random amount within a range with 2 decimal places
-func GenerateRandomAmount(r *rand.Rand, min, max float64) float64 {
-	amount := min + r.Float64()*(max-min)
+func GenerateRandomAmount(r *rand.Rand, minVal, maxVal float64) float64 {
+	amount := minVal + r.Float64()*(maxVal-minVal)
 	// Round to 2 decimal places
 	return float64(int(amount*100)) / 100
 }
 
 // GenerateRandomMembershipNumber generates a random membership number
-func GenerateRandomMembershipNumber(r *rand.Rand, prefix string, count int) string {
+func GenerateRandomMembershipNumber(_ *rand.Rand, prefix string, count int) string {
 	return fmt.Sprintf("%s-%d", prefix, count)
 }

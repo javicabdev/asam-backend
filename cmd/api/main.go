@@ -63,7 +63,7 @@ func initLogging() (logger.Logger, audit.Logger, error) {
 		return nil, nil, fmt.Errorf("failed to initialize app logger: %w", err)
 	}
 
-	auditLogger := audit.NewAudit(appLogger)
+	auditLogger := audit.NewLogger(appLogger)
 	return appLogger, auditLogger, nil
 }
 
