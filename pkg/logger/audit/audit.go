@@ -22,6 +22,22 @@ type Logger interface {
 // ActionType define los tipos de acciones que se pueden auditar
 type ActionType string
 
+// Definición de tipos de acciones
+const (
+	// ActionCreate representa la acción de crear una entidad
+	ActionCreate ActionType = "create"
+	// ActionUpdate representa la acción de actualizar una entidad
+	ActionUpdate ActionType = "update"
+	// ActionDelete representa la acción de eliminar una entidad
+	ActionDelete ActionType = "delete"
+	// ActionLogin representa la acción de iniciar sesión
+	ActionLogin ActionType = "login"
+	// ActionLogout representa la acción de cerrar sesión
+	ActionLogout ActionType = "logout"
+	// ActionRead representa la acción de leer una entidad
+	ActionRead ActionType = "read"
+)
+
 // EntityType define los tipos de entidades que se pueden auditar
 type EntityType string
 

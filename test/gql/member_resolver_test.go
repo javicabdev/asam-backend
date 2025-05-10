@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
 	"gorm.io/gorm"
 
@@ -29,7 +29,7 @@ func createAuthContext() context.Context {
 	return context.WithValue(context.Background(), constants.UserContextKey, testUser)
 }
 
-var _ = Describe("Member", func() {
+var _ = ginkgo.Describe("Member", func() {
 	var (
 		resolver        *resolvers.Resolver
 		memberService   *test.MockMemberService
@@ -40,7 +40,7 @@ var _ = Describe("Member", func() {
 		ctx             context.Context // Contexto autenticado para todas las pruebas
 	)
 
-	BeforeEach(func() {
+	ginkgo.BeforeEach(func() {
 		memberService = new(test.MockMemberService)
 		familyService = new(test.MockFamilyService)
 		paymentService = new(test.MockPaymentService)
@@ -59,9 +59,9 @@ var _ = Describe("Member", func() {
 		ctx = createAuthContext()
 	})
 
-	Describe("CreateMember", func() {
-		When("creating individual member", func() {
-			It("succeeds with valid input", func() {
+	ginkgo.Describe("CreateMember", func() {
+		ginkgo.When("creating individual member", func() {
+			ginkgo.It("succeeds with valid input", func() {
 				input := createValidMemberInput()
 
 				memberService.On("CreateMember", mock.Anything, mock.MatchedBy(func(m *models.Member) bool {
@@ -71,14 +71,14 @@ var _ = Describe("Member", func() {
 				// Usar ctx autenticado en lugar de context.Background()
 				member, err := resolver.Mutation().CreateMember(ctx, input)
 
-				Expect(err).NotTo(HaveOccurred())
-				Expect(member).NotTo(BeNil())
-				Expect(member.MembershipType).To(Equal(models.TipoMembresiaPIndividual))
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(member).NotTo(gomega.BeNil())
+				gomega.Expect(member.MembershipType).To(gomega.Equal(models.TipoMembresiaPIndividual))
 			})
 		})
 
-		When("creating family member", func() {
-			It("succeeds with valid input", func() {
+		ginkgo.When("creating family member", func() {
+			ginkgo.It("succeeds with valid input", func() {
 				input := createValidMemberInput()
 				input.TipoMembresia = model.MembershipTypeFamily
 
@@ -89,14 +89,14 @@ var _ = Describe("Member", func() {
 				// Usar ctx autenticado en lugar de context.Background()
 				member, err := resolver.Mutation().CreateMember(ctx, input)
 
-				Expect(err).NotTo(HaveOccurred())
-				Expect(member).NotTo(BeNil())
-				Expect(member.MembershipType).To(Equal(models.TipoMembresiaPFamiliar))
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(member).NotTo(gomega.BeNil())
+				gomega.Expect(member.MembershipType).To(gomega.Equal(models.TipoMembresiaPFamiliar))
 			})
 		})
 
-		When("input is invalid", func() {
-			It("returns error for invalid membership type", func() {
+		ginkgo.When("input is invalid", func() {
+			ginkgo.It("returns error for invalid membership type", func() {
 				input := createValidMemberInput()
 				input.TipoMembresia = "INVALID_TYPE"
 
@@ -104,16 +104,16 @@ var _ = Describe("Member", func() {
 				member, err := resolver.Mutation().CreateMember(ctx, input)
 
 				// Verificar que es un error de validación según la biblioteca de errores
-				Expect(err).To(HaveOccurred())
-				Expect(errors.IsValidationError(err)).To(BeTrue())
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(errors.IsValidationError(err)).To(gomega.BeTrue())
 
 				// Obtener los campos del error
 				fields := errors.GetFields(err)
-				Expect(fields).To(HaveKey("tipoMembresia"))
-				Expect(member).To(BeNil())
+				gomega.Expect(fields).To(gomega.HaveKey("tipoMembresia"))
+				gomega.Expect(member).To(gomega.BeNil())
 			})
 
-			It("returns error for missing required fields", func() {
+			ginkgo.It("returns error for missing required fields", func() {
 				input := model.CreateMemberInput{
 					NumeroSocio: "",
 					Nombre:      "",
@@ -123,21 +123,21 @@ var _ = Describe("Member", func() {
 				member, err := resolver.Mutation().CreateMember(ctx, input)
 
 				// Verificar que es un error de validación según la biblioteca de errores
-				Expect(err).To(HaveOccurred())
-				Expect(errors.IsValidationError(err)).To(BeTrue())
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(errors.IsValidationError(err)).To(gomega.BeTrue())
 
 				// Obtener los campos del error
 				fields := errors.GetFields(err)
-				Expect(fields).To(HaveKey("numeroSocio"))
-				Expect(fields).To(HaveKey("nombre"))
-				Expect(member).To(BeNil())
+				gomega.Expect(fields).To(gomega.HaveKey("numeroSocio"))
+				gomega.Expect(fields).To(gomega.HaveKey("nombre"))
+				gomega.Expect(member).To(gomega.BeNil())
 			})
 		})
 	})
 
-	Describe("UpdateMember", func() {
-		When("member exists", func() {
-			It("updates successfully", func() {
+	ginkgo.Describe("UpdateMember", func() {
+		ginkgo.When("member exists", func() {
+			ginkgo.It("updates successfully", func() {
 				existingMember := &models.Member{
 					ID:               1,
 					MembershipNumber: test.GenerateValidNumeroSocio(1),
@@ -167,15 +167,15 @@ var _ = Describe("Member", func() {
 				// Usar ctx autenticado en lugar de context.Background()
 				member, err := resolver.Mutation().UpdateMember(ctx, input)
 
-				Expect(err).NotTo(HaveOccurred())
-				Expect(member).NotTo(BeNil())
-				Expect(member.City).To(Equal("Nueva Ciudad"))
-				Expect(member.MembershipType).To(Equal(existingMember.MembershipType))
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(member).NotTo(gomega.BeNil())
+				gomega.Expect(member.City).To(gomega.Equal("Nueva Ciudad"))
+				gomega.Expect(member.MembershipType).To(gomega.Equal(existingMember.MembershipType))
 			})
 		})
 
-		When("member does not exist", func() {
-			It("returns error", func() {
+		ginkgo.When("member does not exist", func() {
+			ginkgo.It("returns error", func() {
 				input := model.UpdateMemberInput{
 					MiembroID: "999",
 					Poblacion: test.StringPtr("Ciudad Inexistente"),
@@ -187,15 +187,15 @@ var _ = Describe("Member", func() {
 				member, err := resolver.Mutation().UpdateMember(ctx, input)
 
 				// Verificar que es un error de recurso no encontrado según la biblioteca de errores
-				Expect(err).To(HaveOccurred())
-				Expect(errors.IsNotFoundError(err)).To(BeTrue())
+				gomega.Expect(err).To(gomega.HaveOccurred())
+				gomega.Expect(errors.IsNotFoundError(err)).To(gomega.BeTrue())
 
 				// Verificar el mensaje del error
 				message, ok := errors.GetMessage(err)
-				Expect(ok).To(BeTrue())
-				Expect(message).To(ContainSubstring("Member no encontrada"))
+				gomega.Expect(ok).To(gomega.BeTrue())
+				gomega.Expect(message).To(gomega.ContainSubstring("Member no encontrada"))
 
-				Expect(member).To(BeNil())
+				gomega.Expect(member).To(gomega.BeNil())
 			})
 		})
 	})
