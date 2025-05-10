@@ -19,14 +19,11 @@ run:
 
 # Sección 'linters': controla qué linters están habilitados o deshabilitados.
 linters:
-  # Deshabilita todos los linters por defecto.
-  # Solo los linters listados en 'enable' se ejecutarán.
-  # Esto proporciona un control explícito sobre qué linters se utilizan.
-  disable-all: true
+  enabled-only: true  # En v2, usa 'enabled-only' en lugar de 'disable-all'
   # Lista de linters a habilitar.
   # Se eliminaron 'gofmt' y 'goimports' ya que son formateadores.
   # Se eliminaron 'gosimple' y 'shadow' ya que no son reconocidos como linters habilitables por tu versión v2.1.6.
-  enable:
+  enabled:
     - bodyclose     # Verifica que los cuerpos de respuesta HTTP (io.ReadCloser) se cierren.
     - errcheck      # Verifica que los errores devueltos por funciones se manejen.
     - govet         # Analiza el código en busca de construcciones sospechosas y errores comunes.
@@ -90,9 +87,9 @@ linters:
       # - path: "internal[/\\]generated[/\\]" # Ejemplo para excluir un directorio generado
       #   text: "SA1029" # Excluir un código de error específico de staticcheck para una ruta
 
-# Sección 'linters-settings': configuraciones específicas para linters individuales.
-# Aquí puedes ajustar el comportamiento de los linters habilitados.
-linters-settings:
+# Sección 'linters-setting': configuraciones específicas para linters individuales.
+# En v2, la propiedad correcta es 'linters-setting' (sin la 's' final)
+linters-setting:
   govet:
     # Intentando activar check-shadowing para v2.1.6, ya que el linter 'shadow' no es reconocido.
     check-shadowing: true
