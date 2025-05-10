@@ -1,25 +1,17 @@
 # Configuración para golangci-lint
-# Se añade la propiedad 'version' para mejorar la compatibilidad con la validación de esquemas en algunos IDEs.
-# Aunque golangci-lint puede inferirla o no requerirla estrictamente en todas sus versiones,
-# especificarla ayuda a las herramientas de validación a aplicar el esquema correcto.
-version: '2'
 
 # Sección 'run': define cómo se ejecuta golangci-lint
 run:
   # Versión de Go para la que se analiza el código.
   # Es una buena práctica encerrar los números de versión entre comillas para asegurar que se traten como cadenas.
-  go: '1.24'
+  go: '1.24' # Asegúrate de que coincida con la versión de Go de tu proyecto y CI.
   # Tiempo máximo de ejecución para los linters.
   timeout: 5m
   # Puedes añadir aquí otras configuraciones de 'run' como:
   # skip-dirs: # Directorios a ignorar por todos los linters.
   #   - vendor/
   #   - internal/mocks/ # Ejemplo para directorios de mocks
-  skip-files:
-    - ".*_generated\\.go$" # Exclusión de archivos generados
-    - ".*\\.pb\\.go$" # Ejemplo para archivos generados por Protocol Buffers
-    - "internal/adapters/gql/resolvers/schema.resolvers.go" # Archivo específico a excluir
-    - "pkg/errors/errors.go"
+  # skip-files: # Esta sección está obsoleta, usar 'issues.exclude-rules' en su lugar.
 
 # Sección 'linters': controla qué linters están habilitados o deshabilitados.
 linters:
@@ -40,11 +32,11 @@ linters:
     - noctx         # Desaconseja pasar un contexto nulo (nil) a funciones que lo esperan.
     - staticcheck   # Un conjunto de analizadores estáticos muy completo y recomendado (incluye gosimple).
     - unused        # Detecta código no utilizado (variables, funciones, tipos, etc. SA4000-SA4029 de staticcheck).
-    # 'shadow' linter eliminado porque la v1.64.5 del usuario no lo reconoce.
-    # --- Linters adicionales sugeridos (descomentar para habilitar) ---
-    # - misspell      # Corrige errores ortográficos comunes en comentarios y cadenas.
     - revive        # Linter rápido y configurable, sucesor de golint. Configurable mediante un archivo revive.toml.
     - unconvert     # Elimina conversiones de tipo innecesarias.
+    - shadow        # Habilitado para versiones recientes de golangci-lint. Detecta variables sombreadas.
+    # --- Linters adicionales sugeridos (descomentar para habilitar) ---
+    # - misspell      # Corrige errores ortográficos comunes en comentarios y cadenas.
     # - gocyclo       # Calcula la complejidad ciclomática. (Ya lo tienes en linters-settings, asegúrate de habilitarlo aquí si lo quieres).
     # - gocritic      # Proporciona diagnósticos adicionales de estilo y rendimiento. (Ya lo tienes en linters-settings).
     # - nolintlint    # Verifica que las directivas //nolint tengan una justificación o estén bien formadas.
@@ -53,12 +45,11 @@ linters:
 # Aquí puedes ajustar el comportamiento de los linters habilitados.
 linters-settings:
   govet:
-    # Restaurado 'check-shadowing' para compatibilidad con la v1.64.5 del usuario.
-    check-shadowing: true
-    # Puedes habilitar más comprobaciones de govet si es necesario.
-    # enable-all: false # Por defecto, no todas las comprobaciones de govet están activas.
-    # disable:
-    #   - fieldalignment # Ejemplo de cómo deshabilitar una comprobación específica de govet.
+  # 'check-shadowing' se maneja ahora por el linter 'shadow' en versiones recientes.
+  # check-shadowing: false # O eliminar esta línea si 'shadow' está habilitado.
+  # enable-all: false # Por defecto, no todas las comprobaciones de govet están activas.
+  # disable:
+  #   - fieldalignment # Ejemplo de cómo deshabilitar una comprobación específica de govet.
   gocyclo:
     # Establece la complejidad ciclomática mínima para que gocyclo reporte un problema.
     # Un valor entre 10 y 15 es común.
@@ -101,6 +92,8 @@ linters-settings:
     # rules: # Ejemplo de configuración de reglas específicas para revive
     #   - name: package-comments
     #     disabled: true
+    # shadow: # Configuración específica para el linter shadow (si es necesario, los defaults suelen ser buenos)
+    # strict: false
 
 # Sección 'issues': controla cómo se reportan y manejan los problemas.
 issues:
@@ -108,6 +101,19 @@ issues:
   max-same-issues: 3
   # Excluir problemas específicos o de ciertos linters en rutas concretas.
   exclude-rules:
+    # Para versiones recientes, 'path' solo puede ser suficiente si se aplica a todos los linters.
+    # Sin embargo, para mayor claridad o si se quiere aplicar a linters específicos, se puede usar 'linters' o 'text'.
+    # La sintaxis con 'path' y 'text: "."' es una forma segura de excluir todos los issues en un path.
+    - path: ".*_generated\\.go$"
+      text: "." # Excluye todos los linters para estos paths.
+    - path: ".*\\.pb\\.go$"
+      text: "." # Excluye todos los linters para estos paths.
+    - path: "internal/adapters/gql/resolvers/schema.resolvers.go"
+      text: "." # Excluye todos los linters para este path.
+    - path: "pkg/errors/errors.go"
+      text: "." # Excluye todos los linters para este path.
+
+    # Reglas existentes que ya cumplen la condición (path + linters)
     - path: _test\.go # Expresión regular para la ruta del archivo.
       linters:
         - errcheck # Los tests a menudo no comprueban todos los errores intencionadamente.
