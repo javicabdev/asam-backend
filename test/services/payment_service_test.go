@@ -109,10 +109,10 @@ func TestRegisterPayment(t *testing.T) {
 			payment: createValidPayment(),
 			setupMock: func(
 				pr *test.MockPaymentRepository,
-				mfr *test.MockMembershipFeeRepository,
+				_ *test.MockMembershipFeeRepository,
 				mr *test.MockMemberRepository,
-				ns *mockNotificationService,
-				fc *mockFeeCalculator,
+				_ *mockNotificationService,
+				_ *mockFeeCalculator,
 			) {
 				// Validate member exists and is active
 				// Validate member exists and is active
@@ -143,8 +143,8 @@ func TestRegisterPayment(t *testing.T) {
 				pr *test.MockPaymentRepository,
 				mfr *test.MockMembershipFeeRepository,
 				mr *test.MockMemberRepository,
-				ns *mockNotificationService,
-				fc *mockFeeCalculator,
+				_ *mockNotificationService,
+				_ *mockFeeCalculator,
 			) {
 				// Validate member exists and is active
 				// Validate member exists and is active
@@ -183,11 +183,11 @@ func TestRegisterPayment(t *testing.T) {
 				Amount:   -10, // Monto inválido
 			},
 			setupMock: func(
-				pr *test.MockPaymentRepository,
-				mfr *test.MockMembershipFeeRepository,
+				_ *test.MockPaymentRepository,
+				_ *test.MockMembershipFeeRepository,
 				mr *test.MockMemberRepository,
-				ns *mockNotificationService,
-				fc *mockFeeCalculator,
+				_ *mockNotificationService,
+				_ *mockFeeCalculator,
 			) {
 				// No configuration needed - will fail validation
 			},
@@ -206,7 +206,7 @@ func TestRegisterPayment(t *testing.T) {
 				return p
 			}(),
 			setupMock: func(
-				pr *test.MockPaymentRepository,
+				_ *test.MockPaymentRepository,
 				mfr *test.MockMembershipFeeRepository,
 				mr *test.MockMemberRepository,
 				ns *mockNotificationService,
@@ -229,8 +229,8 @@ func TestRegisterPayment(t *testing.T) {
 			name:    "member not found",
 			payment: createValidPayment(),
 			setupMock: func(
-				pr *test.MockPaymentRepository,
-				mfr *test.MockMembershipFeeRepository,
+				_ *test.MockPaymentRepository,
+				_ *test.MockMembershipFeeRepository,
 				mr *test.MockMemberRepository,
 				ns *mockNotificationService,
 				fc *mockFeeCalculator,
