@@ -22,6 +22,8 @@ type authService struct {
 	logger    logger.Logger
 }
 
+// NewAuthService crea una nueva instancia del servicio de autenticación
+// que implementa la interfaz input.AuthService.
 func NewAuthService(
 	userRepo output.UserRepository,
 	jwtUtil *auth.JWTUtil,

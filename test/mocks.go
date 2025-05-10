@@ -1018,6 +1018,8 @@ func (m *MockCashFlowService) ValidateBalance(ctx context.Context) (*input.Balan
 	return validation, err
 }
 
+// GetFinancialReport obtiene un informe financiero basado en el tipo de reporte y periodo especificados.
+// Retorna el informe con datos financieros o un error si la operación falla.
 func (m *MockCashFlowService) GetFinancialReport(ctx context.Context, reportType input.ReportType, period input.Period) (*input.FinancialReport, error) {
 	args := m.Called(ctx, reportType, period)
 	err := args.Error(1)
@@ -1033,6 +1035,8 @@ func (m *MockCashFlowService) GetFinancialReport(ctx context.Context, reportType
 	return report, err
 }
 
+// GetCashFlowTrends analiza tendencias en el flujo de caja para un periodo determinado.
+// Retorna un análisis de tendencias o un error si la operación falla.
 func (m *MockCashFlowService) GetCashFlowTrends(ctx context.Context, period input.Period) (*input.TrendAnalysis, error) {
 	args := m.Called(ctx, period)
 	err := args.Error(1)
@@ -1048,6 +1052,8 @@ func (m *MockCashFlowService) GetCashFlowTrends(ctx context.Context, period inpu
 	return analysis, err
 }
 
+// GetProjections genera proyecciones financieras para el número de meses especificado.
+// Retorna las proyecciones estimadas o un error si la operación falla.
 func (m *MockCashFlowService) GetProjections(ctx context.Context, months int) (*input.FinancialProjection, error) {
 	args := m.Called(ctx, months)
 	err := args.Error(1)
@@ -1063,6 +1069,8 @@ func (m *MockCashFlowService) GetProjections(ctx context.Context, months int) (*
 	return projection, err
 }
 
+// GetFinancialAlerts obtiene alertas financieras basadas en reglas de negocio predefinidas.
+// Retorna una lista de alertas relevantes o un error si la operación falla.
 func (m *MockCashFlowService) GetFinancialAlerts(ctx context.Context) ([]input.FinancialAlert, error) {
 	args := m.Called(ctx)
 	err := args.Error(1) // Assuming error is the second return value (index 1)
@@ -1083,6 +1091,8 @@ type MockAuthService struct {
 	mock.Mock
 }
 
+// Login autentica a un usuario con las credenciales proporcionadas.
+// Retorna detalles del token si la autenticación es exitosa o un error si falla.
 func (m *MockAuthService) Login(ctx context.Context, username, password string) (*input.TokenDetails, error) {
 	args := m.Called(ctx, username, password)
 	err := args.Error(1)
@@ -1098,11 +1108,15 @@ func (m *MockAuthService) Login(ctx context.Context, username, password string) 
 	return details, err
 }
 
+// Logout cierra la sesión del usuario invalidando el token de acceso.
+// Retorna un error si la operación falla.
 func (m *MockAuthService) Logout(ctx context.Context, accessToken string) error {
 	args := m.Called(ctx, accessToken)
 	return args.Error(0)
 }
 
+// RefreshToken renueva un token de acceso usando un token de refresco válido.
+// Retorna nuevos detalles de token o un error si la operación falla.
 func (m *MockAuthService) RefreshToken(ctx context.Context, refreshToken string) (*input.TokenDetails, error) {
 	args := m.Called(ctx, refreshToken)
 	err := args.Error(1)
@@ -1118,6 +1132,8 @@ func (m *MockAuthService) RefreshToken(ctx context.Context, refreshToken string)
 	return details, err
 }
 
+// ValidateToken verifica la validez de un token de acceso y retorna el usuario asociado.
+// Retorna el usuario si el token es válido o un error si la validación falla.
 func (m *MockAuthService) ValidateToken(ctx context.Context, token string) (*models.User, error) {
 	args := m.Called(ctx, token)
 	err := args.Error(1)

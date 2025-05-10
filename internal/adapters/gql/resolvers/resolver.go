@@ -13,6 +13,8 @@ type Resolver struct {
 	authService     input.AuthService // Añadimos authService
 }
 
+// NewResolver crea una nueva instancia del Resolver principal para GraphQL
+// con todas las dependencias necesarias para los resolvers anidados.
 func NewResolver(
 	memberService input.MemberService,
 	familyService input.FamilyService,

@@ -1,3 +1,5 @@
+// Package validation proporciona utilidades genéricas para validar diferentes tipos de datos
+// como documentos de identidad, emails, teléfonos y fechas según los formatos españoles.
 package validation
 
 import (

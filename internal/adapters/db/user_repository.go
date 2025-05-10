@@ -15,6 +15,8 @@ type userRepository struct {
 	db *gorm.DB
 }
 
+// NewUserRepository crea una nueva instancia del repositorio de usuarios
+// que implementa la interfaz output.UserRepository.
 func NewUserRepository(db *gorm.DB) output.UserRepository {
 	return &userRepository{db: db}
 }
