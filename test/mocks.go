@@ -122,29 +122,25 @@ func (m *MockLogger) Info(string, ...zap.Field) {}
 // Implementa la interfaz de logger para pruebas sin realizar acciones reales.
 func (m *MockLogger) Error(string, ...zap.Field) {}
 
-// Warn registra mensajes en el nivel Warn
 // Warn registra mensajes en el nivel Warn.
+// Implementa la interfaz de logger para pruebas sin realizar acciones reales.
 func (m *MockLogger) Warn(string, ...zap.Field) {}
 
-func (m *MockLogger) Warn(string, ...zap.Field)  {}
 // Debug registra mensajes en el nivel Debug.
 // Implementa la interfaz de logger para pruebas sin realizar acciones reales.
-ger) Debug(string, ...zap.Field) {}
-
-// Panic regis
 func (m *MockLogger) Debug(string, ...zap.Field) {}
-rfaz de logger para pruebas sin realizar acci
+
 // Panic registra mensajes en el nivel Panic.
 // Implementa la interfaz de logger para pruebas sin realizar acciones reales.
 func (m *MockLogger) Panic(string, ...zap.Field) {}
-ones reales.
-func (m *MockLogger) Fatal(strin
+
 // Fatal registra mensajes en el nivel Fatal.
-func (m *MockLogger) Sync() error { return nil }
+// Implementa la interfaz de logger para pruebas sin realizar acciones reales.
 func (m *MockLogger) Fatal(string, ...zap.Field) {}
+
 // Sync sincroniza y vacía cualquier entrada de log almacenada en búfer.
 // Implementa la interfaz de logger para pruebas sin realizar acciones reales.
-func (m *MockLogger) Sync() error                { return nil }
+func (m *MockLogger) Sync() error { return nil }
 
 // MockAuditLogger es un mock de audit.Logger
 type MockAuditLogger struct{}
