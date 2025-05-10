@@ -49,11 +49,11 @@ func (f *Familiar) Validate() error {
 }
 
 // BeforeCreate hook de GORM para validaciones antes de crear
-func (f *Familiar) BeforeCreate(tx *gorm.DB) error {
+func (f *Familiar) BeforeCreate(_ *gorm.DB) error {
 	return f.Validate()
 }
 
 // BeforeSave hook de GORM para validaciones antes de guardar
-func (f *Familiar) BeforeSave(tx *gorm.DB) error {
+func (f *Familiar) BeforeSave(_ *gorm.DB) error {
 	return f.Validate()
 }

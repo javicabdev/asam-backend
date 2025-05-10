@@ -3,18 +3,18 @@ package gql_test
 import (
 	"context"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/pkg/constants"
-	"github.com/javicabdev/asam-backend/pkg/errors" // Importar la biblioteca de errores personalizada
+	"github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/test"
 )
 
-var _ = Describe("CashFlow", func() {
+var _ = ginkgo.Describe("CashFlow", func() {
 	var (
 		resolver        *resolvers.Resolver
 		memberService   *test.MockMemberService
@@ -24,7 +24,7 @@ var _ = Describe("CashFlow", func() {
 		authService     *test.MockAuthService
 	)
 
-	BeforeEach(func() {
+	ginkgo.BeforeEach(func() {
 		memberService = new(test.MockMemberService)
 		familyService = new(test.MockFamilyService)
 		paymentService = new(test.MockPaymentService)
@@ -40,9 +40,9 @@ var _ = Describe("CashFlow", func() {
 		)
 	})
 
-	Describe("AdjustBalance", func() {
-		When("amount is valid", func() {
-			It("succeeds with correct response", func() {
+	ginkgo.Describe("AdjustBalance", func() {
+		ginkgo.When("amount is valid", func() {
+			ginkgo.It("succeeds with correct response", func() {
 				amount := 100.0
 				reason := "Test adjustment"
 
@@ -60,17 +60,17 @@ var _ = Describe("CashFlow", func() {
 
 				response, err := resolver.Mutation().AdjustBalance(ctx, amount, reason)
 
-				Expect(err).NotTo(HaveOccurred())
-				Expect(response).NotTo(BeNil())
-				Expect(response.Success).To(BeTrue())
-				Expect(response.Message).NotTo(BeNil())
-				Expect(*response.Message).To(Equal("Balance adjusted successfully"))
-				Expect(response.Error).To(BeNil())
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(response).NotTo(gomega.BeNil())
+				gomega.Expect(response.Success).To(gomega.BeTrue())
+				gomega.Expect(response.Message).NotTo(gomega.BeNil())
+				gomega.Expect(*response.Message).To(gomega.Equal("Balance adjusted successfully"))
+				gomega.Expect(response.Error).To(gomega.BeNil())
 			})
 		})
 
-		When("amount is zero", func() {
-			It("returns validation error", func() {
+		ginkgo.When("amount is zero", func() {
+			ginkgo.It("returns validation error", func() {
 				// Crear un usuario administrador para el contexto
 				mockUser := &models.User{
 					Role: models.RoleAdmin,
@@ -82,20 +82,20 @@ var _ = Describe("CashFlow", func() {
 				response, err := resolver.Mutation().AdjustBalance(ctx, 0.0, "Invalid adjustment")
 
 				// Verificaciones con la biblioteca de errores personalizada
-				Expect(err).To(HaveOccurred())
+				gomega.Expect(err).To(gomega.HaveOccurred())
 
 				// Verificar que es un AppError
-				Expect(errors.IsAppError(err)).To(BeTrue())
+				gomega.Expect(errors.IsAppError(err)).To(gomega.BeTrue())
 
 				// Verificar el tipo de error
-				Expect(errors.Is(err, errors.ErrInvalidAmount)).To(BeTrue())
+				gomega.Expect(errors.Is(err, errors.ErrInvalidAmount)).To(gomega.BeTrue())
 
 				// Verificar mensaje del error
 				appErr, ok := errors.AsAppError(err)
-				Expect(ok).To(BeTrue())
-				Expect(appErr.Message).To(ContainSubstring("cannot be zero"))
+				gomega.Expect(ok).To(gomega.BeTrue())
+				gomega.Expect(appErr.Message).To(gomega.ContainSubstring("cannot be zero"))
 
-				Expect(response).To(BeNil())
+				gomega.Expect(response).To(gomega.BeNil())
 			})
 		})
 	})

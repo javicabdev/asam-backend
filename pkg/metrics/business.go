@@ -69,7 +69,7 @@ var (
 )
 
 // UpdateMemberMetrics actualiza las métricas de miembros
-func UpdateMemberMetrics(active, inactive, individualActive, familyActive int) {
+func UpdateMemberMetrics(_, inactive, individualActive, familyActive int) {
 	MembersByStatus.WithLabelValues("activo", "individual").Set(float64(individualActive))
 	MembersByStatus.WithLabelValues("activo", "familiar").Set(float64(familyActive))
 	MembersByStatus.WithLabelValues("inactivo", "total").Set(float64(inactive))

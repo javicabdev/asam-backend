@@ -32,6 +32,6 @@ func (t *Telephone) Validate() error {
 }
 
 // BeforeCreate hook de GORM para validaciones antes de crear
-func (t *Telephone) BeforeCreate(tx *gorm.DB) error {
+func (t *Telephone) BeforeCreate(_ *gorm.DB) error {
 	return t.Validate()
 }

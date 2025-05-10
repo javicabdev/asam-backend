@@ -6,6 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
@@ -13,10 +16,8 @@ import (
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/internal/ports/output"
 	"github.com/javicabdev/asam-backend/pkg/constants"
-	"github.com/javicabdev/asam-backend/pkg/errors" // Biblioteca de errores personalizados
+	"github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/test"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 // Mock del repositorio

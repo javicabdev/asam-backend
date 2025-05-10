@@ -86,12 +86,12 @@ func (f *Family) Validate() error {
 }
 
 // BeforeCreate hook de GORM para validaciones antes de crear
-func (f *Family) BeforeCreate(tx *gorm.DB) error {
+func (f *Family) BeforeCreate(_ *gorm.DB) error {
 	return f.Validate()
 }
 
 // BeforeUpdate hook de GORM para validaciones antes de actualizar
-func (f *Family) BeforeUpdate(tx *gorm.DB) error {
+func (f *Family) BeforeUpdate(_ *gorm.DB) error {
 	return f.Validate()
 }
 
