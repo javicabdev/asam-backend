@@ -102,7 +102,7 @@ func TestCreateMember(t *testing.T) {
 				Nombre:        "Juan",
 				Apellidos:     "García",
 			},
-			setupMock: func(ms *test.MockMemberService) {
+			setupMock: func(_ *test.MockMemberService) {
 				// No se llama al servicio porque falla la validación
 			},
 			wantErr: true,

@@ -37,7 +37,7 @@ func TestCreateFamily(t *testing.T) {
 			family: &models.Family{
 				NumeroSocio: "",
 			},
-			setupRepo: func(_ *test.MockFamilyRepository, mr *test.MockMemberRepository) {
+			setupRepo: func(_ *test.MockFamilyRepository, _ *test.MockMemberRepository) {
 				// No se llama al repositorio porque la validación falla antes
 			},
 			wantErr: true,
@@ -143,7 +143,7 @@ func TestUpdateFamily(t *testing.T) {
 				ID:          999,
 				NumeroSocio: "A0999",
 			},
-			setupRepo: func(fr *test.MockFamilyRepository, mr *test.MockMemberRepository) {
+			setupRepo: func(fr *test.MockFamilyRepository, _ *test.MockMemberRepository) {
 				fr.On("GetByID", mock.Anything, uint(999)).Return(nil, errors.NewNotFoundError("family"))
 			},
 			wantErr: true,
