@@ -1,18 +1,21 @@
-name: Backend CI Pipeline
+name: CI Pipeline
 
 on:
   push:
     branches: [ main, develop ]
-    paths-ignore:
-      - '**/*.md'
   pull_request:
     branches: [ main, develop ]
-    paths-ignore:
-      - '**/*.md'
+
+env:
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_DB: asam_test
+  POSTGRES_HOST: localhost
+  POSTGRES_PORT: 5432
 
 jobs:
-  lint-and-prepare:
-    name: Lint and Prepare
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -24,145 +27,73 @@ jobs:
           go-version: '1.24'
           cache: true
 
-      # 1. Generar código (Necesario antes de lint, build, test)
-      - name: Generate GraphQL code
-        run: go run ./cmd/generate
+      - name: Install golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m
 
-      # 2. Aplicar parches al código generado para hacerlo compatible con Go 1.24
-      - name: Fix GraphQL Generated Code
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Check go.mod and go.sum
         run: |
-          GENERATED_FILE=internal/adapters/gql/generated/generated.go
-          if [ -f "$GENERATED_FILE" ]; then
-            echo "Aplicando parches al código generado..."
-            
-            # 1. Cambiar la importación de sync/atomic y ajustar todas las referencias
-            sed -i 's/"sync\/atomic"/"sync\/atomic\/v2"/g' "$GENERATED_FILE"
-            sed -i 's/atomic\.LoadInt32/atomic\/v2.LoadInt32/g' "$GENERATED_FILE"
-            sed -i 's/atomic\.AddInt32/atomic\/v2.AddInt32/g' "$GENERATED_FILE"
-            
-            # 2. Corregir referencias a DisableIntrospection
-            sed -i 's/if ec.DisableIntrospection {/if ec.OperationContext.DisableIntrospection {/g' "$GENERATED_FILE"
-            sed -i 's/ec.DisableIntrospection/ec.OperationContext.DisableIntrospection/g' "$GENERATED_FILE"
-            
-            # 3. Corregir referencias a Error, Recover, Errorf y otras
-            sed -i 's/ec.Error(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, graphql.Recover(ctx, r))/g' "$GENERATED_FILE"
-            sed -i 's/graphql.AddError(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, graphql.Recover(ctx, r))/g' "$GENERATED_FILE"
-            sed -i 's/ec.Error(ctx, err)/graphql.AddError(ctx, err)/g' "$GENERATED_FILE"
-            sed -i 's/ec.Errorf(ctx, "must not be null")/graphql.AddError(ctx, fmt.Errorf("must not be null"))/g' "$GENERATED_FILE"
-            sed -i 's/ec.Errorf(ctx, /graphql.AddError(ctx, fmt.Errorf(/g' "$GENERATED_FILE"
-            
-            # 4. Corregir referencias a Variables
-            sed -i 's/ec.Variables/ec.OperationContext.Variables/g' "$GENERATED_FILE"
-            
-            # 5. Corregir referencias a ResolverMiddleware
-            sed -i 's/resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/resTmp, err := ec.OperationContext.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/g' "$GENERATED_FILE"
-            
-            echo "Parches aplicados correctamente."
-          else
-            echo "Error: No se encontró el archivo generado en $GENERATED_FILE"
+          go mod tidy
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "go.mod or go.sum needs updating"
+            git status
+            git diff
             exit 1
           fi
 
-      # 3. Ordenar y descargar dependencias finales
-      - name: Tidy Go modules
-        run: go mod tidy
-
-      - name: Download Go modules
-        run: go mod download
-
-      # 4. Ejecutar Linter usando la Acción Oficial
-      - name: Run golangci-lint using Action
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: v1.58.0
-          args: --timeout=5m
-
-      # --- Resto de verificaciones (Formato) ---
-      - name: Verify gofmt
+      - name: Check format with gofmt
         run: |
-          OUTPUT=$(gofmt -s -l .)
-          if [ -n "$OUTPUT" ]; then
-            echo "::warning::The following files are not formatted with gofmt:"
-            echo "$OUTPUT"
-          else
-            echo "All files are correctly formatted with gofmt."
+          if [ "$(gofmt -l -s . | wc -l)" -gt 0 ]; then
+            echo "The following files need formatting:"
+            gofmt -l -s .
+            exit 1
           fi
 
-      - name: Validate imports (goimports)
-        run: |
-          go install golang.org/x/tools/cmd/goimports@latest
-          OUTPUT=$(goimports -l .)
-          if [ -n "$OUTPUT" ]; then
-            echo "::warning::The following files have import formatting issues:"
-            echo "$OUTPUT"
-          else
-            echo "All imports are correctly formatted."
-          fi
-
-  # --- Jobs dependientes ---
   build:
     name: Build
-    needs: [lint-and-prepare]
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ['1.23', '1.24']
+        go-version: ['1.24']
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go ${{ matrix.go-version }}
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
           cache: true
 
-      - name: Get dependencies
-        run: go mod download
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
-      - name: Generate GraphQL code
-        run: go run ./cmd/generate
+      - name: Build
+        run: go build -v -o asam-backend ./cmd/server
 
-      # Aplicar parches al código generado
-      - name: Fix GraphQL Generated Code
-        run: |
-          GENERATED_FILE=internal/adapters/gql/generated/generated.go
-          if [ -f "$GENERATED_FILE" ]; then
-            echo "Aplicando parches al código generado..."
-            # 1. Cambiar la importación de sync/atomic y ajustar todas las referencias
-            sed -i 's/"sync\/atomic"/"sync\/atomic\/v2"/g' "$GENERATED_FILE"
-            sed -i 's/atomic\.LoadInt32/atomic\/v2.LoadInt32/g' "$GENERATED_FILE"
-            sed -i 's/atomic\.AddInt32/atomic\/v2.AddInt32/g' "$GENERATED_FILE"
-            
-            # 2. Corregir referencias a DisableIntrospection
-            sed -i 's/if ec.DisableIntrospection {/if ec.OperationContext.DisableIntrospection {/g' "$GENERATED_FILE"
-            sed -i 's/ec.DisableIntrospection/ec.OperationContext.DisableIntrospection/g' "$GENERATED_FILE"
-            
-            # 3. Corregir referencias a Error, Recover, Errorf y otras
-            sed -i 's/ec.Error(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, graphql.Recover(ctx, r))/g' "$GENERATED_FILE"
-            sed -i 's/graphql.AddError(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, graphql.Recover(ctx, r))/g' "$GENERATED_FILE"
-            sed -i 's/ec.Error(ctx, err)/graphql.AddError(ctx, err)/g' "$GENERATED_FILE"
-            sed -i 's/ec.Errorf(ctx, "must not be null")/graphql.AddError(ctx, fmt.Errorf("must not be null"))/g' "$GENERATED_FILE"
-            sed -i 's/ec.Errorf(ctx, /graphql.AddError(ctx, fmt.Errorf(/g' "$GENERATED_FILE"
-            
-            # 4. Corregir referencias a Variables
-            sed -i 's/ec.Variables/ec.OperationContext.Variables/g' "$GENERATED_FILE"
-            
-            # 5. Corregir referencias a ResolverMiddleware
-            sed -i 's/resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/resTmp, err := ec.OperationContext.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/g' "$GENERATED_FILE"
-            echo "Parches aplicados correctamente."
-          else
-            echo "Error: No se encontró el archivo generado en $GENERATED_FILE"
-            exit 1
-          fi
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: asam-backend-${{ matrix.go-version }}
+          path: asam-backend
+          retention-days: 5
 
-      - name: Build application
-        run: go build -v ./cmd/api
-
-  unit-tests:
+  test-unit:
     name: Unit Tests
-    needs: [lint-and-prepare]
     runs-on: ubuntu-latest
+    needs: [lint, build]
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -173,66 +104,31 @@ jobs:
           go-version: '1.24'
           cache: true
 
-      - name: Get dependencies
+      - name: Install dependencies
         run: go mod download
 
-      - name: Generate GraphQL code
-        run: go run ./cmd/generate
-
-      # Aplicar parches al código generado
-      - name: Fix GraphQL Generated Code
-        run: |
-          GENERATED_FILE=internal/adapters/gql/generated/generated.go
-          if [ -f "$GENERATED_FILE" ]; then
-            echo "Aplicando parches al código generado..."
-            # 1. Cambiar la importación de sync/atomic y ajustar todas las referencias
-            sed -i 's/"sync\/atomic"/"sync\/atomic\/v2"/g' "$GENERATED_FILE"
-            sed -i 's/atomic\.LoadInt32/atomic\/v2.LoadInt32/g' "$GENERATED_FILE"
-            sed -i 's/atomic\.AddInt32/atomic\/v2.AddInt32/g' "$GENERATED_FILE"
-            
-            # 2. Corregir referencias a DisableIntrospection
-            sed -i 's/if ec.DisableIntrospection {/if ec.OperationContext.DisableIntrospection {/g' "$GENERATED_FILE"
-            sed -i 's/ec.DisableIntrospection/ec.OperationContext.DisableIntrospection/g' "$GENERATED_FILE"
-            
-            # 3. Corregir referencias a Error, Recover, Errorf y otras
-            sed -i 's/ec.Error(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, graphql.Recover(ctx, r))/g' "$GENERATED_FILE"
-            sed -i 's/graphql.AddError(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, graphql.Recover(ctx, r))/g' "$GENERATED_FILE"
-            sed -i 's/ec.Error(ctx, err)/graphql.AddError(ctx, err)/g' "$GENERATED_FILE"
-            sed -i 's/ec.Errorf(ctx, "must not be null")/graphql.AddError(ctx, fmt.Errorf("must not be null"))/g' "$GENERATED_FILE"
-            sed -i 's/ec.Errorf(ctx, /graphql.AddError(ctx, fmt.Errorf(/g' "$GENERATED_FILE"
-            
-            # 4. Corregir referencias a Variables
-            sed -i 's/ec.Variables/ec.OperationContext.Variables/g' "$GENERATED_FILE"
-            
-            # 5. Corregir referencias a ResolverMiddleware
-            sed -i 's/resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/resTmp, err := ec.OperationContext.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/g' "$GENERATED_FILE"
-            echo "Parches aplicados correctamente."
-          else
-            echo "Error: No se encontró el archivo generado en $GENERATED_FILE"
-            exit 1
-          fi
-
       - name: Run unit tests
-        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./internal/... ./pkg/...
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./internal/... ./pkg/...
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
         with:
-          file: ./coverage.txt
-          flags: unittests
-          fail_ci_if_error: true
+          name: unit-test-coverage
+          path: coverage.out
+          retention-days: 5
 
-  integration-tests:
+  test-integration:
     name: Integration Tests
-    needs: [lint-and-prepare]
     runs-on: ubuntu-latest
+    needs: [lint, build]
+
     services:
       postgres:
-        image: postgres:15
+        image: postgres:16
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: asam_test
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
         ports:
           - 5432:5432
         options: >-
@@ -251,60 +147,62 @@ jobs:
           go-version: '1.24'
           cache: true
 
-      - name: Get dependencies
+      - name: Install dependencies
         run: go mod download
 
-      - name: Generate GraphQL code
-        run: go run ./cmd/generate
-
-      # Aplicar parches al código generado
-      - name: Fix GraphQL Generated Code
+      - name: Run migrations
         run: |
-          GENERATED_FILE=internal/adapters/gql/generated/generated.go
-          if [ -f "$GENERATED_FILE" ]; then
-            echo "Aplicando parches al código generado..."
-            # 1. Cambiar la importación de sync/atomic
-            sed -i 's/"sync\/atomic"/"sync\/atomic\/v2"/g' "$GENERATED_FILE"
-            # 2. Corregir referencias a DisableIntrospection
-            sed -i 's/if ec.DisableIntrospection {/if ec.OperationContext.DisableIntrospection {/g' "$GENERATED_FILE"
-            # 3. Corregir referencias a Error y Recover
-            sed -i 's/ec.Error(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, ec.Recover(ctx, r))/g' "$GENERATED_FILE"
-            sed -i 's/ec.Error(ctx, err)/graphql.AddError(ctx, err)/g' "$GENERATED_FILE"
-            sed -i 's/ec.Errorf(ctx, "must not be null")/graphql.AddError(ctx, fmt.Errorf("must not be null"))/g' "$GENERATED_FILE"
-            # 4. Corregir referencias a ResolverMiddleware
-            sed -i 's/resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/resTmp, err := ec.OperationContext.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/g' "$GENERATED_FILE"
-            echo "Parches aplicados correctamente."
-          else
-            echo "Error: No se encontró el archivo generado en $GENERATED_FILE"
-            exit 1
-          fi
-
-      - name: Setup test environment
-        run: |
-          cp .env.test .env
-          go run cmd/migrate/main.go -env local -cmd up
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_USER: postgres
-          DB_PASSWORD: postgres
-          DB_NAME: asam_test
-          DB_SSL_MODE: disable
+          go run ./cmd/migrations/main.go up
 
       - name: Run integration tests
-        run: go test -v -tags=integration ./test/integration/...
+        run: go test -v -race -tags=integration ./test/integration/...
         env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_USER: postgres
-          DB_PASSWORD: postgres
-          DB_NAME: asam_test
-          DB_SSL_MODE: disable
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_HOST: ${{ env.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ env.POSTGRES_PORT }}
 
-  code-quality:
-    name: Code Quality Analysis
-    needs: [lint-and-prepare]
+  code-coverage:
+    name: Code Coverage Analysis
     runs-on: ubuntu-latest
+    needs: [test-unit]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: unit-test-coverage
+
+      - name: Display coverage
+        run: go tool cover -func=coverage.out
+
+      - name: Convert coverage to HTML
+        run: go tool cover -html=coverage.out -o coverage.html
+
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-html
+          path: coverage.html
+
+      - name: Check coverage threshold
+        run: |
+          total_coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          if (( $(echo "$total_coverage < 70" | bc -l) )); then
+            echo "Code coverage is below 70%: $total_coverage%"
+            exit 1
+          fi
+          echo "Code coverage is: $total_coverage%"
+
+  complexity-analysis:
+    name: Code Complexity Analysis
+    runs-on: ubuntu-latest
+    needs: [lint]
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -315,66 +213,14 @@ jobs:
           go-version: '1.24'
           cache: true
 
-      - name: Download Go modules (optional for static analysis, but safe)
-        run: go mod download
+      - name: Install gocyclo
+        run: go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
 
-      - name: Generate GraphQL code
-        run: go run ./cmd/generate
-
-      # Aplicar parches al código generado
-      - name: Fix GraphQL Generated Code
+      - name: Run complexity analysis
         run: |
-          GENERATED_FILE=internal/adapters/gql/generated/generated.go
-          if [ -f "$GENERATED_FILE" ]; then
-            echo "Aplicando parches al código generado..."
-            # 1. Cambiar la importación de sync/atomic
-            sed -i 's/"sync\/atomic"/"sync\/atomic\/v2"/g' "$GENERATED_FILE"
-            # 2. Corregir referencias a DisableIntrospection
-            sed -i 's/if ec.DisableIntrospection {/if ec.OperationContext.DisableIntrospection {/g' "$GENERATED_FILE"
-            # 3. Corregir referencias a Error y Recover
-            sed -i 's/ec.Error(ctx, ec.Recover(ctx, r))/graphql.AddError(ctx, ec.Recover(ctx, r))/g' "$GENERATED_FILE"
-            sed -i 's/ec.Error(ctx, err)/graphql.AddError(ctx, err)/g' "$GENERATED_FILE"
-            sed -i 's/ec.Errorf(ctx, "must not be null")/graphql.AddError(ctx, fmt.Errorf("must not be null"))/g' "$GENERATED_FILE"
-            # 4. Corregir referencias a ResolverMiddleware
-            sed -i 's/resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/resTmp, err := ec.OperationContext.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {/g' "$GENERATED_FILE"
-            echo "Parches aplicados correctamente."
-          else
-            echo "Error: No se encontró el archivo generado en $GENERATED_FILE"
-            exit 1
-          fi
+          gocyclo -over 15 -avg ./ || echo "Warning: Some functions have high cyclomatic complexity"
 
-      - name: Run go vet
-        run: go vet ./...
-
-      - name: Check cyclomatic complexity
+      - name: Run ineffassign
         run: |
-          go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
-          gocyclo -over 15 . || true
-
-      - name: Generate coverage report (consolidated)
-        run: go test -coverprofile=coverage.out ./...
-
-      - name: Check coverage percentage
-        run: |
-          go tool cover -func=coverage.out
-          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
-          echo "Current total coverage: $COVERAGE%"
-          if (( $(echo "$COVERAGE < 70.0" | bc -l) )); then
-            echo "Error: Code coverage is below 70% ($COVERAGE%)"
-            exit 1
-          fi
-          echo "Code coverage is sufficient ($COVERAGE%)."
-
-  validate-commits:
-    name: Validate Commit Messages
-    needs: [lint-and-prepare]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Validate Conventional Commits
-        uses: wagoid/commitlint-github-action@v5
+          go install github.com/gordonklaus/ineffassign@latest
+          ineffassign ./...

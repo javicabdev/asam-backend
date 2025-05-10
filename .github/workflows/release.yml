@@ -1,4 +1,4 @@
-name: Backend Release Pipeline
+name: Release Pipeline
 
 on:
   push:
@@ -6,36 +6,41 @@ on:
       - 'v*'
 
 jobs:
-  create-release:
-    name: Create Release
+  version-check:
+    name: Check Version Format
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # Necesario para crear releases y subir artefactos
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      major: ${{ steps.get-version.outputs.major }}
+      minor: ${{ steps.get-version.outputs.minor }}
+      patch: ${{ steps.get-version.outputs.patch }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Necesario para changelog-builder
+      - name: Get version from tag
+        id: get-version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          
+          # Validate semantic versioning format
+          if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$ ]]; then
+            echo "Invalid version format: $VERSION"
+            echo "Version must follow semantic versioning: MAJOR.MINOR.PATCH[-PRERELEASE][+BUILDMETADATA]"
+            exit 1
+          fi
+          
+          # Extract SemVer components
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          PATCH=$(echo $VERSION | cut -d. -f3 | cut -d- -f1 | cut -d+ -f1)
+          
+          echo "major=$MAJOR" >> $GITHUB_OUTPUT
+          echo "minor=$MINOR" >> $GITHUB_OUTPUT
+          echo "patch=$PATCH" >> $GITHUB_OUTPUT
+          echo "Version: v$VERSION (Major: $MAJOR, Minor: $MINOR, Patch: $PATCH)"
 
-      - name: Generate Changelog
-        id: changelog
-        uses: mikepenz/release-changelog-builder-action@v4
-        with:
-          configuration: ".github/changelog-config.json" # Asegúrate que este archivo exista
-          commitMode: true # O false, dependiendo de tu estrategia
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create Release
-        uses: ncipollo/release-action@v1
-        with:
-          body: ${{ steps.changelog.outputs.changelog }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          draft: true # O false si quieres publicar directamente
-          prerelease: contains(github.ref, '-rc') || contains(github.ref, '-beta') || contains(github.ref, '-alpha')
-
-  build-binaries:
-    name: Build Release Binaries
-    needs: create-release
+  build:
+    name: Build Binaries
+    needs: version-check
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -44,8 +49,10 @@ jobs:
         exclude:
           - goos: windows
             goarch: arm64
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -53,118 +60,129 @@ jobs:
           go-version: '1.24'
           cache: true
 
-      - name: Get dependencies
-        run: go mod download
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
-      - name: Get version
-        id: get_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-        shell: bash
-
-      - name: Build
+      - name: Build binary
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 0
+          VERSION: ${{ needs.version-check.outputs.version }}
         run: |
-          mkdir -p dist
-          OUTPUT_NAME="asam-backend_${{ steps.get_version.outputs.VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}"
-          if [ "${{ matrix.goos }}" = "windows" ]; then
-            OUTPUT_NAME="${OUTPUT_NAME}.exe"
+          OUTPUT="asam-backend"
+          if [ "$GOOS" = "windows" ]; then
+            OUTPUT="asam-backend.exe"
           fi
-          # Asegúrate que la ruta a config.Version sea correcta
-          go build -ldflags="-X 'github.com/javicabdev/asam-backend/internal/config.Version=${{ steps.get_version.outputs.VERSION }}'" -o "dist/${OUTPUT_NAME}" ./cmd/api
-        shell: bash
+          
+          go build -ldflags "-X main.Version=v${VERSION}" -o "dist/${OUTPUT}" ./cmd/server
+          
+          # Create archive
+          mkdir -p release
+          if [ "$GOOS" = "windows" ]; then
+            zip -j "release/asam-backend_${VERSION}_${GOOS}_${GOARCH}.zip" "dist/${OUTPUT}"
+          else
+            tar -czf "release/asam-backend_${VERSION}_${GOOS}_${GOARCH}.tar.gz" -C dist "${OUTPUT}"
+          fi
 
-      - name: Upload Release Asset
-        uses: softprops/action-gh-release@v1
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
-          files: ./dist/asam-backend_${{ steps.get_version.outputs.VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: asam-backend_${{ needs.version-check.outputs.version }}_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: release/
+          retention-days: 5
 
-  build-and-deploy:
-    name: Build and Deploy to Google Cloud Run (on Release)
-    needs: create-release
+  generate-changelog:
+    name: Generate Changelog
+    needs: version-check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Get version
-        id: get_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-        shell: bash
-
-      # Paso 1: Autenticar en Google Cloud
-      - name: Authenticate to Google Cloud
-        id: auth
-        uses: google-github-actions/auth@v2
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }} # Usar credentials_json para la SA Key
+          fetch-depth: 0
 
-      # Paso 2: Configurar Google Cloud CLI (gcloud)
-      # Ya no necesita parámetros de autenticación, ya que se hizo en el paso anterior.
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          # service_account_key y export_default_credentials eliminados de aquí
-
-      - name: Configure Docker for GCR
-        run: gcloud auth configure-docker gcr.io --quiet
-
-      - name: Build and Push Docker Image
+      - name: Generate Changelog
+        id: changelog
         run: |
-          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/asam-backend:${{ steps.get_version.outputs.VERSION }} -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/asam-backend:latest .
-          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/asam-backend:${{ steps.get_version.outputs.VERSION }}
-          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/asam-backend:latest
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag found, generating changelog from all commits"
+            git log --pretty=format:"* %s (%h)" > CHANGELOG.md
+          else
+            echo "Generating changelog between tags $PREV_TAG and ${GITHUB_REF#refs/tags/}"
+            echo "# Changes since $PREV_TAG" > CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            
+            # Features
+            echo "## 🚀 Features" >> CHANGELOG.md
+            git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" --grep="^feat" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            
+            # Bug Fixes
+            echo "## 🐛 Bug Fixes" >> CHANGELOG.md
+            git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" --grep="^fix" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            
+            # Other Changes
+            echo "## 🔄 Other Changes" >> CHANGELOG.md
+            git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" --grep="^(chore|docs|style|refactor|perf|test|ci)" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            
+            # Include all other commits not matching our conventions
+            echo "## 📝 Other commits" >> CHANGELOG.md
+            git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" --grep="^(feat|fix|chore|docs|style|refactor|perf|test|ci)" --invert-grep >> CHANGELOG.md
+          fi
+          
+          echo "Generated CHANGELOG.md"
+          cat CHANGELOG.md
 
-      - name: Deploy to Cloud Run
-        id: deploy
-        uses: google-github-actions/deploy-cloudrun@v2
+      - name: Upload Changelog
+        uses: actions/upload-artifact@v4
         with:
-          service: asam-backend
-          region: europe-west1
-          image: gcr.io/${{ secrets.GCP_PROJECT_ID }}/asam-backend:${{ steps.get_version.outputs.VERSION }}
-          env_vars: |
-            DB_HOST=${{ secrets.AIVEN_DB_HOST }}
-            DB_PORT=${{ secrets.AIVEN_DB_PORT }}
-            DB_USER=${{ secrets.AIVEN_DB_USER }}
-            DB_PASSWORD=${{ secrets.AIVEN_DB_PASSWORD }}
-            DB_NAME=${{ secrets.AIVEN_DB_NAME }}
-            DB_SSL_MODE=require
-            JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}
-            JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
-            ENVIRONMENT=production
-            PORT=8080
+          name: changelog
+          path: CHANGELOG.md
+          retention-days: 5
 
-      - name: Set up Go for migrate tool
-        uses: actions/setup-go@v5
+  create-release:
+    name: Create GitHub Release
+    needs: [version-check, build, generate-changelog]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
         with:
-          go-version: '1.24'
-          cache: true
+          path: artifacts/
 
-      - name: Download dependencies for migrate tool
-        run: go mod download
+      - name: Download changelog
+        uses: actions/download-artifact@v4
+        with:
+          name: changelog
+          path: ./
 
-      - name: Run Database Migrations
+      - name: Organize release files
         run: |
-          go build -o migrate ./cmd/migrate
-          ./migrate up
-        env:
-          DB_HOST: ${{ secrets.AIVEN_DB_HOST }}
-          DB_PORT: ${{ secrets.AIVEN_DB_PORT }}
-          DB_USER: ${{ secrets.AIVEN_DB_USER }}
-          DB_PASSWORD: ${{ secrets.AIVEN_DB_PASSWORD }}
-          DB_NAME: ${{ secrets.AIVEN_DB_NAME }}
-          DB_SSL_MODE: require
+          mkdir -p release/
+          find artifacts/ -name "*.zip" -o -name "*.tar.gz" | xargs -I{} cp {} release/
 
-      - name: Update Release with Service URL
-        uses: softprops/action-gh-release@v1
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
         with:
-          body: |
-            Deployment successful!
-            Service URL: ${{ steps.deploy.outputs.url }}
-          append_body: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: Release v${{ needs.version-check.outputs.version }}
+          body_path: CHANGELOG.md
+          draft: false
+          prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-beta') || contains(github.ref, '-alpha') }}
+          files: |
+            release/*
