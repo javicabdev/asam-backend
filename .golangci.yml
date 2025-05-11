@@ -1,23 +1,19 @@
 # Configuración para golangci-lint
-
-# Especifica la versión del esquema de configuración.
 version: "2"
 
 # Sección 'run': define cómo se ejecuta golangci-lint
 run:
-  # Versión de Go para la que se analiza el código.
+  # Versión de Go para la que se analiza el código
   go: '1.24'
-  # Tiempo máximo de ejecución para los linters.
+  # Tiempo máximo de ejecución para los linters
   timeout: 5m
-  # Directorios a excluir del análisis
-  skip-dirs:
-    - internal/adapters/gql/generated
 
-# Sección 'linters': controla qué linters están habilitados o deshabilitados.
+# Sección 'linters': controla qué linters están habilitados o deshabilitados
 linters:
-  # En la versión 2, usamos 'default' en lugar de 'disable-all' y 'enable'
+  # En la versión 2, usamos 'default' en lugar de 'disable-all'
   default: none # Opciones: standard, all, none, fast
-  # Lista de linters a habilitar.
+  
+  # Lista de linters a habilitar
   enable:
     - bodyclose
     - errcheck
@@ -28,10 +24,27 @@ linters:
     - unused
     - revive
     - unconvert
+
+  # Configuraciones simplificadas para linters
+  settings:
+    gocyclo:
+      min-complexity: 15
+    errcheck:
+      check-type-assertions: true
+    funlen:
+      lines: 100
+      statements: 50
+
+  # Exclusiones - reemplaza 'run.skip-dirs' en v2
   exclusions:
     warn-unused: true
+    # Excluir directorios generados
+    paths:
+      - internal/adapters/gql/generated
+
+    # Reglas de exclusión
     rules:
-      # Excluir globalmente el issue "package-comments" del linter "revive".
+      # Excluir globalmente el issue "package-comments" del linter "revive"
       - linters:
           - revive
         text: "package-comments: should have a package comment"
@@ -56,22 +69,13 @@ linters:
       - path: "pkg(?:/|\\\\)errors(?:/|\\\\)errors\\.go"
         text: "."
 
+      # Exclusión para archivos de test
       - path: "_test\\.go$"
         linters:
           - errcheck
           - funlen
 
-  # Configuraciones simplificadas
-  settings:
-    gocyclo:
-      min-complexity: 15
-    errcheck:
-      check-type-assertions: true
-    funlen:
-      lines: 100
-      statements: 50
-
-# Sección 'issues': controla cómo se reportan y manejan los problemas.
+# Sección 'issues': controla cómo se reportan y manejan los problemas
 issues:
   max-same-issues: 300
 

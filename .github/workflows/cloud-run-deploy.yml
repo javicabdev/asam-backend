@@ -11,14 +11,35 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   SERVICE_NAME: asam-backend
   REGION: europe-west1
+  GO_VERSION: '1.24'  # Definido como variable de entorno global
 
 jobs:
-  test: # Este job ya tiene go mod download, lo cual es correcto.
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      # Paso para instalar y configurar golangci-lint con la versión 2.1.6
+      - name: Install and run golangci-lint
+        uses: golangci/golangci-lint-action@v8.0.0
+        with:
+          version: v2.1.6
+
+  test:
     name: Test
+    needs: lint
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:15
+        image: postgres:16  # Actualizado a PostgreSQL 16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -37,14 +58,14 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: ${{ env.GO_VERSION }}
           cache: true
 
       - name: Get dependencies
         run: go mod download
 
       - name: Generate GraphQL code
-        run: go run ./cmd/generate
+        run: go run ./cmd/generate/main.go  # Ruta completa al archivo main.go
 
       - name: Run unit tests
         run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./internal/... ./pkg/...
@@ -52,9 +73,7 @@ jobs:
       - name: Setup test environment for integration tests
         run: |
           cp .env.test .env
-          # No es necesario go mod download aquí si el paso anterior ya lo hizo y la caché funciona.
-          # Sin embargo, si la compilación de migrate falla por dependencias, añadirlo.
-          go run cmd/migrate/main.go up # Asume que esto compila y ejecuta
+          go run cmd/migrate/main.go up  # Ruta completa al archivo main.go
 
       - name: Run integration tests
         run: go test -v -tags=integration ./test/integration/...
@@ -76,14 +95,13 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Docker
-        run: gcloud auth configure-docker --quiet # O gcr.io si usas GCR
+        run: gcloud auth configure-docker --quiet
 
       - name: Generate Image Tag
         id: tag
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       # Construir y publicar imagen Docker
-      # El Dockerfile es responsable de `go mod download` dentro de la construcción de la imagen.
       - name: Build and Push Container
         run: |
           docker build -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ steps.tag.outputs.sha_short }} .
@@ -96,17 +114,33 @@ jobs:
           service: ${{ env.SERVICE_NAME }}
           region: ${{ env.REGION }}
           image: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ steps.tag.outputs.sha_short }}
-          env_vars: DB_HOST=${{ secrets.AIVEN_DB_HOST }},DB_PORT=${{ secrets.AIVEN_DB_PORT }},DB_USER=${{ secrets.AIVEN_DB_USER }},DB_PASSWORD=${{ secrets.AIVEN_DB_PASSWORD }},DB_NAME=${{ secrets.AIVEN_DB_NAME }},DB_SSL_MODE=require,JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }},JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }},ENVIRONMENT=production,PORT=8080
-          flags: --allow-unauthenticated --cpu=1 --memory=512Mi --concurrency=80 --min-instances=0 --max-instances=3 --timeout=60s
+          env_vars: |
+            DB_HOST=${{ secrets.AIVEN_DB_HOST }}
+            DB_PORT=${{ secrets.AIVEN_DB_PORT }}
+            DB_USER=${{ secrets.AIVEN_DB_USER }}
+            DB_PASSWORD=${{ secrets.AIVEN_DB_PASSWORD }}
+            DB_NAME=${{ secrets.AIVEN_DB_NAME }}
+            DB_SSL_MODE=require
+            JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}
+            JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+            ENVIRONMENT=production
+            PORT=8080
+          flags: >-
+            --allow-unauthenticated
+            --cpu=1
+            --memory=512Mi
+            --concurrency=80
+            --min-instances=0
+            --max-instances=3
+            --timeout=60s
 
-      # Este paso de setup-go es para compilar la herramienta de migración en el runner.
-      - name: Set up Go for migrate tool # <--- AÑADIDO PARA CLARIDAD (opcional si la caché global funciona)
+      - name: Set up Go for migrate tool
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
-          cache: true # La caché podría ya tener las dependencias
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
 
-      - name: Download dependencies for migrate tool # <--- CORRECCIÓN AÑADIDA
+      - name: Download dependencies for migrate tool
         run: go mod download
 
       - name: Run Database Migrations
