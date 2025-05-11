@@ -9,6 +9,9 @@ run:
   go: '1.24'
   # Tiempo máximo de ejecución para los linters.
   timeout: 5m
+  # Directorios a excluir del análisis
+  skip-dirs:
+    - internal/adapters/gql/generated
 
 # Sección 'linters': controla qué linters están habilitados o deshabilitados.
 linters:
@@ -58,7 +61,7 @@ linters:
           - errcheck
           - funlen
 
-  # Eliminadas las configuraciones problemáticas
+  # Configuraciones simplificadas
   settings:
     gocyclo:
       min-complexity: 15
