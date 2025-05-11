@@ -99,6 +99,22 @@ jobs:
     name: Unit Tests
     runs-on: ubuntu-latest
     needs: [build]
+    env: # MODIFICADO: Añadir JWT secrets para que config.LoadConfig() no falle en tests de integración ejecutados aquí
+      JWT_ACCESS_SECRET: "test-access-secret-for-unit-tests"
+      JWT_REFRESH_SECRET: "test-refresh-secret-for-unit-tests"
+      CGO_ENABLED: 1 # Para el flag -race
+      # Las variables DB_* no se definen aquí porque no hay servicio de BD.
+      # Los tests de integración que intenten conectar a BD fallarán la conexión,
+      # pero config.LoadConfig() no debería fallar por los JWT.
+      # Esto permite que tests que usan config pero no BD puedan pasar.
+      DB_HOST: localhost # Default para que config.LoadConfig no falle si espera algo
+      DB_PORT: "5432"
+      DB_USER: "testuser"
+      DB_PASSWORD: "testpassword"
+      DB_NAME: "testdb"
+      DB_SSL_MODE: "disable"
+      ENVIRONMENT: "test_unit"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -118,9 +134,9 @@ jobs:
       - name: Install dependencies
         run: go mod download
       - name: Run unit tests
+        # Asegurarse de que -coverpkg=./... se use para incluir todos los paquetes en la cobertura
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic -coverpkg=./... ./...
-        env: # Añadido para habilitar CGO para el detector de carreras
-          CGO_ENABLED: 1
+        # El CGO_ENABLED se hereda del 'env' del job
       - name: Check coverage.out content (in test-unit)
         if: always()
         run: |
@@ -170,7 +186,7 @@ jobs:
       JWT_ACCESS_SECRET: "test-access-secret-for-ci"
       JWT_REFRESH_SECRET: "test-refresh-secret-for-ci"
       ENVIRONMENT: "test_ci"
-      CGO_ENABLED: 1 # Habilitar CGO también para tests de integración si usan -race
+      CGO_ENABLED: 1
 
     steps:
       - name: Checkout code
@@ -208,9 +224,7 @@ jobs:
 
       - name: Run integration tests
         run: go test -v -race -tags=integration ./test/integration/...
-        env: # Añadido para asegurar CGO para el detector de carreras en tests de integración
-          CGO_ENABLED: 1
-
+        # CGO_ENABLED se hereda del env del job
 
   # Job para el análisis de cobertura de código.
   code-coverage:
