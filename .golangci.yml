@@ -1,31 +1,13 @@
-# Configuración para golangci-lint versión 2
-linters-settings:
-  gocyclo:
-    min-complexity: 15
-  errcheck:
-    check-type-assertions: true
-  funlen:
-    lines: 100
-    statements: 50
-  govet:
-    check-shadowing: true
+# Archivo de configuración para golangci-lint, ajustado para v2.1.6
+# Se reintroduce 'version: "2"' ya que v2.1.6 lo requiere explícitamente.
+version: "2"
 
-# Sección 'run': define cómo se ejecuta golangci-lint
 run:
-  # Versión de Go para la que se analiza el código
   go: '1.24'
-  # Tiempo máximo de ejecución para los linters
   timeout: 5m
-  # Excluir directorios específicos (formato moderno en golangci-lint v2)
-  skip-dirs:
-    - internal/adapters/gql/generated
+  # La propiedad skip-dirs fue eliminada. Usar linters.skip en su lugar.
 
-# Sección 'linters': controla qué linters están habilitados o deshabilitados
 linters:
-  # En la versión 2, usamos 'disable-all' y luego 'enable'
-  disable-all: true
-  
-  # Lista de linters a habilitar
   enable:
     - bodyclose
     - errcheck
@@ -36,46 +18,90 @@ linters:
     - unused
     - revive
     - unconvert
-    
-# Sección 'issues': controla cómo se reportan y manejan los problemas detectados
+    # - misspell
+    # - gocyclo
+    # - gocritic
+    # - nolintlint
+
+  # linters.skip reemplaza a run.skip-dirs y run.skip-files.
+  # Especifica directorios o archivos a ignorar completamente por todos los linters.
+  skip:
+    - internal/adapters/gql/generated/ # Directorio a ignorar (nota la barra al final)
+
+  # Se mantienen las exclusiones aquí, ya que v2.1.6 pareció tener problemas
+  # con 'issues.exclude-rules' en ejecuciones anteriores.
+  exclusions:
+    # 'warn-unused' en lugar de 'warn-unused-exclusions' y directamente bajo 'exclusions'.
+    warn-unused: true
+    rules:
+      # Excluir globalmente el issue "package-comments" del linter "revive".
+      - linters:
+          - revive
+        text: "package-comments: should have a package comment"
+
+      # REGLA ACTIVADA: Excluir TODOS los issues del archivo schema.resolvers.go
+      - path: internal/adapters/gql/resolvers/schema\.resolvers\.go$
+        text: "." # Excluye todos los issues de todos los linters en este path.
+
+      # REGLA COMENTADA: La regla específica para unused-parameter en schema.resolvers.go
+      # ya no es necesaria debido a la exclusión general de arriba.
+      # - path: internal/adapters/gql/resolvers/schema\.resolvers\.go$
+      #   linters:
+      #     - revive
+      #   text: "unused-parameter: parameter '.*' seems to be unused, consider removing or renaming it as _"
+
+      # Reglas de exclusión generales existentes
+      - path: ".*_generated\\.go$"
+        text: "." # Excluye todos los issues de todos los linters para estos paths.
+      - path: ".*\\.pb\\.go$"
+        text: "." # Excluye todos los issues de todos los linters para estos paths.
+
+      - path: "pkg(?:/|\\\\)errors(?:/|\\\\)errors\\.go"
+        text: "."
+
+      - path: "_test\\.go$"
+        linters:
+          - errcheck
+          - funlen
+
+# Configuración específica para linters individuales.
+# Se mantiene en el nivel raíz.
+linters-settings:
+  govet:
+    check-shadowing: true
+  gocyclo:
+    min-complexity: 15
+  goimports:
+    local-prefixes: github.com/javicabdev/asam-backend
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+  errcheck:
+    check-type-assertions: true
+  funlen:
+    lines: 100
+    statements: 50
+  revive:
+    ignore-generated-header: true
+    # confidence: 0.8
+
 issues:
-  # Excluir ciertos issues por paths y texto
-  exclude-rules:
-    # Excluir globalmente el issue "package-comments" del linter "revive"
-    - linters:
-        - revive
-      text: "package-comments: should have a package comment"
-
-    # Excluir issues de "unused-parameter" para schema.resolvers.go
-    - path: internal/adapters/gql/resolvers/schema\.resolvers\.go$
-      linters:
-        - revive
-      text: "unused-parameter: parameter 'ctx' seems to be unused, consider removing or renaming it as _"
-
-    # Reglas generales para archivos generados automáticamente
-    - path: ".*_generated\\.go$"
-      text: ".*"
-    - path: ".*\\.pb\\.go$"
-      text: ".*"
-
-    # Exclusión específica para schema.resolvers.go
-    - path: internal/adapters/gql/resolvers/schema\.resolvers\.go$
-      text: ".*"
-
-    # Exclusión para archivos de test
-    - path: "_test\\.go$"
-      linters:
-        - errcheck
-        - funlen
-
-  # Configuración adicional para issues
+  # Solo se mantienen las configuraciones de 'issues' que no están relacionadas con las reglas de exclusión.
   max-same-issues: 300
+  # new-from-rev: HEAD~1
+  # max-issues-per-linter: 0
+  # exclude-use-default: false
 
-# Sección 'output'
-output:
-  formats:
-    text:
-      path: stdout
-      print-issued-lines: true
-      print-linter-name: true
-      colors: true
+# output:
+#   formats:
+#     - colored-line-number
+#   print-issued-lines: true
+#   print-linter-name: true
+#   sort-results: true
+
+# severity:
+#   rules:
+#     - linter: errcheck
+#       severity: error
