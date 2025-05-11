@@ -13,9 +13,9 @@ type PaymentStatus string
 
 const (
 	// PaymentStatusPending estado de un pago pendiente
-	PaymentStatusPending   PaymentStatus = "pending"
+	PaymentStatusPending PaymentStatus = "pending"
 	// PaymentStatusPaid estado de un pago completado
-	PaymentStatusPaid      PaymentStatus = "paid"
+	PaymentStatusPaid PaymentStatus = "paid"
 	// PaymentStatusCancelled estado de un pago cancelado
 	PaymentStatusCancelled PaymentStatus = "cancelled"
 )

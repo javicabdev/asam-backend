@@ -14,7 +14,7 @@ const (
 	// RoleAdmin representa el rol de administrador
 	RoleAdmin Role = "admin"
 	// RoleUser representa el rol de usuario normal
-	RoleUser  Role = "user"
+	RoleUser Role = "user"
 )
 
 // User representa un usuario del sistema con autenticación

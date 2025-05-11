@@ -17,9 +17,9 @@ const (
 	// DebugLevel nivel de log para depuración
 	DebugLevel Level = "debug"
 	// InfoLevel nivel de log para información
-	InfoLevel  Level = "info"
+	InfoLevel Level = "info"
 	// WarnLevel nivel de log para advertencias
-	WarnLevel  Level = "warn"
+	WarnLevel Level = "warn"
 	// ErrorLevel nivel de log para errores
 	ErrorLevel Level = "error"
 	// FatalLevel nivel de log fatal (termina el programa)

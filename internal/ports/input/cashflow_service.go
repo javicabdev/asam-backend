@@ -41,9 +41,9 @@ type ReportType string
 
 const (
 	// ReportTypeBalance reporte de balance
-	ReportTypeBalance  ReportType = "balance"
+	ReportTypeBalance ReportType = "balance"
 	// ReportTypeIncome reporte de ingresos
-	ReportTypeIncome   ReportType = "income"
+	ReportTypeIncome ReportType = "income"
 	// ReportTypeCashFlow reporte de flujo de caja
 	ReportTypeCashFlow ReportType = "cashflow"
 )
