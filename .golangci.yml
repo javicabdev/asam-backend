@@ -1,6 +1,5 @@
 # Archivo de configuración para golangci-lint, ajustado para v2.1.6
-# Se usa linters.exclusions.rules para ignorar archivos/directorios completos.
-version: "2"
+version: 2
 
 run:
   go: '1.24'
@@ -21,6 +20,26 @@ linters:
     # - gocyclo
     # - gocritic
     # - nolintlint
+
+  # Configuración específica para linters individuales (nueva estructura para v2)
+  settings:
+    govet:
+      check-shadowing: true
+    gocyclo:
+      min-complexity: 15
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+    errcheck:
+      check-type-assertions: true
+    funlen:
+      lines: 100
+      statements: 50
+    revive:
+      ignore-generated-header: true # Para que revive ignore archivos con cabeceras de generación automática.
+      # confidence: 0.8
 
   # 'linters.skip' fue eliminado ya que causaba error de validación con v2.1.6 en CI.
   # Las exclusiones de archivos/directorios se manejarán en 'linters.exclusions.rules'.
@@ -53,28 +72,10 @@ linters:
           - errcheck
           - funlen
 
-# Configuración específica para linters individuales.
-# Se mantiene en el nivel raíz según la guía v2. Si sigue fallando en CI, es un problema de v2.1.6.
-linters-settings:
-  govet:
-    check-shadowing: true
-  gocyclo:
-    min-complexity: 15
-  goimports:
-    local-prefixes: github.com/javicabdev/asam-backend
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - style
-      - performance
-  errcheck:
-    check-type-assertions: true
-  funlen:
-    lines: 100
-    statements: 50
-  revive:
-    ignore-generated-header: true # Para que revive ignore archivos con cabeceras de generación automática.
-    # confidence: 0.8
+formatters:
+  settings:
+    goimports:
+      local-prefixes: github.com/javicabdev/asam-backend
 
 issues:
   max-same-issues: 300
