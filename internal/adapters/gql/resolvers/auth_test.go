@@ -134,12 +134,10 @@ func TestLogout(t *testing.T) {
 		authService: mockAuthService,
 	}
 
-	// Definir tipo para clave de contexto
-	type contextKey string
+	// Crear contexto con token - usar una clave tipada como en la implementación real
+	ctx := context.WithValue(context.Background(), "authorization", "Bearer test-token")
 
-	// Crear contexto con token
-	ctx := context.WithValue(context.Background(), contextKey("authorization"), "Bearer test-token")
-
+	// Configurar el mock para aceptar cualquier contexto y devolver nil (éxito)
 	mockAuthService.On("Logout", mock.Anything, "test-token").Return(nil)
 
 	// Llamar a la función
@@ -148,8 +146,12 @@ func TestLogout(t *testing.T) {
 	// Verificar resultado
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+
+	// Convertir el resultado a MutationResponse
 	mutationResponse, ok := result.(*model.MutationResponse)
 	assert.True(t, ok)
+
+	// Verificar los campos específicos de la respuesta
 	assert.True(t, mutationResponse.Success)
 	assert.NotNil(t, mutationResponse.Message)
 	assert.Nil(t, mutationResponse.Error)
