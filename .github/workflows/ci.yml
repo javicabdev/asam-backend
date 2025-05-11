@@ -8,13 +8,14 @@ on:
   pull_request:
     branches: [ main, develop ]
 
-# Variables de entorno disponibles para todos los jobs y pasos del workflow.
+# Variables de entorno globales del workflow.
+# Estas son las que el servicio PostgreSQL y las migraciones usan.
 env:
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: postgres
-  POSTGRES_DB: asam_test
-  POSTGRES_HOST: localhost # Para el servicio postgres, 'localhost' es correcto desde el runner.
-  POSTGRES_PORT: 5432
+  POSTGRES_DB: asam_test_db # MODIFICADO: Para consistencia con lo que los tests esperan
+  POSTGRES_HOST: localhost
+  POSTGRES_PORT: "5432" # Asegurarse de que sea string si se usa directamente en algunos scripts
   GO_VERSION: '1.24'
 
 jobs:
@@ -25,28 +26,22 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
-
       - name: Install dependencies for linting tools (if any beyond golangci-lint)
         run: go mod download
-
       - name: Generate GraphQL code (if linting depends on it)
         run: go run ./cmd/generate/main.go
-
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6.0.1
         with:
           version: v2.1.6
           args: --timeout=5m
-
       - name: Verify Go modules
         run: go mod verify
-
       - name: Check go.mod and go.sum
         run: |
           go mod tidy -v
@@ -55,7 +50,6 @@ jobs:
             git diff
             exit 1
           fi
-
       - name: Check formatting with gofmt
         run: |
           OUTPUT=$(gofmt -l -s .)
@@ -74,12 +68,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-
       - name: Cache Go modules
         uses: actions/cache@v4
         id: go-cache
@@ -90,16 +82,12 @@ jobs:
           key: ${{ runner.os }}-go-${{ env.GO_VERSION }}-${{ hashFiles('**/go.sum') }}-cachev1
           restore-keys: |
             ${{ runner.os }}-go-${{ env.GO_VERSION }}-cachev1-
-
       - name: Install dependencies
         run: go mod download
-
       - name: Generate GraphQL code
         run: go run ./cmd/generate/main.go
-
       - name: Build application
         run: go build -v -o asam-backend ./cmd/api
-
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
@@ -115,12 +103,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-
       - name: Cache Go modules
         uses: actions/cache@v4
         with:
@@ -130,17 +116,12 @@ jobs:
           key: ${{ runner.os }}-go-${{ env.GO_VERSION }}-${{ hashFiles('**/go.sum') }}-cachev1
           restore-keys: |
             ${{ runner.os }}-go-${{ env.GO_VERSION }}-cachev1-
-
       - name: Install dependencies
         run: go mod download
-
-      # Modificado: Añadido -coverpkg para especificar los paquetes a cubrir
       - name: Run unit tests
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic -coverpkg=./internal/...,./pkg/... ./internal/... ./pkg/...
-
-      # Paso de depuración: Verificar coverage.out en el job test-unit
       - name: Check coverage.out content (in test-unit)
-        if: always() # Ejecutar incluso si el paso anterior falla, para ver si se creó el archivo
+        if: always()
         run: |
           echo "--- Content of coverage.out in test-unit job ---"
           if [ -f coverage.out ]; then
@@ -151,12 +132,11 @@ jobs:
             echo "coverage.out not found in test-unit job."
           fi
           echo "--- End of coverage.out check ---"
-
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-coverage
-          path: coverage.out # Asegúrate de que el archivo exista y tenga contenido
+          path: coverage.out
           retention-days: 5
 
   # Job para ejecutar tests de integración.
@@ -165,32 +145,43 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build]
     services:
-      postgres:
+      postgres: # Nombre del servicio, accesible como 'postgres' en la red del job, o 'localhost' por el mapeo de puertos
         image: postgres:16
-        env:
+        env: # Estas variables son para el servicio PostgreSQL en sí
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }} # Usará asam_test_db
         ports:
-          - 5432:5432
+          - 5432:5432 # Mapea el puerto 5432 del contenedor al 5432 del host runner
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    # Variables de entorno específicas para este job
-    env:
-      JWT_ACCESS_SECRET: "test-access-secret-for-ci" # Valor de prueba
-      JWT_REFRESH_SECRET: "test-refresh-secret-for-ci" # Añadido para los tests
+    env: # Variables de entorno para los pasos de este job (tests, migraciones)
+      # Estas son las variables que config.go (y por tanto tus tests) leerán.
+      DB_HOST: ${{ env.POSTGRES_HOST }}       # Será 'localhost'
+      DB_PORT: ${{ env.POSTGRES_PORT }}       # Será '5432'
+      DB_USER: ${{ env.POSTGRES_USER }}       # Será 'postgres'
+      DB_PASSWORD: ${{ env.POSTGRES_PASSWORD }} # Será 'postgres'
+      DB_NAME: ${{ env.POSTGRES_DB }}         # Será 'asam_test_db'
+      DB_SSL_MODE: "disable"                  # Forzar a disable para CI
+
+      # Variables JWT requeridas por config.go
+      JWT_ACCESS_SECRET: "test-access-secret-for-ci"
+      JWT_REFRESH_SECRET: "test-refresh-secret-for-ci"
+
+      # Otras variables que config.go pueda necesitar
+      ENVIRONMENT: "test_ci"
+      # CI: true es establecido automáticamente por GitHub Actions
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-
       - name: Cache Go modules
         uses: actions/cache@v4
         with:
@@ -200,34 +191,38 @@ jobs:
           key: ${{ runner.os }}-go-${{ env.GO_VERSION }}-${{ hashFiles('**/go.sum') }}-cachev1
           restore-keys: |
             ${{ runner.os }}-go-${{ env.GO_VERSION }}-cachev1-
-
       - name: Install dependencies
         run: go mod download
-
       - name: Wait for PostgreSQL to be ready
         run: |
           echo "Waiting for PostgreSQL to start..."
+          # pg_isready se ejecuta en el runner y usará las variables del entorno del job (DB_HOST, etc.)
           for i in {1..15}; do
-            pg_isready -h ${{ env.POSTGRES_HOST }} -p ${{ env.POSTGRES_PORT }} -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }} && break
-            echo "PostgreSQL not ready yet, waiting ($i/15)..."
+            pg_isready -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME && break
+            echo "PostgreSQL not ready yet (Host: $DB_HOST, Port: $DB_PORT, User: $DB_USER, DB: $DB_NAME), waiting ($i/15)..."
             sleep 2
           done
-          pg_isready -h ${{ env.POSTGRES_HOST }} -p ${{ env.POSTGRES_PORT }} -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }}
+          pg_isready -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME
           echo "PostgreSQL is up and running!"
         env:
-          PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          PGPASSWORD: ${{ env.DB_PASSWORD }} # pg_isready usa PGPASSWORD, que debe ser la contraseña del job
 
       - name: Run database migrations
         run: go run ./cmd/migrate/main.go
+        # El script de migración (cmd/migrate/main.go) ya está modificado para usar
+        # las variables de entorno POSTGRES_* directamente en modo CI.
+        # Estas variables deben estar disponibles en el entorno del job.
         env:
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
-          POSTGRES_HOST: ${{ env.POSTGRES_HOST }}
-          POSTGRES_PORT: ${{ env.POSTGRES_PORT }}
+          POSTGRES_USER: ${{ env.DB_USER }} # Mapear desde las variables del job (DB_*) a las que espera el script (POSTGRES_*)
+          POSTGRES_PASSWORD: ${{ env.DB_PASSWORD }}
+          POSTGRES_DB: ${{ env.DB_NAME }}
+          POSTGRES_HOST: ${{ env.DB_HOST }}
+          POSTGRES_PORT: ${{ env.DB_PORT }}
 
       - name: Run integration tests
         run: go test -v -race -tags=integration ./test/integration/...
+        # Los tests (a través de config.go) leerán DB_HOST="localhost",
+        # DB_PASSWORD, etc., del entorno del job.
 
   # Job para el análisis de cobertura de código.
   code-coverage:
@@ -237,17 +232,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-
       - name: Download coverage report artifact
         uses: actions/download-artifact@v4
         with:
           name: unit-test-coverage
-
       - name: Verify downloaded artifact and coverage.out
         run: |
           echo "--- Files in current directory (GITHUB_WORKSPACE) after download ---"
@@ -261,7 +253,6 @@ jobs:
             echo "coverage.out not found in code-coverage job after download."
           fi
           echo "--- End of downloaded coverage.out check ---"
-
       - name: Display raw coverage summary from go tool cover
         run: |
           echo "--- Raw output of 'go tool cover -func=coverage.out' ---"
@@ -271,20 +262,16 @@ jobs:
             echo "coverage.out not found, cannot run 'go tool cover -func'."
           fi
           echo "--- End of raw output ---"
-
       - name: Check coverage threshold (70%)
         run: |
           if [ ! -f coverage.out ]; then
             echo "Error: coverage.out not found. Cannot calculate coverage."
             exit 1
           fi
-          
           RAW_COVERAGE_OUTPUT=$(go tool cover -func=coverage.out)
           echo "Raw coverage output for processing:"
           echo "$RAW_COVERAGE_OUTPUT"
-          
           total_coverage=$(echo "$RAW_COVERAGE_OUTPUT" | grep 'total:' | awk '{print $3}' | sed 's/%//')
-          
           if [ -z "$total_coverage" ]; then
             echo "Error: Could not parse total coverage from 'go tool cover -func' output."
             echo "Attempting to see if any individual files show coverage > 0..."
@@ -293,22 +280,19 @@ jobs:
             else
                 echo "No coverage (lines with > 0%) detected in individual files from 'go tool cover -func' output."
             fi
-            total_coverage="0.0" # Default to 0.0 if parsing fails
+            total_coverage="0.0" 
           fi
-          
           echo "Current total coverage: $total_coverage%"
           if ! [[ "$total_coverage" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
               echo "Error: Parsed total_coverage ('$total_coverage') is not a valid number."
               total_coverage="0.0"
           fi
-
           if (( $(echo "$total_coverage < 70.0" | bc -l) )); then
             echo "Error: Code coverage ($total_coverage%) is below the required 70% threshold."
             exit 1
           else
             echo "Code coverage meets the 70% threshold."
           fi
-
       - name: Convert coverage to HTML
         if: always()
         run: |
@@ -318,7 +302,6 @@ jobs:
           else
             echo "coverage.out not found, cannot generate HTML report."
           fi
-
       - name: Upload HTML coverage report
         if: always()
         uses: actions/upload-artifact@v4
@@ -336,21 +319,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-
       - name: Cache Go installed tools
         uses: actions/cache@v4
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-go-tools-${{ env.GO_VERSION }}-${{ hashFiles('**/go.mod') }}
-
       - name: Install gocyclo
         run: go install github.com/fzipp/gocyclo/cmd/gocyclo@v0.6.0
-
       - name: Run cyclomatic complexity analysis
         run: |
           echo "Running gocyclo (threshold > 15)..."
@@ -363,20 +342,16 @@ jobs:
             echo "No functions exceed cyclomatic complexity of 15."
           fi
           $GOPATH_BIN/gocyclo -avg ./...
-
       - name: Install ineffassign
         run: go install github.com/gordonklaus/ineffassign@v0.1.0
-
       - name: Run ineffassign (check for ineffectual assignments)
         run: |
           echo "Running ineffassign..."
           GOPATH_BIN=$(go env GOPATH)/bin
           $GOPATH_BIN/ineffassign ./...
           echo "ineffassign check complete. See output above for issues."
-
       - name: Install govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@v1.1.1
-
       - name: Run vulnerability check (govulncheck)
         run: |
           echo "Running govulncheck..."
