@@ -1,5 +1,14 @@
-# Configuración para golangci-lint
-version: "2"
+# Configuración para golangci-lint versión 2
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  errcheck:
+    check-type-assertions: true
+  funlen:
+    lines: 100
+    statements: 50
+  govet:
+    check-shadowing: true
 
 # Sección 'run': define cómo se ejecuta golangci-lint
 run:
@@ -7,11 +16,14 @@ run:
   go: '1.24'
   # Tiempo máximo de ejecución para los linters
   timeout: 5m
+  # Excluir directorios específicos (formato moderno en golangci-lint v2)
+  skip-dirs:
+    - internal/adapters/gql/generated
 
 # Sección 'linters': controla qué linters están habilitados o deshabilitados
 linters:
-  # En la versión 2, usamos 'default' en lugar de 'disable-all'
-  default: none # Opciones: standard, all, none, fast
+  # En la versión 2, usamos 'disable-all' y luego 'enable'
+  disable-all: true
   
   # Lista de linters a habilitar
   enable:
@@ -24,56 +36,39 @@ linters:
     - unused
     - revive
     - unconvert
-
-  # Configuraciones simplificadas para linters
-  settings:
-    gocyclo:
-      min-complexity: 15
-    errcheck:
-      check-type-assertions: true
-    funlen:
-      lines: 100
-      statements: 50
-
-  # Exclusiones - rutas y patrones verificados que existen en el proyecto
-  exclusions:
-    warn-unused: true
     
-    # Paths - Rutas verificadas que existen en el proyecto
-    paths:
-      - internal/adapters/gql/generated
-    
-    # Reglas de exclusión
-    rules:
-      # Excluir globalmente el issue "package-comments" del linter "revive"
-      - linters:
-          - revive
-        text: "package-comments: should have a package comment"
-
-      # Excluir issues de "unused-parameter" para schema.resolvers.go
-      - path: internal/adapters/gql/resolvers/schema\.resolvers\.go$
-        linters:
-          - revive
-        text: "unused-parameter: parameter 'ctx' seems to be unused, consider removing or renaming it as _"
-
-      # Reglas generales para archivos generados automáticamente
-      - path: ".*_generated\\.go$"
-        text: "."
-      - path: ".*\\.pb\\.go$"
-        text: "."
-
-      # Exclusión específica para schema.resolvers.go
-      - path: internal/adapters/gql/resolvers/schema\.resolvers\.go$
-        text: "."
-
-      # Exclusión para archivos de test
-      - path: "_test\\.go$"
-        linters:
-          - errcheck
-          - funlen
-
-# Sección 'issues': controla cómo se reportan y manejan los problemas
+# Sección 'issues': controla cómo se reportan y manejan los problemas detectados
 issues:
+  # Excluir ciertos issues por paths y texto
+  exclude-rules:
+    # Excluir globalmente el issue "package-comments" del linter "revive"
+    - linters:
+        - revive
+      text: "package-comments: should have a package comment"
+
+    # Excluir issues de "unused-parameter" para schema.resolvers.go
+    - path: internal/adapters/gql/resolvers/schema\.resolvers\.go$
+      linters:
+        - revive
+      text: "unused-parameter: parameter 'ctx' seems to be unused, consider removing or renaming it as _"
+
+    # Reglas generales para archivos generados automáticamente
+    - path: ".*_generated\\.go$"
+      text: ".*"
+    - path: ".*\\.pb\\.go$"
+      text: ".*"
+
+    # Exclusión específica para schema.resolvers.go
+    - path: internal/adapters/gql/resolvers/schema\.resolvers\.go$
+      text: ".*"
+
+    # Exclusión para archivos de test
+    - path: "_test\\.go$"
+      linters:
+        - errcheck
+        - funlen
+
+  # Configuración adicional para issues
   max-same-issues: 300
 
 # Sección 'output'

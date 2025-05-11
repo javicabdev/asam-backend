@@ -40,8 +40,8 @@ Desktop.ini
 build/
 dist/
 /tmp/asam-backend
-/internal/adapters/gql/model/
-/internal/adapters/gql/generated/
-/internal/adapters/gql/resolvers/schema.resolvers.go
+# Keep generated files but ignore specific patterns
+/internal/adapters/gql/model/*.tmp
+/internal/adapters/gql/generated/*.tmp
 /coverage
 /coverage.html
