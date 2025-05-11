@@ -261,7 +261,7 @@ jobs:
             echo "coverage.out not found, cannot run 'go tool cover -func'."
           fi
           echo "--- End of raw output ---"
-      - name: Check coverage threshold (10%)
+      - name: Check coverage threshold (5%)
         run: |
           if [ ! -f coverage.out ]; then
             echo "Error: coverage.out not found. Cannot calculate coverage."
