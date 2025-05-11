@@ -39,9 +39,8 @@ jobs:
         run: go run ./cmd/generate/main.go
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6.0.1 # Manteniendo la versión de la action, que es independiente de la herramienta
+        uses: golangci/golangci-lint-action@v6.0.1
         with:
-          # Actualizado a la versión correcta y más reciente de golangci-lint
           version: v2.1.6
           args: --timeout=5m
 
@@ -138,11 +137,25 @@ jobs:
       - name: Run unit tests
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./internal/... ./pkg/...
 
+      # Paso de depuración: Verificar coverage.out en el job test-unit
+      - name: Check coverage.out content (in test-unit)
+        if: always() # Ejecutar incluso si el paso anterior falla, para ver si se creó el archivo
+        run: |
+          echo "--- Content of coverage.out in test-unit job ---"
+          if [ -f coverage.out ]; then
+            cat coverage.out
+            echo "Size of coverage.out:"
+            ls -lh coverage.out
+          else
+            echo "coverage.out not found in test-unit job."
+          fi
+          echo "--- End of coverage.out check ---"
+
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-coverage
-          path: coverage.out
+          path: coverage.out # Asegúrate de que el archivo exista y tenga contenido
           retention-days: 5
 
   # Job para ejecutar tests de integración.
@@ -164,7 +177,11 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
+    # Variables de entorno específicas para este job
+    env:
+      JWT_ACCESS_SECRET: "test-secret-value-for-ci-dont-use-in-prod" # Añadido para los tests
+      # Puedes añadir otras variables específicas para los tests de integración aquí si es necesario
+      # Las variables globales del workflow (POSTGRES_USER, etc.) también están disponibles.
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -202,21 +219,22 @@ jobs:
 
       - name: Run database migrations
         run: go run ./cmd/migrate/main.go
+        # El script main.go ahora usará las variables de entorno del sistema en modo CI.
+        # Las variables definidas en el bloque 'env:' del workflow o del job están disponibles.
+        # El bloque 'env:' de este paso asegura que estas variables específicas se pasen al proceso 'go run'.
         env:
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
           POSTGRES_DB: ${{ env.POSTGRES_DB }}
           POSTGRES_HOST: ${{ env.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ env.POSTGRES_PORT }}
+          # JWT_ACCESS_SECRET también estará disponible desde el 'env:' del job.
 
       - name: Run integration tests
         run: go test -v -race -tags=integration ./test/integration/...
-        env:
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
-          POSTGRES_HOST: ${{ env.POSTGRES_HOST }}
-          POSTGRES_PORT: ${{ env.POSTGRES_PORT }}
+        # Las variables de entorno definidas a nivel de job (como JWT_ACCESS_SECRET)
+        # y a nivel de workflow (como POSTGRES_USER) estarán disponibles para este paso.
+        # No es necesario redefinirlas aquí a menos que necesites sobreescribirlas.
 
   # Job para el análisis de cobertura de código.
   code-coverage:
@@ -236,30 +254,91 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: unit-test-coverage
+          # El artefacto se extraerá al directorio de trabajo GITHUB_WORKSPACE
 
-      - name: Display coverage summary
-        run: go tool cover -func=coverage.out
+      # Paso de depuración: Verificar coverage.out en el job code-coverage
+      - name: Verify downloaded artifact and coverage.out
+        run: |
+          echo "--- Files in current directory (GITHUB_WORKSPACE) after download ---"
+          ls -la
+          echo "--- Content of coverage.out in code-coverage job ---"
+          if [ -f coverage.out ]; then
+            cat coverage.out
+            echo "Size of coverage.out:"
+            ls -lh coverage.out
+          else
+            echo "coverage.out not found in code-coverage job after download."
+          fi
+          echo "--- End of downloaded coverage.out check ---"
 
-      - name: Convert coverage to HTML
-        run: go tool cover -html=coverage.out -o coverage.html
-
-      - name: Upload HTML coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report-html
-          path: coverage.html
-          retention-days: 7
+      # Paso de depuración: Mostrar la salida cruda de go tool cover -func
+      - name: Display raw coverage summary from go tool cover
+        run: |
+          echo "--- Raw output of 'go tool cover -func=coverage.out' ---"
+          if [ -f coverage.out ]; then
+            go tool cover -func=coverage.out
+          else
+            echo "coverage.out not found, cannot run 'go tool cover -func'."
+          fi
+          echo "--- End of raw output ---"
 
       - name: Check coverage threshold (70%)
         run: |
-          total_coverage=$(go tool cover -func=coverage.out | grep 'total:' | awk '{print $3}' | sed 's/%//')
+          if [ ! -f coverage.out ]; then
+            echo "Error: coverage.out not found. Cannot calculate coverage."
+            exit 1
+          fi
+          
+          RAW_COVERAGE_OUTPUT=$(go tool cover -func=coverage.out)
+          echo "Raw coverage output for processing:"
+          echo "$RAW_COVERAGE_OUTPUT"
+          
+          total_coverage=$(echo "$RAW_COVERAGE_OUTPUT" | grep 'total:' | awk '{print $3}' | sed 's/%//')
+          
+          if [ -z "$total_coverage" ]; then
+            echo "Error: Could not parse total coverage from 'go tool cover -func' output."
+            echo "Attempting to see if any individual files show coverage > 0..."
+            if echo "$RAW_COVERAGE_OUTPUT" | grep -E '[1-9][0-9]*\.[0-9]+%|[0-9]\.[1-9]+%' | grep -v 'total:'; then
+                echo "Warning: Individual files show coverage, but the 'total:' line is missing or malformed."
+            else
+                echo "No coverage (lines with > 0%) detected in individual files from 'go tool cover -func' output."
+            fi
+            total_coverage="0.0" # Default to 0.0 if parsing fails
+          fi
+          
           echo "Current total coverage: $total_coverage%"
+          # bc -l requiere que el input sea válido; si total_coverage no es un número, fallará.
+          # Asegurémonos de que total_coverage sea un número flotante válido.
+          if ! [[ "$total_coverage" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+              echo "Error: Parsed total_coverage ('$total_coverage') is not a valid number."
+              total_coverage="0.0"
+          fi
+
           if (( $(echo "$total_coverage < 70.0" | bc -l) )); then
             echo "Error: Code coverage ($total_coverage%) is below the required 70% threshold."
             exit 1
           else
             echo "Code coverage meets the 70% threshold."
           fi
+
+      - name: Convert coverage to HTML
+        if: always() # Intentar generar el HTML incluso si el umbral falla, para inspección
+        run: |
+          if [ -f coverage.out ]; then
+            go tool cover -html=coverage.out -o coverage.html
+            echo "HTML coverage report generated as coverage.html"
+          else
+            echo "coverage.out not found, cannot generate HTML report."
+          fi
+
+      - name: Upload HTML coverage report
+        if: always() # Subir si se generó
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-html
+          path: coverage.html
+          if-no-files-found: ignore # No fallar si coverage.html no se pudo generar
+          retention-days: 7
 
   # Job para el análisis de complejidad y vulnerabilidades del código.
   code-analysis:
