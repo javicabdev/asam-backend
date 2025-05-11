@@ -1,5 +1,5 @@
 # Archivo de configuración para golangci-lint v2.1.6
-version: 2
+version: "2"
 
 run:
   go: '1.24'
