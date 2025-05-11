@@ -1,4 +1,4 @@
-package gql_test
+package resolvers_test
 
 import (
 	"testing"
@@ -9,5 +9,5 @@ import (
 
 func TestGql(t *testing.T) {
 	gomega.RegisterFailHandler(ginkgo.Fail)
-	ginkgo.RunSpecs(t, "Gql Suite")
+	ginkgo.RunSpecs(t, "Resolvers Suite")
 }
