@@ -201,7 +201,7 @@ jobs:
           PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
 
       - name: Run database migrations
-        run: go run ./cmd/migrate/main.go up
+        run: go run ./cmd/migrate/main.go
         env:
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
