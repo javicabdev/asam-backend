@@ -1,63 +1,76 @@
-# Name of the GitHub Actions workflow.
 name: Release Pipeline
 
-# Controls when the workflow will run - in this case, when a tag matching v* is pushed.
+# Este workflow se activa cuando se crea un tag con el formato 'v*.*.*'
+# Compatible con el versionado semántico
 on:
   push:
     tags:
-      - 'v*' # Triggers on tag pushes starting with 'v' (e.g., v1.0.0)
+      - 'v*.*.*'
 
-# Environment variables available to all jobs and steps in the workflow.
 env:
-  GO_VERSION: '1.24' # Define Go version once to ensure consistency across jobs.
+  GO_VERSION: '1.24'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  version-check:
-    name: Check Version Format
+  # Job para crear y publicar el release en GitHub
+  create-release:
+    name: Create Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
     outputs:
-      version: ${{ steps.get-version.outputs.version }}
-      major: ${{ steps.get-version.outputs.major }}
-      minor: ${{ steps.get-version.outputs.minor }}
-      patch: ${{ steps.get-version.outputs.patch }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
     steps:
-      - name: Get version from tag
-        id: get-version
-        run: |
-          # Extract version from tag (remove 'v' prefix)
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          
-          # Validate semantic versioning format
-          # Format: MAJOR.MINOR.PATCH[-PRERELEASE][+BUILDMETADATA]
-          if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$ ]]; then
-            echo "Invalid version format: $VERSION"
-            echo "Version must follow semantic versioning: MAJOR.MINOR.PATCH[-PRERELEASE][+BUILDMETADATA]"
-            exit 1
-          fi
-          
-          # Extract SemVer components for potential use in jobs
-          MAJOR=$(echo $VERSION | cut -d. -f1)
-          MINOR=$(echo $VERSION | cut -d. -f2)
-          PATCH=$(echo $VERSION | cut -d. -f3 | cut -d- -f1 | cut -d+ -f1)
-          
-          echo "major=$MAJOR" >> $GITHUB_OUTPUT
-          echo "minor=$MINOR" >> $GITHUB_OUTPUT
-          echo "patch=$PATCH" >> $GITHUB_OUTPUT
-          echo "Version: v$VERSION (Major: $MAJOR, Minor: $MINOR, Patch: $PATCH)"
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Necesario para que conventional-changelog genere bien el changelog
 
-  build:
-    name: Build Binaries
-    needs: version-check
+      - name: Extract version from tag
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "Version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install conventional-changelog
+        run: npm install -g conventional-changelog-cli
+
+      - name: Generate changelog
+        run: conventional-changelog -p angular -i CHANGELOG.md -s -r 2
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref }}
+          name: Release ${{ steps.get_version.outputs.version }}
+          draft: false
+          prerelease: false
+          body_path: CHANGELOG.md
+          generate_release_notes: true
+          
+  # Job para compilar para múltiples plataformas
+  build-binaries:
+    name: Build for ${{ matrix.os }}-${{ matrix.arch }}
     runs-on: ubuntu-latest
+    needs: [create-release]
     strategy:
       matrix:
-        goos: [linux, windows, darwin] # Operating systems to build for
-        goarch: [amd64, arm64] # CPU architectures to build for
+        os: [linux, windows, darwin]
+        arch: [amd64, arm64]
         exclude:
-          - goos: windows
-            goarch: arm64 # Windows on ARM64 is less common, so we exclude it
-
+          # Excluimos combinaciones que no necesitamos
+          - os: windows
+            arch: arm64
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -66,157 +79,82 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-          key: ${{ runner.os }}-go-${{ env.GO_VERSION }}-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-${{ env.GO_VERSION }}-
+          cache: true
 
       - name: Install dependencies
         run: go mod download
 
-      - name: Generate GraphQL code
-        run: go run ./cmd/generate/main.go
-
-      - name: Create directories for artifacts
-        run: mkdir -p dist release
-
       - name: Build binary
         env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          VERSION: ${{ needs.version-check.outputs.version }}
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          VERSION: ${{ needs.create-release.outputs.version }}
         run: |
-          # Set output file name based on OS
-          OUTPUT="asam-backend"
-          if [ "$GOOS" = "windows" ]; then
-            OUTPUT="asam-backend.exe"
+          OUTPUT_NAME=asam-backend
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            OUTPUT_NAME=asam-backend.exe
           fi
           
-          # Build with version information embedded
-          echo "Building for $GOOS/$GOARCH..."
-          go build -v -ldflags "-X main.Version=v${VERSION} -X main.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" -o "dist/${OUTPUT}" ./cmd/api
-          echo "Build complete."
+          go build -v -o $OUTPUT_NAME -ldflags "-X main.Version=$VERSION" ./cmd/api
           
-          # Create archive with appropriate format for the target OS
-          if [ "$GOOS" = "windows" ]; then
-            echo "Creating ZIP archive for Windows..."
-            zip -j "release/asam-backend_${VERSION}_${GOOS}_${GOARCH}.zip" "dist/${OUTPUT}"
+          ARCHIVE_NAME=asam-backend-${{ matrix.os }}-${{ matrix.arch }}
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            zip -r ${ARCHIVE_NAME}.zip $OUTPUT_NAME
+            echo "ASSET=${ARCHIVE_NAME}.zip" >> $GITHUB_ENV
           else
-            echo "Creating tarball for Unix-like OS..."
-            tar -czf "release/asam-backend_${VERSION}_${GOOS}_${GOARCH}.tar.gz" -C dist "${OUTPUT}"
+            tar -czvf ${ARCHIVE_NAME}.tar.gz $OUTPUT_NAME
+            echo "ASSET=${ARCHIVE_NAME}.tar.gz" >> $GITHUB_ENV
           fi
-          echo "Archive created successfully."
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: asam-backend_${{ needs.version-check.outputs.version }}_${{ matrix.goos }}_${{ matrix.goarch }}
-          path: release/
-          retention-days: 7
-
-  generate-changelog:
-    name: Generate Changelog
-    needs: version-check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Full git history for changelog generation
-
-      - name: Generate Changelog
-        id: changelog
-        run: |
-          # Try to find the previous tag for comparison
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          
-          if [ -z "$PREV_TAG" ]; then
-            echo "No previous tag found, generating changelog from all commits"
-            git log --pretty=format:"* %s (%h)" > CHANGELOG.md
-          else
-            echo "Generating changelog between tags $PREV_TAG and ${GITHUB_REF#refs/tags/}"
-            
-            # Create the header for the changelog
-            echo "# Changes since $PREV_TAG" > CHANGELOG.md
-            echo "" >> CHANGELOG.md
-            
-            # Features section - any commit starting with "feat" or "feature"
-            echo "## 🚀 Features" >> CHANGELOG.md
-            git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" --grep="^feat" >> CHANGELOG.md || echo "No new features in this release." >> CHANGELOG.md
-            echo "" >> CHANGELOG.md
-            echo "" >> CHANGELOG.md
-            
-            # Bug Fixes section - any commit starting with "fix"
-            echo "## 🐛 Bug Fixes" >> CHANGELOG.md
-            git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" --grep="^fix" >> CHANGELOG.md || echo "No bug fixes in this release." >> CHANGELOG.md
-            echo "" >> CHANGELOG.md
-            echo "" >> CHANGELOG.md
-            
-            # Other Changes section - other conventional commit types
-            echo "## 🔄 Other Changes" >> CHANGELOG.md
-            git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" --grep="^(chore|docs|style|refactor|perf|test|ci)" >> CHANGELOG.md || echo "No other conventional commit types in this release." >> CHANGELOG.md
-            echo "" >> CHANGELOG.md
-            echo "" >> CHANGELOG.md
-            
-            # Include all other commits not matching our conventions
-            echo "## 📝 Other commits" >> CHANGELOG.md
-            git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" --grep="^(feat|fix|chore|docs|style|refactor|perf|test|ci)" --invert-grep >> CHANGELOG.md || echo "No other commits in this release." >> CHANGELOG.md
-            echo "" >> CHANGELOG.md
-          fi
-          
-          echo "Generated CHANGELOG.md:"
-          cat CHANGELOG.md
-
-      - name: Upload Changelog
-        uses: actions/upload-artifact@v4
-        with:
-          name: changelog
-          path: CHANGELOG.md
-          retention-days: 30 # Keep changelog longer for historical reference
-
-  create-release:
-    name: Create GitHub Release
-    needs: [version-check, build, generate-changelog]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write # Required for creating releases
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts/
-
-      - name: Download changelog
-        uses: actions/download-artifact@v4
-        with:
-          name: changelog
-          path: ./
-
-      - name: Organize release files
-        run: |
-          # Create a directory for the release files and copy all artifacts
-          mkdir -p release/
-          echo "Organizing release files..."
-          find artifacts/ -name "*.zip" -o -name "*.tar.gz" | xargs -I{} cp {} release/
-          echo "Found $(ls release/ | wc -l) release files."
-
-      - name: Create GitHub Release
+      - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          name: Release v${{ needs.version-check.outputs.version }}
-          body_path: CHANGELOG.md
-          draft: false # Set to true if you want to manually review before publishing
-          prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-beta') || contains(github.ref, '-alpha') }}
-          files: |
-            release/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ github.ref }}
+          files: ${{ env.ASSET }}
+
+  # Job para construir y publicar la imagen de Docker
+  build-docker-image:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: [create-release]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=tag
+            type=semver,pattern={{version}},value=${{ needs.create-release.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.create-release.outputs.version }}
+            latest
+          labels: |
+            org.opencontainers.image.title=ASAM Backend
+            org.opencontainers.image.description=Backend API for ASAM project
+            org.opencontainers.image.version=${{ needs.create-release.outputs.version }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

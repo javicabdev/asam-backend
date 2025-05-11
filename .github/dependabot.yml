@@ -1,43 +1,53 @@
+# Configuración de Dependabot para mantener las dependencias actualizadas
+# Para más info: https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+
 version: 2
 updates:
-  # Maintain dependencies for Go modules
+  # Mantener las dependencias de Go actualizadas
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
-      - "automerge"
-    reviewers:
-      - "javicabdev"
-    assignees:
-      - "javicabdev"
+      - "go"
     commit-message:
-      prefix: "chore"
+      prefix: "deps"
       include: "scope"
-    groups:
-      minor-patches:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
+    # Límites de versión para controlar qué actualizaciones permitir
+    # Solo permitimos actualizaciones de parches y versiones menores, no cambios mayores
+    versioning-strategy: auto
+    ignore:
+      # Ignora actualizaciones de versiones mayores por seguridad
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
-  # Maintain dependencies for GitHub Actions
+  # Mantener las acciones de GitHub actualizadas
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+      day: "wednesday"
+    open-pull-requests-limit: 10
     labels:
       - "dependencies"
       - "github-actions"
-      - "automerge"
-    reviewers:
-      - "javicabdev"
-    assignees:
-      - "javicabdev"
     commit-message:
       prefix: "ci"
+      include: "scope"
+
+  # Mantener las imágenes de Docker actualizadas (si se usa Dockerfile)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "docker"
       include: "scope"

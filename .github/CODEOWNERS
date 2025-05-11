@@ -1,25 +1,25 @@
-# These owners will be the default owners for everything in the repo
-# Unless a later match takes precedence, they will be requested for
-# review when someone opens a pull request.
+# CODEOWNERS file para el proyecto ASAM Backend
+# Este archivo define qué equipos o usuarios son responsables de diferentes partes del código.
+# Cuando alguien abre un PR que modifica código de un área particular, los propietarios definidos
+# serán automáticamente asignados como revisores.
+
+# Para más información sobre CODEOWNERS, ver:
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# By default, the repository owners are responsible for all
 * @javicabdev
 
-# Backend core team owns all Go code
-*.go @javicabdev
+# Código de la API
+/cmd/api/ @javicabdev
+/internal/api/ @javicabdev
+/internal/handlers/ @javicabdev
 
-# Infrastructure and CI/CD files
-.github/workflows/* @javicabdev
-Dockerfile* @javicabdev
-docker-compose* @javicabdev
+# Base de datos y migraciones
+/internal/database/ @javicabdev
+/migrations/ @javicabdev
 
-# Database migrations
-migrations/* @javicabdev
+# GraphQL
+/internal/graph/ @javicabdev
 
-# Documentation
-docs/* @javicabdev
-README.md @javicabdev
-
-# Configuration files
-*.yml @javicabdev
-*.yaml @javicabdev
-*.toml @javicabdev
-*.env* @javicabdev
+# Configuración de CI/CD
+/.github/ @javicabdev
