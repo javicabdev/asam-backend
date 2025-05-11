@@ -39,45 +39,57 @@ var envVarsToClear = []string{
 
 func init() {
 	// Setup command line flags
-	flag.StringVar(&environment, "env", "local", "Environment to use (local, aiven, all)")
+	flag.StringVar(&environment, "env", "local", "Environment to use (local, aiven, all). Ignored in CI mode.")
 	flag.StringVar(&command, "cmd", "up", "Migration command (up, down, force, version, goto, drop)")
 }
 
 func main() {
 	flag.Parse()
+	args := flag.Args() // Get remaining arguments (e.g., number for 'up'/'down', version for 'force'/'goto')
 
-	// Validate environment flag
-	environment = strings.ToLower(environment)
-	if environment != "local" && environment != "aiven" && environment != "all" {
-		log.Fatalf("Invalid environment '%s'. Must be 'local', 'aiven', or 'all'", environment)
-	}
+	isCI := os.Getenv("CI") == "true"
 
-	// Get remaining arguments (e.g., number for 'up'/'down', version for 'force'/'goto')
-	args := flag.Args()
-
-	// Execute migrations for the specified environment(s)
-	if environment == "local" || environment == "all" {
+	if isCI {
 		log.Println("==================================================")
-		log.Println("Running migrations on LOCAL database")
+		log.Println("Running migrations in CI MODE")
 		log.Println("==================================================")
-		clearEnvironmentVariables()
-		if err := executeMigrationsForEnv(LocalEnvFile, command, args); err != nil {
-			log.Printf("Error migrating local database: %v", err)
-			// If only running for 'local' and it fails, exit with error for scripting purposes.
-			if environment == "local" {
-				os.Exit(1)
+		log.Println("CI environment detected. Using system environment variables for database configuration.")
+		// In CI, we typically target one database defined by the CI environment variables.
+		// The -env flag is ignored.
+		if err := executeMigrationsCI(command, args); err != nil {
+			log.Fatalf("Error migrating database in CI mode: %v", err)
+		}
+	} else {
+		// Validate environment flag for non-CI execution
+		environment = strings.ToLower(environment)
+		if environment != "local" && environment != "aiven" && environment != "all" {
+			log.Fatalf("Invalid environment '%s'. Must be 'local', 'aiven', or 'all'", environment)
+		}
+
+		// Execute migrations for the specified environment(s) in non-CI mode
+		if environment == "local" || environment == "all" {
+			log.Println("==================================================")
+			log.Println("Running migrations on LOCAL database")
+			log.Println("==================================================")
+			clearEnvironmentVariables()
+			if err := executeMigrationsForEnv(LocalEnvFile, command, args); err != nil {
+				log.Printf("Error migrating local database: %v", err)
+				// If only running for 'local' and it fails, exit with error for scripting purposes.
+				if environment == "local" {
+					os.Exit(1)
+				}
 			}
 		}
-	}
 
-	if environment == "aiven" || environment == "all" {
-		log.Println("==================================================")
-		log.Println("Running migrations on AIVEN database")
-		log.Println("==================================================")
-		clearEnvironmentVariables()
-		if err := executeMigrationsForEnv(AivenEnvFile, command, args); err != nil {
-			log.Printf("Error migrating Aiven database: %v", err)
-			os.Exit(1) // Exit with error if Aiven migration fails.
+		if environment == "aiven" || environment == "all" {
+			log.Println("==================================================")
+			log.Println("Running migrations on AIVEN database")
+			log.Println("==================================================")
+			clearEnvironmentVariables()
+			if err := executeMigrationsForEnv(AivenEnvFile, command, args); err != nil {
+				log.Printf("Error migrating Aiven database: %v", err)
+				os.Exit(1) // Exit with error if Aiven migration fails.
+			}
 		}
 	}
 
@@ -85,6 +97,7 @@ func main() {
 }
 
 // clearEnvironmentVariables unsets database-related environment variables.
+// This is NOT called in CI mode.
 func clearEnvironmentVariables() {
 	log.Println("Clearing database-related environment variables...")
 	for _, envVar := range envVarsToClear {
@@ -95,35 +108,81 @@ func clearEnvironmentVariables() {
 	}
 }
 
+// executeMigrationsCI runs migrations using system environment variables, typically for CI environments.
+func executeMigrationsCI(cmd string, args []string) error {
+	log.Println("Attempting to run migrations using system environment variables (CI mode)...")
+
+	// Construct database connection URL directly from system environment variables
+	dbUser := os.Getenv("POSTGRES_USER") // In CI, these are typically set by the pipeline
+	dbPass := os.Getenv("POSTGRES_PASSWORD")
+	dbHost := os.Getenv("POSTGRES_HOST")
+	dbPort := os.Getenv("POSTGRES_PORT")
+	dbName := os.Getenv("POSTGRES_DB")
+	sslMode := os.Getenv("DB_SSL_MODE") // Allow this to be set if needed, otherwise default
+
+	if dbHost == "" || dbPort == "" || dbUser == "" || dbName == "" {
+		// Attempt to fall back to DB_ prefixed variables if POSTGRES_ ones are not set
+		// This provides some flexibility if CI variables are named differently
+		log.Println("POSTGRES_ prefixed variables not fully set, trying DB_ prefixed variables...")
+		dbUser = os.Getenv("DB_USER")
+		dbPass = os.Getenv("DB_PASSWORD")
+		dbHost = os.Getenv("DB_HOST")
+		dbPort = os.Getenv("DB_PORT")
+		dbName = os.Getenv("DB_NAME")
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbName == "" {
+			return fmt.Errorf("one or more database connection parameters (POSTGRES_USER/DB_USER, etc.) not found in system environment variables for CI mode")
+		}
+	}
+
+	if sslMode == "" {
+		sslMode = "disable" // Default SSL mode if not specified
+		log.Printf("DB_SSL_MODE not set for CI, defaulting to '%s'", sslMode)
+	}
+
+	log.Printf("CI Database configuration: Host=%s, Port=%s, User=%s, DB=%s, SSLMode=%s",
+		dbHost, dbPort, dbUser, dbName, sslMode)
+
+	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		dbUser, dbPass, dbHost, dbPort, dbName, sslMode)
+
+	return runMigrations(dbURL, cmd, args, "CI Environment")
+}
+
 // executeMigrationsForEnv loads a specific .env file and runs migrations.
+// This is used for non-CI environments like 'local' or 'aiven'.
 func executeMigrationsForEnv(envFile string, cmd string, args []string) error {
 	log.Printf("Loading environment variables from: %s", envFile)
 	if err := godotenv.Load(envFile); err != nil {
 		return fmt.Errorf("error loading %s file: %w", envFile, err)
 	}
 
-	// Construct database connection URL
+	// Construct database connection URL from .env file variables
 	dbUser := os.Getenv("DB_USER")
 	dbPass := os.Getenv("DB_PASSWORD")
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
 	dbName := os.Getenv("DB_NAME")
-	sslMode := os.Getenv("DB_SSL_MODE") // Default to "disable" if not set, or handle as needed
+	sslMode := os.Getenv("DB_SSL_MODE")
 
 	if dbHost == "" || dbPort == "" || dbUser == "" || dbName == "" {
 		return fmt.Errorf("one or more database connection parameters (DB_HOST, DB_PORT, DB_USER, DB_NAME) not found in environment file %s", envFile)
 	}
 	if sslMode == "" {
 		sslMode = "disable" // Default SSL mode if not specified
-		log.Printf("DB_SSL_MODE not set, defaulting to '%s'", sslMode)
+		log.Printf("DB_SSL_MODE not set in %s, defaulting to '%s'", envFile, sslMode)
 	}
 
-	log.Printf("Database configuration: Host=%s, Port=%s, User=%s, DB=%s, SSLMode=%s",
-		dbHost, dbPort, dbUser, dbName, sslMode)
+	log.Printf("Database configuration from %s: Host=%s, Port=%s, User=%s, DB=%s, SSLMode=%s",
+		envFile, dbHost, dbPort, dbUser, dbName, sslMode)
 
 	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
 		dbUser, dbPass, dbHost, dbPort, dbName, sslMode)
 
+	return runMigrations(dbURL, cmd, args, envFile)
+}
+
+// runMigrations contains the common logic to execute migration commands once dbURL is determined.
+func runMigrations(dbURL, cmd string, args []string, contextEnv string) error {
 	// Determine migrations path
 	projectDir, err := getProjectRootDirectory()
 	if err != nil {
@@ -131,32 +190,31 @@ func executeMigrationsForEnv(envFile string, cmd string, args []string) error {
 	}
 	migrationsPath := filepath.Join(projectDir, "migrations")
 	migrationsURL := fmt.Sprintf("file://%s", filepath.ToSlash(migrationsPath))
-	log.Printf("Using migrations from: %s", migrationsURL)
+	log.Printf("Using migrations from: %s for %s", migrationsURL, contextEnv)
 
 	// Create migrate instance
 	m, err := migrate.New(migrationsURL, dbURL)
 	if err != nil {
-		return fmt.Errorf("failed to create migrate instance: %w. Check DB connection and migrations path", err)
+		return fmt.Errorf("failed to create migrate instance for %s: %w. Check DB connection and migrations path", contextEnv, err)
 	}
 	defer func() {
 		srcErr, dbErr := m.Close()
 		if srcErr != nil {
-			log.Printf("Error closing migration source: %v", srcErr)
+			log.Printf("Error closing migration source for %s: %v", contextEnv, srcErr)
 		}
 		if dbErr != nil {
-			log.Printf("Error closing migration database connection: %v", dbErr)
+			log.Printf("Error closing migration database connection for %s: %v", contextEnv, dbErr)
 		}
 	}()
 
 	// Execute the specified migration command
-	log.Printf("Executing command: '%s' with arguments: %v", cmd, args)
-	// Assign the result of runMigrationCommand to err to check it later
+	log.Printf("Executing command: '%s' with arguments: %v for %s", cmd, args, contextEnv)
 	migrationErr := runMigrationCommand(m, cmd, args)
 	if migrationErr != nil {
 		return migrationErr // Error is already contextualized by runMigrationCommand
 	}
 
-	log.Printf("Migrations command '%s' completed successfully for %s", cmd, envFile)
+	log.Printf("Migrations command '%s' completed successfully for %s", cmd, contextEnv)
 	return nil
 }
 
