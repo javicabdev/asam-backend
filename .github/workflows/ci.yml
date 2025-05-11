@@ -95,23 +95,21 @@ jobs:
           retention-days: 5
 
   # Job para ejecutar tests unitarios.
+  # Ejecuta tests en ./internal/... (si los hay colocalizados) Y en ./test/internal/...
+  # Mide cobertura solo para el código fuente en ./internal/...
   test-unit:
-    name: Unit Tests
+    name: Unit Tests (internal code coverage)
     runs-on: ubuntu-latest
     needs: [build]
-    env: # MODIFICADO: Añadir JWT secrets para que config.LoadConfig() no falle en tests de integración ejecutados aquí
+    env:
       JWT_ACCESS_SECRET: "test-access-secret-for-unit-tests"
       JWT_REFRESH_SECRET: "test-refresh-secret-for-unit-tests"
-      CGO_ENABLED: 1 # Para el flag -race
-      # Las variables DB_* no se definen aquí porque no hay servicio de BD.
-      # Los tests de integración que intenten conectar a BD fallarán la conexión,
-      # pero config.LoadConfig() no debería fallar por los JWT.
-      # Esto permite que tests que usan config pero no BD puedan pasar.
-      DB_HOST: localhost # Default para que config.LoadConfig no falle si espera algo
-      DB_PORT: "5432"
-      DB_USER: "testuser"
-      DB_PASSWORD: "testpassword"
-      DB_NAME: "testdb"
+      CGO_ENABLED: 1
+      DB_HOST: "testhost-unit"
+      DB_PORT: "1234"
+      DB_USER: "testuser-unit"
+      DB_PASSWORD: "testpassword-unit"
+      DB_NAME: "testdb-unit"
       DB_SSL_MODE: "disable"
       ENVIRONMENT: "test_unit"
 
@@ -133,10 +131,10 @@ jobs:
             ${{ runner.os }}-go-${{ env.GO_VERSION }}-cachev1-
       - name: Install dependencies
         run: go mod download
-      - name: Run unit tests
-        # Asegurarse de que -coverpkg=./... se use para incluir todos los paquetes en la cobertura
-        run: go test -v -race -coverprofile=coverage.out -covermode=atomic -coverpkg=./... ./...
-        # El CGO_ENABLED se hereda del 'env' del job
+      - name: Run unit tests and cover internal packages
+        # Ejecuta tests ubicados en ./internal/... Y en ./test/internal/...
+        # La cobertura (-coverpkg) se mide solo para el código fuente en ./internal/...
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic -coverpkg=./internal/... ./internal/... ./test/internal/...
       - name: Check coverage.out content (in test-unit)
         if: always()
         run: |
@@ -152,11 +150,11 @@ jobs:
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
-          name: unit-test-coverage
+          name: unit-test-coverage-internal
           path: coverage.out
           retention-days: 5
 
-  # Job para ejecutar tests de integración.
+  # Job para ejecutar tests de integración (enfocado en ./test/integration/...).
   test-integration:
     name: Integration Tests
     runs-on: ubuntu-latest
@@ -224,11 +222,10 @@ jobs:
 
       - name: Run integration tests
         run: go test -v -race -tags=integration ./test/integration/...
-        # CGO_ENABLED se hereda del env del job
 
-  # Job para el análisis de cobertura de código.
+  # Job para el análisis de cobertura de código (basado en tests unitarios de internal).
   code-coverage:
-    name: Code Coverage Analysis
+    name: Code Coverage Analysis (internal)
     runs-on: ubuntu-latest
     needs: [test-unit]
     steps:
@@ -241,7 +238,7 @@ jobs:
       - name: Download coverage report artifact
         uses: actions/download-artifact@v4
         with:
-          name: unit-test-coverage
+          name: unit-test-coverage-internal
       - name: Verify downloaded artifact and coverage.out
         run: |
           echo "--- Files in current directory (GITHUB_WORKSPACE) after download ---"
@@ -273,27 +270,30 @@ jobs:
           RAW_COVERAGE_OUTPUT=$(go tool cover -func=coverage.out)
           echo "Raw coverage output for processing:"
           echo "$RAW_COVERAGE_OUTPUT"
-          total_coverage=$(echo "$RAW_COVERAGE_OUTPUT" | grep 'total:' | awk '{print $3}' | sed 's/%//')
-          if [ -z "$total_coverage" ]; then
-            echo "Error: Could not parse total coverage from 'go tool cover -func' output."
-            echo "Attempting to see if any individual files show coverage > 0..."
-            if echo "$RAW_COVERAGE_OUTPUT" | grep -E '[1-9][0-9]*\.[0-9]+%|[0-9]\.[1-9]+%' | grep -v 'total:'; then
-                echo "Warning: Individual files show coverage, but the 'total:' line is missing or malformed."
-            else
-                echo "No coverage (lines with > 0%) detected in individual files from 'go tool cover -func' output."
-            fi
-            total_coverage="0.0" 
+          total_line=$(echo "$RAW_COVERAGE_OUTPUT" | grep 'total:')
+          if [ -z "$total_line" ]; then
+            echo "Error: 'total:' line not found in coverage output. Assuming 0.0% coverage for internal packages."
+            total_coverage="0.0"
+          else
+            total_coverage=$(echo "$total_line" | awk '{print $3}' | sed 's/%//')
           fi
-          echo "Current total coverage: $total_coverage%"
+          
+          if [ -z "$total_coverage" ]; then 
+            echo "Error: Could not parse total coverage for internal packages from 'go tool cover -func' output. Assuming 0.0%."
+            total_coverage="0.0"
+          fi
+          
+          echo "Current total coverage for internal packages: $total_coverage%"
           if ! [[ "$total_coverage" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
-              echo "Error: Parsed total_coverage ('$total_coverage') is not a valid number."
+              echo "Error: Parsed total_coverage ('$total_coverage') for internal packages is not a valid number."
               total_coverage="0.0"
           fi
+
           if (( $(echo "$total_coverage < 70.0" | bc -l) )); then
-            echo "Error: Code coverage ($total_coverage%) is below the required 70% threshold."
+            echo "Error: Code coverage for internal packages ($total_coverage%) is below the required 70% threshold."
             exit 1
           else
-            echo "Code coverage meets the 70% threshold."
+            echo "Code coverage for internal packages meets the 70% threshold."
           fi
       - name: Convert coverage to HTML
         if: always()
@@ -308,7 +308,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report-html
+          name: coverage-report-html-internal
           path: coverage.html
           if-no-files-found: ignore
           retention-days: 7
