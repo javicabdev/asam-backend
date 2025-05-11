@@ -13,10 +13,39 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # Job para verificar el código antes de crear el release
+  verify:
+    name: Verify Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Generate GraphQL code
+        run: go run ./cmd/generate/main.go
+
+      - name: Run unit tests
+        run: go test -v -race ./internal/... ./pkg/...
+
+      - name: Run security scan
+        uses: securego/gosec@master
+        with:
+          args: ./...
+
   # Job para crear y publicar el release en GitHub
   create-release:
     name: Create Release
     runs-on: ubuntu-latest
+    needs: [verify]
     permissions:
       contents: write
       packages: write
