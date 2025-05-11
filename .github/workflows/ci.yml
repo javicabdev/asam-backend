@@ -206,14 +206,9 @@ jobs:
         run: go run ./cmd/migrate/main.go
         # El script de migración (cmd/migrate/main.go) ya está modificado para usar
         # las variables de entorno POSTGRES_* directamente en modo CI.
-        # Estas variables se heredan del entorno global del workflow.
-        # Si se necesita ser explícito o si hay un conflicto, se pueden definir aquí:
-        env:
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
-          POSTGRES_HOST: ${{ env.POSTGRES_HOST }} # Directamente del workflow env
-          POSTGRES_PORT: ${{ env.POSTGRES_PORT }} # Directamente del workflow env
+        # Estas variables (POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, POSTGRES_HOST, POSTGRES_PORT)
+        # se heredan del entorno global del workflow y están disponibles para este script.
+        # Por lo tanto, el bloque 'env:' explícito para este paso se elimina.
 
       - name: Run integration tests
         run: go test -v -race -tags=integration ./test/integration/...
