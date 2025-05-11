@@ -41,18 +41,18 @@ jobs:
         # Usar restore-mode: copy para prevenir sobreescritura de archivos existentes
         env:
           SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
-          
+
       # Aseguramos que los directorios de módulos estén disponibles
       - name: Ensure Go module directories
         run: |
           mkdir -p ~/go/pkg/mod
-          
+
       # Descargar las dependencias
       - name: Download dependencies
         run: |
           go mod tidy
           go mod download
-        
+
       # Verificar integridad de dependencias
       - name: Verify dependencies
         run: go mod verify
