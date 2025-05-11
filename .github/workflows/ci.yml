@@ -161,9 +161,9 @@ jobs:
     env:
       DB_HOST: localhost
       DB_PORT: "5432"
-      DB_USER: ${{ env.POSTGRES_USER }}
-      DB_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-      DB_NAME: ${{ env.POSTGRES_DB }}
+      DB_USER: postgres                 # MODIFICADO: Valor directo
+      DB_PASSWORD: postgres             # MODIFICADO: Valor directo
+      DB_NAME: asam_test_db             # MODIFICADO: Valor directo
       DB_SSL_MODE: "disable"
 
       JWT_ACCESS_SECRET: "test-access-secret-for-ci"
@@ -200,7 +200,7 @@ jobs:
           pg_isready -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME
           echo "PostgreSQL is up and running!"
         env:
-          PGPASSWORD: ${{ env.DB_PASSWORD }}
+          PGPASSWORD: ${{ env.DB_PASSWORD }} # Esto usará el DB_PASSWORD del job env, que ahora es 'postgres'
 
       - name: Run database migrations
         run: go run ./cmd/migrate/main.go
@@ -212,7 +212,7 @@ jobs:
       - name: Run integration tests
         run: go test -v -race -tags=integration ./test/integration/...
         # Los tests (a través de config.go) leerán DB_HOST="localhost",
-        # DB_PASSWORD, etc., del entorno del job.
+        # DB_USER="postgres", DB_PASSWORD="postgres", DB_NAME="asam_test_db", etc., del entorno del job.
 
   # Job para el análisis de cobertura de código.
   code-coverage:
