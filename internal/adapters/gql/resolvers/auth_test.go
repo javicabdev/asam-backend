@@ -19,6 +19,12 @@ type MockAuthService struct {
 	mock.Mock
 }
 
+// Definir un tipo personalizado para la clave
+type contextKey string
+
+// Crear una constante con ese tipo
+const authorizationKey contextKey = "authorization"
+
 func (m *MockAuthService) Login(ctx context.Context, username, password string) (*input.TokenDetails, error) {
 	args := m.Called(ctx, username, password)
 	if args.Get(0) == nil {
@@ -135,7 +141,7 @@ func TestLogout(t *testing.T) {
 	}
 
 	// Crear contexto con token - usar una clave tipada como en la implementación real
-	ctx := context.WithValue(context.Background(), "authorization", "Bearer test-token")
+	ctx := context.WithValue(context.Background(), authorizationKey, "Bearer test-token")
 
 	// Configurar el mock para aceptar cualquier contexto y devolver nil (éxito)
 	mockAuthService.On("Logout", mock.Anything, "test-token").Return(nil)
