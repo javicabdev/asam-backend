@@ -159,8 +159,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DB_HOST: ${{ env.POSTGRES_HOST }}
-      DB_PORT: ${{ env.POSTGRES_PORT }}
+      DB_HOST: localhost  # MODIFICADO: Valor directo en lugar de ${{ env.POSTGRES_HOST }}
+      DB_PORT: "5432"     # MODIFICADO: Valor directo en lugar de ${{ env.POSTGRES_PORT }}
       DB_USER: ${{ env.POSTGRES_USER }}
       DB_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
       DB_NAME: ${{ env.POSTGRES_DB }}
@@ -208,7 +208,6 @@ jobs:
         # las variables de entorno POSTGRES_* directamente en modo CI.
         # Estas variables (POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, POSTGRES_HOST, POSTGRES_PORT)
         # se heredan del entorno global del workflow y están disponibles para este script.
-        # Por lo tanto, el bloque 'env:' explícito para este paso se elimina.
 
       - name: Run integration tests
         run: go test -v -race -tags=integration ./test/integration/...
@@ -302,6 +301,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # Job para el análisis de complejidad y vulnerabilidades del código.
   code-analysis:
     name: Code Quality & Security Analysis
     runs-on: ubuntu-latest
