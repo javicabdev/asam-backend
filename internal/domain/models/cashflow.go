@@ -12,11 +12,11 @@ var (
 	// ErrInvalidOperationType error que se produce cuando el tipo de operación no es válido
 	ErrInvalidOperationType = errors.New("tipo de operación inválido")
 	// ErrInvalidAmount error que se produce cuando el monto no es válido
-	ErrInvalidAmount        = errors.New("monto inválido")
+	ErrInvalidAmount = errors.New("monto inválido")
 	// ErrInvalidDate error que se produce cuando la fecha no es válida
-	ErrInvalidDate          = errors.New("fecha inválida")
+	ErrInvalidDate = errors.New("fecha inválida")
 	// ErrMissingDetail error que se produce cuando falta el detalle
-	ErrMissingDetail        = errors.New("detalle requerido")
+	ErrMissingDetail = errors.New("detalle requerido")
 )
 
 // CashFlow representa un movimiento en el flujo de caja de la asociación.
