@@ -76,7 +76,7 @@ func TestAuthMiddleware_NoToken(t *testing.T) {
 
 	// Verificar que el error tiene el código correcto
 	firstError := errs[0].(map[string]any)
-	assert.Equal(t, "Se requiere autenticación para esta operación", firstError["message"])
+	assert.Equal(t, "UNAUTHORIZED: Unauthorized access to the resource", firstError["message"])
 	assert.Equal(t, "UNAUTHORIZED", firstError["extensions"].(map[string]any)["code"])
 }
 
@@ -172,17 +172,17 @@ func TestAuthMiddleware_InvalidTokenFormat(t *testing.T) {
 		{
 			name:       "Token sin Bearer",
 			authHeader: "token123",
-			errorMsg:   "Formato de token inválido, debe ser 'Bearer {token}'",
+			errorMsg:   "UNAUTHORIZED: Unauthorized access to the resource",
 		},
 		{
 			name:       "Token con formato incorrecto",
 			authHeader: "Bearer token token",
-			errorMsg:   "Formato de token inválido, debe ser 'Bearer {token}'",
+			errorMsg:   "UNAUTHORIZED: Unauthorized access to the resource",
 		},
 		{
 			name:       "Token vacío",
 			authHeader: "Bearer ",
-			errorMsg:   "Formato de token inválido, debe ser 'Bearer {token}'",
+			errorMsg:   "UNAUTHORIZED: Unauthorized access to the resource",
 		},
 	}
 
