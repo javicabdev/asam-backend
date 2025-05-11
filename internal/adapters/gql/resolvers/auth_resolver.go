@@ -117,15 +117,20 @@ func mapUserToGQL(user *models.User) *models.User {
 
 // getAccessTokenFromContext obtiene el token de acceso del contexto
 func getAccessTokenFromContext(ctx context.Context) (string, error) {
-	// Primero intentar obtener del contexto con la clave que usa el middleware
-	token, ok := ctx.Value("authorization").(string)
-	if !ok || token == "" {
-		// Intentar buscar en los headers
-		if authHeader, ok := ctx.Value("Authorization").(string); ok && authHeader != "" {
-			token = authHeader
-		} else {
-			return "", errors.NewBusinessError(errors.ErrUnauthorized, "token no encontrado en el contexto")
+	// Intentar obtener el token de las posibles ubicaciones en el contexto
+	var token string
+
+	// Comprobar todas las posibles claves donde puede estar el token
+	for _, key := range []any{"authorization", "Authorization"} {
+		if authVal, ok := ctx.Value(key).(string); ok && authVal != "" {
+			token = authVal
+			break
 		}
+	}
+
+	// Si no se encontró el token, devolver error
+	if token == "" {
+		return "", errors.NewBusinessError(errors.ErrUnauthorized, "token no encontrado en el contexto")
 	}
 
 	// Quitar el prefijo "Bearer " si existe
