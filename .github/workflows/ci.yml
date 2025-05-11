@@ -1,73 +1,306 @@
-name: CI
+# Name of the GitHub Actions workflow.
+name: CI Pipeline
 
+# Controls when the workflow will run.
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
+
+# Environment variables available to all jobs and steps in the workflow.
+env:
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_DB: asam_test
+  POSTGRES_HOST: localhost
+  POSTGRES_PORT: 5432
+  GO_VERSION: '1.24'
 
 jobs:
-  build:
+  # Job para realizar el linting del código.
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
-          cache: false
+          go-version: ${{ env.GO_VERSION }}
 
-      # Limpiamos el directorio de módulos para evitar conflictos
-      - name: Clean Go module cache completely
+      # Paso para instalar y configurar golangci-lint.
+      # Notas importantes para golangci-lint v2:
+      # 1. Requiere actions/setup-go explícitamente antes de usarse
+      # 2. Los argumentos y opciones han cambiado significativamente
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Generate GraphQL code
+        run: go run ./cmd/generate/main.go
+
+      - name: Install and run golangci-lint
+        uses: golangci/golangci-lint-action@v8.0.0
+        with:
+          version: v2.1.6
+          args: --timeout=5m
+
+      - name: Verify Go modules
+        run: go mod verify
+
+      - name: Check go.mod and go.sum
         run: |
-          go clean -modcache
-          go clean -cache
-        continue-on-error: true
+          go mod tidy -v
+          if ! git diff --quiet go.mod go.sum; then
+            echo "go.mod or go.sum needs updating. Please run 'go mod tidy' and commit the changes."
+            git diff
+            exit 1
+          fi
 
-      # Estrategia de caché mejorada
+      - name: Check formatting with gofmt
+        run: |
+          OUTPUT=$(gofmt -l -s .)
+          if [ -n "$OUTPUT" ]; then
+            echo "The following files need formatting (run 'gofmt -w .'):"
+            echo "$OUTPUT"
+            exit 1
+          fi
+          echo "All files are correctly formatted."
+
+  # Job para construir la aplicación.
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
       - name: Cache Go modules
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}-${{ github.sha }}
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ env.GO_VERSION }}-${{ hashFiles('**/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}-
-            ${{ runner.os }}-go-
-        # Configuración adicional para manejo de caché
-        # Usar restore-mode: copy para prevenir sobreescritura de archivos existentes
-        env:
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
+            ${{ runner.os }}-go-${{ env.GO_VERSION }}-
 
-      # Aseguramos que los directorios de módulos estén disponibles
-      - name: Ensure Go module directories
-        run: |
-          mkdir -p ~/go/pkg/mod
+      - name: Install dependencies
+        run: go mod download
 
-      # Descargar las dependencias
-      - name: Download dependencies
-        run: |
-          go mod tidy
-          go mod download
+      - name: Generate GraphQL code
+        run: go run ./cmd/generate/main.go
 
-      # Verificar integridad de dependencias
-      - name: Verify dependencies
-        run: go mod verify
+      - name: Build application
+        run: go build -v -o asam-backend ./cmd/api
 
-      # Ejecutar los tests
-      - name: Run tests
-        run: go test -v ./...
-
-      # Construir la aplicación
-      - name: Build
-        run: go build -v ./...
-
-      # Ejecutar linter
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v5
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
         with:
-          version: latest
-          args: --timeout=5m
+          name: asam-backend-${{ env.GO_VERSION }}
+          path: asam-backend
+          retention-days: 5
+
+  # Job para ejecutar tests unitarios.
+  test-unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: [lint, build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ env.GO_VERSION }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-${{ env.GO_VERSION }}-
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run unit tests
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./internal/... ./pkg/...
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-coverage
+          path: coverage.out
+          retention-days: 5
+
+  # Job para ejecutar tests de integración.
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [lint, build]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ env.GO_VERSION }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-${{ env.GO_VERSION }}-
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          echo "Waiting for PostgreSQL to start..."
+          for i in {1..15}; do
+            pg_isready -h ${{ env.POSTGRES_HOST }} -p ${{ env.POSTGRES_PORT }} -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }} && break
+            echo "PostgreSQL not ready yet, waiting ($i/15)..."
+            sleep 2
+          done
+          pg_isready -h ${{ env.POSTGRES_HOST }} -p ${{ env.POSTGRES_PORT }} -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }}
+          echo "PostgreSQL is up and running!"
+        env:
+          PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
+
+      - name: Run database migrations
+        run: go run ./cmd/migrate/main.go up
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_HOST: ${{ env.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ env.POSTGRES_PORT }}
+
+      - name: Run integration tests
+        run: go test -v -race -tags=integration ./test/integration/...
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_HOST: ${{ env.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ env.POSTGRES_PORT }}
+
+  # Job para el análisis de cobertura de código.
+  code-coverage:
+    name: Code Coverage Analysis
+    runs-on: ubuntu-latest
+    needs: [test-unit]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download coverage report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: unit-test-coverage
+
+      - name: Display coverage summary
+        run: go tool cover -func=coverage.out
+
+      - name: Convert coverage to HTML
+        run: go tool cover -html=coverage.out -o coverage.html
+
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-html
+          path: coverage.html
+          retention-days: 7
+
+      - name: Check coverage threshold (70%)
+        run: |
+          total_coverage=$(go tool cover -func=coverage.out | grep 'total:' | awk '{print $3}' | sed 's/%//')
+          echo "Current total coverage: $total_coverage%"
+          if (( $(echo "$total_coverage < 70.0" | bc -l) )); then
+            echo "Error: Code coverage ($total_coverage%) is below the required 70% threshold."
+            exit 1
+          else
+            echo "Code coverage meets the 70% threshold."
+          fi
+
+  # Job para el análisis de complejidad del código.
+  complexity-analysis:
+    name: Code Complexity Analysis
+    runs-on: ubuntu-latest
+    needs: [lint]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Cache Go installed tools
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin
+          key: ${{ runner.os }}-go-tools-${{ env.GO_VERSION }}-${{ hashFiles('**/go.mod') }}
+
+      - name: Install gocyclo
+        run: go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+
+      - name: Run cyclomatic complexity analysis
+        run: |
+          echo "Running gocyclo (threshold > 15)..."
+          OUTPUT=$($(go env GOPATH)/bin/gocyclo -over 15 -avg ./...)
+          if [ -n "$OUTPUT" ]; then
+            echo "Warning: Some functions have high cyclomatic complexity (over 15):"
+            echo "$OUTPUT"
+          else
+            echo "No functions exceed cyclomatic complexity of 15."
+          fi
+          $(go env GOPATH)/bin/gocyclo -avg ./...
+
+      - name: Install ineffassign
+        run: go install github.com/gordonklaus/ineffassign@latest
+
+      - name: Run ineffassign (check for ineffectual assignments)
+        run: |
+          echo "Running ineffassign..."
+          $(go env GOPATH)/bin/ineffassign ./...
+          echo "ineffassign found no issues."
