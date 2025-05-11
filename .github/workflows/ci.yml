@@ -302,7 +302,6 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # Job para el análisis de complejidad y vulnerabilidades del código.
   code-analysis:
     name: Code Quality & Security Analysis
     runs-on: ubuntu-latest
