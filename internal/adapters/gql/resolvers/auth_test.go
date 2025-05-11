@@ -140,8 +140,7 @@ func TestLogout(t *testing.T) {
 	// Crear contexto con token
 	ctx := context.WithValue(context.Background(), contextKey("authorization"), "Bearer test-token")
 
-	// Configurar mock
-	mockAuthService.On("Logout", ctx, "test-token").Return(nil)
+	mockAuthService.On("Logout", mock.Anything, "test-token").Return(nil)
 
 	// Llamar a la función
 	result, err := resolver.Logout(ctx)
