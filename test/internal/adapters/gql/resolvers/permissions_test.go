@@ -1,4 +1,4 @@
-package gql_test
+package resolvers_test
 
 import (
 	"context"
