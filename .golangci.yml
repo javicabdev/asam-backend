@@ -35,13 +35,14 @@ linters:
       lines: 100
       statements: 50
 
-  # Exclusiones - reemplaza 'run.skip-dirs' en v2
+  # Exclusiones - rutas y patrones verificados que existen en el proyecto
   exclusions:
     warn-unused: true
-    # Excluir directorios generados
+    
+    # Paths - Rutas verificadas que existen en el proyecto
     paths:
       - internal/adapters/gql/generated
-
+    
     # Reglas de exclusión
     rules:
       # Excluir globalmente el issue "package-comments" del linter "revive"
@@ -49,24 +50,20 @@ linters:
           - revive
         text: "package-comments: should have a package comment"
 
-      # Excluir específicamente los issues de "unused-parameter" de "revive"
-      - path: schema\.resolvers\.go$
+      # Excluir issues de "unused-parameter" para schema.resolvers.go
+      - path: internal/adapters/gql/resolvers/schema\.resolvers\.go$
         linters:
           - revive
         text: "unused-parameter: parameter 'ctx' seems to be unused, consider removing or renaming it as _"
 
-      # Reglas de exclusión generales existentes
+      # Reglas generales para archivos generados automáticamente
       - path: ".*_generated\\.go$"
         text: "."
       - path: ".*\\.pb\\.go$"
         text: "."
 
-      # Exclusión global para schema.resolvers.go
-      - path: schema\.resolvers\.go$
-        text: "."
-
-      # Path corregido para pkg/errors/errors.go
-      - path: "pkg(?:/|\\\\)errors(?:/|\\\\)errors\\.go"
+      # Exclusión específica para schema.resolvers.go
+      - path: internal/adapters/gql/resolvers/schema\.resolvers\.go$
         text: "."
 
       # Exclusión para archivos de test
