@@ -9,7 +9,6 @@ on:
     branches: [ main, develop ]
 
 # Variables de entorno globales del workflow.
-# Estas son las que el servicio PostgreSQL y las migraciones usan.
 env:
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: postgres
@@ -100,10 +99,6 @@ jobs:
     name: Unit Tests
     runs-on: ubuntu-latest
     needs: [build]
-    env:
-      JWT_ACCESS_SECRET: "test-access-secret-for-ci"
-      JWT_REFRESH_SECRET: "test-refresh-secret-for-ci"
-      ENVIRONMENT: "test_ci"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -123,7 +118,9 @@ jobs:
       - name: Install dependencies
         run: go mod download
       - name: Run unit tests
-        run: go test -v -race -coverprofile=coverage.out -covermode=atomic -coverpkg=./internal/... ./test/...
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic -coverpkg=./... ./...
+        env: # Añadido para habilitar CGO para el detector de carreras
+          CGO_ENABLED: 1
       - name: Check coverage.out content (in test-unit)
         if: always()
         run: |
@@ -165,15 +162,15 @@ jobs:
     env:
       DB_HOST: localhost
       DB_PORT: "5432"
-      DB_USER: postgres                 # MODIFICADO: Valor directo
-      DB_PASSWORD: postgres             # MODIFICADO: Valor directo
-      DB_NAME: asam_test_db             # MODIFICADO: Valor directo
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: asam_test_db
       DB_SSL_MODE: "disable"
 
       JWT_ACCESS_SECRET: "test-access-secret-for-ci"
       JWT_REFRESH_SECRET: "test-refresh-secret-for-ci"
       ENVIRONMENT: "test_ci"
-      # CI: true es establecido automáticamente por GitHub Actions
+      CGO_ENABLED: 1 # Habilitar CGO también para tests de integración si usan -race
 
     steps:
       - name: Checkout code
@@ -204,19 +201,16 @@ jobs:
           pg_isready -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME
           echo "PostgreSQL is up and running!"
         env:
-          PGPASSWORD: ${{ env.DB_PASSWORD }} # Esto usará el DB_PASSWORD del job env, que ahora es 'postgres'
+          PGPASSWORD: ${{ env.DB_PASSWORD }}
 
       - name: Run database migrations
         run: go run ./cmd/migrate/main.go
-        # El script de migración (cmd/migrate/main.go) ya está modificado para usar
-        # las variables de entorno POSTGRES_* directamente en modo CI.
-        # Estas variables (POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, POSTGRES_HOST, POSTGRES_PORT)
-        # se heredan del entorno global del workflow y están disponibles para este script.
 
       - name: Run integration tests
         run: go test -v -race -tags=integration ./test/integration/...
-        # Los tests (a través de config.go) leerán DB_HOST="localhost",
-        # DB_USER="postgres", DB_PASSWORD="postgres", DB_NAME="asam_test_db", etc., del entorno del job.
+        env: # Añadido para asegurar CGO para el detector de carreras en tests de integración
+          CGO_ENABLED: 1
+
 
   # Job para el análisis de cobertura de código.
   code-coverage:
