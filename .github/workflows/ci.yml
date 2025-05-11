@@ -134,8 +134,9 @@ jobs:
       - name: Install dependencies
         run: go mod download
 
+      # Modificado: Añadido -coverpkg para especificar los paquetes a cubrir
       - name: Run unit tests
-        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./internal/... ./pkg/...
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic -coverpkg=./internal/...,./pkg/... ./internal/... ./pkg/...
 
       # Paso de depuración: Verificar coverage.out en el job test-unit
       - name: Check coverage.out content (in test-unit)
@@ -181,8 +182,6 @@ jobs:
     env:
       JWT_ACCESS_SECRET: "test-access-secret-for-ci" # Valor de prueba
       JWT_REFRESH_SECRET: "test-refresh-secret-for-ci" # Añadido para los tests
-      # Puedes añadir otras variables específicas para los tests de integración aquí si es necesario
-      # Las variables globales del workflow (POSTGRES_USER, etc.) también están disponibles.
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -220,22 +219,15 @@ jobs:
 
       - name: Run database migrations
         run: go run ./cmd/migrate/main.go
-        # El script main.go ahora usará las variables de entorno del sistema en modo CI.
-        # Las variables definidas en el bloque 'env:' del workflow o del job están disponibles.
-        # El bloque 'env:' de este paso asegura que estas variables específicas se pasen al proceso 'go run'.
         env:
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
           POSTGRES_DB: ${{ env.POSTGRES_DB }}
           POSTGRES_HOST: ${{ env.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ env.POSTGRES_PORT }}
-          # JWT_ACCESS_SECRET y JWT_REFRESH_SECRET también estarán disponibles desde el 'env:' del job.
 
       - name: Run integration tests
         run: go test -v -race -tags=integration ./test/integration/...
-        # Las variables de entorno definidas a nivel de job (como JWT_ACCESS_SECRET, JWT_REFRESH_SECRET)
-        # y a nivel de workflow (como POSTGRES_USER) estarán disponibles para este paso.
-        # No es necesario redefinirlas aquí a menos que necesites sobreescribirlas.
 
   # Job para el análisis de cobertura de código.
   code-coverage:
@@ -255,9 +247,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: unit-test-coverage
-          # El artefacto se extraerá al directorio de trabajo GITHUB_WORKSPACE
 
-      # Paso de depuración: Verificar coverage.out en el job code-coverage
       - name: Verify downloaded artifact and coverage.out
         run: |
           echo "--- Files in current directory (GITHUB_WORKSPACE) after download ---"
@@ -272,7 +262,6 @@ jobs:
           fi
           echo "--- End of downloaded coverage.out check ---"
 
-      # Paso de depuración: Mostrar la salida cruda de go tool cover -func
       - name: Display raw coverage summary from go tool cover
         run: |
           echo "--- Raw output of 'go tool cover -func=coverage.out' ---"
@@ -308,8 +297,6 @@ jobs:
           fi
           
           echo "Current total coverage: $total_coverage%"
-          # bc -l requiere que el input sea válido; si total_coverage no es un número, fallará.
-          # Asegurémonos de que total_coverage sea un número flotante válido.
           if ! [[ "$total_coverage" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
               echo "Error: Parsed total_coverage ('$total_coverage') is not a valid number."
               total_coverage="0.0"
@@ -323,7 +310,7 @@ jobs:
           fi
 
       - name: Convert coverage to HTML
-        if: always() # Intentar generar el HTML incluso si el umbral falla, para inspección
+        if: always()
         run: |
           if [ -f coverage.out ]; then
             go tool cover -html=coverage.out -o coverage.html
@@ -333,12 +320,12 @@ jobs:
           fi
 
       - name: Upload HTML coverage report
-        if: always() # Subir si se generó
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report-html
           path: coverage.html
-          if-no-files-found: ignore # No fallar si coverage.html no se pudo generar
+          if-no-files-found: ignore
           retention-days: 7
 
   # Job para el análisis de complejidad y vulnerabilidades del código.
