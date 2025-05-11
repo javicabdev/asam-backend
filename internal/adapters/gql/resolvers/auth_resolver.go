@@ -9,6 +9,12 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/errors"
 )
 
+// Define un tipo personalizado para claves del contexto
+type contextKey string
+
+// Definir la clave para el token de autorización en el contexto
+const authorizationKey contextKey = "authorization"
+
 // Login Mutation.login implementa la mutación de login
 func (r *Resolver) Login(ctx context.Context, input model.LoginInput) (*model.AuthResponse, error) {
 	// Extraer username y password del input
@@ -120,12 +126,8 @@ func getAccessTokenFromContext(ctx context.Context) (string, error) {
 	// Intentar obtener el token de las posibles ubicaciones en el contexto
 	var token string
 
-	// Comprobar todas las posibles claves donde puede estar el token
-	for _, key := range []any{"authorization", "Authorization"} {
-		if authVal, ok := ctx.Value(key).(string); ok && authVal != "" {
-			token = authVal
-			break
-		}
+	if tokenVal, ok := ctx.Value(authorizationKey).(string); ok && tokenVal != "" {
+		token = tokenVal
 	}
 
 	// Si no se encontró el token, devolver error

@@ -110,8 +110,8 @@ func AuthMiddleware(authService input.AuthService, logger logger.Logger) func(ht
 				return
 			}
 
-			// Obtener y validar el token del header Authorization
-			token, err := validateAuthHeader(r.Header.Get("Authorization"))
+			// Obtener y validar el token del header authorization
+			token, err := validateAuthHeader(r.Header.Get("authorization"))
 			if err != nil {
 				handleAuthFailure(w, err.Error(), logger, operationName, getClientIP(r), nil)
 				return

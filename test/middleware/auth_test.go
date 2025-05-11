@@ -192,7 +192,7 @@ func TestAuthMiddleware_InvalidTokenFormat(t *testing.T) {
 			query := `{"operationName":"GetMember","query":"query GetMember($id: ID!) { getMember(id: $id) { nombre apellidos } }"}`
 			req := httptest.NewRequest("POST", "/graphql", strings.NewReader(query))
 			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("Authorization", tc.authHeader)
+			req.Header.Set("authorization", tc.authHeader)
 
 			// Configurar GetBody para que la solicitud pueda ser leída múltiples veces
 			req.GetBody = func() (io.ReadCloser, error) {
