@@ -1,11 +1,10 @@
 # Archivo de configuración para golangci-lint, ajustado para v2.1.6
-# Se reintroduce 'version: "2"' ya que v2.1.6 lo requiere explícitamente.
+# Se usa linters.exclusions.rules para ignorar archivos/directorios completos.
 version: "2"
 
 run:
   go: '1.24'
   timeout: 5m
-  # La propiedad skip-dirs fue eliminada. Usar linters.skip en su lugar.
 
 linters:
   enable:
@@ -23,15 +22,10 @@ linters:
     # - gocritic
     # - nolintlint
 
-  # linters.skip reemplaza a run.skip-dirs y run.skip-files.
-  # Especifica directorios o archivos a ignorar completamente por todos los linters.
-  skip:
-    - internal/adapters/gql/generated/ # Directorio a ignorar (nota la barra al final)
+  # 'linters.skip' fue eliminado ya que causaba error de validación con v2.1.6 en CI.
+  # Las exclusiones de archivos/directorios se manejarán en 'linters.exclusions.rules'.
 
-  # Se mantienen las exclusiones aquí, ya que v2.1.6 pareció tener problemas
-  # con 'issues.exclude-rules' en ejecuciones anteriores.
   exclusions:
-    # 'warn-unused' en lugar de 'warn-unused-exclusions' y directamente bajo 'exclusions'.
     warn-unused: true
     rules:
       # Excluir globalmente el issue "package-comments" del linter "revive".
@@ -43,29 +37,24 @@ linters:
       - path: internal/adapters/gql/resolvers/schema\.resolvers\.go$
         text: "." # Excluye todos los issues de todos los linters en este path.
 
-      # REGLA COMENTADA: La regla específica para unused-parameter en schema.resolvers.go
-      # ya no es necesaria debido a la exclusión general de arriba.
-      # - path: internal/adapters/gql/resolvers/schema\.resolvers\.go$
-      #   linters:
-      #     - revive
-      #   text: "unused-parameter: parameter '.*' seems to be unused, consider removing or renaming it as _"
+      # NUEVA REGLA: Excluir TODOS los issues del directorio generated
+      - path: internal/adapters/gql/generated/
+        text: "." # Excluye todos los issues de todos los linters en este path.
 
       # Reglas de exclusión generales existentes
-      - path: ".*_generated\\.go$"
-        text: "." # Excluye todos los issues de todos los linters para estos paths.
+      - path: ".*_generated\\.go$" # Esta podría ser redundante si los archivos están en el dir de arriba
+        text: "."
       - path: ".*\\.pb\\.go$"
-        text: "." # Excluye todos los issues de todos los linters para estos paths.
-
+        text: "."
       - path: "pkg(?:/|\\\\)errors(?:/|\\\\)errors\\.go"
         text: "."
-
       - path: "_test\\.go$"
         linters:
           - errcheck
           - funlen
 
 # Configuración específica para linters individuales.
-# Se mantiene en el nivel raíz.
+# Se mantiene en el nivel raíz según la guía v2. Si sigue fallando en CI, es un problema de v2.1.6.
 linters-settings:
   govet:
     check-shadowing: true
@@ -84,14 +73,20 @@ linters-settings:
     lines: 100
     statements: 50
   revive:
-    ignore-generated-header: true
+    ignore-generated-header: true # Para que revive ignore archivos con cabeceras de generación automática.
     # confidence: 0.8
 
 issues:
-  # Solo se mantienen las configuraciones de 'issues' que no están relacionadas con las reglas de exclusión.
   max-same-issues: 300
-  # new-from-rev: HEAD~1
-  # max-issues-per-linter: 0
+
+    # 'issues.exclude' se usa para patrones de texto de error, no para excluir archivos/directorios.
+    # Por lo tanto, las entradas anteriores para archivos/directorios se han eliminado de aquí.
+    # exclude:
+    # - internal/adapters/gql/generated/
+  # - internal/adapters/gql/resolvers/schema\.resolvers\.go
+
+  # Opcional: Si no quieres las exclusiones por defecto de golangci-lint (como vendor, testdata),
+  # puedes descomentar la siguiente línea. Por ahora, la dejamos comentada.
   # exclude-use-default: false
 
 # output:
