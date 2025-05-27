@@ -94,7 +94,7 @@ func (p *ProfilingServer) Stop() error {
 }
 
 // handleMemoryStats handles the memory stats endpoint
-func (p *ProfilingServer) handleMemoryStats(w http.ResponseWriter, r *http.Request) {
+func (p *ProfilingServer) handleMemoryStats(w http.ResponseWriter, _ *http.Request) {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 	
@@ -126,7 +126,7 @@ func (p *ProfilingServer) handleMemoryStats(w http.ResponseWriter, r *http.Reque
 }
 
 // handleGraphQLMetrics handles the GraphQL metrics endpoint
-func (p *ProfilingServer) handleGraphQLMetrics(w http.ResponseWriter, r *http.Request) {
+func (p *ProfilingServer) handleGraphQLMetrics(w http.ResponseWriter, _ *http.Request) {
 	if p.gqlTracer == nil {
 		http.Error(w, "GraphQL tracer not configured", http.StatusNotFound)
 		return
@@ -142,7 +142,7 @@ func (p *ProfilingServer) handleGraphQLMetrics(w http.ResponseWriter, r *http.Re
 }
 
 // handleDBMetrics handles the database metrics endpoint
-func (p *ProfilingServer) handleDBMetrics(w http.ResponseWriter, r *http.Request) {
+func (p *ProfilingServer) handleDBMetrics(w http.ResponseWriter, _ *http.Request) {
 	if p.db == nil {
 		http.Error(w, "Database not configured", http.StatusNotFound)
 		return
@@ -175,7 +175,7 @@ func (p *ProfilingServer) handleDBMetrics(w http.ResponseWriter, r *http.Request
 }
 
 // handleSlowQueries handles the slow queries endpoint
-func (p *ProfilingServer) handleSlowQueries(w http.ResponseWriter, r *http.Request) {
+func (p *ProfilingServer) handleSlowQueries(w http.ResponseWriter, _ *http.Request) {
 	if p.queryMonitor == nil {
 		http.Error(w, "Query monitor not configured", http.StatusNotFound)
 		return
@@ -209,7 +209,7 @@ func (p *ProfilingServer) handleSlowQueries(w http.ResponseWriter, r *http.Reque
 }
 
 // handleSystemInfo handles the system info endpoint
-func (p *ProfilingServer) handleSystemInfo(w http.ResponseWriter, r *http.Request) {
+func (p *ProfilingServer) handleSystemInfo(w http.ResponseWriter, _ *http.Request) {
 	info := map[string]interface{}{
 		"goVersion":      runtime.Version(),
 		"goOS":           runtime.GOOS,

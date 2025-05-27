@@ -117,8 +117,8 @@ func (a *GraphQLTracer) GetResolverMetrics() []ResolverMetrics {
 		
 		// Calculate statistics
 		count := len(durations)
-		min := durations[0]
-		max := durations[count-1]
+		minDuration := durations[0]
+		maxDuration := durations[count-1]
 		
 		var sum time.Duration
 		for _, d := range durations {
@@ -133,8 +133,8 @@ func (a *GraphQLTracer) GetResolverMetrics() []ResolverMetrics {
 		metrics = append(metrics, ResolverMetrics{
 			Path:       path,
 			Count:      count,
-			Min:        min,
-			Max:        max,
+			Min:        minDuration,
+			Max:        maxDuration,
 			Avg:        avg,
 			Median:     median,
 			Percentile95: p95,
@@ -157,8 +157,8 @@ func (a *GraphQLTracer) ResetMetrics() {
 }
 
 // LogComplexityMiddleware logs high complexity queries
-func LogComplexityMiddleware(logger logger.Logger, threshold int) graphql.OperationMiddleware {
-	return func(ctx context.Context, next graphql.OperationHandler) graphql.ResponseHandler {
+func LogComplexityMiddleware(logger logger.Logger, _ int) graphql.OperationMiddleware {
+	return func(_ context.Context, next graphql.OperationHandler) graphql.ResponseHandler {
 		return func(ctx context.Context) *graphql.Response {
 			// Get operation context
 			operationCtx := graphql.GetOperationContext(ctx)
