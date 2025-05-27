@@ -14,10 +14,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
-	"gorm.io/gorm" // Assuming gorm is used based on database.DB()
+	"gorm.io/gorm"
 
 	"github.com/javicabdev/asam-backend/internal/adapters/db"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql"
+	"github.com/javicabdev/asam-backend/internal/adapters/gql/middleware"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
 	"github.com/javicabdev/asam-backend/internal/config"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
@@ -28,6 +29,7 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/logger"
 	"github.com/javicabdev/asam-backend/pkg/logger/audit"
 	"github.com/javicabdev/asam-backend/pkg/metrics"
+	"github.com/javicabdev/asam-backend/pkg/monitoring"
 )
 
 // appDependencies holds all major dependencies for the application.
@@ -38,7 +40,11 @@ type appDependencies struct {
 	cashFlowService     input.CashFlowService
 	authService         input.AuthService
 	notificationService input.NotificationService
-	// Add other services or utilities if they are widely used
+	// Monitoring components
+	queryMonitor        *monitoring.QueryMonitor
+	gqlTracer           *middleware.GraphQLTracer
+	memoryMonitor       *monitoring.MemoryMonitor
+	profilingServer     *monitoring.ProfilingServer
 }
 
 // initLogging initializes the application and audit loggers.
@@ -56,6 +62,14 @@ func initLogging() (logger.Logger, audit.Logger, error) {
 		cfg.MaxSize = 10   // 10 MB
 		cfg.MaxAge = 7     // 7 days
 		cfg.MaxBackups = 3 // 3 backups
+	} else {
+		// Production logging
+		cfg.Development = false
+		cfg.Level = logger.InfoLevel
+		cfg.MaxSize = 100   // 100 MB
+		cfg.MaxAge = 30     // 30 days
+		cfg.MaxBackups = 10 // 10 backups
+		cfg.Compress = true // Compress log files
 	}
 
 	appLogger, err := logger.InitLogger(cfg)
@@ -181,7 +195,8 @@ func setupConfigurationAndLogger() (*config.Config, logger.Logger, audit.Logger,
 // setupDatabase initializes and returns the database connection (gorm.DB).
 // It logs success or failure.
 func setupDatabase(cfg *config.Config, appLogger logger.Logger) (*gorm.DB, error) {
-	database, err := db.InitDB(cfg) // db.InitDB is expected to return *gorm.DB
+	// Use our improved DB initialization function that adds query monitoring
+	database, err := db.InitDB(cfg, appLogger) // Modified to take Logger
 	if err != nil {
 		appLogger.Error("Failed to initialize database", zap.Error(err))
 		return nil, fmt.Errorf("failed to initialize database: %w", err)
@@ -221,6 +236,44 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 	cashFlowService := services.NewCashFlowService(cashFlowRepo)
 	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, appLogger)
 
+	// Initialize monitoring components
+	// 1. Setup query monitor for tracking slow queries
+	var slowThreshold time.Duration
+	if cfg.Environment == "development" {
+		slowThreshold = 200 * time.Millisecond
+	} else {
+		slowThreshold = 100 * time.Millisecond
+	}
+	queryMonitor := monitoring.SetupQueryMonitoring(database, appLogger, slowThreshold)
+
+	// 2. Setup GraphQL tracer for tracking resolver performance
+	gqlTracer := middleware.NewGraphQLTracer(appLogger, slowThreshold)
+
+	// 3. Setup memory monitor for tracking memory usage
+	memoryMonitor := monitoring.NewMemoryMonitor(
+		appLogger,
+		200,                 // Alert threshold (MB)
+		500,                 // Critical threshold (MB)
+		30*time.Second,      // Check interval
+		"logs/memory-profiles", // Output directory
+	)
+	memoryMonitor.Start()
+
+	// 4. Setup profiling server
+	profilingServer := monitoring.NewProfilingServer(
+		":6060", // Profiling port
+		appLogger,
+		gqlTracer,
+		queryMonitor,
+		memoryMonitor,
+		database,
+	)
+	
+	// Only start the profiling server in development or when explicitly enabled
+	if cfg.Environment == "development" || cfg.EnableProfiling {
+		profilingServer.Start()
+	}
+
 	return &appDependencies{
 		memberService:       memberService,
 		familyService:       familyService,
@@ -228,6 +281,10 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 		cashFlowService:     cashFlowService,
 		authService:         authService,
 		notificationService: notificationService,
+		queryMonitor:        queryMonitor,
+		gqlTracer:           gqlTracer,
+		memoryMonitor:       memoryMonitor,
+		profilingServer:     profilingServer,
 	}, nil
 }
 
@@ -253,7 +310,7 @@ func newHTTPServerAndMux(deps *appDependencies, cfg *config.Config, appLogger lo
 		deps.cashFlowService,
 		deps.authService,
 	)
-	// Initialize GraphQL and Playground handlers
+	// Initialize GraphQL and Playground handlers with performance tracing
 	graphqlHandler := gql.NewHandler(deps.authService, resolver, cfg, appLogger, database)
 	playgroundHandler := gql.NewPlaygroundHandler()
 
@@ -278,11 +335,25 @@ func newHTTPServerAndMux(deps *appDependencies, cfg *config.Config, appLogger lo
 		w.WriteHeader(http.StatusOK)
 	}))
 
+	// Performance monitoring endpoints (protected by basic auth in production)
+	if cfg.Environment == "production" {
+		// Add authentication for sensitive endpoints in production
+		mux.Handle("/debug/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			username, password, ok := r.BasicAuth()
+			if !ok || username != cfg.AdminUser || password != cfg.AdminPassword {
+				w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+				w.WriteHeader(http.StatusUnauthorized)
+				_, _ = w.Write([]byte("Unauthorized"))
+				return
+			}
+			http.DefaultServeMux.ServeHTTP(w, r)
+		}))
+	}
+
 	// Configure and return the HTTP server
-	// TODO: Replace ":8080" with a configurable address from your 'cfg' object
-	// For example: cfg.HTTPListenAddress or construct from cfg.Host and cfg.Port
+	listenAddr := fmt.Sprintf(":%s", cfg.Port)
 	return &http.Server{
-		Addr:              ":8080", // Using hardcoded default. Replace with config.
+		Addr:              listenAddr,
 		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second, // Mitigates Slowloris attacks
 		ReadTimeout:       15 * time.Second, // Max time to read entire request
@@ -394,6 +465,16 @@ func run() error {
 	if err != nil {
 		return err // Error already logged by initializeServicesAndDependencies.
 	}
+	
+	// Cleanup monitoring resources on exit
+	defer func() {
+		if deps.memoryMonitor != nil {
+			deps.memoryMonitor.Stop()
+		}
+		if deps.profilingServer != nil {
+			_ = deps.profilingServer.Stop()
+		}
+	}()
 
 	// Step 4: Setup and register Prometheus metrics.
 	setupAndRegisterMetrics(appLogger)

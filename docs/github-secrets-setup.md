@@ -18,6 +18,14 @@ Para que el flujo de trabajo de CI/CD funcione correctamente, necesitas configur
 ### Seguridad de la aplicación
 - `JWT_ACCESS_SECRET`: Clave secreta para la generación de tokens JWT de acceso
 - `JWT_REFRESH_SECRET`: Clave secreta para la generación de tokens JWT de actualización
+- `ADMIN_USER`: Usuario administrador para acceder a endpoints de monitoreo en producción
+- `ADMIN_PASSWORD`: Contraseña del administrador (debe ser muy segura)
+
+### Configuración de Email (opcional)
+- `SMTP_SERVER`: Servidor SMTP para envío de correos
+- `SMTP_PORT`: Puerto del servidor SMTP
+- `SMTP_USER`: Usuario SMTP
+- `SMTP_PASSWORD`: Contraseña SMTP
 
 ## Cómo configurar los secretos en GitHub
 
