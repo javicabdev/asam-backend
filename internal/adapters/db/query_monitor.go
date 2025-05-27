@@ -67,14 +67,14 @@ func (m *QueryMonitor) Trace(_ context.Context, begin time.Time, fc func() (stri
 
 	elapsed := time.Since(begin)
 	sql, rows := fc()
-	
+
 	// Normalize the query for better grouping (remove specific values)
 	normalizedSQL := normalizeSQL(sql)
 
 	if elapsed > m.SlowThreshold {
 		// Increment counter for this slow query
 		m.slowQueries[normalizedSQL]++
-		
+
 		// Log slow query with additional context
 		m.logger.Warn("SLOW SQL QUERY",
 			zap.Duration("elapsed", elapsed),
@@ -100,7 +100,7 @@ func (m *QueryMonitor) GetSlowQueriesReport() map[string]int {
 func normalizeSQL(sql string) string {
 	// Replace numeric literals
 	sql = strings.ReplaceAll(sql, "?", "?")
-	
+
 	// You can add more normalization rules as needed
 	return sql
 }
