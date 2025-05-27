@@ -1,7 +1,7 @@
 #!/bin/bash
 # Script para ejecutar golangci-lint localmente antes de hacer commit
 
-echo "🔍 Ejecutando golangci-lint..."
+echo "🔍 Ejecutando verificaciones de código..."
 
 # Verificar si golangci-lint está instalado
 if ! command -v golangci-lint &> /dev/null; then
@@ -14,6 +14,10 @@ fi
 # Generar código GraphQL si es necesario
 echo "📦 Generando código GraphQL..."
 go run ./cmd/generate/main.go
+
+# Formatear código
+echo "🎨 Formateando código con gofmt..."
+gofmt -w -s .
 
 # Ejecutar golangci-lint
 echo "🚀 Ejecutando linter..."
