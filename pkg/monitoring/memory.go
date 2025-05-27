@@ -142,7 +142,11 @@ func (m *MemoryMonitor) captureHeapProfile(level string) {
 		m.logger.Error("Failed to create memory profile", zap.Error(err))
 		return
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			m.logger.Error("Failed to close heap profile file", zap.Error(err))
+		}
+	}()
 	
 	if err := pprof.WriteHeapProfile(f); err != nil {
 		m.logger.Error("Failed to write memory profile", zap.Error(err))
@@ -157,7 +161,11 @@ func (m *MemoryMonitor) captureHeapProfile(level string) {
 		m.logger.Error("Failed to create memory stats file", zap.Error(err))
 		return
 	}
-	defer statsFile.Close()
+	defer func() {
+		if err := statsFile.Close(); err != nil {
+			m.logger.Error("Failed to close stats file", zap.Error(err))
+		}
+	}()
 	
 	statsData, err := json.MarshalIndent(m.collectStats(), "", "  ")
 	if err != nil {

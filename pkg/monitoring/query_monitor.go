@@ -44,7 +44,7 @@ func NewQueryMonitor(db *gorm.DB, log logger.Logger, slowThreshold time.Duration
 }
 
 // TrackQuery records performance metrics for a query
-func (m *QueryMonitor) TrackQuery(ctx context.Context, query string, duration time.Duration) {
+func (m *QueryMonitor) TrackQuery(_ context.Context, query string, duration time.Duration) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	
