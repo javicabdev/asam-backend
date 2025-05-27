@@ -7,23 +7,23 @@ import (
 	"runtime"
 	"sort"
 	"time"
-	
+
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	
+
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/middleware"
 	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
 // ProfilingServer provides HTTP endpoints for profiling and metrics
 type ProfilingServer struct {
-	addr             string
-	logger           logger.Logger
-	gqlTracer        *middleware.GraphQLTracer
-	queryMonitor     *QueryMonitor
-	memoryMonitor    *MemoryMonitor
-	server           *http.Server
-	db               *gorm.DB
+	addr          string
+	logger        logger.Logger
+	gqlTracer     *middleware.GraphQLTracer
+	queryMonitor  *QueryMonitor
+	memoryMonitor *MemoryMonitor
+	server        *http.Server
+	db            *gorm.DB
 }
 
 // NewProfilingServer creates a new profiling server
@@ -48,7 +48,7 @@ func NewProfilingServer(
 // Start starts the profiling server
 func (p *ProfilingServer) Start() {
 	mux := http.NewServeMux()
-	
+
 	// Standard pprof endpoints
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
 	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
@@ -60,22 +60,22 @@ func (p *ProfilingServer) Start() {
 	mux.HandleFunc("/debug/pprof/threadcreate", pprof.Handler("threadcreate").ServeHTTP)
 	mux.HandleFunc("/debug/pprof/block", pprof.Handler("block").ServeHTTP)
 	mux.HandleFunc("/debug/pprof/mutex", pprof.Handler("mutex").ServeHTTP)
-	
+
 	// Custom monitoring endpoints
 	mux.HandleFunc("/debug/memory", p.handleMemoryStats)
 	mux.HandleFunc("/debug/gql/metrics", p.handleGraphQLMetrics)
 	mux.HandleFunc("/debug/db/metrics", p.handleDBMetrics)
 	mux.HandleFunc("/debug/db/slow-queries", p.handleSlowQueries)
-	
+
 	// System info
 	mux.HandleFunc("/debug/sys/info", p.handleSystemInfo)
-	
+
 	// Start server
 	p.server = &http.Server{
 		Addr:    p.addr,
 		Handler: mux,
 	}
-	
+
 	go func() {
 		p.logger.Info("Starting profiling server", zap.String("addr", p.addr))
 		if err := p.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -97,7 +97,7 @@ func (p *ProfilingServer) Stop() error {
 func (p *ProfilingServer) handleMemoryStats(w http.ResponseWriter, _ *http.Request) {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
-	
+
 	stats := map[string]interface{}{
 		"alloc":         memStats.Alloc,
 		"totalAlloc":    memStats.TotalAlloc,
@@ -118,7 +118,7 @@ func (p *ProfilingServer) handleMemoryStats(w http.ResponseWriter, _ *http.Reque
 		"numCPU":        runtime.NumCPU(),
 		"goVersion":     runtime.Version(),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(stats); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -131,9 +131,9 @@ func (p *ProfilingServer) handleGraphQLMetrics(w http.ResponseWriter, _ *http.Re
 		http.Error(w, "GraphQL tracer not configured", http.StatusNotFound)
 		return
 	}
-	
+
 	metrics := p.gqlTracer.GetResolverMetrics()
-	
+
 	// Return top slowest resolvers
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(metrics); err != nil {
@@ -147,16 +147,16 @@ func (p *ProfilingServer) handleDBMetrics(w http.ResponseWriter, _ *http.Request
 		http.Error(w, "Database not configured", http.StatusNotFound)
 		return
 	}
-	
+
 	// Get DB statistics
 	sqlDB, err := p.db.DB()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	stats := sqlDB.Stats()
-	
+
 	dbStats := map[string]interface{}{
 		"maxOpenConnections": stats.MaxOpenConnections,
 		"openConnections":    stats.OpenConnections,
@@ -167,7 +167,7 @@ func (p *ProfilingServer) handleDBMetrics(w http.ResponseWriter, _ *http.Request
 		"maxIdleClosed":      stats.MaxIdleClosed,
 		"maxLifetimeClosed":  stats.MaxLifetimeClosed,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(dbStats); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -180,15 +180,15 @@ func (p *ProfilingServer) handleSlowQueries(w http.ResponseWriter, _ *http.Reque
 		http.Error(w, "Query monitor not configured", http.StatusNotFound)
 		return
 	}
-	
+
 	slowQueries := p.queryMonitor.GetSlowQueriesReport()
-	
+
 	// Convert map to slice for sorting
 	type slowQuery struct {
 		Query     string `json:"query"`
 		Frequency int    `json:"frequency"`
 	}
-	
+
 	var queries []slowQuery
 	for query, frequency := range slowQueries {
 		queries = append(queries, slowQuery{
@@ -196,12 +196,12 @@ func (p *ProfilingServer) handleSlowQueries(w http.ResponseWriter, _ *http.Reque
 			Frequency: frequency,
 		})
 	}
-	
+
 	// Sort by frequency (descending)
 	sort.Slice(queries, func(i, j int) bool {
 		return queries[i].Frequency > queries[j].Frequency
 	})
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(queries); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -211,15 +211,15 @@ func (p *ProfilingServer) handleSlowQueries(w http.ResponseWriter, _ *http.Reque
 // handleSystemInfo handles the system info endpoint
 func (p *ProfilingServer) handleSystemInfo(w http.ResponseWriter, _ *http.Request) {
 	info := map[string]interface{}{
-		"goVersion":      runtime.Version(),
-		"goOS":           runtime.GOOS,
-		"goArch":         runtime.GOARCH,
-		"numCPU":         runtime.NumCPU(),
-		"numGoroutines":  runtime.NumGoroutine(),
-		"currentTime":    time.Now().Format(time.RFC3339),
-		"uptime":         time.Since(startTime).String(),
+		"goVersion":     runtime.Version(),
+		"goOS":          runtime.GOOS,
+		"goArch":        runtime.GOARCH,
+		"numCPU":        runtime.NumCPU(),
+		"numGoroutines": runtime.NumGoroutine(),
+		"currentTime":   time.Now().Format(time.RFC3339),
+		"uptime":        time.Since(startTime).String(),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(info); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

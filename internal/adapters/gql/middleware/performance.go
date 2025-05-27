@@ -33,13 +33,13 @@ func NewGraphQLTracer(log logger.Logger, slowThreshold time.Duration) *GraphQLTr
 func (a *GraphQLTracer) InterceptOperation(ctx context.Context, next graphql.OperationHandler) graphql.ResponseHandler {
 	start := time.Now()
 	resp := next(ctx)
-	
+
 	operationCtx := graphql.GetOperationContext(ctx)
 	opName := operationCtx.OperationName
 	if opName == "" {
 		opName = "unnamed-operation"
 	}
-	
+
 	duration := time.Since(start)
 	if duration > a.slowThreshold {
 		// Log slow operations
@@ -49,7 +49,7 @@ func (a *GraphQLTracer) InterceptOperation(ctx context.Context, next graphql.Ope
 			zap.Duration("duration", duration),
 		)
 	}
-	
+
 	return resp
 }
 
@@ -58,7 +58,7 @@ func (a *GraphQLTracer) InterceptField(ctx context.Context, next graphql.Resolve
 	start := time.Now()
 	res, err := next(ctx)
 	duration := time.Since(start)
-	
+
 	// Get field information
 	fieldCtx := graphql.GetFieldContext(ctx)
 	operationCtx := graphql.GetOperationContext(ctx)
@@ -66,14 +66,14 @@ func (a *GraphQLTracer) InterceptField(ctx context.Context, next graphql.Resolve
 	if opName == "" {
 		opName = "unnamed-operation"
 	}
-	
+
 	resolverPath := opName + "/" + fieldCtx.Field.Name
-	
+
 	// Record metrics
 	a.mu.Lock()
 	a.resolverMetrics[resolverPath] = append(a.resolverMetrics[resolverPath], duration)
 	a.mu.Unlock()
-	
+
 	// Log slow resolvers
 	if duration > a.slowThreshold {
 		a.logger.Warn("SLOW GRAPHQL RESOLVER",
@@ -83,18 +83,18 @@ func (a *GraphQLTracer) InterceptField(ctx context.Context, next graphql.Resolve
 			zap.Duration("duration", duration),
 		)
 	}
-	
+
 	return res, err
 }
 
 // ResolverMetrics contains statistics about a resolver's performance
 type ResolverMetrics struct {
-	Path       string
-	Count      int
-	Min        time.Duration
-	Max        time.Duration
-	Avg        time.Duration
-	Median     time.Duration
+	Path         string
+	Count        int
+	Min          time.Duration
+	Max          time.Duration
+	Avg          time.Duration
+	Median       time.Duration
 	Percentile95 time.Duration
 }
 
@@ -102,50 +102,50 @@ type ResolverMetrics struct {
 func (a *GraphQLTracer) GetResolverMetrics() []ResolverMetrics {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	
+
 	var metrics []ResolverMetrics
-	
+
 	for path, durations := range a.resolverMetrics {
 		if len(durations) == 0 {
 			continue
 		}
-		
+
 		// Sort durations for percentile calculations
 		sort.Slice(durations, func(i, j int) bool {
 			return durations[i] < durations[j]
 		})
-		
+
 		// Calculate statistics
 		count := len(durations)
 		minDuration := durations[0]
 		maxDuration := durations[count-1]
-		
+
 		var sum time.Duration
 		for _, d := range durations {
 			sum += d
 		}
 		avg := sum / time.Duration(count)
-		
+
 		// Median and 95th percentile
 		median := durations[count/2]
 		p95 := durations[int(float64(count)*0.95)]
-		
+
 		metrics = append(metrics, ResolverMetrics{
-			Path:       path,
-			Count:      count,
-			Min:        minDuration,
-			Max:        maxDuration,
-			Avg:        avg,
-			Median:     median,
+			Path:         path,
+			Count:        count,
+			Min:          minDuration,
+			Max:          maxDuration,
+			Avg:          avg,
+			Median:       median,
 			Percentile95: p95,
 		})
 	}
-	
+
 	// Sort by average duration (descending)
 	sort.Slice(metrics, func(i, j int) bool {
 		return metrics[i].Avg > metrics[j].Avg
 	})
-	
+
 	return metrics
 }
 
@@ -162,10 +162,10 @@ func LogComplexityMiddleware(logger logger.Logger, _ int) graphql.OperationMiddl
 		return func(ctx context.Context) *graphql.Response {
 			// Get operation context
 			operationCtx := graphql.GetOperationContext(ctx)
-			
+
 			// Execute the operation
 			resp := next(ctx)
-			
+
 			// Check if we can access complexity (this might not be available in all versions)
 			// For now, we'll just log the operation details
 			if operationCtx.OperationName != "" {
@@ -173,7 +173,7 @@ func LogComplexityMiddleware(logger logger.Logger, _ int) graphql.OperationMiddl
 					zap.String("operation", operationCtx.OperationName),
 				)
 			}
-			
+
 			return resp(ctx)
 		}
 	}

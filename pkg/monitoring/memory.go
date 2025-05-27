@@ -7,27 +7,27 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"time"
-	
+
 	"go.uber.org/zap"
-	
+
 	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
 // MemoryStats contains information about memory usage
 type MemoryStats struct {
-	Alloc        uint64  `json:"alloc"`
-	TotalAlloc   uint64  `json:"totalAlloc"`
-	Sys          uint64  `json:"sys"`
-	NumGC        uint32  `json:"numGC"`
-	PauseTotalNs uint64  `json:"pauseTotalNs"`
-	HeapObjects  uint64  `json:"heapObjects"`
+	Alloc         uint64  `json:"alloc"`
+	TotalAlloc    uint64  `json:"totalAlloc"`
+	Sys           uint64  `json:"sys"`
+	NumGC         uint32  `json:"numGC"`
+	PauseTotalNs  uint64  `json:"pauseTotalNs"`
+	HeapObjects   uint64  `json:"heapObjects"`
 	GCCPUFraction float64 `json:"gcCPUFraction"`
 }
 
 // MemoryMonitor monitors memory usage and triggers alerts when thresholds are exceeded
 type MemoryMonitor struct {
-	logger           logger.Logger
-	alertThreshold   uint64 // MB
+	logger            logger.Logger
+	alertThreshold    uint64 // MB
 	criticalThreshold uint64 // MB
 	monitorInterval   time.Duration
 	outputDir         string
@@ -44,17 +44,17 @@ func NewMemoryMonitor(
 	outputDir string,
 ) *MemoryMonitor {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	// Create output directory if it doesn't exist
 	if outputDir != "" {
 		if err := os.MkdirAll(outputDir, 0755); err != nil {
 			log.Error("Failed to create memory profile output directory", zap.Error(err))
 		}
 	}
-	
+
 	return &MemoryMonitor{
-		logger:           log,
-		alertThreshold:   alertThreshold,
+		logger:            log,
+		alertThreshold:    alertThreshold,
 		criticalThreshold: criticalThreshold,
 		monitorInterval:   monitorInterval,
 		outputDir:         outputDir,
@@ -68,12 +68,12 @@ func (m *MemoryMonitor) Start() {
 	go func() {
 		ticker := time.NewTicker(m.monitorInterval)
 		defer ticker.Stop()
-		
+
 		for {
 			select {
 			case <-ticker.C:
 				stats := m.collectStats()
-				
+
 				// Log periodic memory stats
 				m.logger.Info("Memory usage stats",
 					zap.Uint64("allocMB", stats.Alloc/1024/1024),
@@ -81,10 +81,10 @@ func (m *MemoryMonitor) Start() {
 					zap.Uint32("numGC", stats.NumGC),
 					zap.Float64("gcCPUFraction", stats.GCCPUFraction),
 				)
-				
+
 				// Check thresholds
 				allocMB := stats.Alloc / 1024 / 1024
-				
+
 				if allocMB > m.criticalThreshold {
 					m.logger.Error("CRITICAL: Memory usage exceeds critical threshold",
 						zap.Uint64("allocMB", allocMB),
@@ -99,7 +99,7 @@ func (m *MemoryMonitor) Start() {
 					)
 					m.captureHeapProfile("alert")
 				}
-				
+
 			case <-m.ctx.Done():
 				return
 			}
@@ -116,14 +116,14 @@ func (m *MemoryMonitor) Stop() {
 func (m *MemoryMonitor) collectStats() MemoryStats {
 	var stats runtime.MemStats
 	runtime.ReadMemStats(&stats)
-	
+
 	return MemoryStats{
-		Alloc:        stats.Alloc,
-		TotalAlloc:   stats.TotalAlloc,
-		Sys:          stats.Sys,
-		NumGC:        stats.NumGC,
-		PauseTotalNs: stats.PauseTotalNs,
-		HeapObjects:  stats.HeapObjects,
+		Alloc:         stats.Alloc,
+		TotalAlloc:    stats.TotalAlloc,
+		Sys:           stats.Sys,
+		NumGC:         stats.NumGC,
+		PauseTotalNs:  stats.PauseTotalNs,
+		HeapObjects:   stats.HeapObjects,
 		GCCPUFraction: stats.GCCPUFraction,
 	}
 }
@@ -133,10 +133,10 @@ func (m *MemoryMonitor) captureHeapProfile(level string) {
 	if m.outputDir == "" {
 		return
 	}
-	
+
 	timestamp := time.Now().Format("20060102-150405")
 	filename := m.outputDir + "/heap-" + level + "-" + timestamp + ".pprof"
-	
+
 	f, err := os.Create(filename)
 	if err != nil {
 		m.logger.Error("Failed to create memory profile", zap.Error(err))
@@ -147,13 +147,13 @@ func (m *MemoryMonitor) captureHeapProfile(level string) {
 			m.logger.Error("Failed to close heap profile file", zap.Error(err))
 		}
 	}()
-	
+
 	if err := pprof.WriteHeapProfile(f); err != nil {
 		m.logger.Error("Failed to write memory profile", zap.Error(err))
 	} else {
 		m.logger.Info("Memory profile captured", zap.String("filename", filename))
 	}
-	
+
 	// Also save memory stats as JSON
 	statsFilename := m.outputDir + "/memstats-" + level + "-" + timestamp + ".json"
 	statsFile, err := os.Create(statsFilename)
@@ -166,13 +166,13 @@ func (m *MemoryMonitor) captureHeapProfile(level string) {
 			m.logger.Error("Failed to close stats file", zap.Error(err))
 		}
 	}()
-	
+
 	statsData, err := json.MarshalIndent(m.collectStats(), "", "  ")
 	if err != nil {
 		m.logger.Error("Failed to marshal memory stats", zap.Error(err))
 		return
 	}
-	
+
 	if _, err := statsFile.Write(statsData); err != nil {
 		m.logger.Error("Failed to write memory stats", zap.Error(err))
 	}
@@ -195,7 +195,7 @@ func (m *MemoryMonitor) GetMemoryUsage() uint64 {
 func (m *MemoryMonitor) DumpFullMemoryStats() {
 	var stats runtime.MemStats
 	runtime.ReadMemStats(&stats)
-	
+
 	m.logger.Info("Detailed memory statistics",
 		zap.Uint64("alloc", stats.Alloc),
 		zap.Uint64("totalAlloc", stats.TotalAlloc),

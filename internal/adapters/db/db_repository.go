@@ -20,7 +20,7 @@ import (
 func InitDB(cfg *config.Config, logs ...appLogger.Logger) (*gorm.DB, error) {
 	// Configure GORM logger
 	var gormLogger logger.Interface
-	
+
 	// Check if a custom logger was provided for query monitoring
 	if len(logs) > 0 && logs[0] != nil && cfg.LogSlowQueries {
 		// Use our custom query monitor that integrates with the app logger
@@ -78,7 +78,7 @@ func InitDB(cfg *config.Config, logs ...appLogger.Logger) (*gorm.DB, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, errors.ErrInternalError, "Failed to get database instance")
 	}
-	
+
 	sqlDB.SetMaxIdleConns(cfg.DBMaxIdleConns)       // Keep idle connections
 	sqlDB.SetMaxOpenConns(cfg.DBMaxOpenConns)       // Maximum simultaneous connections
 	sqlDB.SetConnMaxLifetime(cfg.DBConnMaxLifetime) // Connection lifetime

@@ -41,10 +41,10 @@ type appDependencies struct {
 	authService         input.AuthService
 	notificationService input.NotificationService
 	// Monitoring components
-	queryMonitor        *monitoring.QueryMonitor
-	gqlTracer           *middleware.GraphQLTracer
-	memoryMonitor       *monitoring.MemoryMonitor
-	profilingServer     *monitoring.ProfilingServer
+	queryMonitor    *monitoring.QueryMonitor
+	gqlTracer       *middleware.GraphQLTracer
+	memoryMonitor   *monitoring.MemoryMonitor
+	profilingServer *monitoring.ProfilingServer
 }
 
 // initLogging initializes the application and audit loggers.
@@ -252,9 +252,9 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 	// 3. Setup memory monitor for tracking memory usage
 	memoryMonitor := monitoring.NewMemoryMonitor(
 		appLogger,
-		200,                 // Alert threshold (MB)
-		500,                 // Critical threshold (MB)
-		30*time.Second,      // Check interval
+		200,                    // Alert threshold (MB)
+		500,                    // Critical threshold (MB)
+		30*time.Second,         // Check interval
 		"logs/memory-profiles", // Output directory
 	)
 	memoryMonitor.Start()
@@ -268,7 +268,7 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 		memoryMonitor,
 		database,
 	)
-	
+
 	// Only start the profiling server in development or when explicitly enabled
 	if cfg.Environment == "development" || cfg.EnableProfiling {
 		profilingServer.Start()
@@ -465,7 +465,7 @@ func run() error {
 	if err != nil {
 		return err // Error already logged by initializeServicesAndDependencies.
 	}
-	
+
 	// Cleanup monitoring resources on exit
 	defer func() {
 		if deps.memoryMonitor != nil {
