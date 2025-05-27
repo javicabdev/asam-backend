@@ -1,7 +1,7 @@
 @echo off
 REM Script para ejecutar golangci-lint localmente antes de hacer commit
 
-echo 🔍 Ejecutando golangci-lint...
+echo 🔍 Ejecutando verificaciones de código...
 
 REM Verificar si golangci-lint está instalado
 where golangci-lint >nul 2>nul
@@ -17,6 +17,10 @@ if %ERRORLEVEL% NEQ 0 (
 REM Generar código GraphQL si es necesario
 echo 📦 Generando código GraphQL...
 go run ./cmd/generate/main.go
+
+REM Formatear código
+echo 🎨 Formateando código con gofmt...
+gofmt -w -s .
 
 REM Ejecutar golangci-lint
 echo 🚀 Ejecutando linter...
