@@ -86,7 +86,7 @@ jobs:
       - name: Setup test environment for integration tests
         run: |
           cp .env.test.example .env
-          go run cmd/migrate/main.go up  # Ruta completa al archivo main.go
+          go run cmd/migrate/main.go -cmd up
         env:
           CI: "true"
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
@@ -167,7 +167,7 @@ jobs:
       - name: Run Database Migrations
         run: |
           go build -o migrate ./cmd/migrate
-          ./migrate up
+          ./migrate -cmd up
         env:
           DB_HOST: ${{ secrets.AIVEN_DB_HOST }}
           DB_PORT: ${{ secrets.AIVEN_DB_PORT }}
