@@ -12,6 +12,12 @@ env:
   SERVICE_NAME: asam-backend
   REGION: europe-west1
   GO_VERSION: '1.24'  # Definido como variable de entorno global
+  # Variables para tests
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_DB: asam_test
+  POSTGRES_HOST: localhost
+  POSTGRES_PORT: "5432"
 
 jobs:
   lint:
@@ -81,6 +87,14 @@ jobs:
         run: |
           cp .env.test.example .env
           go run cmd/migrate/main.go up  # Ruta completa al archivo main.go
+        env:
+          CI: "true"
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_HOST: ${{ env.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ env.POSTGRES_PORT }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          DB_SSL_MODE: "disable"
 
       - name: Run integration tests
         run: go test -v -tags=integration ./test/integration/...

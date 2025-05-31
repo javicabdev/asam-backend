@@ -219,6 +219,14 @@ jobs:
 
       - name: Run database migrations
         run: go run ./cmd/migrate/main.go
+        env:
+          CI: "true"
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_HOST: ${{ env.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ env.POSTGRES_PORT }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          DB_SSL_MODE: "disable"
 
       - name: Run integration tests
         run: go test -v -race -tags=integration ./test/integration/...
