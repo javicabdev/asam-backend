@@ -79,7 +79,7 @@ jobs:
 
       - name: Setup test environment for integration tests
         run: |
-          cp .env.test .env
+          cp .env.test.example .env
           go run cmd/migrate/main.go up  # Ruta completa al archivo main.go
 
       - name: Run integration tests
