@@ -21,9 +21,7 @@ gofmt -w -s .
 
 # Ejecutar golangci-lint
 echo "🚀 Ejecutando linter..."
-golangci-lint run --timeout=5m
-
-if [ $? -eq 0 ]; then
+if golangci-lint run --timeout=5m; then
     echo "✅ ¡Sin problemas de linting!"
 else
     echo "❌ Se encontraron problemas. Por favor, corrígelos antes de hacer commit."
