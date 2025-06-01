@@ -23,7 +23,9 @@ func main() {
 	}
 
 	// Force production environment
-	os.Setenv("APP_ENV", "production")
+	if err := os.Setenv("APP_ENV", "production"); err != nil {
+		log.Printf("Advertencia: No se pudo configurar APP_ENV: %v\n", err)
+	}
 
 	// Load configuration
 	cfg, err := config.LoadConfig()

@@ -21,8 +21,12 @@ func main() {
 	}
 
 	// Force production environment
-	os.Setenv("APP_ENV", "production")
-	os.Setenv("ENVIRONMENT", "production")
+	if err := os.Setenv("APP_ENV", "production"); err != nil {
+		fmt.Printf("❌ Error configurando APP_ENV: %v\n", err)
+	}
+	if err := os.Setenv("ENVIRONMENT", "production"); err != nil {
+		fmt.Printf("❌ Error configurando ENVIRONMENT: %v\n", err)
+	}
 
 	fmt.Println()
 	fmt.Println("Variables de entorno actuales:")
@@ -54,12 +58,13 @@ func main() {
 
 	// Check which environment we're actually using
 	dbHost := os.Getenv("DB_HOST")
-	if dbHost == "localhost" || dbHost == "127.0.0.1" {
+	switch dbHost {
+	case "localhost", "127.0.0.1":
 		fmt.Println("⚠️  ADVERTENCIA: Estás usando la base de datos LOCAL")
 		fmt.Println("   Para usar producción, asegúrate de que .env.production se cargue correctamente")
-	} else if dbHost == "pg-asam-asam-backend-db.l.aivencloud.com" {
+	case "pg-asam-asam-backend-db.l.aivencloud.com":
 		fmt.Println("✅ Usando la base de datos de PRODUCCIÓN en Aiven")
-	} else {
+	default:
 		fmt.Printf("❓ Usando base de datos en: %s\n", dbHost)
 	}
 }
