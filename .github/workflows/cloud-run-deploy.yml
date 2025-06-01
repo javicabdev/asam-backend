@@ -204,7 +204,10 @@ jobs:
       - name: Output image URL
         id: image
         run: |
-          echo "url=${{ env.ARTIFACT_REGISTRY }}/${{ env.PROJECT_ID }}/asam-backend/${{ env.SERVICE_NAME }}:${{ steps.meta.outputs.sha_short }}" >> $GITHUB_OUTPUT
+          IMAGE_URL="${{ env.ARTIFACT_REGISTRY }}/${{ env.PROJECT_ID }}/asam-backend/${{ env.SERVICE_NAME }}:${{ steps.meta.outputs.sha_short }}"
+          echo "Generated image URL: $IMAGE_URL"
+          echo "url=$IMAGE_URL" >> $GITHUB_OUTPUT
+          echo "image-url=$IMAGE_URL" >> $GITHUB_ENV
 
   deploy:
     name: Deploy to Cloud Run
@@ -223,12 +226,24 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Debug outputs
+        run: |
+          echo "Image URL from previous job: ${{ needs.build-and-push.outputs.image-url }}"
+          echo "All outputs: ${{ toJSON(needs.build-and-push.outputs) }}"
+
       - name: Deploy to Cloud Run
         id: deploy
         run: |
-          echo "Deploying image: ${{ needs.build-and-push.outputs.image-url }}"
+          # Use the output or fallback to latest
+          IMAGE_URL="${{ needs.build-and-push.outputs.image-url }}"
+          if [ -z "$IMAGE_URL" ]; then
+            echo "Warning: image-url is empty, using latest tag"
+            IMAGE_URL="${{ env.ARTIFACT_REGISTRY }}/${{ env.PROJECT_ID }}/asam-backend/${{ env.SERVICE_NAME }}:latest"
+          fi
+          echo "Deploying image: $IMAGE_URL"
+          
           gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image="${{ needs.build-and-push.outputs.image-url }}" \
+            --image="$IMAGE_URL" \
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
