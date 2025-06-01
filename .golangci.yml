@@ -1,9 +1,13 @@
 # Archivo de configuración para golangci-lint v2.1.6
-version: "2"
 
 run:
   go: '1.24'
   timeout: 5m
+  skip-dirs:
+    - internal/adapters/gql/generated
+  skip-files:
+    - ".*_generated\\.go$"
+    - ".*\\.pb\\.go$"
 
 linters:
   enable:
@@ -18,61 +22,65 @@ linters:
     - unconvert
     - gocyclo
     - gosimple
-    - typecheck
 
-  # Configuración específica para linters
-  settings:
-    gocyclo:
-      min-complexity: 15
-    funlen:
-      lines: 100
-      statements: 50
-    revive:
-      ignore-generated-header: true
-      rules:
-        - name: exported
-          severity: warning
-        - name: context-keys-type
-          severity: error
-        - name: package-comments
-          disabled: true
-    govet:
-      check-shadowing: true
-
-  # Reglas de exclusión
-  exclusions:
-    warn-unused: true
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  funlen:
+    lines: 100
+    statements: 50
+  revive:
+    ignore-generated-header: true
     rules:
-      # Excluir globalmente el issue "package-comments" del linter "revive".
-      - linters:
-          - revive
-        text: "package-comments: should have a package comment"
-
-      # Excluir issues del archivo schema.resolvers.go
-      - path: internal/adapters/gql/resolvers/schema\.resolvers\.go$
-        text: "." # Excluye todos los issues de todos los linters en este path.
-
-      # Excluir issues del directorio generated
-      - path: internal/adapters/gql/generated/
-        text: "." # Excluye todos los issues de todos los linters en este path.
-
-      # Reglas de exclusión generales
-      - path: ".*_generated\\.go$"
-        text: "."
-      - path: ".*\\.pb\\.go$"
-        text: "."
-      - path: "pkg(?:/|\\\\)errors(?:/|\\\\)errors\\.go"
-        text: "."
-      - path: "_test\\.go$"
-        linters:
-          - errcheck
-          - funlen
-
-formatters:
-  settings:
-    goimports:
-      local-prefixes:
-        - github.com/javicabdev/asam-backend
+      - name: exported
+        severity: warning
+      - name: context-keys-type
+        severity: error
+      - name: package-comments
+        disabled: true
+  govet:
+    check-shadowing: true
 
 issues:
   max-same-issues: 300
+  exclude-rules:
+    # Excluir issues del archivo schema.resolvers.go
+    - path: internal/adapters/gql/resolvers/schema\.resolvers\.go$
+      linters:
+        - revive
+        - govet
+        - errcheck
+
+    # Excluir issues del directorio generated
+    - path: internal/adapters/gql/generated/
+      linters:
+        - revive
+        - govet
+        - errcheck
+        - staticcheck
+
+    # Reglas de exclusión generales
+    - path: ".*_generated\\.go$"
+      linters:
+        - revive
+        - govet
+        
+    - path: ".*\\.pb\\.go$"
+      linters:
+        - revive
+        - govet
+        
+    - path: "_test\\.go$"
+      linters:
+        - errcheck
+        - funlen
+
+    # Excluir el error de package-comments globalmente
+    - linters:
+        - revive
+      text: "package-comments"
+
+    # Excluir errores específicos de errcheck
+    - path: "pkg(?:/|\\\\)errors(?:/|\\\\)errors\\.go"
+      linters:
+        - errcheck
