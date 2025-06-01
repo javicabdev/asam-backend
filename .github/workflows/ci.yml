@@ -15,7 +15,7 @@ env:
   POSTGRES_DB: asam_test_db
   POSTGRES_HOST: localhost
   POSTGRES_PORT: "5432"
-  GO_VERSION: '1.24'
+  GO_VERSION: '1.24'  # Última versión estable de Go
 
 jobs:
   # Job para realizar el linting del código.
@@ -35,7 +35,7 @@ jobs:
       - name: Generate GraphQL code (if linting depends on it)
         run: go run ./cmd/generate/main.go
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6.0.1
+        uses: golangci/golangci-lint-action@v8
         with:
           version: v2.1.6
           args: --timeout=5m

@@ -38,10 +38,20 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/monitoring"
 )
 
+// contextKey is a type for context keys to avoid collisions
+type contextKey string
+
+const (
+	// requestIDKey is the context key for request ID
+	requestIDKey contextKey = "requestID"
+)
+
 var (
-	// Version information (set by build flags)
-	Version   = "unknown"
-	Commit    = "unknown"
+	// Version is the application version (set by build flags)
+	Version = "unknown"
+	// Commit is the git commit hash (set by build flags)
+	Commit = "unknown"
+	// BuildTime is the build timestamp (set by build flags)
 	BuildTime = "unknown"
 
 	// Metrics
@@ -155,7 +165,7 @@ func requestIDMiddleware(next http.Handler) http.Handler {
 			requestID = generateRequestID()
 		}
 
-		ctx := context.WithValue(r.Context(), "requestID", requestID)
+		ctx := context.WithValue(r.Context(), requestIDKey, requestID)
 		w.Header().Set("X-Request-ID", requestID)
 
 		next.ServeHTTP(w, r.WithContext(ctx))

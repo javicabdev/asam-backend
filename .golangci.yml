@@ -16,10 +16,9 @@ linters:
     - unused
     - revive
     - unconvert
-    # - misspell
-    # - gocyclo
-    # - gocritic
-    # - nolintlint
+    - gocyclo
+    - gosimple
+    - typecheck
 
   # Configuración específica para linters
   settings:
@@ -28,11 +27,17 @@ linters:
     funlen:
       lines: 100
       statements: 50
-    # Removiendo configuraciones que no son válidas en v2.1.6
-    # revive:
-    #   ignore-generated-header: true
-    # govet:
-    #   check-shadowing: true
+    revive:
+      ignore-generated-header: true
+      rules:
+        - name: exported
+          severity: warning
+        - name: context-keys-type
+          severity: error
+        - name: package-comments
+          disabled: true
+    govet:
+      check-shadowing: true
 
   # Reglas de exclusión
   exclusions:
@@ -66,10 +71,8 @@ linters:
 formatters:
   settings:
     goimports:
-      # Corrigiendo local-prefixes como array
       local-prefixes:
         - github.com/javicabdev/asam-backend
 
 issues:
   max-same-issues: 300
-  # exclude-use-default: false
