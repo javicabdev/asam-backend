@@ -139,7 +139,7 @@ jobs:
       - name: Build and Push Container
         run: |
           # Usar Artifact Registry en lugar de Container Registry
-          IMAGE_URL="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/cloud-run-source-deploy/${{ env.SERVICE_NAME }}:${{ steps.tag.outputs.sha_short }}"
+          IMAGE_URL="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/asam-backend/${{ env.SERVICE_NAME }}:${{ steps.tag.outputs.sha_short }}"
           
           docker build -t $IMAGE_URL .
           docker push $IMAGE_URL
