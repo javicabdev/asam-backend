@@ -375,7 +375,7 @@ func run() error {
 		return err // Error is already contextualized or is about logger init itself.
 	}
 	appLogger.Info("ASAM Backend starting...")
-	appLogger.Info("Environment configuration", 
+	appLogger.Info("Environment configuration",
 		zap.String("PORT", cfg.Port),
 		zap.String("ENVIRONMENT", cfg.Environment))
 
@@ -390,23 +390,23 @@ func run() error {
 	// Step 4: Start HTTP server immediately with minimal setup for Cloud Run
 	// This ensures the server can respond to health checks while DB is connecting
 	appLogger.Info("Starting HTTP server immediately for Cloud Run...")
-	
+
 	// Create a minimal mux with just health endpoints initially
 	mux := http.NewServeMux()
-	
+
 	// Root endpoint for basic connectivity test
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"service":"asam-backend","status":"running"}`))
 	})
-	
+
 	// Basic health check that doesn't depend on DB
 	mux.Handle("/health/live", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("OK"))
 	}))
-	
+
 	// Readiness check that waits for DB
 	mux.Handle("/health/ready", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		select {
@@ -420,7 +420,7 @@ func run() error {
 			_, _ = w.Write([]byte("Database not ready"))
 		}
 	}))
-	
+
 	// Basic health endpoint
 	mux.Handle("/health", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -464,7 +464,7 @@ func run() error {
 	// Step 5: Initialize database and services asynchronously
 	go func() {
 		appLogger.Info("Initializing database connection asynchronously...")
-		
+
 		// Setup database connection with retries
 		var dbErr error
 		for i := 0; i < 30; i++ { // Try for up to 30 seconds
@@ -472,12 +472,12 @@ func run() error {
 			if dbErr == nil {
 				break
 			}
-			appLogger.Warn("Database connection failed, retrying...", 
-				zap.Error(dbErr), 
+			appLogger.Warn("Database connection failed, retrying...",
+				zap.Error(dbErr),
 				zap.Int("attempt", i+1))
 			time.Sleep(1 * time.Second)
 		}
-		
+
 		if dbErr != nil {
 			appLogger.Error("Failed to setup database after retries", zap.Error(dbErr))
 			// Continue running with limited functionality
@@ -493,16 +493,16 @@ func run() error {
 
 		// Now update the HTTP server with full functionality
 		appLogger.Info("Database ready, updating HTTP routes...")
-		
+
 		// Create new server with all routes
 		fullServer := newHTTPServerAndMux(deps, cfg, appLogger, database)
-		
+
 		// Update the handler
 		server.Handler = fullServer.Handler
-		
+
 		// Signal that DB is ready
 		close(dbReady)
-		
+
 		// Start periodic metrics updates
 		go updateMetricsPeriodically(ctx, appLogger, deps)
 	}()
