@@ -59,8 +59,8 @@ LICENSE
 # Ignorar archivos de configuración de herramientas
 .golangci.yml
 .air.toml
-gqlgen.yml
 tools.go
+# NO ignorar gqlgen.yml - es necesario para el build
 
 # Ignorar archivos de análisis
 /docs
@@ -74,3 +74,4 @@ coverage.html
 !/migrations/**
 !/go.mod
 !/go.sum
+!/gqlgen.yml
