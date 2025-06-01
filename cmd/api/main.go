@@ -319,9 +319,10 @@ func createNotificationService(cfg *config.Config, log logger.Logger) (input.Not
 			"smtp.example.com", 587, "dev-user", "dev-password", false, "noreply-dev@asam.org",
 		), nil
 	}
-	// For production, ensure SMTP credentials are set
+	// For production, check if SMTP credentials are configured
 	if cfg.SMTPUser == "" || cfg.SMTPPassword == "" {
-		return nil, errors.New("SMTP credentials (SMTPUser or SMTPPassword) not configured for production environment")
+		log.Warn("SMTP credentials not configured - notification service will be disabled")
+		return nil, nil // Return nil service instead of error
 	}
 	return services.NewEmailNotificationService(
 		cfg.SMTPServer, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPassword, cfg.SMTPUseTLS, cfg.SMTPFromEmail,
@@ -430,7 +431,12 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 		// Error already logged by createNotificationService if appLogger was passed
 		return nil, fmt.Errorf("failed to create notification service: %w", err)
 	}
-	serviceStatus.Notification.Store(true)
+	if notificationService != nil {
+		serviceStatus.Notification.Store(true)
+	} else {
+		serviceStatus.Notification.Store(false)
+		appLogger.Warn("Notification service is disabled")
+	}
 
 	// Initialize fee calculator (consider moving magic numbers to config)
 	feeCalculator := services.NewFeeCalculator(30.0, 10.0, 1.0, 1.0)
