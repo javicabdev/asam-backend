@@ -362,71 +362,6 @@ func newHTTPServerAndMux(deps *appDependencies, cfg *config.Config, appLogger lo
 	}
 }
 
-// manageServerLifecycle starts the HTTP server, listens for OS signals for shutdown,
-// and handles graceful server termination.
-func manageServerLifecycle(ctx context.Context, server *http.Server, appLogger logger.Logger, deps *appDependencies) error {
-	serverErrors := make(chan error, 1) // Channel to receive errors from ListenAndServe
-
-	// Goroutine to run ListenAndServe and report its exit.
-	go func() {
-		appLogger.Info("Server starting to listen...", zap.String("address", server.Addr))
-		// http.Server.ListenAndServe() always returns a non-nil error.
-		// If shutdown is graceful, it returns http.ErrServerClosed.
-		// This error is sent to the serverErrors channel for the main select loop to handle.
-		if listenErr := server.ListenAndServe(); listenErr != nil {
-			serverErrors <- fmt.Errorf("http.ListenAndServe failed: %w", listenErr)
-		}
-	}()
-
-	// Start periodic metrics updates. This goroutine will respect the main context 'ctx'.
-	go updateMetricsPeriodically(ctx, appLogger, deps)
-
-	// Channel to listen for OS shutdown signals (SIGINT, SIGTERM)
-	shutdownSignal := make(chan os.Signal, 1)
-	signal.Notify(shutdownSignal, syscall.SIGINT, syscall.SIGTERM)
-
-	// Block until a shutdown signal or a server error is received.
-	select {
-	case errFromListenAndServe := <-serverErrors:
-		// ListenAndServe has exited.
-		if errors.Is(errFromListenAndServe, http.ErrServerClosed) {
-			// This is an expected error if the server was shut down gracefully.
-			appLogger.Info("Server's ListenAndServe loop stopped (expected on shutdown).", zap.NamedError("reason", errFromListenAndServe))
-			// No error to return here, as this is part of a clean shutdown sequence.
-		} else {
-			// An unexpected error occurred in ListenAndServe.
-			appLogger.Error("ListenAndServe failed with unexpected error", zap.Error(errFromListenAndServe))
-			return errFromListenAndServe // Propagate this critical error.
-		}
-
-	case sig := <-shutdownSignal:
-		// OS signal received, initiate graceful shutdown.
-		appLogger.Info("Shutdown signal received.", zap.String("signal", sig.String()))
-
-		// Create a context with a timeout for the shutdown process.
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second) // Shutdown timeout
-		defer shutdownCancel()
-
-		appLogger.Info("Attempting graceful server shutdown...")
-		// server.Shutdown() will attempt to gracefully shut down the server.
-		// This causes ListenAndServe (in the goroutine above) to return http.ErrServerClosed.
-		if shutdownErr := server.Shutdown(shutdownCtx); shutdownErr != nil {
-			appLogger.Error("Graceful server shutdown failed.", zap.Error(shutdownErr))
-			// If graceful shutdown fails, attempt a forceful close as a fallback.
-			appLogger.Info("Attempting forceful server close as fallback...")
-			if closeErr := server.Close(); closeErr != nil {
-				appLogger.Error("Forceful server close also failed.", zap.Error(closeErr))
-				// Return a combined error if both shutdown and close failed.
-				return fmt.Errorf("graceful shutdown failed: %w; forceful close also failed: %w", shutdownErr, closeErr)
-			}
-			// Return the original shutdown error if forceful close was attempted (even if it succeeded).
-			return fmt.Errorf("graceful shutdown failed (fallback close attempted): %w", shutdownErr)
-		}
-		appLogger.Info("Server shutdown gracefully initiated. ListenAndServe will exit/has exited with http.ErrServerClosed.")
-	}
-	return nil // Indicates successful lifecycle management (clean shutdown or server stopped as expected)
-}
-
 // run is the main application logic function. It sets up all components,
 // starts the server, and handles graceful shutdown.
 func run() error {
@@ -459,32 +394,32 @@ func run() error {
 	// Basic health check that doesn't depend on DB
 	mux.Handle("/health/live", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		_, _ = w.Write([]byte("OK"))
 	}))
 	
 	// Readiness check that waits for DB
-	mux.Handle("/health/ready", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/health/ready", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		select {
 		case <-dbReady:
 			// DB is ready
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("Ready"))
+			_, _ = w.Write([]byte("Ready"))
 		default:
 			// DB not ready yet
 			w.WriteHeader(http.StatusServiceUnavailable)
-			w.Write([]byte("Database not ready"))
+			_, _ = w.Write([]byte("Database not ready"))
 		}
 	}))
 	
 	// Basic health endpoint
-	mux.Handle("/health", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/health", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		select {
 		case <-dbReady:
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"status":"UP"}`))
+			_, _ = w.Write([]byte(`{"status":"UP"}`))
 		default:
 			w.WriteHeader(http.StatusServiceUnavailable)
-			w.Write([]byte(`{"status":"DOWN","reason":"Database not ready"}`))
+			_, _ = w.Write([]byte(`{"status":"DOWN","reason":"Database not ready"}`))
 		}
 	}))
 
