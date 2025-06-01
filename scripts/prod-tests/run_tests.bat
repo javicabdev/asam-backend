@@ -13,7 +13,7 @@ go mod download
 
 echo.
 echo Ejecutando pruebas...
-go run scripts/prod-tests/test_database_operations.go
+go run scripts/prod-tests/test-operations/main.go
 
 echo.
 echo ====================================

@@ -7,7 +7,7 @@ echo.
 cd /d "%~dp0"
 cd ../..
 
-go run scripts/prod-tests/check_env.go
+go run scripts/prod-tests/check-env/main.go
 
 echo.
 pause

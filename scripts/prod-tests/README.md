@@ -1,200 +1,91 @@
-# Pruebas de Base de Datos - Producción
+# Scripts de Prueba de Producción
 
-Este directorio contiene scripts para verificar que las operaciones CRUD (Create, Read, Update, Delete) funcionan correctamente en la base de datos de producción.
+Este directorio contiene herramientas para verificar y probar la base de datos de producción.
 
-## 📋 Descripción
+## Estructura
 
-Los scripts realizan las siguientes pruebas:
-
-1. **Conexión a la base de datos**: Verifica que se puede establecer conexión con la base de datos de producción
-2. **Crear miembro**: Crea un miembro de prueba con datos únicos
-3. **Leer miembro**: Lee el miembro creado para verificar que se guardó correctamente
-4. **Actualizar miembro**: Actualiza el email del miembro
-5. **Borrar miembro**: Elimina el miembro de prueba
-6. **Operaciones con pagos**: Crea y elimina un pago de prueba
-7. **Rollback de transacciones**: Verifica que las transacciones se pueden revertir correctamente
-
-## 🚀 Cómo ejecutar las pruebas
-
-### ⚠️ IMPORTANTE: Verificar el entorno primero
-
-Antes de ejecutar las pruebas, verifica que estás usando el entorno correcto:
-
-```powershell
-# Verificar variables de entorno
-.\scripts\prod-tests\check_env.bat
+```
+prod-tests/
+├── check-env/          # Verificador de variables de entorno
+│   └── main.go
+├── quick-connection/   # Prueba rápida de conexión
+│   └── main.go
+├── test-operations/    # Pruebas CRUD completas
+│   └── main.go
+├── check_env.bat       # Script para verificar entorno
+├── quick_test.bat      # Script para prueba rápida
+├── run_tests.bat       # Script para ejecutar todas las pruebas
+├── Load-ProdEnv.ps1    # PowerShell para cargar variables
+└── Test-DatabaseOperations.ps1  # PowerShell para pruebas
 ```
 
-Si no está cargando las variables de producción correctamente, usa el script PowerShell:
+## Herramientas Disponibles
 
-```powershell
-# Cargar entorno de producción y verificar
-.\scripts\prod-tests\Load-ProdEnv.ps1 -CheckOnly
-```
-
-### Opción 1: Script PowerShell con carga de entorno (RECOMENDADO)
-
-```powershell
-# Prueba rápida de conexión
-.\scripts\prod-tests\Load-ProdEnv.ps1 -QuickTest
-
-# Pruebas completas de CRUD
-.\scripts\prod-tests\Load-ProdEnv.ps1 -FullTest
-```
-
-### Opción 2: Scripts Batch (Windows)
-
+### 1. Verificador de Variables de Entorno
 ```bash
-# Verificar entorno
-cd scripts\prod-tests
-check_env.bat
+# Windows
+.\check_env.bat
 
-# Prueba rápida
-quick_test.bat
-
-# Pruebas completas
-run_tests.bat
+# Go directo
+go run scripts/prod-tests/check-env/main.go
 ```
 
-### Opción 3: PowerShell con Test-DatabaseOperations.ps1
+Verifica que las variables de entorno estén correctamente configuradas para producción.
 
-```powershell
-# Ejecutar con configuración por defecto
-.\scripts\prod-tests\Test-DatabaseOperations.ps1
-
-# Ejecutar con salida detallada
-.\scripts\prod-tests\Test-DatabaseOperations.ps1 -Verbose
-
-# Saltar prueba de conexión inicial
-.\scripts\prod-tests\Test-DatabaseOperations.ps1 -SkipConnectionTest
-
-# Usar entorno local para pruebas
-.\scripts\prod-tests\Test-DatabaseOperations.ps1 -UseLocalEnv
-```
-
-### Opción 4: Go directamente
-
+### 2. Prueba Rápida de Conexión
 ```bash
-# Desde la raíz del proyecto
-go run scripts/prod-tests/test_database_operations.go
+# Windows
+.\quick_test.bat
+
+# Go directo
+go run scripts/prod-tests/quick-connection/main.go
 ```
 
-## ⚙️ Requisitos previos
+Realiza una conexión rápida a la base de datos y muestra estadísticas básicas.
 
-1. **Go instalado**: Versión 1.19 o superior
-2. **Archivo .env.production**: Debe existir con las credenciales correctas
-3. **Conexión a Internet**: Para acceder a la base de datos en Aiven
-4. **Permisos de base de datos**: El usuario debe tener permisos para CREATE, READ, UPDATE y DELETE
+### 3. Pruebas CRUD Completas
+```bash
+# Windows
+.\run_tests.bat
 
-## 📊 Interpretación de resultados
-
-### Resultado exitoso:
-```
-✓ PASÓ - Create Member
-   Miembro creado exitosamente con ID: 123
-
-✓ PASÓ - Read Member
-   Miembro leído exitosamente: Test User 1234567890
-
-✓ PASÓ - Update Member
-   Miembro actualizado exitosamente. Nuevo email: test_1234567890@example.com
-
-✓ PASÓ - Delete Member
-   Miembro borrado exitosamente
-
-✓ PASÓ - Payment Operations
-   Operaciones de pago completadas exitosamente
-
-✓ PASÓ - Transaction Rollback
-   Rollback de transacción exitoso
-
-==========================
-Total de pruebas: 6
-Pruebas exitosas: 6
-Pruebas fallidas: 0
-
-✓ ¡Todas las pruebas pasaron exitosamente!
-✓ La base de datos de producción está funcionando correctamente.
+# Go directo
+go run scripts/prod-tests/test-operations/main.go
 ```
 
-### Posibles errores:
+Ejecuta una suite completa de pruebas CRUD en la base de datos de producción.
 
-1. **Error de conexión**: Verifica las credenciales en `.env.production`
-2. **Error de permisos**: El usuario de la BD necesita permisos CRUD
-3. **Error de foreign key**: Normal si no existe el miembro ID 1 (la prueba lo maneja)
+### 4. Scripts PowerShell
 
-## 🔒 Seguridad
-
-- Los scripts crean datos con prefijo "TEST-" para identificarlos fácilmente
-- Todos los datos de prueba se eliminan automáticamente
-- Las transacciones se revierten para no afectar datos reales
-- No se modifican datos existentes en producción
-
-## 🛠️ Personalización
-
-Para agregar más pruebas, edita el archivo `test_database_operations.go`:
-
-1. Agrega una nueva función de prueba siguiendo el patrón:
-   ```go
-   func testNewFeature(db *gorm.DB) TestResult {
-       // Tu código de prueba aquí
-   }
-   ```
-
-2. Llama a la función desde `runTests()`
-
-3. La función debe retornar un `TestResult` con:
-   - `TestName`: Nombre descriptivo de la prueba
-   - `Success`: true/false según el resultado
-   - `Error`: El error si hubo alguno
-   - `Message`: Mensaje descriptivo del resultado
-
-## 📝 Notas importantes
-
-- **NO ejecutar en horarios de alta carga**: Las pruebas crean/borran datos reales
-- **Monitorear el uso**: Cada ejecución cuenta contra las cuotas de la BD
-- **Revisar logs**: En caso de fallo, los logs dan información detallada
-- **Backup previo**: Aunque las pruebas son seguras, siempre es buena práctica
-
-## 🤝 Soporte
-
-Si encuentras problemas:
-
-1. Verifica que el archivo `.env.production` tenga las credenciales correctas
-2. Comprueba la conectividad de red hacia Aiven
-3. Revisa que las migraciones estén actualizadas
-4. Contacta al equipo de DevOps si persisten los problemas
-
-## 🔧 Solución de problemas comunes
-
-### Conecta a localhost en lugar de producción
-
-**Problema**: No se cargan las variables de `.env.production`.
-
-**Solución**: Usa el script `Load-ProdEnv.ps1` que carga explícitamente las variables:
+#### Load-ProdEnv.ps1
+Carga las variables de entorno de producción en la sesión actual de PowerShell:
 ```powershell
-.\scripts\prod-tests\Load-ProdEnv.ps1 -QuickTest
+.\Load-ProdEnv.ps1
 ```
 
-## 🆕 Migraciones de Base de Datos
-
-Si encuentras errores relacionados con nombres de columnas en español (como "no existe la columna 'name'"), necesitas aplicar las migraciones para cambiar los nombres a inglés:
-
+#### Test-DatabaseOperations.ps1
+Script PowerShell más detallado para pruebas:
 ```powershell
-# Aplicar migraciones
-.\scripts\Apply-EnglishMigrations.ps1
-
-# Si necesitas revertir
-.\scripts\Apply-EnglishMigrations.ps1 -Rollback
+.\Test-DatabaseOperations.ps1
 ```
 
-### Si la migración 15 falla
+## Uso Seguro
 
-Si ves un error como "constraint does not exist", usa el script especial:
+⚠️ **ADVERTENCIA**: Estos scripts operan en la base de datos de PRODUCCIÓN.
 
-```powershell
-# Aplicar solo la migración 15 corregida
-.\scripts\Apply-Migration15.ps1
-```
+- Los scripts de prueba crean y eliminan datos de prueba
+- Los datos de prueba tienen prefijos como "TEST-" o "ROLLBACK-TEST-"
+- Siempre revisa el archivo `.env.production` antes de ejecutar
+- Los scripts están diseñados para limpiar después de sí mismos
 
-Ver más detalles en [migrations/README_ENGLISH_MIGRATIONS.md](../../migrations/README_ENGLISH_MIGRATIONS.md)
+## Requisitos
+
+1. Go 1.21 o superior
+2. Archivo `.env.production` configurado correctamente
+3. Acceso a la base de datos de producción
+4. PowerShell (para scripts .ps1)
+
+## Notas de Seguridad
+
+- Los scripts verifican que estén usando la configuración de producción correcta
+- Los datos de prueba se eliminan automáticamente después de cada ejecución
+- Si un script falla, puede quedar basura de datos de prueba - revisa y limpia manualmente si es necesario
