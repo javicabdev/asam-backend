@@ -58,8 +58,13 @@ jobs:
           go mod download
           go mod verify
 
+      - name: Install gqlgen
+        run: go install github.com/99designs/gqlgen@v0.17.73
+
       - name: Generate GraphQL code
-        run: go run ./cmd/generate/main.go
+        run: |
+          echo "Generating GraphQL code..."
+          gqlgen generate
 
       - name: Install and run golangci-lint
         uses: golangci/golangci-lint-action@v8
@@ -101,8 +106,13 @@ jobs:
           go mod download
           go mod verify
 
+      - name: Install gqlgen
+        run: go install github.com/99designs/gqlgen@v0.17.73
+
       - name: Generate GraphQL code
-        run: go run ./cmd/generate/main.go
+        run: |
+          echo "Generating GraphQL code..."
+          gqlgen generate
 
       - name: Run unit tests with coverage
         run: |
@@ -232,6 +242,8 @@ jobs:
             --set-env-vars="ENVIRONMENT=production" \
             --set-env-vars="ADMIN_USER=${{ secrets.ADMIN_USER }}" \
             --set-env-vars="ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}" \
+            --set-env-vars="SMTP_USER=${{ secrets.SMTP_USER || 'noreply@asam.org' }}" \
+            --set-env-vars="SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD || 'temp-smtp-pass' }}" \
             --cpu=1 \
             --memory=512Mi \
             --concurrency=80 \
