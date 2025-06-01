@@ -2,11 +2,16 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -14,6 +19,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
+	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 
 	"github.com/javicabdev/asam-backend/internal/adapters/db"
@@ -32,6 +38,57 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/monitoring"
 )
 
+var (
+	// Version information (set by build flags)
+	Version   = "unknown"
+	Commit    = "unknown"
+	BuildTime = "unknown"
+
+	// Metrics
+	httpDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "http_duration_seconds",
+		Help: "Duration of HTTP requests.",
+	}, []string{"path", "method", "status"})
+
+	httpRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "http_requests_total",
+		Help: "Total number of HTTP requests.",
+	}, []string{"path", "method", "status"})
+)
+
+func init() {
+	prometheus.MustRegister(httpDuration)
+	prometheus.MustRegister(httpRequests)
+}
+
+// HealthStatus represents the health status of the service
+type HealthStatus struct {
+	Status      string            `json:"status"`
+	Version     string            `json:"version"`
+	Commit      string            `json:"commit"`
+	BuildTime   string            `json:"build_time"`
+	Timestamp   time.Time         `json:"timestamp"`
+	Database    string            `json:"database"`
+	Services    map[string]string `json:"services"`
+	Environment string            `json:"environment"`
+	Memory      MemoryStats       `json:"memory"`
+}
+
+// MemoryStats represents memory usage statistics
+type MemoryStats struct {
+	Allocated      uint64 `json:"allocated_mb"`
+	TotalAllocated uint64 `json:"total_allocated_mb"`
+	System         uint64 `json:"system_mb"`
+	NumGC          uint32 `json:"num_gc"`
+}
+
+// ServiceStatus tracks the availability of different services
+type ServiceStatus struct {
+	Database     atomic.Bool
+	Auth         atomic.Bool
+	Notification atomic.Bool
+}
+
 // appDependencies holds all major dependencies for the application.
 type appDependencies struct {
 	memberService       input.MemberService
@@ -45,6 +102,8 @@ type appDependencies struct {
 	gqlTracer       *middleware.GraphQLTracer
 	memoryMonitor   *monitoring.MemoryMonitor
 	profilingServer *monitoring.ProfilingServer
+	// Service status
+	serviceStatus *ServiceStatus
 }
 
 // initLogging initializes the application and audit loggers.
@@ -79,6 +138,89 @@ func initLogging() (logger.Logger, audit.Logger, error) {
 
 	auditLogger := audit.NewLogger(appLogger)
 	return appLogger, auditLogger, nil
+}
+
+// generateRequestID generates a unique request ID
+func generateRequestID() string {
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+// requestIDMiddleware adds a request ID to each request
+func requestIDMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestID := r.Header.Get("X-Request-ID")
+		if requestID == "" {
+			requestID = generateRequestID()
+		}
+
+		ctx := context.WithValue(r.Context(), "requestID", requestID)
+		w.Header().Set("X-Request-ID", requestID)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// securityHeadersMiddleware adds security headers to responses
+func securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		w.Header().Set("Referrer-Policy", "no-referrer-when-downgrade")
+
+		// Only add HSTS in production
+		if os.Getenv("ENVIRONMENT") == "production" {
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// rateLimitMiddleware implements rate limiting
+func rateLimitMiddleware(rps float64) func(http.Handler) http.Handler {
+	limiter := rate.NewLimiter(rate.Limit(rps), int(rps*2))
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !limiter.Allow() {
+				http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// prometheusMiddleware records metrics for HTTP requests
+func prometheusMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		// Wrap response writer to capture status code
+		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+
+		next.ServeHTTP(wrapped, r)
+
+		duration := time.Since(start).Seconds()
+		status := fmt.Sprintf("%d", wrapped.statusCode)
+
+		httpDuration.WithLabelValues(r.URL.Path, r.Method, status).Observe(duration)
+		httpRequests.WithLabelValues(r.URL.Path, r.Method, status).Inc()
+	})
+}
+
+// responseWriter wraps http.ResponseWriter to capture status code
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
 }
 
 // updateBusinessMetrics retrieves and updates various business-related metrics.
@@ -189,6 +331,21 @@ func setupConfigurationAndLogger() (*config.Config, logger.Logger, audit.Logger,
 		appLogger.Error("Failed to load configuration", zap.Error(err))
 		return nil, nil, nil, fmt.Errorf("failed to load configuration: %w", err)
 	}
+
+	// Apply Cloud Run optimizations if detected
+	if os.Getenv("K_SERVICE") != "" {
+		appLogger.Info("Running on Cloud Run",
+			zap.String("service", os.Getenv("K_SERVICE")),
+			zap.String("revision", os.Getenv("K_REVISION")),
+			zap.String("configuration", os.Getenv("K_CONFIGURATION")),
+		)
+
+		// Optimize for Cloud Run
+		cfgLoaded.DBMaxIdleConns = 2 // Reduce idle connections
+		cfgLoaded.DBConnMaxLifetime = 5 * time.Minute
+		cfgLoaded.RateLimitRPS = 50 // Higher rate limit for Cloud Run
+	}
+
 	return cfgLoaded, appLogger, auditLogger, nil
 }
 
@@ -205,9 +362,41 @@ func setupDatabase(cfg *config.Config, appLogger logger.Logger) (*gorm.DB, error
 	return database, nil
 }
 
+// setupDatabaseWithRetry sets up database with retry logic
+func setupDatabaseWithRetry(cfg *config.Config, appLogger logger.Logger, maxRetries int) (*gorm.DB, error) {
+	var database *gorm.DB
+	var err error
+
+	for i := 0; i < maxRetries; i++ {
+		database, err = setupDatabase(cfg, appLogger)
+		if err == nil {
+			return database, nil
+		}
+
+		appLogger.Warn("Database connection failed, retrying...",
+			zap.Error(err),
+			zap.Int("attempt", i+1),
+			zap.Int("max_attempts", maxRetries),
+		)
+
+		// Exponential backoff
+		backoff := time.Duration(i+1) * time.Second
+		if backoff > 10*time.Second {
+			backoff = 10 * time.Second
+		}
+		time.Sleep(backoff)
+	}
+
+	return nil, fmt.Errorf("failed to connect to database after %d attempts: %w", maxRetries, err)
+}
+
 // initializeServicesAndDependencies sets up repositories, services, JWT utility,
 // and other core application components, returning them in an appDependencies struct.
 func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, appLogger logger.Logger, auditLogger audit.Logger) (*appDependencies, error) {
+	// Initialize service status
+	serviceStatus := &ServiceStatus{}
+	serviceStatus.Database.Store(true)
+
 	// Initialize repositories
 	memberRepo := db.NewMemberRepository(database)
 	familyRepo := db.NewFamilyRepository(database)
@@ -229,12 +418,14 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 		// Error already logged by createNotificationService if appLogger was passed
 		return nil, fmt.Errorf("failed to create notification service: %w", err)
 	}
+	serviceStatus.Notification.Store(true)
 
 	// Initialize fee calculator (consider moving magic numbers to config)
 	feeCalculator := services.NewFeeCalculator(30.0, 10.0, 1.0, 1.0)
 	paymentService := services.NewPaymentService(paymentRepo, membershipFeeRepo, memberRepo, notificationService, feeCalculator)
 	cashFlowService := services.NewCashFlowService(cashFlowRepo)
 	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, appLogger)
+	serviceStatus.Auth.Store(true)
 
 	// Initialize monitoring components
 	// 1. Setup query monitor for tracking slow queries
@@ -285,6 +476,7 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 		gqlTracer:           gqlTracer,
 		memoryMonitor:       memoryMonitor,
 		profilingServer:     profilingServer,
+		serviceStatus:       serviceStatus,
 	}, nil
 }
 
@@ -297,6 +489,81 @@ func setupAndRegisterMetrics(appLogger logger.Logger) {
 	// Register process metrics collector
 	if err := prometheus.Register(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})); err != nil {
 		appLogger.Warn("Could not register process metrics collector", zap.Error(err))
+	}
+}
+
+// getMemoryStats returns current memory statistics
+func getMemoryStats() MemoryStats {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	return MemoryStats{
+		Allocated:      m.Alloc / 1024 / 1024,
+		TotalAllocated: m.TotalAlloc / 1024 / 1024,
+		System:         m.Sys / 1024 / 1024,
+		NumGC:          m.NumGC,
+	}
+}
+
+// healthHandler creates an enhanced health check handler
+func healthHandler(cfg *config.Config, database *gorm.DB, deps *appDependencies) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		health := HealthStatus{
+			Status:      "UP",
+			Version:     Version,
+			Commit:      Commit,
+			BuildTime:   BuildTime,
+			Timestamp:   time.Now(),
+			Environment: cfg.Environment,
+			Services:    make(map[string]string),
+			Memory:      getMemoryStats(),
+		}
+
+		// Check database
+		if database != nil {
+			sqlDB, err := database.DB()
+			if err == nil {
+				ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+				defer cancel()
+
+				if err := sqlDB.PingContext(ctx); err == nil {
+					health.Database = "healthy"
+				} else {
+					health.Database = "unhealthy"
+					health.Status = "DEGRADED"
+				}
+			} else {
+				health.Database = "error"
+				health.Status = "DEGRADED"
+			}
+		} else {
+			health.Database = "connecting"
+		}
+
+		// Check services status
+		if deps != nil && deps.serviceStatus != nil {
+			if deps.serviceStatus.Auth.Load() {
+				health.Services["auth"] = "healthy"
+			} else {
+				health.Services["auth"] = "unhealthy"
+			}
+
+			if deps.serviceStatus.Notification.Load() {
+				health.Services["notification"] = "healthy"
+			} else {
+				health.Services["notification"] = "unhealthy"
+			}
+		}
+
+		statusCode := http.StatusOK
+		if health.Status != "UP" {
+			statusCode = http.StatusServiceUnavailable
+		}
+
+		w.WriteHeader(statusCode)
+		_ = json.NewEncoder(w).Encode(health)
 	}
 }
 
@@ -315,25 +582,56 @@ func newHTTPServerAndMux(deps *appDependencies, cfg *config.Config, appLogger lo
 	playgroundHandler := gql.NewPlaygroundHandler()
 
 	// Initialize health check handler
-	healthHandler := health.NewHandler(database) // Assuming health.NewHandler takes *gorm.DB
+	healthCheckHandler := health.NewHandler(database)
 
 	// Create a new ServeMux for routing
 	mux := http.NewServeMux()
+
+	// Apply global middlewares
+	handler := requestIDMiddleware(
+		securityHeadersMiddleware(
+			rateLimitMiddleware(cfg.RateLimitRPS)(
+				prometheusMiddleware(mux),
+			),
+		),
+	)
+
+	// Routes
 	mux.Handle("/playground", playgroundHandler) // GraphQL Playground
 	mux.Handle("/graphql", graphqlHandler)       // GraphQL endpoint
 	mux.Handle("/metrics", promhttp.Handler())   // Prometheus metrics
 
-	// Health check endpoints
-	mux.Handle("/health", healthHandler)                                                                                        // General health check
-	mux.Handle("/health/live", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })) // Liveness probe
-	mux.Handle("/health/ready", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {                                 // Readiness probe
-		healthCheck := healthHandler.CheckHealth(r.Context()) // Ensure healthHandler.CheckHealth exists
+	// Enhanced health endpoints
+	mux.Handle("/health", healthHandler(cfg, database, deps))
+	mux.Handle("/health/live", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
+	}))
+	mux.Handle("/health/ready", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if database == nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte("Database not ready"))
+			return
+		}
+
+		healthCheck := healthCheckHandler.CheckHealth(r.Context())
 		if healthCheck.Status == health.StatusDown {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
+
+	// Root endpoint
+	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"service": "asam-backend",
+			"version": Version,
+			"status":  "running",
+		})
+	})
 
 	// Performance monitoring endpoints (protected by basic auth in production)
 	if cfg.Environment == "production" {
@@ -354,7 +652,7 @@ func newHTTPServerAndMux(deps *appDependencies, cfg *config.Config, appLogger lo
 	listenAddr := fmt.Sprintf(":%s", cfg.Port)
 	return &http.Server{
 		Addr:              listenAddr,
-		Handler:           mux,
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second, // Mitigates Slowloris attacks
 		ReadTimeout:       15 * time.Second, // Max time to read entire request
 		WriteTimeout:      15 * time.Second, // Max time to write entire response
@@ -364,9 +662,9 @@ func newHTTPServerAndMux(deps *appDependencies, cfg *config.Config, appLogger lo
 
 // run is the main application logic function. It sets up all components,
 // starts the server, and handles graceful shutdown.
-func run() error {
-	// Main application context, cancelled when run() exits.
-	ctx, cancel := context.WithCancel(context.Background())
+func run(ctx context.Context) error {
+	// Main application context
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	// Step 1: Setup configuration and logging.
@@ -374,7 +672,11 @@ func run() error {
 	if err != nil {
 		return err // Error is already contextualized or is about logger init itself.
 	}
-	appLogger.Info("ASAM Backend starting...")
+	appLogger.Info("ASAM Backend starting...",
+		zap.String("version", Version),
+		zap.String("commit", Commit),
+		zap.String("build_time", BuildTime),
+	)
 	appLogger.Info("Environment configuration",
 		zap.String("PORT", cfg.Port),
 		zap.String("ENVIRONMENT", cfg.Environment))
@@ -394,11 +696,24 @@ func run() error {
 	// Create a minimal mux with just health endpoints initially
 	mux := http.NewServeMux()
 
+	// Apply global middlewares even for initial server
+	handler := requestIDMiddleware(
+		securityHeadersMiddleware(
+			rateLimitMiddleware(cfg.RateLimitRPS)(
+				prometheusMiddleware(mux),
+			),
+		),
+	)
+
 	// Root endpoint for basic connectivity test
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"service":"asam-backend","status":"running"}`))
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"service": "asam-backend",
+			"version": Version,
+			"status":  "running",
+		})
 	})
 
 	// Basic health check that doesn't depend on DB
@@ -421,18 +736,31 @@ func run() error {
 		}
 	}))
 
-	// Basic health endpoint
-	mux.Handle("/health", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	// Basic health endpoint with minimal info
+	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+
+		health := HealthStatus{
+			Status:      "UP",
+			Version:     Version,
+			Commit:      Commit,
+			BuildTime:   BuildTime,
+			Timestamp:   time.Now(),
+			Environment: cfg.Environment,
+			Services:    make(map[string]string),
+			Memory:      getMemoryStats(),
+		}
+
 		select {
 		case <-dbReady:
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"status":"UP"}`))
+			health.Database = "healthy"
 		default:
-			w.WriteHeader(http.StatusOK) // Return OK even if DB not ready for Cloud Run
-			_, _ = w.Write([]byte(`{"status":"UP","database":"connecting"}`))
+			health.Database = "connecting"
 		}
-	}))
+
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(health)
+	})
 
 	// Prometheus metrics endpoint (always available)
 	mux.Handle("/metrics", promhttp.Handler())
@@ -441,7 +769,7 @@ func run() error {
 	listenAddr := fmt.Sprintf(":%s", cfg.Port)
 	server := &http.Server{
 		Addr:              listenAddr,
-		Handler:           mux,
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,
@@ -452,7 +780,7 @@ func run() error {
 	serverErrors := make(chan error, 1)
 	go func() {
 		appLogger.Info("Server starting to listen...", zap.String("address", server.Addr))
-		if listenErr := server.ListenAndServe(); listenErr != nil {
+		if listenErr := server.ListenAndServe(); listenErr != nil && !errors.Is(listenErr, http.ErrServerClosed) {
 			serverErrors <- fmt.Errorf("http.ListenAndServe failed: %w", listenErr)
 		}
 	}()
@@ -467,16 +795,7 @@ func run() error {
 
 		// Setup database connection with retries
 		var dbErr error
-		for i := 0; i < 30; i++ { // Try for up to 30 seconds
-			database, dbErr = setupDatabase(cfg, appLogger)
-			if dbErr == nil {
-				break
-			}
-			appLogger.Warn("Database connection failed, retrying...",
-				zap.Error(dbErr),
-				zap.Int("attempt", i+1))
-			time.Sleep(1 * time.Second)
-		}
+		database, dbErr = setupDatabaseWithRetry(cfg, appLogger, 30)
 
 		if dbErr != nil {
 			appLogger.Error("Failed to setup database after retries", zap.Error(dbErr))
@@ -514,18 +833,19 @@ func run() error {
 	// Block until a shutdown signal or a server error is received
 	select {
 	case errFromListenAndServe := <-serverErrors:
-		if errors.Is(errFromListenAndServe, http.ErrServerClosed) {
-			appLogger.Info("Server's ListenAndServe loop stopped (expected on shutdown).")
-		} else {
-			appLogger.Error("ListenAndServe failed with unexpected error", zap.Error(errFromListenAndServe))
-			return errFromListenAndServe
-		}
+		appLogger.Error("Server error", zap.Error(errFromListenAndServe))
+		return errFromListenAndServe
 
 	case sig := <-shutdownSignal:
 		appLogger.Info("Shutdown signal received.", zap.String("signal", sig.String()))
 
 		// Graceful shutdown
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
+		shutdownTimeout := 30 * time.Second
+		if cfg.Environment == "development" {
+			shutdownTimeout = 5 * time.Second
+		}
+
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer shutdownCancel()
 
 		appLogger.Info("Attempting graceful server shutdown...")
@@ -567,11 +887,22 @@ func run() error {
 // main is the entry point of the application.
 // It calls the run function and handles the final exit status.
 func main() {
+	// Version information
+	if len(os.Args) > 1 && os.Args[1] == "version" {
+		fmt.Printf("ASAM Backend %s (commit: %s, built: %s)\n", Version, Commit, BuildTime)
+		return
+	}
+
 	// Print immediate startup message
 	fmt.Println("ASAM Backend process starting...")
+	fmt.Printf("Version: %s, Commit: %s, Built: %s\n", Version, Commit, BuildTime)
 	fmt.Printf("PORT environment variable: %s\n", os.Getenv("PORT"))
 
-	if err := run(); err != nil {
+	// Run with proper signal handling
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	if err := run(ctx); err != nil {
 		// Use fmt.Fprintln for critical errors, as logger might not be available
 		// or the error occurred before logger was fully set up.
 		_, _ = fmt.Fprintln(os.Stderr, "Application run failed:", err)
