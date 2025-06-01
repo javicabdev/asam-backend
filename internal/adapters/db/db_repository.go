@@ -87,7 +87,7 @@ func InitDB(cfg *config.Config, logs ...appLogger.Logger) (*gorm.DB, error) {
 	// Test connection with timeout for Cloud Run
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	if err := sqlDB.PingContext(ctx); err != nil {
 		return nil, errors.Wrap(err, errors.ErrDatabaseError, "Failed to ping database server")
 	}
