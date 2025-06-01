@@ -22,7 +22,6 @@ linters:
     - revive
     - unconvert
     - gocyclo
-    - gosimple
 
 linters-settings:
   gocyclo:
