@@ -164,7 +164,6 @@ jobs:
             JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}
             JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
             ENVIRONMENT=production
-            PORT=8080
           flags: >-
             --allow-unauthenticated
             --cpu=1
