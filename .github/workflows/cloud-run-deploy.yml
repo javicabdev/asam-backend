@@ -155,7 +155,7 @@ jobs:
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
-            --set-env-vars="DB_HOST=${{ secrets.AIVEN_DB_HOST }},DB_PORT=${{ secrets.AIVEN_DB_PORT }},DB_USER=${{ secrets.AIVEN_DB_USER }},DB_PASSWORD=${{ secrets.AIVEN_DB_PASSWORD }},DB_NAME=${{ secrets.AIVEN_DB_NAME }},DB_SSL_MODE=require,JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }},JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }},ENVIRONMENT=production" \
+            --set-env-vars="DB_HOST=${{ secrets.AIVEN_DB_HOST }},DB_PORT=${{ secrets.AIVEN_DB_PORT }},DB_USER=${{ secrets.AIVEN_DB_USER }},DB_PASSWORD=${{ secrets.AIVEN_DB_PASSWORD }},DB_NAME=${{ secrets.AIVEN_DB_NAME }},DB_SSL_MODE=require,JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }},JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }},ENVIRONMENT=production,ADMIN_USER=${{ secrets.ADMIN_USER }},ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}" \
             --cpu=1 \
             --memory=512Mi \
             --concurrency=80 \
