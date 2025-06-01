@@ -5,27 +5,47 @@ on:
     branches: [ main ]
     paths-ignore:
       - '**/*.md'
+      - '.gitignore'
+      - 'LICENSE'
+      - '.github/workflows/ci.yml'
   workflow_dispatch:  # Para despliegues manuales
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   SERVICE_NAME: asam-backend
   REGION: europe-west1
-  GO_VERSION: '1.24'  # Definido como variable de entorno global
-  # Variables para tests
+  GO_VERSION: '1.23'  # Actualizado a la misma versión del Dockerfile
+  ARTIFACT_REGISTRY: europe-west1-docker.pkg.dev
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: postgres
   POSTGRES_DB: asam_test
   POSTGRES_HOST: localhost
   POSTGRES_PORT: "5432"
 
+# Limitar concurrencia para evitar despliegues simultáneos
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Para obtener todo el historial para análisis
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -33,8 +53,10 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Install dependencies
-        run: go mod download
+      - name: Verify dependencies
+        run: |
+          go mod download
+          go mod verify
 
       - name: Generate GraphQL code
         run: go run ./cmd/generate/main.go
@@ -50,13 +72,14 @@ jobs:
     name: Test
     needs: lint
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       postgres:
-        image: postgres:16  # Actualizado a PostgreSQL 16
+        image: postgres:16-alpine  # Usar alpine para imagen más ligera
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: asam_test
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
         ports:
           - 5432:5432
         options: >-
@@ -75,13 +98,23 @@ jobs:
           cache: true
 
       - name: Get dependencies
-        run: go mod download
+        run: |
+          go mod download
+          go mod verify
 
       - name: Generate GraphQL code
-        run: go run ./cmd/generate/main.go  # Ruta completa al archivo main.go
+        run: go run ./cmd/generate/main.go
 
-      - name: Run unit tests
-        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./internal/... ./pkg/...
+      - name: Run unit tests with coverage
+        run: |
+          go test -v -race -coverprofile=coverage.txt -covermode=atomic ./internal/... ./pkg/...
+          go tool cover -func=coverage.txt
+
+      - name: Upload coverage to Codecov (opcional)
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.txt
+          fail_ci_if_error: false
 
       - name: Setup test environment for integration tests
         run: |
@@ -89,15 +122,15 @@ jobs:
           go run cmd/migrate/main.go -cmd up
         env:
           CI: "true"
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-          POSTGRES_HOST: ${{ env.POSTGRES_HOST }}
-          POSTGRES_PORT: ${{ env.POSTGRES_PORT }}
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          DB_HOST: ${{ env.POSTGRES_HOST }}
+          DB_PORT: ${{ env.POSTGRES_PORT }}
+          DB_USER: ${{ env.POSTGRES_USER }}
+          DB_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          DB_NAME: ${{ env.POSTGRES_DB }}
           DB_SSL_MODE: "disable"
 
       - name: Run integration tests
-        run: go test -v -tags=integration ./test/integration/...
+        run: go test -v -tags=integration -timeout 5m ./test/integration/...
         env:
           DB_HOST: ${{ env.POSTGRES_HOST }}
           DB_PORT: ${{ env.POSTGRES_PORT }}
@@ -110,12 +143,19 @@ jobs:
           ENVIRONMENT: "test"
           CI: "true"
 
-  deploy:
-    name: Deploy to Cloud Run
+  build-and-push:
+    name: Build and Push Docker Image
     needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      image-url: ${{ steps.image.outputs.url }}
+      image-digest: ${{ steps.push.outputs.digest }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Authenticate to Google Cloud
         id: auth
@@ -127,74 +167,133 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Docker
-        run: |
-          # Configurar autenticación para Artifact Registry
-          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+        run: gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY }} --quiet
 
-      - name: Generate Image Tag
-        id: tag
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-
-      # Construir y publicar imagen Docker en Artifact Registry
-      - name: Build and Push Container
+      - name: Generate metadata
+        id: meta
         run: |
-          # Usar Artifact Registry en lugar de Container Registry
-          IMAGE_URL="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/asam-backend/${{ env.SERVICE_NAME }}:${{ steps.tag.outputs.sha_short }}"
-          
-          docker build -t $IMAGE_URL .
-          docker push $IMAGE_URL
-          
-          # Guardar la URL de la imagen para el siguiente paso
-          echo "IMAGE_URL=$IMAGE_URL" >> $GITHUB_ENV
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "version=$(date +%Y%m%d)-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.ARTIFACT_REGISTRY }}/${{ env.PROJECT_ID }}/asam-backend/${{ env.SERVICE_NAME }}:${{ steps.meta.outputs.sha_short }}
+            ${{ env.ARTIFACT_REGISTRY }}/${{ env.PROJECT_ID }}/asam-backend/${{ env.SERVICE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+            COMMIT=${{ steps.meta.outputs.sha_short }}
+            BUILD_TIME=${{ steps.meta.outputs.build_time }}
+
+      - name: Output image URL
+        id: image
+        run: |
+          echo "url=${{ env.ARTIFACT_REGISTRY }}/${{ env.PROJECT_ID }}/asam-backend/${{ env.SERVICE_NAME }}:${{ steps.meta.outputs.sha_short }}" >> $GITHUB_OUTPUT
+
+  deploy:
+    name: Deploy to Cloud Run
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production  # Protección de entorno en GitHub
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
 
       - name: Deploy to Cloud Run
         id: deploy
         run: |
           gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image=${{ env.IMAGE_URL }} \
+            --image=${{ needs.build-and-push.outputs.image-url }} \
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
-            --set-env-vars="DB_HOST=${{ secrets.AIVEN_DB_HOST }},DB_PORT=${{ secrets.AIVEN_DB_PORT }},DB_USER=${{ secrets.AIVEN_DB_USER }},DB_PASSWORD=${{ secrets.AIVEN_DB_PASSWORD }},DB_NAME=${{ secrets.AIVEN_DB_NAME }},DB_SSL_MODE=require,JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }},JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }},ENVIRONMENT=production,ADMIN_USER=${{ secrets.ADMIN_USER }},ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}" \
+            --set-env-vars="DB_HOST=${{ secrets.AIVEN_DB_HOST }}" \
+            --set-env-vars="DB_PORT=${{ secrets.AIVEN_DB_PORT }}" \
+            --set-env-vars="DB_USER=${{ secrets.AIVEN_DB_USER }}" \
+            --set-env-vars="DB_PASSWORD=${{ secrets.AIVEN_DB_PASSWORD }}" \
+            --set-env-vars="DB_NAME=${{ secrets.AIVEN_DB_NAME }}" \
+            --set-env-vars="DB_SSL_MODE=require" \
+            --set-env-vars="JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}" \
+            --set-env-vars="JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}" \
+            --set-env-vars="ENVIRONMENT=production" \
+            --set-env-vars="ADMIN_USER=${{ secrets.ADMIN_USER }}" \
+            --set-env-vars="ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}" \
             --cpu=1 \
             --memory=512Mi \
             --concurrency=80 \
             --min-instances=0 \
             --max-instances=3 \
             --timeout=60s \
-            --labels="managed-by=github-actions,commit-sha=${{ steps.tag.outputs.sha_short }}" \
+            --labels="managed-by=github-actions,commit-sha=${{ github.sha }},version=${{ needs.build-and-push.outputs.image-url }}" \
             --quiet
-          
-          # Capturar la URL del servicio
-          echo "SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format='value(status.url)')" >> $GITHUB_ENV
 
-      # MIGRATIONS DESHABILITADAS PARA SEGURIDAD
-      # Para ejecutar migraciones manualmente:
-      # 1. Conecta a Cloud Shell: gcloud cloud-shell ssh
-      # 2. Configura las variables de entorno
-      # 3. Ejecuta: go run cmd/migrate/main.go -cmd up
-      #
-      # - name: Set up Go for migrate tool
-      #   uses: actions/setup-go@v5
-      #   with:
-      #     go-version: ${{ env.GO_VERSION }}
-      #     cache: true
-
-      # - name: Download dependencies for migrate tool
-      #   run: go mod download
-
-      # - name: Run Database Migrations
-      #   run: |
-      #     go build -o migrate ./cmd/migrate
-      #     ./migrate -cmd up
-      #   env:
-      #     DB_HOST: ${{ secrets.AIVEN_DB_HOST }}
-      #     DB_PORT: ${{ secrets.AIVEN_DB_PORT }}
-      #     DB_USER: ${{ secrets.AIVEN_DB_USER }}
-      #     DB_PASSWORD: ${{ secrets.AIVEN_DB_PASSWORD }}
-      #     DB_NAME: ${{ secrets.AIVEN_DB_NAME }}
-      #     DB_SSL_MODE: require
-
-      - name: Show Service URL
+      - name: Get service URL
+        id: service
         run: |
-          echo "Service URL: ${{ env.SERVICE_URL }}"
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --format='value(status.url)')
+          echo "url=$SERVICE_URL" >> $GITHUB_OUTPUT
+
+      - name: Smoke test
+        run: |
+          echo "Testing service at ${{ steps.service.outputs.url }}"
+          for i in {1..5}; do
+            if curl -f -s "${{ steps.service.outputs.url }}/health/live"; then
+              echo "Health check passed"
+              break
+            fi
+            echo "Attempt $i failed, retrying..."
+            sleep 5
+          done
+
+      - name: Create deployment summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service**: ${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: ${{ steps.service.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: ${{ needs.build-and-push.outputs.image-url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployed at**: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+
+  # Job separado para migraciones (ejecutar manualmente cuando sea necesario)
+  migrate:
+    name: Run Database Migrations
+    if: github.event_name == 'workflow_dispatch'
+    needs: deploy
+    runs-on: ubuntu-latest
+    environment: production-migrations  # Entorno separado con aprobación manual
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Run migrations
+        run: |
+          go run cmd/migrate/main.go -cmd up
+        env:
+          DB_HOST: ${{ secrets.AIVEN_DB_HOST }}
+          DB_PORT: ${{ secrets.AIVEN_DB_PORT }}
+          DB_USER: ${{ secrets.AIVEN_DB_USER }}
+          DB_PASSWORD: ${{ secrets.AIVEN_DB_PASSWORD }}
+          DB_NAME: ${{ secrets.AIVEN_DB_NAME }}
+          DB_SSL_MODE: require
