@@ -45,7 +45,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Para obtener todo el historial para análisis
+          fetch-depth: 0  # Para obtener el historial para análisis
 
       - name: Set up Go
         uses: actions/setup-go@v5
