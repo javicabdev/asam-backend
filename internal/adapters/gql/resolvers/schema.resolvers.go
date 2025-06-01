@@ -110,42 +110,42 @@ func (r *memberResolver) Estado(_ context.Context, obj *models.Member) (model.Me
 }
 
 // FechaAlta is the resolver for the fecha_alta field.
-func (r *memberResolver) FechaAlta(ctx context.Context, obj *models.Member) (*time.Time, error) {
+func (r *memberResolver) FechaAlta(_ context.Context, obj *models.Member) (*time.Time, error) {
 	panic(fmt.Errorf("not implemented: FechaAlta - fecha_alta"))
 }
 
 // FechaBaja is the resolver for the fecha_baja field.
-func (r *memberResolver) FechaBaja(ctx context.Context, obj *models.Member) (*time.Time, error) {
+func (r *memberResolver) FechaBaja(_ context.Context, obj *models.Member) (*time.Time, error) {
 	panic(fmt.Errorf("not implemented: FechaBaja - fecha_baja"))
 }
 
 // FechaNacimiento is the resolver for the fecha_nacimiento field.
-func (r *memberResolver) FechaNacimiento(ctx context.Context, obj *models.Member) (*time.Time, error) {
+func (r *memberResolver) FechaNacimiento(_ context.Context, obj *models.Member) (*time.Time, error) {
 	panic(fmt.Errorf("not implemented: FechaNacimiento - fecha_nacimiento"))
 }
 
 // DocumentoIdentidad is the resolver for the documento_identidad field.
-func (r *memberResolver) DocumentoIdentidad(ctx context.Context, obj *models.Member) (*string, error) {
+func (r *memberResolver) DocumentoIdentidad(_ context.Context, obj *models.Member) (*string, error) {
 	panic(fmt.Errorf("not implemented: DocumentoIdentidad - documento_identidad"))
 }
 
 // CorreoElectronico is the resolver for the correo_electronico field.
-func (r *memberResolver) CorreoElectronico(ctx context.Context, obj *models.Member) (*string, error) {
+func (r *memberResolver) CorreoElectronico(_ context.Context, obj *models.Member) (*string, error) {
 	panic(fmt.Errorf("not implemented: CorreoElectronico - correo_electronico"))
 }
 
 // Profesion is the resolver for the profesion field.
-func (r *memberResolver) Profesion(ctx context.Context, obj *models.Member) (*string, error) {
+func (r *memberResolver) Profesion(_ context.Context, obj *models.Member) (*string, error) {
 	panic(fmt.Errorf("not implemented: Profesion - profesion"))
 }
 
 // Nacionalidad is the resolver for the nacionalidad field.
-func (r *memberResolver) Nacionalidad(ctx context.Context, obj *models.Member) (*string, error) {
+func (r *memberResolver) Nacionalidad(_ context.Context, obj *models.Member) (*string, error) {
 	panic(fmt.Errorf("not implemented: Nacionalidad - nacionalidad"))
 }
 
 // Observaciones is the resolver for the observaciones field.
-func (r *memberResolver) Observaciones(ctx context.Context, obj *models.Member) (*string, error) {
+func (r *memberResolver) Observaciones(_ context.Context, obj *models.Member) (*string, error) {
 	panic(fmt.Errorf("not implemented: Observaciones - observaciones"))
 }
 
@@ -497,7 +497,7 @@ func (r *mutationResolver) RefreshToken(ctx context.Context, input model.Refresh
 }
 
 // ID is the resolver for the id field.
-func (r *paymentResolver) ID(ctx context.Context, obj *models.Payment) (string, error) {
+func (r *paymentResolver) ID(_ context.Context, obj *models.Payment) (string, error) {
 	// Asumiendo que obj.ID es de tipo uint
 	return fmt.Sprintf("%d", obj.ID), nil
 }
@@ -886,12 +886,12 @@ func (r *queryResolver) GetTransactions(ctx context.Context, filter *model.Trans
 }
 
 // ID is the resolver for the id field.
-func (r *userResolver) ID(ctx context.Context, obj *models.User) (string, error) {
+func (r *userResolver) ID(_ context.Context, obj *models.User) (string, error) {
 	return fmt.Sprintf("%d", obj.ID), nil
 }
 
 // Role is the resolver for the role field.
-func (r *userResolver) Role(ctx context.Context, obj *models.User) (model.UserRole, error) {
+func (r *userResolver) Role(_ context.Context, obj *models.User) (model.UserRole, error) {
 	// Convertir el role del modelo a UserRole
 	switch obj.Role {
 	case "admin":
