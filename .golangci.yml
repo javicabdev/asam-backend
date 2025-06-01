@@ -18,6 +18,45 @@ linters:
     - unconvert
     - gocyclo
 
+linters-settings:
+  revive:
+    ignore-generated-header: true
+    severity: warning
+    enable-all-rules: false
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+      - name: if-return
+      - name: increment-decrement
+      - name: var-naming
+      - name: var-declaration
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf
+      - name: empty-block
+      - name: superfluous-else
+      - name: unreachable-code
+      - name: redefines-builtin-id
+      # Explicitly NOT including unused-parameter rule
 
 issues:
   max-same-issues: 300
+  exclude-rules:
+    # Additional exclusion for generated files
+    - path: "_gen\\.go$"
+      linters:
+        - revive
+    # Exclude for gqlgen generated files
+    - path: "schema\\.resolvers\\.go$"
+      linters:
+        - revive
