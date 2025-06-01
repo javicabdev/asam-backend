@@ -226,8 +226,9 @@ jobs:
       - name: Deploy to Cloud Run
         id: deploy
         run: |
+          echo "Deploying image: ${{ needs.build-and-push.outputs.image-url }}"
           gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image=${{ needs.build-and-push.outputs.image-url }} \
+            --image="${{ needs.build-and-push.outputs.image-url }}" \
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
