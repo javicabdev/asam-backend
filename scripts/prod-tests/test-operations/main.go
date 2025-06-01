@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -32,7 +33,9 @@ func main() {
 	}
 
 	// Force production environment
-	os.Setenv("APP_ENV", "production")
+	if err := os.Setenv("APP_ENV", "production"); err != nil {
+		log.Printf("Advertencia: No se pudo configurar APP_ENV: %v\n", err)
+	}
 
 	// Load configuration
 	cfg, err := config.LoadConfig()
@@ -169,7 +172,9 @@ func testUpdateMember(db *gorm.DB, memberID uint) TestResult {
 
 	// Verify update
 	var member models.Member
-	db.First(&member, memberID)
+	if err := db.First(&member, memberID).Error; err != nil {
+		log.Printf("Warning: Could not verify update: %v", err)
+	}
 
 	return TestResult{
 		TestName: "Update Member",
@@ -193,7 +198,9 @@ func testDeleteMember(db *gorm.DB, memberID uint) TestResult {
 
 	// Verify deletion
 	var count int64
-	db.Model(&models.Member{}).Where("id = ?", memberID).Count(&count)
+	if err := db.Model(&models.Member{}).Where("id = ?", memberID).Count(&count).Error; err != nil {
+		log.Printf("Warning: Could not verify deletion: %v", err)
+	}
 
 	if count > 0 {
 		return TestResult{
@@ -225,9 +232,11 @@ func testPaymentOperations(db *gorm.DB) TestResult {
 
 	// Create payment
 	if err := db.Create(testPayment).Error; err != nil {
-		// If error is due to member not existing, create a temporary member
-		if err.Error() == "ERROR: insert or update on table \"payments\" violates foreign key constraint \"payments_member_id_fkey\" (SQLSTATE 23503)" {
-			// This is expected if member ID 1 doesn't exist
+		// Check if error is due to foreign key constraint
+		// This is expected if member ID 1 doesn't exist
+		errStr := err.Error()
+		if strings.Contains(strings.ToLower(errStr), "foreign key constraint") ||
+			strings.Contains(strings.ToLower(errStr), "violates foreign key constraint") {
 			return TestResult{
 				TestName: "Payment Operations",
 				Success:  true,
@@ -264,6 +273,14 @@ func testTransactionRollback(db *gorm.DB) TestResult {
 
 	// Start transaction
 	tx := db.Begin()
+	if tx.Error != nil {
+		return TestResult{
+			TestName: "Transaction Rollback",
+			Success:  false,
+			Error:    tx.Error,
+			Message:  fmt.Sprintf("Error iniciando transacción: %v", tx.Error),
+		}
+	}
 
 	// Create a member in transaction
 	testMember := &models.Member{
@@ -281,7 +298,9 @@ func testTransactionRollback(db *gorm.DB) TestResult {
 	}
 
 	if err := tx.Create(testMember).Error; err != nil {
-		tx.Rollback()
+		if rbErr := tx.Rollback().Error; rbErr != nil {
+			log.Printf("Warning: Rollback failed: %v", rbErr)
+		}
 		return TestResult{
 			TestName: "Transaction Rollback",
 			Success:  false,
@@ -291,11 +310,20 @@ func testTransactionRollback(db *gorm.DB) TestResult {
 	}
 
 	// Rollback the transaction
-	tx.Rollback()
+	if err := tx.Rollback().Error; err != nil {
+		return TestResult{
+			TestName: "Transaction Rollback",
+			Success:  false,
+			Error:    err,
+			Message:  fmt.Sprintf("Error haciendo rollback: %v", err),
+		}
+	}
 
 	// Verify the member was not created
 	var count int64
-	db.Model(&models.Member{}).Where("membership_number = ?", testMember.MembershipNumber).Count(&count)
+	if err := db.Model(&models.Member{}).Where("membership_number = ?", testMember.MembershipNumber).Count(&count).Error; err != nil {
+		log.Printf("Warning: Could not verify rollback: %v", err)
+	}
 
 	if count > 0 {
 		return TestResult{
