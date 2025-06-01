@@ -1,3 +1,5 @@
+// Package output defines the output port interfaces for the ASAM backend.
+// These interfaces are implemented by adapters to provide persistence capabilities.
 package output
 
 import (

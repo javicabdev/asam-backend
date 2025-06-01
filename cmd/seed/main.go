@@ -1,3 +1,6 @@
+// Package main provides a database seeding tool for the ASAM backend.
+// It supports seeding different types of datasets (minimal, full, scenario, custom)
+// and can target different environments (local, aiven, or both).
 package main
 
 import (

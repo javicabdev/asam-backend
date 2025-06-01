@@ -1,3 +1,5 @@
+// Package main is the entry point for the ASAM backend API server.
+// It handles server initialization, configuration, and graceful shutdown.
 package main
 
 import (

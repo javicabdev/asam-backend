@@ -1,3 +1,5 @@
+// Package auth provides authentication and authorization utilities for the ASAM backend.
+// It includes JWT token generation, validation, and claim extraction functionality.
 package auth
 
 import (

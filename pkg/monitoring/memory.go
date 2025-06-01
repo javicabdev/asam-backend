@@ -1,3 +1,5 @@
+// Package monitoring provides system monitoring utilities for the ASAM backend.
+// It includes memory usage tracking, profiling, and alerting capabilities.
 package monitoring
 
 import (
