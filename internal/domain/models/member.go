@@ -10,22 +10,22 @@ import (
 
 // Member representa un miembro individual de ASAM
 type Member struct {
-	ID               uint       `gorm:"primaryKey;column:miembro_id"`
-	MembershipNumber string     `gorm:"unique;not null;column:numero_socio"`
-	MembershipType   string     `gorm:"not null;column:tipo_membresia"`
+	ID               uint       `gorm:"primaryKey"`
+	MembershipNumber string     `gorm:"unique;not null"`
+	MembershipType   string     `gorm:"not null"`
 	Name             string     `gorm:"not null"`
 	Surnames         string     `gorm:"not null"`
-	Address          string     `gorm:"not null;column:calle_numero_piso"`
-	Postcode         string     `gorm:"not null;column:codigo_postal"`
+	Address          string     `gorm:"not null"`
+	Postcode         string     `gorm:"not null"`
 	City             string     `gorm:"not null"`
 	Province         string     `gorm:"not null;default:Barcelona"`
 	Country          string     `gorm:"not null;default:España"`
 	State            string     `gorm:"not null"`
-	RegistrationDate time.Time  `gorm:"not null;type:date;column:fecha_alta"`
-	LeavingDate      *time.Time `gorm:"type:date;column:fecha_baja"`
-	BirthDate        *time.Time `gorm:"type:date;column:fecha_nacimiento"`
-	IdentityCard     *string    `gorm:"column:documento_identidad"`
-	Email            *string    `gorm:"column:correo_electronico"`
+	RegistrationDate time.Time  `gorm:"not null;type:date"`
+	LeavingDate      *time.Time `gorm:"type:date"`
+	BirthDate        *time.Time `gorm:"type:date"`
+	IdentityCard     *string
+	Email            *string
 	Profession       *string
 	Nationality      string `gorm:"default:Senegal"`
 	Remarks          *string
@@ -41,8 +41,8 @@ const (
 
 // Estados posibles de un miembro
 const (
-	EstadoActivo   = "activo"
-	EstadoInactivo = "inactivo"
+	EstadoActivo   = "active"
+	EstadoInactivo = "inactive"
 )
 
 // IsActive retorna true si el miembro está activo
@@ -83,31 +83,31 @@ func (m *Member) validateBasicFields() error {
 
 	// Validamos todos los campos requeridos primero
 	if m.MembershipNumber == "" {
-		errDetails["numeroSocio"] = "Member number is required"
+		errDetails["membershipNumber"] = "Member number is required"
 	}
 
 	if m.MembershipType != TipoMembresiaPIndividual && m.MembershipType != TipoMembresiaPFamiliar {
-		errDetails["tipoMembresia"] = "Must be INDIVIDUAL or FAMILY"
+		errDetails["membershipType"] = "Must be INDIVIDUAL or FAMILY"
 	}
 
 	if m.Name == "" {
-		errDetails["nombre"] = "Name is required"
+		errDetails["name"] = "Name is required"
 	}
 
 	if m.Surnames == "" {
-		errDetails["apellidos"] = "Last name is required"
+		errDetails["surnames"] = "Last name is required"
 	}
 
 	if m.Address == "" {
-		errDetails["calleNumeroPiso"] = "Address is required"
+		errDetails["address"] = "Address is required"
 	}
 
 	if m.Postcode == "" {
-		errDetails["codigoPostal"] = "Postal code is required"
+		errDetails["postcode"] = "Postal code is required"
 	}
 
 	if m.City == "" {
-		errDetails["poblacion"] = "City is required"
+		errDetails["city"] = "City is required"
 	}
 
 	if len(errDetails) > 0 {
@@ -122,12 +122,12 @@ func (m *Member) validateDates() error {
 	errDetails := make(map[string]string)
 
 	if m.RegistrationDate.IsZero() {
-		errDetails["fechaAlta"] = "Registration date is required"
+		errDetails["registrationDate"] = "Registration date is required"
 	}
 
 	if m.LeavingDate != nil {
 		if m.LeavingDate.Before(m.RegistrationDate) || !m.LeavingDate.After(m.RegistrationDate) {
-			errDetails["fechaBaja"] = "Termination date must be after registration date"
+			errDetails["leavingDate"] = "Termination date must be after registration date"
 		}
 	}
 
@@ -143,11 +143,11 @@ func (m *Member) validateStatus() error {
 	errDetails := make(map[string]string)
 
 	if m.State != EstadoActivo && m.State != EstadoInactivo {
-		errDetails["estado"] = "Status must be 'activo' or 'inactivo'"
+		errDetails["state"] = "Status must be 'active' or 'inactive'"
 	}
 
 	if m.State == EstadoInactivo && m.LeavingDate == nil {
-		errDetails["fechaBaja"] = "Inactive member must have a termination date"
+		errDetails["leavingDate"] = "Inactive member must have a termination date"
 	}
 
 	if len(errDetails) > 0 {
@@ -168,9 +168,4 @@ func (m *Member) BeforeCreate(*gorm.DB) error {
 // BeforeUpdate hook de GORM que se ejecuta antes de actualizar un miembro
 func (m *Member) BeforeUpdate(*gorm.DB) error {
 	return m.Validate()
-}
-
-// TableName especifica el nombre de la tabla en la base de datos
-func (m *Member) TableName() string {
-	return "miembros"
 }
