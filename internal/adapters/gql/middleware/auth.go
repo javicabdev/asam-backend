@@ -1,3 +1,5 @@
+// Package middleware provides HTTP and GraphQL middleware components for the ASAM backend.
+// It includes authentication, authorization, error handling, and request processing middleware.
 package middleware
 
 import (

@@ -1,3 +1,5 @@
+// Package gql provides GraphQL server implementation for the ASAM backend.
+// It includes handlers, middleware configuration, and integration with the resolver layer.
 package gql
 
 import (

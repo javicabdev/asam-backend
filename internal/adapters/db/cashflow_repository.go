@@ -1,3 +1,5 @@
+// Package db provides database repository implementations for the ASAM backend.
+// It contains GORM-based repositories that implement the output port interfaces.
 package db
 
 import (

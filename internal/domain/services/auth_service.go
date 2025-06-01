@@ -1,3 +1,5 @@
+// Package services implements the business logic for the ASAM backend.
+// It contains service implementations that fulfill the input port interfaces.
 package services
 
 import (

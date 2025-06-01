@@ -1,5 +1,5 @@
-// Este archivo contiene las instrucciones para gqlgen
-
+// Package resolvers implements the GraphQL resolvers for the ASAM backend.
+// It contains the resolver implementations for all GraphQL queries, mutations, and types.
 package resolvers
 
 // Este archivo está destinado a ser utilizado cuando se regeneren

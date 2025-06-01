@@ -1,3 +1,5 @@
+// Package seed provides database seeding functionality for the ASAM backend.
+// It includes tools for generating test data, cleaning the database, and coordinating the seeding process.
 package seed
 
 import (
