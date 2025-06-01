@@ -570,7 +570,7 @@ func main() {
 	// Print immediate startup message
 	fmt.Println("ASAM Backend process starting...")
 	fmt.Printf("PORT environment variable: %s\n", os.Getenv("PORT"))
-	
+
 	if err := run(); err != nil {
 		// Use fmt.Fprintln for critical errors, as logger might not be available
 		// or the error occurred before logger was fully set up.
