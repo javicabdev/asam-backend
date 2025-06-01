@@ -23,7 +23,7 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   SERVICE_NAME: asam-backend
   REGION: europe-west1
-  GO_VERSION: '1.23'  # Actualizado a la misma versión del Dockerfile
+  GO_VERSION: '1.24'  # Última versión estable de Go
   ARTIFACT_REGISTRY: europe-west1-docker.pkg.dev
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: postgres
@@ -61,11 +61,10 @@ jobs:
       - name: Generate GraphQL code
         run: go run ./cmd/generate/main.go
 
-      # Paso para instalar y configurar golangci-lint con la versión 2.1.6
       - name: Install and run golangci-lint
-        uses: golangci/golangci-lint-action@v8.0.0
+        uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.1.6
+          version: v2.1.6  # Última versión de golangci-lint
           args: --timeout=5m
 
   test:
