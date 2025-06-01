@@ -127,17 +127,25 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Docker
-        run: gcloud auth configure-docker --quiet
+        run: |
+          # Configurar autenticación para Artifact Registry
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
       - name: Generate Image Tag
         id: tag
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      # Construir y publicar imagen Docker
+      # Construir y publicar imagen Docker en Artifact Registry
       - name: Build and Push Container
         run: |
-          docker build -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ steps.tag.outputs.sha_short }} .
-          docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ steps.tag.outputs.sha_short }}
+          # Usar Artifact Registry en lugar de Container Registry
+          IMAGE_URL="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/cloud-run-source-deploy/${{ env.SERVICE_NAME }}:${{ steps.tag.outputs.sha_short }}"
+          
+          docker build -t $IMAGE_URL .
+          docker push $IMAGE_URL
+          
+          # Guardar la URL de la imagen para el siguiente paso
+          echo "IMAGE_URL=$IMAGE_URL" >> $GITHUB_ENV
 
       - name: Deploy to Cloud Run
         id: deploy
@@ -145,7 +153,7 @@ jobs:
         with:
           service: ${{ env.SERVICE_NAME }}
           region: ${{ env.REGION }}
-          image: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ steps.tag.outputs.sha_short }}
+          image: ${{ env.IMAGE_URL }}
           env_vars: |
             DB_HOST=${{ secrets.AIVEN_DB_HOST }}
             DB_PORT=${{ secrets.AIVEN_DB_PORT }}
