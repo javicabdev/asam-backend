@@ -45,3 +45,6 @@ dist/
 /internal/adapters/gql/generated/*.tmp
 /coverage
 /coverage.html
+
+# Scripts de prueba locales
+test-linter.sh
