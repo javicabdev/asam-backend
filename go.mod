@@ -10,8 +10,8 @@ require (
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.10.9
-	github.com/onsi/ginkgo/v2 v2.22.2
-	github.com/onsi/gomega v1.36.2
+	github.com/onsi/ginkgo/v2 v2.23.3
+	github.com/onsi/gomega v1.37.0
 	github.com/prometheus/client_golang v1.22.0
 	github.com/sethvargo/go-envconfig v1.3.0
 	github.com/stretchr/testify v1.10.0
