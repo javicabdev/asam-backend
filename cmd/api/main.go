@@ -441,56 +441,177 @@ func run() error {
 	}
 	appLogger.Info("ASAM Backend starting...")
 
-	// Step 2: Setup database connection.
-	database, err := setupDatabase(cfg, appLogger)
-	if err != nil {
-		return err // Error already logged by setupDatabase.
+	// Step 2: Setup and register Prometheus metrics early.
+	setupAndRegisterMetrics(appLogger)
+
+	// Step 3: Create a placeholder for database that will be initialized async
+	var database *gorm.DB
+	var deps *appDependencies
+	dbReady := make(chan bool, 1)
+
+	// Step 4: Start HTTP server immediately with minimal setup for Cloud Run
+	// This ensures the server can respond to health checks while DB is connecting
+	appLogger.Info("Starting HTTP server immediately for Cloud Run...")
+	
+	// Create a minimal mux with just health endpoints initially
+	mux := http.NewServeMux()
+	
+	// Basic health check that doesn't depend on DB
+	mux.Handle("/health/live", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	}))
+	
+	// Readiness check that waits for DB
+	mux.Handle("/health/ready", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-dbReady:
+			// DB is ready
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("Ready"))
+		default:
+			// DB not ready yet
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte("Database not ready"))
+		}
+	}))
+	
+	// Basic health endpoint
+	mux.Handle("/health", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-dbReady:
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"status":"UP"}`))
+		default:
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte(`{"status":"DOWN","reason":"Database not ready"}`))
+		}
+	}))
+
+	// Prometheus metrics endpoint (always available)
+	mux.Handle("/metrics", promhttp.Handler())
+
+	// Configure the HTTP server
+	listenAddr := fmt.Sprintf(":%s", cfg.Port)
+	server := &http.Server{
+		Addr:              listenAddr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
-	// Obtain underlying *sql.DB for closing, assuming gorm.DB provides such a method.
-	sqlDB, err := database.DB()
-	if err != nil {
-		appLogger.Error("Failed to get SQL DB instance from GORM", zap.Error(err))
-		return fmt.Errorf("failed to get SQL DB instance: %w", err)
-	}
-	defer func() {
-		appLogger.Info("Closing database connection...")
-		if errDBClose := sqlDB.Close(); errDBClose != nil {
-			appLogger.Error("Error closing database connection", zap.Error(errDBClose))
+	// Start server immediately
+	serverErrors := make(chan error, 1)
+	go func() {
+		appLogger.Info("Server starting to listen...", zap.String("address", server.Addr))
+		if listenErr := server.ListenAndServe(); listenErr != nil {
+			serverErrors <- fmt.Errorf("http.ListenAndServe failed: %w", listenErr)
 		}
 	}()
 
-	// Step 3: Initialize services and other dependencies.
-	deps, err := initializeServicesAndDependencies(cfg, database, appLogger, auditLogger)
-	if err != nil {
-		return err // Error already logged by initializeServicesAndDependencies.
+	// Step 5: Initialize database and services asynchronously
+	go func() {
+		appLogger.Info("Initializing database connection asynchronously...")
+		
+		// Setup database connection with retries
+		var dbErr error
+		for i := 0; i < 30; i++ { // Try for up to 30 seconds
+			database, dbErr = setupDatabase(cfg, appLogger)
+			if dbErr == nil {
+				break
+			}
+			appLogger.Warn("Database connection failed, retrying...", 
+				zap.Error(dbErr), 
+				zap.Int("attempt", i+1))
+			time.Sleep(1 * time.Second)
+		}
+		
+		if dbErr != nil {
+			appLogger.Error("Failed to setup database after retries", zap.Error(dbErr))
+			// Continue running with limited functionality
+			return
+		}
+
+		// Initialize services and other dependencies
+		deps, err = initializeServicesAndDependencies(cfg, database, appLogger, auditLogger)
+		if err != nil {
+			appLogger.Error("Failed to initialize dependencies", zap.Error(err))
+			return
+		}
+
+		// Now update the HTTP server with full functionality
+		appLogger.Info("Database ready, updating HTTP routes...")
+		
+		// Create new server with all routes
+		fullServer := newHTTPServerAndMux(deps, cfg, appLogger, database)
+		
+		// Update the handler
+		server.Handler = fullServer.Handler
+		
+		// Signal that DB is ready
+		close(dbReady)
+		
+		// Start periodic metrics updates
+		go updateMetricsPeriodically(ctx, appLogger, deps)
+	}()
+
+	// Step 6: Handle shutdown signals
+	shutdownSignal := make(chan os.Signal, 1)
+	signal.Notify(shutdownSignal, syscall.SIGINT, syscall.SIGTERM)
+
+	// Block until a shutdown signal or a server error is received
+	select {
+	case errFromListenAndServe := <-serverErrors:
+		if errors.Is(errFromListenAndServe, http.ErrServerClosed) {
+			appLogger.Info("Server's ListenAndServe loop stopped (expected on shutdown).")
+		} else {
+			appLogger.Error("ListenAndServe failed with unexpected error", zap.Error(errFromListenAndServe))
+			return errFromListenAndServe
+		}
+
+	case sig := <-shutdownSignal:
+		appLogger.Info("Shutdown signal received.", zap.String("signal", sig.String()))
+
+		// Graceful shutdown
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer shutdownCancel()
+
+		appLogger.Info("Attempting graceful server shutdown...")
+		if shutdownErr := server.Shutdown(shutdownCtx); shutdownErr != nil {
+			appLogger.Error("Graceful server shutdown failed.", zap.Error(shutdownErr))
+			if closeErr := server.Close(); closeErr != nil {
+				appLogger.Error("Forceful server close also failed.", zap.Error(closeErr))
+				return fmt.Errorf("graceful shutdown failed: %w; forceful close also failed: %w", shutdownErr, closeErr)
+			}
+			return fmt.Errorf("graceful shutdown failed (fallback close attempted): %w", shutdownErr)
+		}
+		appLogger.Info("Server shutdown gracefully.")
 	}
 
-	// Cleanup monitoring resources on exit
-	defer func() {
+	// Cleanup
+	if database != nil {
+		sqlDB, err := database.DB()
+		if err == nil {
+			appLogger.Info("Closing database connection...")
+			if errDBClose := sqlDB.Close(); errDBClose != nil {
+				appLogger.Error("Error closing database connection", zap.Error(errDBClose))
+			}
+		}
+	}
+
+	if deps != nil {
 		if deps.memoryMonitor != nil {
 			deps.memoryMonitor.Stop()
 		}
 		if deps.profilingServer != nil {
 			_ = deps.profilingServer.Stop()
 		}
-	}()
-
-	// Step 4: Setup and register Prometheus metrics.
-	setupAndRegisterMetrics(appLogger)
-
-	// Step 5: Create the HTTP server with configured routes.
-	server := newHTTPServerAndMux(deps, cfg, appLogger, database)
-
-	// Step 6: Manage the server lifecycle (start, listen for shutdown signals).
-	if err := manageServerLifecycle(ctx, server, appLogger, deps); err != nil {
-		// This error comes from an unexpected server stop or a failed shutdown attempt.
-		appLogger.Error("Server lifecycle management failed", zap.Error(err))
-		return err
 	}
 
-	appLogger.Info("Application run cleanup finished. Exiting run function.")
-	return nil // Indicates successful execution and shutdown.
+	appLogger.Info("Application run cleanup finished.")
+	return nil
 }
 
 // main is the entry point of the application.
