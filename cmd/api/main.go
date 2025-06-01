@@ -375,6 +375,9 @@ func run() error {
 		return err // Error is already contextualized or is about logger init itself.
 	}
 	appLogger.Info("ASAM Backend starting...")
+	appLogger.Info("Environment configuration", 
+		zap.String("PORT", cfg.Port),
+		zap.String("ENVIRONMENT", cfg.Environment))
 
 	// Step 2: Setup and register Prometheus metrics early.
 	setupAndRegisterMetrics(appLogger)
@@ -390,6 +393,13 @@ func run() error {
 	
 	// Create a minimal mux with just health endpoints initially
 	mux := http.NewServeMux()
+	
+	// Root endpoint for basic connectivity test
+	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"service":"asam-backend","status":"running"}`))
+	})
 	
 	// Basic health check that doesn't depend on DB
 	mux.Handle("/health/live", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -413,13 +423,14 @@ func run() error {
 	
 	// Basic health endpoint
 	mux.Handle("/health", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		select {
 		case <-dbReady:
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"status":"UP"}`))
 		default:
-			w.WriteHeader(http.StatusServiceUnavailable)
-			_, _ = w.Write([]byte(`{"status":"DOWN","reason":"Database not ready"}`))
+			w.WriteHeader(http.StatusOK) // Return OK even if DB not ready for Cloud Run
+			_, _ = w.Write([]byte(`{"status":"UP","database":"connecting"}`))
 		}
 	}))
 
@@ -445,6 +456,10 @@ func run() error {
 			serverErrors <- fmt.Errorf("http.ListenAndServe failed: %w", listenErr)
 		}
 	}()
+
+	// Give the server a moment to start
+	time.Sleep(100 * time.Millisecond)
+	appLogger.Info("HTTP server should now be accepting connections", zap.String("port", cfg.Port))
 
 	// Step 5: Initialize database and services asynchronously
 	go func() {
