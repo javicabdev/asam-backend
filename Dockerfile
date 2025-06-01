@@ -21,7 +21,14 @@ RUN go mod download && go mod verify
 COPY . .
 
 # Generar el código GraphQL antes de compilar
-RUN go run ./cmd/generate/main.go
+# Primero instalamos gqlgen como herramienta
+RUN go install github.com/99designs/gqlgen@latest
+
+# Luego ejecutamos la generación con más información de debug
+RUN echo "Verificando estructura de directorios..." && \
+    ls -la internal/adapters/gql/ && \
+    echo "Ejecutando gqlgen..." && \
+    gqlgen generate --verbose || (echo "Error en gqlgen" && exit 1)
 
 # Compilar la aplicación con información de versión
 ARG VERSION=unknown
