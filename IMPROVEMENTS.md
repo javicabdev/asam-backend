@@ -128,6 +128,32 @@ Nuevas métricas añadidas:
 3. **Añadir tracing distribuido** con OpenTelemetry
 4. **Configurar backups automáticos** de la base de datos
 
+## Migraciones de Base de Datos (Enero 2025)
+
+### Cambio de Esquema a Inglés
+
+Se crearon migraciones para cambiar los nombres de las columnas de español a inglés, manteniendo el dominio limpio y siguiendo las mejores prácticas de DDD:
+
+- **Migración 000011**: Renombra columnas en tabla `miembros`
+- **Migración 000012**: Crea tabla `payments` que faltaba
+- **Migración 000013**: Renombra tabla `caja` a `cash_flows`
+- **Migración 000014**: Renombra tabla `familias` a `families`
+- **Migración 000015**: Renombra tabla `miembros` a `members`
+
+**Beneficios**:
+- El dominio permanece independiente de la infraestructura
+- Consistencia entre código y base de datos
+- Mejor mantenibilidad a largo plazo
+
+**Aplicar migraciones**:
+```powershell
+# Aplicar
+.\scripts\Apply-EnglishMigrations.ps1
+
+# Revertir si es necesario
+.\scripts\Apply-EnglishMigrations.ps1 -Rollback
+```
+
 ## Notas
 
 - El código SMTP se mantiene sin cambios como fue solicitado
