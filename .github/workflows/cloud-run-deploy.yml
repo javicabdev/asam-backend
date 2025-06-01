@@ -149,29 +149,24 @@ jobs:
 
       - name: Deploy to Cloud Run
         id: deploy
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: ${{ env.SERVICE_NAME }}
-          region: ${{ env.REGION }}
-          image: ${{ env.IMAGE_URL }}
-          env_vars: |
-            DB_HOST=${{ secrets.AIVEN_DB_HOST }}
-            DB_PORT=${{ secrets.AIVEN_DB_PORT }}
-            DB_USER=${{ secrets.AIVEN_DB_USER }}
-            DB_PASSWORD=${{ secrets.AIVEN_DB_PASSWORD }}
-            DB_NAME=${{ secrets.AIVEN_DB_NAME }}
-            DB_SSL_MODE=require
-            JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}
-            JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
-            ENVIRONMENT=production
-          flags: >-
-            --allow-unauthenticated
-            --cpu=1
-            --memory=512Mi
-            --concurrency=80
-            --min-instances=0
-            --max-instances=3
-            --timeout=60s
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image=${{ env.IMAGE_URL }} \
+            --region=${{ env.REGION }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --set-env-vars="DB_HOST=${{ secrets.AIVEN_DB_HOST }},DB_PORT=${{ secrets.AIVEN_DB_PORT }},DB_USER=${{ secrets.AIVEN_DB_USER }},DB_PASSWORD=${{ secrets.AIVEN_DB_PASSWORD }},DB_NAME=${{ secrets.AIVEN_DB_NAME }},DB_SSL_MODE=require,JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }},JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }},ENVIRONMENT=production" \
+            --cpu=1 \
+            --memory=512Mi \
+            --concurrency=80 \
+            --min-instances=0 \
+            --max-instances=3 \
+            --timeout=60s \
+            --labels="managed-by=github-actions,commit-sha=${{ steps.tag.outputs.sha_short }}" \
+            --quiet
+          
+          # Capturar la URL del servicio
+          echo "SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format='value(status.url)')" >> $GITHUB_ENV
 
       # MIGRATIONS DESHABILITADAS PARA SEGURIDAD
       # Para ejecutar migraciones manualmente:
@@ -202,4 +197,4 @@ jobs:
 
       - name: Show Service URL
         run: |
-          echo "Service URL: ${{ steps.deploy.outputs.url }}"
+          echo "Service URL: ${{ env.SERVICE_URL }}"
