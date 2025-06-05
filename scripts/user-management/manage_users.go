@@ -10,6 +10,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"golang.org/x/term"
+	"gorm.io/gorm"
 
 	"github.com/javicabdev/asam-backend/internal/adapters/db"
 	"github.com/javicabdev/asam-backend/internal/config"
@@ -90,7 +91,7 @@ func showMenu() {
 	fmt.Println()
 }
 
-func createUser(db *gorm.DB) {
+func createUser(database *gorm.DB) {
 	fmt.Println("\n--- CREAR NUEVO USUARIO ---")
 
 	// Get username
@@ -98,7 +99,7 @@ func createUser(db *gorm.DB) {
 
 	// Check if user already exists
 	var existingUser models.User
-	if err := db.Where("username = ?", username).First(&existingUser).Error; err == nil {
+	if err := database.Where("username = ?", username).First(&existingUser).Error; err == nil {
 		fmt.Printf("Error: El usuario '%s' ya existe\n", username)
 		return
 	}
@@ -140,7 +141,7 @@ func createUser(db *gorm.DB) {
 	}
 
 	// Save to database
-	if err := db.Create(user).Error; err != nil {
+	if err := database.Create(user).Error; err != nil {
 		fmt.Printf("Error creando usuario: %v\n", err)
 		return
 	}
@@ -148,11 +149,11 @@ func createUser(db *gorm.DB) {
 	fmt.Printf("\n✓ Usuario '%s' creado exitosamente con rol '%s'\n", username, role)
 }
 
-func listUsers(db *gorm.DB) {
+func listUsers(database *gorm.DB) {
 	fmt.Println("\n--- LISTA DE USUARIOS ---")
 
 	var users []models.User
-	if err := db.Order("created_at DESC").Find(&users).Error; err != nil {
+	if err := database.Order("created_at DESC").Find(&users).Error; err != nil {
 		fmt.Printf("Error obteniendo usuarios: %v\n", err)
 		return
 	}
@@ -181,13 +182,13 @@ func listUsers(db *gorm.DB) {
 	}
 }
 
-func changeUserStatus(db *gorm.DB) {
+func changeUserStatus(database *gorm.DB) {
 	fmt.Println("\n--- ACTIVAR/DESACTIVAR USUARIO ---")
 
 	username := readInput("Nombre de usuario: ")
 
 	var user models.User
-	if err := db.Where("username = ?", username).First(&user).Error; err != nil {
+	if err := database.Where("username = ?", username).First(&user).Error; err != nil {
 		fmt.Printf("Error: Usuario '%s' no encontrado\n", username)
 		return
 	}
@@ -212,7 +213,7 @@ func changeUserStatus(db *gorm.DB) {
 		return
 	}
 
-	if err := db.Save(&user).Error; err != nil {
+	if err := database.Save(&user).Error; err != nil {
 		fmt.Printf("Error actualizando usuario: %v\n", err)
 		return
 	}
@@ -225,13 +226,13 @@ func changeUserStatus(db *gorm.DB) {
 	fmt.Printf("\n✓ Usuario '%s' ahora está %s\n", username, newStatus)
 }
 
-func changeUserPassword(db *gorm.DB) {
+func changeUserPassword(database *gorm.DB) {
 	fmt.Println("\n--- CAMBIAR CONTRASEÑA ---")
 
 	username := readInput("Nombre de usuario: ")
 
 	var user models.User
-	if err := db.Where("username = ?", username).First(&user).Error; err != nil {
+	if err := database.Where("username = ?", username).First(&user).Error; err != nil {
 		fmt.Printf("Error: Usuario '%s' no encontrado\n", username)
 		return
 	}
@@ -251,7 +252,7 @@ func changeUserPassword(db *gorm.DB) {
 		return
 	}
 
-	if err := db.Save(&user).Error; err != nil {
+	if err := database.Save(&user).Error; err != nil {
 		fmt.Printf("Error actualizando contraseña: %v\n", err)
 		return
 	}
