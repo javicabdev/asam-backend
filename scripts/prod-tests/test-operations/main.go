@@ -27,9 +27,13 @@ func main() {
 	log.Println("=== Iniciando pruebas de operaciones CRUD en producción ===")
 
 	// Load production environment
-	if err := godotenv.Load(".env.production"); err != nil {
-		log.Printf("Advertencia: No se pudo cargar .env.production: %v\n", err)
-		log.Println("Continuando con las variables de entorno existentes...")
+	// Try to load test environment first, then fall back to production
+	if err := godotenv.Load(".env.production.test"); err != nil {
+		log.Printf("No se encontró .env.production.test, intentando con .env.production\n")
+		if err := godotenv.Load(".env.production"); err != nil {
+			log.Printf("Advertencia: No se pudo cargar .env.production: %v\n", err)
+			log.Println("Continuando con las variables de entorno existentes...")
+		}
 	}
 
 	// Force production environment
