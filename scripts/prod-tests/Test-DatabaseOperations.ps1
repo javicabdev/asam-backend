@@ -107,7 +107,7 @@ Write-Host ""
 [Environment]::SetEnvironmentVariable("ENVIRONMENT", "production", [EnvironmentVariableTarget]::Process)
 
 # Run the test script
-$testResult = & go run scripts/prod-tests/test_database_operations.go 2>&1 | Out-String
+$testResult = & go run scripts/prod-tests/test-operations/main.go 2>&1 | Out-String
 
 # Display test output
 Write-Host $testResult
