@@ -162,10 +162,31 @@ func testReadMember(db *gorm.DB, memberID uint) TestResult {
 func testUpdateMember(db *gorm.DB, memberID uint) TestResult {
 	log.Println("\n--- Test 3: Actualizar Miembro ---")
 
+	// First, load the existing member
+	var member models.Member
+	if err := db.First(&member, memberID).Error; err != nil {
+		return TestResult{
+			TestName: "Update Member",
+			Success:  false,
+			Error:    err,
+			Message:  fmt.Sprintf("Error cargando miembro para actualizar: %v", err),
+		}
+	}
+
+	// Log the member data before update
+	log.Printf("Member data before update: %+v\n", member)
+
 	// Update member's email
 	newEmail := fmt.Sprintf("test_%d@example.com", time.Now().Unix())
-	if err := db.Model(&models.Member{}).Where("id = ?", memberID).
-		Update("email", newEmail).Error; err != nil {
+	member.Email = &newEmail
+
+	// Log the member data after update
+	log.Printf("Member data after update: %+v\n", member)
+
+	// Save the updated member
+	if err := db.Save(&member).Error; err != nil {
+		// If it's a validation error, let's see the details
+		log.Printf("Update error details: %v\n", err)
 		return TestResult{
 			TestName: "Update Member",
 			Success:  false,
@@ -175,8 +196,8 @@ func testUpdateMember(db *gorm.DB, memberID uint) TestResult {
 	}
 
 	// Verify update
-	var member models.Member
-	if err := db.First(&member, memberID).Error; err != nil {
+	var updatedMember models.Member
+	if err := db.First(&updatedMember, memberID).Error; err != nil {
 		log.Printf("Warning: Could not verify update: %v", err)
 	}
 
