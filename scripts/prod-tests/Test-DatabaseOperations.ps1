@@ -32,8 +32,14 @@ if ($UseLocalEnv) {
     $envFile = ".env.development"
     Write-Warning "Usando archivo de entorno local: $envFile"
 } else {
-    $envFile = ".env.production"
-    Write-Info "Usando archivo de entorno: $envFile"
+    # Try test environment first, then production
+    if (Test-Path ".env.production.test") {
+        $envFile = ".env.production.test"
+        Write-Info "Usando archivo de entorno de pruebas: $envFile"
+    } else {
+        $envFile = ".env.production"
+        Write-Info "Usando archivo de entorno: $envFile"
+    }
 }
 
 if (!(Test-Path $envFile)) {
