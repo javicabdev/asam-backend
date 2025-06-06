@@ -1,0 +1,1 @@
+del C:\Work\babacar\asam\asam-backend\scripts\hash-password.go
