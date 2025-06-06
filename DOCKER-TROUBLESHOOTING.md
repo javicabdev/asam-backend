@@ -43,8 +43,16 @@ El backend requiere variables JWT específicas. Asegúrate de que tu `.env` cont
 JWT_ACCESS_SECRET=dev-access-secret-change-in-production
 JWT_REFRESH_SECRET=dev-refresh-secret-change-in-production
 JWT_ACCESS_TTL=15m
-JWT_REFRESH_TTL=7d
+JWT_REFRESH_TTL=168h  # 7 days
 ```
+
+## Error: time: unknown unit "d" in duration
+
+Go no reconoce "d" como unidad de tiempo. Usa:
+- `168h` en lugar de `7d` (7 días = 168 horas)
+- `720h` en lugar de `30d` (30 días = 720 horas)
+
+**Solución rápida**: Ejecuta `fix-jwt-restart.ps1` o `fix-jwt-restart.bat`
 
 ## Pasos para reiniciar todo
 
@@ -63,11 +71,14 @@ JWT_REFRESH_TTL=7d
 | Script | Descripción |
 |--------|-------------|
 | `clean-start-docker.ps1/bat` | Limpia todo y reinicia desde cero |
+| `fix-jwt-restart.ps1/bat` | Aplica corrección JWT y ejecuta migraciones |
 | `quick-restart.ps1/bat` | Reinicio rápido del API con nueva configuración |
+| `quick-fix.bat` | Reinicio muy rápido (solo restart) |
 | `restart-api.ps1/bat` | Reinicia API y ejecuta migraciones |
 | `check-docker.ps1` | Verifica el estado de los servicios |
 | `check-env.ps1` | Muestra las variables de entorno |
 | `check-all.bat` | Verificación completa del sistema |
+| `create-users.ps1/bat` | Crea usuarios de prueba manualmente |
 
 ## Verificar el estado
 

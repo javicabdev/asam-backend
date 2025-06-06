@@ -1,7 +1,17 @@
 # 🔧 Solución Rápida - Variables JWT
 
-## El Problema
+## Los Problemas
+
+### 1. JWT_ACCESS_SECRET missing
 El backend requiere variables JWT que no estaban en el archivo `.env`.
+
+### 2. Unknown unit "d" in duration
+Go no reconoce "d" como unidad de tiempo. Usa:
+- `s` para segundos
+- `m` para minutos
+- `h` para horas
+
+**Solución**: Cambiar `7d` por `168h` (7 días = 168 horas)
 
 ## La Solución
 
@@ -47,13 +57,13 @@ Abre http://localhost:5173 y usa:
    .\clean-start-docker.ps1
    ```
 
-## Variables JWT añadidas
+## Variables JWT corregidas
 
 ```env
 JWT_ACCESS_SECRET=dev-access-secret-change-in-production
 JWT_REFRESH_SECRET=dev-refresh-secret-change-in-production
 JWT_ACCESS_TTL=15m
-JWT_REFRESH_TTL=7d
+JWT_REFRESH_TTL=168h  # 7 days (Go no acepta 'd', usar horas)
 ```
 
 ## ✅ Cambios realizados
