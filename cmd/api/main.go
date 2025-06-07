@@ -66,11 +66,24 @@ var (
 		Name: "http_requests_total",
 		Help: "Total number of HTTP requests.",
 	}, []string{"path", "method", "status"})
+
+	// Database connection metrics
+	dbConnectionAttempts = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "db_connection_attempts_total",
+		Help: "Total number of database connection attempts",
+	}, []string{"result"})
+
+	initializationDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name: "initialization_duration_seconds",
+		Help: "Time taken to fully initialize the service",
+	})
 )
 
 func init() {
 	prometheus.MustRegister(httpDuration)
 	prometheus.MustRegister(httpRequests)
+	prometheus.MustRegister(dbConnectionAttempts)
+	prometheus.MustRegister(initializationDuration)
 }
 
 // HealthStatus represents the health status of the service
@@ -125,6 +138,48 @@ type appState struct {
 	deps           *appDependencies
 	isReady        bool
 	graphqlHandler http.Handler
+	dbError        error
+	dbRetrying     bool
+}
+
+// dbCircuitBreaker implements circuit breaker pattern for database connections
+type dbCircuitBreaker struct {
+	mu           sync.RWMutex
+	failures     int
+	lastFailTime time.Time
+	maxFailures  int
+	resetTimeout time.Duration
+}
+
+func newDBCircuitBreaker() *dbCircuitBreaker {
+	return &dbCircuitBreaker{
+		maxFailures:  5,
+		resetTimeout: 30 * time.Second,
+	}
+}
+
+func (cb *dbCircuitBreaker) recordFailure() {
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
+	cb.failures++
+	cb.lastFailTime = time.Now()
+}
+
+func (cb *dbCircuitBreaker) recordSuccess() {
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
+	cb.failures = 0
+}
+
+func (cb *dbCircuitBreaker) shouldAttempt() bool {
+	cb.mu.RLock()
+	defer cb.mu.RUnlock()
+
+	if cb.failures < cb.maxFailures {
+		return true
+	}
+
+	return time.Since(cb.lastFailTime) > cb.resetTimeout
 }
 
 // initLogging initializes the application and audit loggers.
@@ -384,15 +439,33 @@ func setupDatabase(cfg *config.Config, appLogger logger.Logger) (*gorm.DB, error
 	return database, nil
 }
 
-// setupDatabaseWithRetry sets up database with retry logic
-func setupDatabaseWithRetry(cfg *config.Config, appLogger logger.Logger, maxRetries int) (*gorm.DB, error) {
+// setupDatabaseWithRetry sets up database with retry logic and circuit breaker
+func setupDatabaseWithRetry(cfg *config.Config, appLogger logger.Logger, maxRetries int, circuitBreaker *dbCircuitBreaker) (*gorm.DB, error) {
 	var database *gorm.DB
 	var err error
 
 	for i := 0; i < maxRetries; i++ {
+		// Check circuit breaker
+		if circuitBreaker != nil && !circuitBreaker.shouldAttempt() {
+			appLogger.Warn("Circuit breaker is open, skipping database connection attempt",
+				zap.Int("failures", circuitBreaker.failures),
+			)
+			dbConnectionAttempts.WithLabelValues("circuit_breaker_open").Inc()
+			return nil, fmt.Errorf("circuit breaker is open after %d failures", circuitBreaker.failures)
+		}
+
 		database, err = setupDatabase(cfg, appLogger)
 		if err == nil {
+			dbConnectionAttempts.WithLabelValues("success").Inc()
+			if circuitBreaker != nil {
+				circuitBreaker.recordSuccess()
+			}
 			return database, nil
+		}
+
+		dbConnectionAttempts.WithLabelValues("failure").Inc()
+		if circuitBreaker != nil {
+			circuitBreaker.recordFailure()
 		}
 
 		appLogger.Warn("Database connection failed, retrying...",
@@ -552,12 +625,15 @@ func healthHandler(cfg *config.Config, state *appState) http.HandlerFunc {
 		state.mu.RLock()
 		database := state.database
 		deps := state.deps
+		dbError := state.dbError
+		dbRetrying := state.dbRetrying
 		state.mu.RUnlock()
 
 		if database != nil {
 			sqlDB, err := database.DB()
 			if err == nil {
-				ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+				// Reduced timeout from 2s to 1s for faster response
+				ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
 				defer cancel()
 
 				if err := sqlDB.PingContext(ctx); err == nil {
@@ -569,6 +645,12 @@ func healthHandler(cfg *config.Config, state *appState) http.HandlerFunc {
 			} else {
 				health.Database = "error"
 				health.Status = "DEGRADED"
+			}
+		} else if dbError != nil {
+			health.Database = "failed"
+			health.Status = "DEGRADED"
+			if dbRetrying {
+				health.Database = "retrying"
 			}
 		} else {
 			health.Database = "connecting"
@@ -633,6 +715,72 @@ func dynamicGraphQLHandler(state *appState) http.HandlerFunc {
 		}
 
 		handler.ServeHTTP(w, r)
+	}
+}
+
+// retryDatabaseConnection implements automatic database reconnection with backoff
+func retryDatabaseConnection(ctx context.Context, state *appState, cfg *config.Config, appLogger logger.Logger, auditLogger audit.Logger, circuitBreaker *dbCircuitBreaker) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			appLogger.Info("Stopping database retry due to context cancellation")
+			return
+		case <-ticker.C:
+			// Check if we should attempt
+			if !circuitBreaker.shouldAttempt() {
+				appLogger.Debug("Circuit breaker is open, skipping retry")
+				continue
+			}
+
+			state.mu.Lock()
+			state.dbRetrying = true
+			state.mu.Unlock()
+
+			appLogger.Info("Attempting to reconnect to database...")
+			database, err := setupDatabaseWithRetry(cfg, appLogger, 5, circuitBreaker)
+			if err != nil {
+				appLogger.Error("Database reconnection failed", zap.Error(err))
+				state.mu.Lock()
+				state.dbError = err
+				state.mu.Unlock()
+				continue
+			}
+
+			// Initialize services and dependencies
+			deps, err := initializeServicesAndDependencies(cfg, database, appLogger, auditLogger)
+			if err != nil {
+				appLogger.Error("Failed to initialize dependencies after reconnection", zap.Error(err))
+				continue
+			}
+
+			// Initialize GraphQL resolver
+			resolver := resolvers.NewResolver(
+				deps.memberService,
+				deps.familyService,
+				deps.paymentService,
+				deps.cashFlowService,
+				deps.authService,
+			)
+
+			// Initialize GraphQL handler
+			graphqlHandler := gql.NewHandler(deps.authService, resolver, cfg, appLogger, database)
+
+			// Update state
+			state.mu.Lock()
+			state.database = database
+			state.deps = deps
+			state.graphqlHandler = graphqlHandler
+			state.isReady = true
+			state.dbError = nil
+			state.dbRetrying = false
+			state.mu.Unlock()
+
+			appLogger.Info("Database reconnection successful")
+			return
+		}
 	}
 }
 
@@ -764,15 +912,28 @@ func run(ctx context.Context) error {
 	time.Sleep(100 * time.Millisecond)
 	appLogger.Info("HTTP server should now be accepting connections", zap.String("port", cfg.Port))
 
-	// Step 5: Initialize database and services asynchronously
+	// Step 5: Initialize database and services asynchronously with timeout
+	circuitBreaker := newDBCircuitBreaker()
+	initStart := time.Now()
+	initTimeout := time.NewTimer(5 * time.Minute)
+	defer initTimeout.Stop()
+	initComplete := make(chan bool, 1)
+
 	go func() {
 		appLogger.Info("Initializing database connection asynchronously...")
 
 		// Setup database connection with retries
-		database, dbErr := setupDatabaseWithRetry(cfg, appLogger, 30)
+		database, dbErr := setupDatabaseWithRetry(cfg, appLogger, 30, circuitBreaker)
 		if dbErr != nil {
 			appLogger.Error("Failed to setup database after retries", zap.Error(dbErr))
-			// Continue running with limited functionality
+
+			// Update state to reflect error
+			state.mu.Lock()
+			state.dbError = dbErr
+			state.mu.Unlock()
+
+			// Start automatic retry mechanism
+			go retryDatabaseConnection(ctx, state, cfg, appLogger, auditLogger, circuitBreaker)
 			return
 		}
 
@@ -780,6 +941,9 @@ func run(ctx context.Context) error {
 		deps, err := initializeServicesAndDependencies(cfg, database, appLogger, auditLogger)
 		if err != nil {
 			appLogger.Error("Failed to initialize dependencies", zap.Error(err))
+			state.mu.Lock()
+			state.dbError = err
+			state.mu.Unlock()
 			return
 		}
 
@@ -803,10 +967,34 @@ func run(ctx context.Context) error {
 		state.isReady = true
 		state.mu.Unlock()
 
-		appLogger.Info("Database ready, GraphQL endpoints activated")
+		// Record initialization duration
+		initDuration := time.Since(initStart).Seconds()
+		initializationDuration.Observe(initDuration)
+
+		appLogger.Info("Database ready, GraphQL endpoints activated",
+			zap.Float64("initialization_duration_seconds", initDuration),
+		)
 
 		// Start periodic metrics updates
 		go updateMetricsPeriodically(ctx, appLogger, deps)
+
+		// Signal initialization complete
+		initComplete <- true
+	}()
+
+	// Monitor initialization timeout
+	go func() {
+		select {
+		case <-initComplete:
+			appLogger.Info("Service initialization completed successfully")
+		case <-initTimeout.C:
+			appLogger.Error("Service initialization timeout - operating in degraded mode")
+			state.mu.Lock()
+			if !state.isReady {
+				state.dbError = fmt.Errorf("initialization timeout after 5 minutes")
+			}
+			state.mu.Unlock()
+		}
 	}()
 
 	// Step 6: Handle shutdown signals
@@ -861,10 +1049,14 @@ func run(ctx context.Context) error {
 
 	if deps != nil {
 		if deps.memoryMonitor != nil {
+			appLogger.Info("Stopping memory monitor...")
 			deps.memoryMonitor.Stop()
 		}
 		if deps.profilingServer != nil {
-			_ = deps.profilingServer.Stop()
+			appLogger.Info("Stopping profiling server...")
+			if err := deps.profilingServer.Stop(); err != nil {
+				appLogger.Error("Error stopping profiling server", zap.Error(err))
+			}
 		}
 	}
 
