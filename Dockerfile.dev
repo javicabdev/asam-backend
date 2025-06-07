@@ -1,60 +1,55 @@
-# Etapa 1: Construcción
-FROM golang:1.23-alpine AS builder
+# Development Dockerfile with Go 1.24 runtime - SSL Fix
+FROM golang:1.24-alpine
 
-# Configurar repositorios Alpine para usar HTTP
-RUN echo 'http://dl-cdn.alpinelinux.org/alpine/v3.15/main' > /etc/apk/repositories && \
-    echo 'http://dl-cdn.alpinelinux.org/alpine/v3.15/community' >> /etc/apk/repositories
+# Fix SSL issues for Alpine repositories (common in corporate environments)
+RUN sed -i 's/https/http/g' /etc/apk/repositories
 
-# Instalar git (necesario para go mod download)
-RUN apk add --no-cache git
+# Install dependencies including air for hot reload
+RUN apk add --no-cache git ca-certificates make curl && \
+    go env -w GOPROXY=https://proxy.golang.org,direct && \
+    go env -w GOSUMDB=off && \
+    go install github.com/air-verse/air@latest && \
+    go install github.com/99designs/gqlgen@v0.17.73
 
-# Variables de entorno para evitar problemas de certificados
+# Environment variables
 ENV GO111MODULE=on \
     CGO_ENABLED=0 \
     GOOS=linux \
     GOARCH=amd64 \
-    GOPROXY=direct \
-    GOSUMDB=off \
-    GIT_SSL_NO_VERIFY=true
+    GOPROXY=https://proxy.golang.org,direct \
+    GOSUMDB=off
 
-# Directorio de trabajo dentro del contenedor
+# Working directory
 WORKDIR /app
 
-# Copiar el go.mod y go.sum primero para aprovechar la caché de Docker
+# Copy go module files first for better caching
 COPY go.mod go.sum ./
 
-# Descargar las dependencias sin verificar certificados
-RUN go env -w GOINSECURE=* && \
-    git config --global http.sslVerify false && \
-    go mod download
+# Download dependencies with SSL workaround
+RUN go mod download || (go env -w GOPROXY=direct && go mod download)
 
-# Copiar el resto del código fuente
+# Copy the rest of the source code
 COPY . .
 
-# Compilar la aplicación
+# Generate GraphQL code if needed
+RUN if [ ! -f "internal/adapters/gql/generated/generated.go" ]; then \
+        echo "=== Generating GraphQL code ===" && \
+        mkdir -p internal/adapters/gql/generated internal/adapters/gql/model && \
+        gqlgen generate; \
+    fi
+
+# Build the application (this will be rebuilt by air in development)
 RUN go build -o asam-backend ./cmd/api
 
-# Etapa 2: Imagen Final
-FROM alpine:3.15
+# Create directory for air tmp files
+RUN mkdir -p /app/tmp
 
-# Configurar repositorios para usar HTTP
-RUN echo 'http://dl-cdn.alpinelinux.org/alpine/v3.15/main' > /etc/apk/repositories && \
-    echo 'http://dl-cdn.alpinelinux.org/alpine/v3.15/community' >> /etc/apk/repositories
-
-# Instalar ca-certificates (opcional para la imagen final)
-RUN apk --no-cache add ca-certificates
-
-# Directorio de trabajo dentro del contenedor final
-WORKDIR /root/
-
-# Copiar el binario desde la etapa de construcción
-COPY --from=builder /app/asam-backend .
-
-# Variables de entorno para producción
-ENV PORT=8080
-
-# Exponer el puerto
+# Expose port
 EXPOSE 8080
 
-# Comando para ejecutar la aplicación
-CMD ["./asam-backend"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health/live || exit 1
+
+# Use air for hot reload in development
+CMD ["air", "-c", ".air.toml"]
