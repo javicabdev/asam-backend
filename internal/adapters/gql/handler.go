@@ -123,23 +123,15 @@ func NewHandler(
 	handlerChain = recoveryMiddleware.Handler(handlerChain)   // Recuperación de pánicos - alimenta a errorHandler
 	handlerChain = securityHeaders.Middleware(handlerChain)   // Headers de seguridad
 
-	// Aplicar CORS PRIMERO para que todos los responses tengan headers CORS
-	corsHandler := corsMiddleware(handlerChain)
-
-	// Crear el handler final que maneja métodos y Content-Type
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Content-Type se establece para todas las respuestas
-		w.Header().Set("Content-Type", "application/json")
-
-		// CORS ya manejó OPTIONS en el middleware, así que aquí solo verificamos POST
-		// GraphQL solo acepta POST según la especificación estándar
-		if r.Method != http.MethodPost {
-			// Construir un error estructurado con el sistema de errores
+	// Crear handler de validación de método
+	methodHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Solo aceptar POST (OPTIONS es manejado por CORS)
+		if r.Method != http.MethodPost && r.Method != http.MethodOptions {
 			ctx := context.WithValue(r.Context(), middleware.ErrorHandlerKey{}, errorHandler)
 			err := appErrors.New(appErrors.ErrInvalidOperation, "Method not allowed. GraphQL only accepts POST requests")
 			gqlErr := errorHandler.HandleError(ctx, err)
 
-			// Los headers CORS ya fueron establecidos por corsMiddleware
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			writeJSON(w, map[string]any{
 				"errors": []*gqlerror.Error{gqlErr},
@@ -147,9 +139,15 @@ func NewHandler(
 			return
 		}
 
-		// Para POST requests, pasar al handler de GraphQL
-		corsHandler.ServeHTTP(w, r)
+		// Establecer Content-Type para respuestas válidas
+		w.Header().Set("Content-Type", "application/json")
+
+		// Pasar al handler chain
+		handlerChain.ServeHTTP(w, r)
 	})
+
+	// Aplicar CORS como capa más externa
+	return corsMiddleware(methodHandler)
 }
 
 // writeJSON es un helper para escribir JSON en la respuesta

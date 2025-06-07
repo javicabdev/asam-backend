@@ -2,10 +2,14 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile.dev.proxy-fix
+      args:
+        - HTTP_PROXY=
+        - HTTPS_PROXY=
+        - NO_PROXY=localhost,127.0.0.1
     container_name: asam-backend-api
     ports:
-      - "${PORT}:8080"
+      - "${PORT:-8080}:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -14,32 +18,40 @@ services:
     env_file:
       - .env
     environment:
-      - DB_HOST=postgres  # Override para usar el nombre del servicio
+      - DB_HOST=postgres
+      - GO111MODULE=on
+      - GOPROXY=direct
+      - GOSUMDB=off
+      - GOINSECURE=*
+      - GIT_SSL_NO_VERIFY=true
     volumes:
-      - .:/app # Montar el código fuente para desarrollo
-      - /app/tmp # Montar el directorio binario
-      - /go/pkg/mod # Montar el cache de módulos de Go
+      - .:/app
+      - /app/tmp
+      - go-mod-cache:/go/pkg/mod
     restart: unless-stopped
+    stdin_open: true
+    tty: true
 
   postgres:
     image: postgres:14-alpine
     container_name: asam-postgres
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB:-asam_db}  # Usar valor por defecto si no está definido
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-asam_db}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     networks:
       - asam-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB:-asam_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${POSTGRES_DB:-asam_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
 networks:
   asam-network:
@@ -47,4 +59,6 @@ networks:
 
 volumes:
   postgres-data:
+    driver: local
+  go-mod-cache:
     driver: local

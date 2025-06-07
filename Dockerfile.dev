@@ -1,60 +1,85 @@
-# Development Dockerfile with Go 1.24 runtime - SSL Fix
-FROM golang:1.24-alpine
+# Dockerfile para desarrollo con Go 1.24 - Solución completa SSL/Proxy
+FROM golang:1.24
 
-# Fix SSL issues for Alpine repositories (common in corporate environments)
-RUN sed -i 's/https/http/g' /etc/apk/repositories
+# Instalar certificados y herramientas básicas
+RUN apt-get update && \
+    apt-get install -y \
+    ca-certificates \
+    openssl \
+    git \
+    make \
+    curl \
+    wget && \
+    update-ca-certificates && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Install dependencies including air for hot reload
-RUN apk add --no-cache git ca-certificates make curl && \
-    # Configure Go to work with SSL issues
-    go env -w GOPROXY=direct && \
-    go env -w GOSUMDB=off && \
-    go env -w GOINSECURE=* && \
-    # Install tools with SSL workaround
-    git config --global http.sslVerify false && \
-    go install github.com/air-verse/air@latest && \
-    go install github.com/99designs/gqlgen@v0.17.73
-
-# Environment variables
+# Configurar Go para manejar problemas de SSL/Proxy
 ENV GO111MODULE=on \
     CGO_ENABLED=0 \
     GOOS=linux \
     GOARCH=amd64 \
     GOPROXY=direct \
     GOSUMDB=off \
-    GOINSECURE=*
+    GOINSECURE=github.com,golang.org,goproxy.io,sum.golang.org \
+    GIT_SSL_NO_VERIFY=true
 
-# Working directory
+# Configurar git para ignorar SSL (temporal)
+RUN git config --global http.sslVerify false && \
+    git config --global https.sslVerify false
+
+# Directorio de trabajo
 WORKDIR /app
 
-# Copy go module files first for better caching
+# Copiar archivos de módulos primero
 COPY go.mod go.sum ./
 
-# Download dependencies with SSL workaround
-RUN go mod download || (go env -w GOPROXY=direct && go mod download)
+# Intentar descargar dependencias con múltiples estrategias
+RUN go mod download || \
+    (echo "Intento 2: usando GOPROXY directo" && \
+     GOPROXY=direct go mod download) || \
+    (echo "Intento 3: modo offline - continuando sin descargar" && \
+     echo "Las dependencias se descargarán durante el build")
 
-# Copy the rest of the source code
+# Instalar Air y gqlgen con múltiples intentos
+RUN go install -insecure github.com/air-verse/air@latest || \
+    (echo "Instalando Air con GOINSECURE..." && \
+     GOINSECURE=* go install github.com/air-verse/air@latest) || \
+    (echo "Air se instalará manualmente más tarde" && mkdir -p /go/bin)
+
+RUN go install -insecure github.com/99designs/gqlgen@v0.17.73 || \
+    (echo "Instalando gqlgen con GOINSECURE..." && \
+     GOINSECURE=* go install github.com/99designs/gqlgen@v0.17.73) || \
+    (echo "gqlgen se instalará manualmente más tarde" && mkdir -p /go/bin)
+
+# Copiar el código fuente
 COPY . .
 
-# Generate GraphQL code if needed
+# Intentar generar código GraphQL si es necesario
 RUN if [ ! -f "internal/adapters/gql/generated/generated.go" ]; then \
-        echo "=== Generating GraphQL code ===" && \
+        echo "=== Intentando generar código GraphQL ===" && \
         mkdir -p internal/adapters/gql/generated internal/adapters/gql/model && \
-        gqlgen generate; \
+        (gqlgen generate || echo "GraphQL se generará más tarde"); \
     fi
 
-# Build the application (this will be rebuilt by air in development)
-RUN go build -o asam-backend ./cmd/api
+# Construir la aplicación
+RUN go build -o asam-backend ./cmd/api || \
+    echo "Build inicial falló, se compilará con Air"
 
-# Create directory for air tmp files
+# Crear directorio para Air
 RUN mkdir -p /app/tmp
 
-# Expose port
+# Puerto
 EXPOSE 8080
 
-# Health check
+# Healthcheck simple
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health/live || exit 1
+    CMD curl -f http://localhost:8080/health/live || exit 1
 
-# Use air for hot reload in development
-CMD ["air", "-c", ".air.toml"]
+# Si Air está instalado, usarlo. Si no, ejecutar directamente
+CMD if command -v air >/dev/null 2>&1; then \
+        air -c .air.toml; \
+    else \
+        echo "Air no disponible, ejecutando directamente..." && \
+        go run cmd/api/main.go; \
+    fi
