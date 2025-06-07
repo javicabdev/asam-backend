@@ -123,7 +123,7 @@ func NewHandler(
 	handlerChain = recoveryMiddleware.Handler(handlerChain)   // Recuperación de pánicos - alimenta a errorHandler
 	handlerChain = securityHeaders.Middleware(handlerChain)   // Headers de seguridad
 
-	// Crear handler de validación de método
+	// Crear handler de validación de función
 	methodHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Solo aceptar POST (OPTIONS es manejado por CORS)
 		if r.Method != http.MethodPost && r.Method != http.MethodOptions {

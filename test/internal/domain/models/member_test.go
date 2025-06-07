@@ -31,7 +31,7 @@ func TestValidateBasicFields(t *testing.T) {
 	ok := errors.As(err, &appErr)
 	assert.True(t, ok)
 	assert.NotNil(t, appErr.Fields)
-	assert.Contains(t, appErr.Fields, "numeroSocio")
+	assert.Contains(t, appErr.Fields, "membershipNumber")
 }
 
 // Tests de validaciones de fechas
@@ -55,7 +55,7 @@ func TestValidateDates(t *testing.T) {
 	ok := errors.As(err, &appErr)
 	assert.True(t, ok)
 	assert.NotNil(t, appErr.Fields)
-	assert.Contains(t, appErr.Fields, "fechaBaja")
+	assert.Contains(t, appErr.Fields, "leavingDate")
 
 	// Caso: LeavingDate igual a RegistrationDate
 	member.LeavingDate = &member.RegistrationDate
@@ -64,7 +64,7 @@ func TestValidateDates(t *testing.T) {
 	assert.Contains(t, err.Error(), "VALIDATION_FAILED")
 	ok = errors.As(err, &appErr)
 	assert.True(t, ok)
-	assert.Contains(t, appErr.Fields, "fechaBaja")
+	assert.Contains(t, appErr.Fields, "leavingDate")
 }
 
 // Tests de lógica de negocio
@@ -121,8 +121,8 @@ func TestValidateStatus(t *testing.T) {
 	ok := errors.As(err, &appErr)
 	assert.True(t, ok)
 	assert.NotNil(t, appErr.Fields)
-	assert.Contains(t, appErr.Fields, "fechaBaja")
-	assert.Contains(t, appErr.Fields["fechaBaja"], "Inactive member")
+	assert.Contains(t, appErr.Fields, "leavingDate")
+	assert.Contains(t, appErr.Fields["leavingDate"], "Inactive member")
 }
 
 // Tests de hooks de GORM

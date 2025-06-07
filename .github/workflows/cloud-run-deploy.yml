@@ -116,8 +116,19 @@ jobs:
 
       - name: Run unit tests with coverage
         run: |
-          go test -v -race -coverprofile=coverage.txt -covermode=atomic ./internal/... ./pkg/...
+          go test -v -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./internal/... ./test/internal/...
           go tool cover -func=coverage.txt
+        env:
+          JWT_ACCESS_SECRET: "test-access-secret-for-unit-tests"
+          JWT_REFRESH_SECRET: "test-refresh-secret-for-unit-tests"
+          CGO_ENABLED: 1
+          DB_HOST: "testhost-unit"
+          DB_PORT: "1234"
+          DB_USER: "testuser-unit"
+          DB_PASSWORD: "testpassword-unit"
+          DB_NAME: "testdb-unit"
+          DB_SSL_MODE: "disable"
+          ENVIRONMENT: "test_unit"
 
       - name: Upload coverage to Codecov (opcional)
         uses: codecov/codecov-action@v3
