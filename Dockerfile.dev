@@ -6,8 +6,12 @@ RUN sed -i 's/https/http/g' /etc/apk/repositories
 
 # Install dependencies including air for hot reload
 RUN apk add --no-cache git ca-certificates make curl && \
-    go env -w GOPROXY=https://proxy.golang.org,direct && \
+    # Configure Go to work with SSL issues
+    go env -w GOPROXY=direct && \
     go env -w GOSUMDB=off && \
+    go env -w GOINSECURE=* && \
+    # Install tools with SSL workaround
+    git config --global http.sslVerify false && \
     go install github.com/air-verse/air@latest && \
     go install github.com/99designs/gqlgen@v0.17.73
 
@@ -16,8 +20,9 @@ ENV GO111MODULE=on \
     CGO_ENABLED=0 \
     GOOS=linux \
     GOARCH=amd64 \
-    GOPROXY=https://proxy.golang.org,direct \
-    GOSUMDB=off
+    GOPROXY=direct \
+    GOSUMDB=off \
+    GOINSECURE=*
 
 # Working directory
 WORKDIR /app
