@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"syscall"
 
 	"github.com/joho/godotenv"
 	"golang.org/x/term"
@@ -270,7 +269,7 @@ func readInput(prompt string) string {
 
 func readPassword(prompt string) string {
 	fmt.Print(prompt)
-	password, err := term.ReadPassword(int(syscall.Stdin))
+	password, err := term.ReadPassword(int(os.Stdin.Fd()))
 	fmt.Println() // New line after password input
 	if err != nil {
 		log.Fatalf("Error leyendo contraseña: %v", err)
