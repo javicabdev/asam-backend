@@ -2,7 +2,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile.dev.proxy-fix
+      dockerfile: Dockerfile.dev
       args:
         - HTTP_PROXY=
         - HTTPS_PROXY=
