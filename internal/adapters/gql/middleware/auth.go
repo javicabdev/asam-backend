@@ -190,7 +190,9 @@ func isPublicOperation(r *http.Request) (bool, string) {
 		// Si no se puede leer el body, asumir que necesita autenticación
 		return false, "unknown"
 	}
-	defer r.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(r.Body)
 
 	// Restaurar el body para que pueda ser leído nuevamente
 	r.Body = io.NopCloser(strings.NewReader(string(bodyBytes)))
