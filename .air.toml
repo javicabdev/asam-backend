@@ -1,14 +1,32 @@
-# .air.toml
+# .air.toml configuration for hot reload in development
 
 root = "."
 tmp_dir = "tmp"
 
 [build]
-# Agregar la extensión .exe al binario
-cmd = "go build -o tmp/asam-backend.exe ./cmd/api"
-bin = "tmp/asam-backend.exe"
-include_ext = ["go", "tpl", "tmpl", "html"]
-exclude_dir = ["assets", "tmp", "vendor", "scripts"]
+# Build command for Linux container (no .exe extension)
+cmd = "go build -o tmp/asam-backend ./cmd/api"
+bin = "tmp/asam-backend"
+# Watch these file extensions
+include_ext = ["go", "tpl", "tmpl", "html", "yml", "yaml", "json", "graphql"]
+# Exclude these directories from watching
+exclude_dir = ["assets", "tmp", "vendor", "scripts", ".git", "node_modules"]
+# Kill delay before rebuilding
+kill_delay = "0.5s"
+# Delay before building
+delay = 1000
 
 [log]
+# Show timestamp in logs
 time = true
+
+[color]
+# Colorize air output
+main = "magenta"
+watcher = "cyan"
+build = "yellow"
+runner = "green"
+
+[misc]
+# Clean tmp directory on start
+clean_on_exit = true

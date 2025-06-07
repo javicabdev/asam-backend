@@ -123,8 +123,8 @@ func NewHandler(
 	handlerChain = recoveryMiddleware.Handler(handlerChain)   // Recuperación de pánicos - alimenta a errorHandler
 	handlerChain = securityHeaders.Middleware(handlerChain)   // Headers de seguridad
 
-	// Aplicar filtrado de métodos HTTP usando el sistema de errores
-	handlerChain = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// Crear el handler de método HTTP ANTES de aplicar CORS
+	methodHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost && r.Method != http.MethodOptions {
 			// Construir un error estructurado en lugar de simplemente retornar un código HTTP
 			ctx := context.WithValue(r.Context(), middleware.ErrorHandlerKey{}, errorHandler)
@@ -141,13 +141,13 @@ func NewHandler(
 		handlerChain.ServeHTTP(w, r)
 	})
 
-	// Aplicar CORS como la capa más externa
-	handlerChain = corsMiddleware(handlerChain)
+	// Aplicar CORS al methodHandler
+	corsHandler := corsMiddleware(methodHandler)
 
-	// Establecer Content-Type
+	// Retornar el handler final que establece Content-Type
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		handlerChain.ServeHTTP(w, r)
+		corsHandler.ServeHTTP(w, r)
 	})
 }
 

@@ -184,24 +184,21 @@ func isPublicOperation(r *http.Request) (bool, string) {
 		Query         string `json:"query"`
 	}
 
-	// Decodificar sin consumir el body
-	bodyBytes, err := r.GetBody()
+	// Leer el body actual
+	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		// Si no se puede obtener el body, asumir que necesita autenticación
+		// Si no se puede leer el body, asumir que necesita autenticación
 		return false, "unknown"
 	}
+	defer r.Body.Close()
 
-	defer func(bodyBytes io.ReadCloser) {
-		_ = bodyBytes.Close()
-	}(bodyBytes)
+	// Restaurar el body para que pueda ser leído nuevamente
+	r.Body = io.NopCloser(strings.NewReader(string(bodyBytes)))
 
-	if err := json.NewDecoder(bodyBytes).Decode(&gqlRequest); err != nil {
+	if err := json.Unmarshal(bodyBytes, &gqlRequest); err != nil {
 		// Si no podemos decodificar, asumir que necesita autenticación
 		return false, "unparseable"
 	}
-
-	// Restaurar el body para el siguiente middleware
-	r.Body = bodyBytes
 
 	// Verificar si la operación está en la lista de operaciones públicas
 	isPublic := false

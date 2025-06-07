@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -33,7 +34,6 @@ import (
 	"github.com/javicabdev/asam-backend/internal/domain/services"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/pkg/auth"
-	"github.com/javicabdev/asam-backend/pkg/health"
 	"github.com/javicabdev/asam-backend/pkg/logger"
 	"github.com/javicabdev/asam-backend/pkg/logger/audit"
 	"github.com/javicabdev/asam-backend/pkg/metrics"
@@ -116,6 +116,15 @@ type appDependencies struct {
 	profilingServer *monitoring.ProfilingServer
 	// Service status
 	serviceStatus *ServiceStatus
+}
+
+// appState holds the mutable state of the application
+type appState struct {
+	mu             sync.RWMutex
+	database       *gorm.DB
+	deps           *appDependencies
+	isReady        bool
+	graphqlHandler http.Handler
 }
 
 // initLogging initializes the application and audit loggers.
@@ -524,7 +533,7 @@ func getMemoryStats() MemoryStats {
 }
 
 // healthHandler creates an enhanced health check handler
-func healthHandler(cfg *config.Config, database *gorm.DB, deps *appDependencies) http.HandlerFunc {
+func healthHandler(cfg *config.Config, state *appState) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -540,6 +549,11 @@ func healthHandler(cfg *config.Config, database *gorm.DB, deps *appDependencies)
 		}
 
 		// Check database
+		state.mu.RLock()
+		database := state.database
+		deps := state.deps
+		state.mu.RUnlock()
+
 		if database != nil {
 			sqlDB, err := database.DB()
 			if err == nil {
@@ -585,96 +599,40 @@ func healthHandler(cfg *config.Config, database *gorm.DB, deps *appDependencies)
 	}
 }
 
-// newHTTPServerAndMux creates the HTTP server and configures all routes (GraphQL, health, metrics).
-func newHTTPServerAndMux(deps *appDependencies, cfg *config.Config, appLogger logger.Logger, database *gorm.DB) *http.Server {
-	// Initialize GraphQL resolver
-	resolver := resolvers.NewResolver(
-		deps.memberService,
-		deps.familyService,
-		deps.paymentService,
-		deps.cashFlowService,
-		deps.authService,
-	)
-	// Initialize GraphQL and Playground handlers with performance tracing
-	graphqlHandler := gql.NewHandler(deps.authService, resolver, cfg, appLogger, database)
-	playgroundHandler := gql.NewPlaygroundHandler()
-
-	// Initialize health check handler
-	healthCheckHandler := health.NewHandler(database)
-
-	// Create a new ServeMux for routing
-	mux := http.NewServeMux()
-
-	// Apply global middlewares
-	handler := requestIDMiddleware(
-		securityHeadersMiddleware(
-			rateLimitMiddleware(cfg.RateLimitRPS)(
-				prometheusMiddleware(mux),
-			),
-		),
-	)
-
-	// Routes
-	mux.Handle("/playground", playgroundHandler) // GraphQL Playground
-	mux.Handle("/graphql", graphqlHandler)       // GraphQL endpoint
-	mux.Handle("/metrics", promhttp.Handler())   // Prometheus metrics
-
-	// Enhanced health endpoints
-	mux.Handle("/health", healthHandler(cfg, database, deps))
-	mux.Handle("/health/live", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("OK"))
-	}))
-	mux.Handle("/health/ready", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if database == nil {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			_, _ = w.Write([]byte("Database not ready"))
-			return
-		}
-
-		healthCheck := healthCheckHandler.CheckHealth(r.Context())
-		if healthCheck.Status == health.StatusDown {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-	}))
-
-	// Root endpoint
-	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+// pendingGraphQLHandler returns a handler that indicates GraphQL is not ready yet
+func pendingGraphQLHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, authorization")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		w.WriteHeader(http.StatusServiceUnavailable)
 		_ = json.NewEncoder(w).Encode(map[string]string{
-			"service": "asam-backend",
-			"version": Version,
-			"status":  "running",
+			"error":  "GraphQL endpoint is not ready yet. Database is still connecting.",
+			"status": "initializing",
 		})
-	})
-
-	// Performance monitoring endpoints (protected by basic auth in production)
-	if cfg.Environment == "production" {
-		// Add authentication for sensitive endpoints in production
-		mux.Handle("/debug/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			username, password, ok := r.BasicAuth()
-			if !ok || username != cfg.AdminUser || password != cfg.AdminPassword {
-				w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-				w.WriteHeader(http.StatusUnauthorized)
-				_, _ = w.Write([]byte("Unauthorized"))
-				return
-			}
-			http.DefaultServeMux.ServeHTTP(w, r)
-		}))
 	}
+}
 
-	// Configure and return the HTTP server
-	listenAddr := fmt.Sprintf(":%s", cfg.Port)
-	return &http.Server{
-		Addr:              listenAddr,
-		Handler:           handler,
-		ReadHeaderTimeout: 10 * time.Second, // Mitigates Slowloris attacks
-		ReadTimeout:       15 * time.Second, // Max time to read entire request
-		WriteTimeout:      15 * time.Second, // Max time to write entire response
-		IdleTimeout:       60 * time.Second, // Max time for keep-alive connections
+// dynamicGraphQLHandler returns a handler that routes to the appropriate GraphQL handler based on state
+func dynamicGraphQLHandler(state *appState) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		state.mu.RLock()
+		handler := state.graphqlHandler
+		state.mu.RUnlock()
+
+		if handler == nil {
+			pendingGraphQLHandler()(w, r)
+			return
+		}
+
+		handler.ServeHTTP(w, r)
 	}
 }
 
@@ -702,19 +660,16 @@ func run(ctx context.Context) error {
 	// Step 2: Setup and register Prometheus metrics early.
 	setupAndRegisterMetrics(appLogger)
 
-	// Step 3: Create a placeholder for database that will be initialized async
-	var database *gorm.DB
-	var deps *appDependencies
-	dbReady := make(chan bool, 1)
+	// Step 3: Create application state
+	state := &appState{}
 
-	// Step 4: Start HTTP server immediately with minimal setup for Cloud Run
-	// This ensures the server can respond to health checks while DB is connecting
+	// Step 4: Start HTTP server immediately with dynamic handlers
 	appLogger.Info("Starting HTTP server immediately for Cloud Run...")
 
-	// Create a minimal mux with just health endpoints initially
+	// Create the main mux
 	mux := http.NewServeMux()
 
-	// Apply global middlewares even for initial server
+	// Apply global middlewares
 	handler := requestIDMiddleware(
 		securityHeadersMiddleware(
 			rateLimitMiddleware(cfg.RateLimitRPS)(
@@ -734,54 +689,56 @@ func run(ctx context.Context) error {
 		})
 	})
 
-	// Basic health check that doesn't depend on DB
+	// Health endpoints
 	mux.Handle("/health/live", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("OK"))
 	}))
 
-	// Readiness check that waits for DB
 	mux.Handle("/health/ready", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		select {
-		case <-dbReady:
-			// DB is ready
+		state.mu.RLock()
+		isReady := state.isReady
+		state.mu.RUnlock()
+
+		if isReady {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte("Ready"))
-		default:
-			// DB not ready yet
+		} else {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			_, _ = w.Write([]byte("Database not ready"))
 		}
 	}))
 
-	// Basic health endpoint with minimal info
-	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-
-		health := HealthStatus{
-			Status:      "UP",
-			Version:     Version,
-			Commit:      Commit,
-			BuildTime:   BuildTime,
-			Timestamp:   time.Now(),
-			Environment: cfg.Environment,
-			Services:    make(map[string]string),
-			Memory:      getMemoryStats(),
-		}
-
-		select {
-		case <-dbReady:
-			health.Database = "healthy"
-		default:
-			health.Database = "connecting"
-		}
-
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(health)
-	})
+	mux.Handle("/health", healthHandler(cfg, state))
 
 	// Prometheus metrics endpoint (always available)
 	mux.Handle("/metrics", promhttp.Handler())
+
+	// GraphQL endpoints with dynamic handlers
+	mux.Handle("/playground", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		state.mu.RLock()
+		isReady := state.isReady
+		state.mu.RUnlock()
+
+		if !isReady {
+			w.Header().Set("Content-Type", "text/html")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte(`
+				<html>
+				<head><title>GraphQL Playground - Initializing</title></head>
+				<body>
+					<h1>GraphQL Playground is initializing...</h1>
+					<p>The database connection is being established. Please refresh in a few seconds.</p>
+				</body>
+				</html>
+			`))
+			return
+		}
+
+		gql.NewPlaygroundHandler().ServeHTTP(w, r)
+	}))
+
+	mux.Handle("/graphql", dynamicGraphQLHandler(state))
 
 	// Configure the HTTP server
 	listenAddr := fmt.Sprintf(":%s", cfg.Port)
@@ -812,9 +769,7 @@ func run(ctx context.Context) error {
 		appLogger.Info("Initializing database connection asynchronously...")
 
 		// Setup database connection with retries
-		var dbErr error
-		database, dbErr = setupDatabaseWithRetry(cfg, appLogger, 30)
-
+		database, dbErr := setupDatabaseWithRetry(cfg, appLogger, 30)
 		if dbErr != nil {
 			appLogger.Error("Failed to setup database after retries", zap.Error(dbErr))
 			// Continue running with limited functionality
@@ -822,23 +777,33 @@ func run(ctx context.Context) error {
 		}
 
 		// Initialize services and other dependencies
-		deps, err = initializeServicesAndDependencies(cfg, database, appLogger, auditLogger)
+		deps, err := initializeServicesAndDependencies(cfg, database, appLogger, auditLogger)
 		if err != nil {
 			appLogger.Error("Failed to initialize dependencies", zap.Error(err))
 			return
 		}
 
-		// Now update the HTTP server with full functionality
-		appLogger.Info("Database ready, updating HTTP routes...")
+		// Initialize GraphQL resolver
+		resolver := resolvers.NewResolver(
+			deps.memberService,
+			deps.familyService,
+			deps.paymentService,
+			deps.cashFlowService,
+			deps.authService,
+		)
 
-		// Create new server with all routes
-		fullServer := newHTTPServerAndMux(deps, cfg, appLogger, database)
+		// Initialize GraphQL handler
+		graphqlHandler := gql.NewHandler(deps.authService, resolver, cfg, appLogger, database)
 
-		// Update the handler
-		server.Handler = fullServer.Handler
+		// Update state
+		state.mu.Lock()
+		state.database = database
+		state.deps = deps
+		state.graphqlHandler = graphqlHandler
+		state.isReady = true
+		state.mu.Unlock()
 
-		// Signal that DB is ready
-		close(dbReady)
+		appLogger.Info("Database ready, GraphQL endpoints activated")
 
 		// Start periodic metrics updates
 		go updateMetricsPeriodically(ctx, appLogger, deps)
@@ -879,6 +844,11 @@ func run(ctx context.Context) error {
 	}
 
 	// Cleanup
+	state.mu.RLock()
+	database := state.database
+	deps := state.deps
+	state.mu.RUnlock()
+
 	if database != nil {
 		sqlDB, err := database.DB()
 		if err == nil {
