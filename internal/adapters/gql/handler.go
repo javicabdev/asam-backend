@@ -123,30 +123,31 @@ func NewHandler(
 	handlerChain = recoveryMiddleware.Handler(handlerChain)   // Recuperación de pánicos - alimenta a errorHandler
 	handlerChain = securityHeaders.Middleware(handlerChain)   // Headers de seguridad
 
-	// Crear el handler de método HTTP ANTES de aplicar CORS
-	methodHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost && r.Method != http.MethodOptions {
-			// Construir un error estructurado en lugar de simplemente retornar un código HTTP
+	// Aplicar CORS PRIMERO para que todos los responses tengan headers CORS
+	corsHandler := corsMiddleware(handlerChain)
+
+	// Crear el handler final que maneja métodos y Content-Type
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Content-Type se establece para todas las respuestas
+		w.Header().Set("Content-Type", "application/json")
+
+		// CORS ya manejó OPTIONS en el middleware, así que aquí solo verificamos POST
+		// GraphQL solo acepta POST según la especificación estándar
+		if r.Method != http.MethodPost {
+			// Construir un error estructurado con el sistema de errores
 			ctx := context.WithValue(r.Context(), middleware.ErrorHandlerKey{}, errorHandler)
-			err := appErrors.New(appErrors.ErrInvalidOperation, "Method not allowed")
+			err := appErrors.New(appErrors.ErrInvalidOperation, "Method not allowed. GraphQL only accepts POST requests")
 			gqlErr := errorHandler.HandleError(ctx, err)
 
-			w.Header().Set("Content-Type", "application/json")
+			// Los headers CORS ya fueron establecidos por corsMiddleware
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			writeJSON(w, map[string]any{
 				"errors": []*gqlerror.Error{gqlErr},
 			})
 			return
 		}
-		handlerChain.ServeHTTP(w, r)
-	})
 
-	// Aplicar CORS al methodHandler
-	corsHandler := corsMiddleware(methodHandler)
-
-	// Retornar el handler final que establece Content-Type
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+		// Para POST requests, pasar al handler de GraphQL
 		corsHandler.ServeHTTP(w, r)
 	})
 }
