@@ -6,9 +6,12 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 	"go.uber.org/zap"
@@ -26,15 +29,22 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/metrics"
 )
 
-// corsMiddleware es un middleware simple para CORS
+// corsMiddleware is a more comprehensive CORS middleware that handles all necessary headers
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Configurar headers CORS
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, authorization")
+		// Configure CORS headers
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			origin = "*"
+		}
 
-		// Manejar preflighted requests
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Request-ID")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
+
+		// Handle preflight requests
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -62,6 +72,17 @@ func NewHandler(
 
 	// Configurar el servidor GraphQL
 	srv := handler.New(schema)
+
+	// Configure transport options to ensure all transports are properly enabled
+	srv.AddTransport(&transport.Options{})
+	srv.AddTransport(&transport.GET{})
+	srv.AddTransport(&transport.POST{})
+	srv.AddTransport(&transport.Websocket{
+		KeepAlivePingInterval: 10 * time.Second,
+	})
+
+	// Enable introspection
+	srv.Use(extension.Introspection{})
 
 	// Configurar error presenter que usa el mismo errorHandler
 	srv.SetErrorPresenter(func(ctx context.Context, err error) *gqlerror.Error {

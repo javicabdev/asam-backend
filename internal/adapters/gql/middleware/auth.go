@@ -35,7 +35,10 @@ var publicOperations = map[string]bool{
 
 // isExemptRequest verifica si la petición está exenta de autenticación
 func isExemptRequest(r *http.Request) bool {
-	return r.Method == http.MethodOptions || r.URL.Path == "/graphql/playground"
+	return r.Method == http.MethodOptions ||
+		r.URL.Path == "/playground" ||
+		r.URL.Path == "/graphql/playground" ||
+		strings.HasSuffix(r.URL.Path, "/playground")
 }
 
 // validateAuthHeader valida el encabezado de autorización y extrae el token
@@ -178,6 +181,11 @@ func isPublicOperation(r *http.Request) (bool, string) {
 		return true, "playground"
 	}
 
+	// Verificar que el body no sea nil
+	if r.Body == nil {
+		return false, "empty-body"
+	}
+
 	// Intentar parsear el cuerpo de la solicitud para obtener la operación
 	var gqlRequest struct {
 		OperationName string `json:"operationName"`
@@ -188,14 +196,16 @@ func isPublicOperation(r *http.Request) (bool, string) {
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		// Si no se puede leer el body, asumir que necesita autenticación
-		return false, "unknown"
+		return false, "read-error"
 	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(r.Body)
 
 	// Restaurar el body para que pueda ser leído nuevamente
 	r.Body = io.NopCloser(strings.NewReader(string(bodyBytes)))
+
+	// Si el body está vacío, retornar false
+	if len(bodyBytes) == 0 {
+		return false, "empty-body"
+	}
 
 	if err := json.Unmarshal(bodyBytes, &gqlRequest); err != nil {
 		// Si no podemos decodificar, asumir que necesita autenticación
