@@ -89,11 +89,21 @@ if ($ready) {
 
 # Ejecutar migraciones
 Write-Host "`n🔄 Ejecutando migraciones..." -ForegroundColor Yellow
-docker-compose exec -T api go run ./cmd/migrate up
+# Primero copiar .env a .env.development para que el comando de migración lo encuentre
+docker-compose exec -T api sh -c "cp .env .env.development" 2>$null
+# Ahora ejecutar las migraciones
+docker-compose exec -T api go run ./cmd/migrate -env local up
 if ($LASTEXITCODE -eq 0) {
     Write-Host "✅ Migraciones ejecutadas" -ForegroundColor Green
 } else {
-    Write-Host "⚠️  Error al ejecutar migraciones" -ForegroundColor Yellow
+    Write-Host "⚠️  Error al ejecutar migraciones - intentando método directo..." -ForegroundColor Yellow
+    # Alternativa: ejecutar SQL directamente
+    Get-Content migrations/000001_initial_schema.up.sql | docker-compose exec -T postgres psql -U postgres -d asam_db
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "✅ Migraciones ejecutadas con método alternativo" -ForegroundColor Green
+    } else {
+        Write-Host "❌ No se pudieron ejecutar las migraciones" -ForegroundColor Red
+    }
 }
 
 # Crear usuarios de prueba

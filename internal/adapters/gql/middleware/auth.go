@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/vektah/gqlparser/v2/gqlerror"
@@ -32,6 +33,16 @@ var publicOperations = map[string]bool{
 	"introspection":      true,
 	"IntrospectionQuery": true,
 }
+
+// Regex patterns for detecting public operations (case-insensitive)
+var (
+	// Pattern for login/refreshToken mutations
+	authOperationsRegex = regexp.MustCompile(`(?i)mutation\s+(login|refreshtoken)\s*[({]`)
+	// Pattern for introspection queries
+	introspectionRegex = regexp.MustCompile(`(?i)(query\s+introspectionquery|__schema|__type)`)
+	// Pattern for extracting operation name
+	operationNameRegex = regexp.MustCompile(`(?i)^\s*(query|mutation|subscription)\s+(\w+)`)
+)
 
 // isExemptRequest verifica si la petición está exenta de autenticación
 func isExemptRequest(r *http.Request) bool {
@@ -170,6 +181,7 @@ func getClientIP(r *http.Request) string {
 }
 
 // isPublicOperation determina si la operación GraphQL es pública
+// Mejorado con regex patterns case-insensitive para mayor flexibilidad
 func isPublicOperation(r *http.Request) (bool, string) {
 	// Solo procesar solicitudes POST para GraphQL
 	if r.Method != http.MethodPost {
@@ -216,32 +228,46 @@ func isPublicOperation(r *http.Request) (bool, string) {
 	isPublic := false
 	operationName := gqlRequest.OperationName
 
-	// Verificar por nombre de operación
-	if publicOperations[operationName] {
-		isPublic = true
+	// 1. Verificar por nombre de operación (case-insensitive)
+	if operationName != "" {
+		operationNameLower := strings.ToLower(operationName)
+		for publicOp := range publicOperations {
+			if strings.ToLower(publicOp) == operationNameLower {
+				isPublic = true
+				operationName = publicOp
+				break
+			}
+		}
 	}
 
-	// Si no hay nombre de operación o no está en la lista, verificar la query
+	// 2. Si no es pública por nombre, verificar el contenido de la query usando regex
 	if !isPublic && gqlRequest.Query != "" {
-		// Check for login mutation
-		if strings.Contains(gqlRequest.Query, "mutation login") ||
-			strings.Contains(gqlRequest.Query, "mutation { login") {
+		// Check for auth operations (login/refreshToken)
+		if authOperationsRegex.MatchString(gqlRequest.Query) {
 			isPublic = true
-			operationName = "login"
+			// Extract the operation name from the regex match
+			matches := authOperationsRegex.FindStringSubmatch(gqlRequest.Query)
+			if len(matches) > 1 {
+				operationName = strings.ToLower(matches[1])
+			}
 		}
 
-		// Check for refreshToken mutation
-		if strings.Contains(gqlRequest.Query, "mutation refreshToken") ||
-			strings.Contains(gqlRequest.Query, "refreshToken(") {
-			isPublic = true
-			operationName = "refreshToken"
-		}
-
-		// Check for introspection query
-		if strings.Contains(gqlRequest.Query, "__schema") ||
-			strings.Contains(gqlRequest.Query, "__type") {
+		// Check for introspection queries
+		if !isPublic && introspectionRegex.MatchString(gqlRequest.Query) {
 			isPublic = true
 			operationName = "introspection"
+		}
+
+		// 3. Si no se encontró por regex, intentar extraer el nombre de la operación
+		if operationName == "" {
+			matches := operationNameRegex.FindStringSubmatch(gqlRequest.Query)
+			if len(matches) > 2 {
+				extractedName := strings.ToLower(matches[2])
+				if publicOperations[extractedName] {
+					isPublic = true
+					operationName = extractedName
+				}
+			}
 		}
 	}
 

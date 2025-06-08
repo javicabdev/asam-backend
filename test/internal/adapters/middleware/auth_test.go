@@ -149,6 +149,111 @@ func TestAuthMiddleware_PublicOperations(t *testing.T) {
 	}
 }
 
+// TestAuthMiddleware_CaseSensitivity prueba que las operaciones públicas funcionan con diferentes variaciones de mayúsculas/minúsculas
+func TestAuthMiddleware_CaseSensitivity(t *testing.T) {
+	// Configurar mocks
+	authService, logger := setupMockAuth()
+	authMiddleware := middleware.AuthMiddleware(authService, logger)
+
+	// Crear un handler de siguiente nivel que verifica ser llamado
+	nextCalled := false
+	nextHandler := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		nextCalled = true
+	})
+
+	// Array de variaciones de case sensitivity a probar
+	caseSensitivityTests := []struct {
+		name        string
+		query       string
+		description string
+	}{
+		{
+			name:        "lowercase_login_mutation",
+			query:       `{"query":"mutation login($input: LoginInput!) { login(input: $input) { accessToken } }"}`,
+			description: "Should allow lowercase 'login' mutation",
+		},
+		{
+			name:        "uppercase_Login_mutation",
+			query:       `{"query":"mutation Login($input: LoginInput!) { login(input: $input) { accessToken } }"}`,
+			description: "Should allow uppercase 'Login' mutation",
+		},
+		{
+			name:        "all_caps_LOGIN_mutation",
+			query:       `{"query":"mutation LOGIN($input: LoginInput!) { login(input: $input) { accessToken } }"}`,
+			description: "Should allow all caps 'LOGIN' mutation",
+		},
+		{
+			name:        "mixed_case_mutation",
+			query:       `{"query":"Mutation LoGiN($input: LoginInput!) { login(input: $input) { accessToken } }"}`,
+			description: "Should allow mixed case mutation",
+		},
+		{
+			name:        "refreshToken_lowercase",
+			query:       `{"query":"mutation refreshtoken { refreshToken(input: {refreshToken: \"...\"}) { accessToken } }"}`,
+			description: "Should allow lowercase refreshToken",
+		},
+		{
+			name:        "refreshToken_camelCase",
+			query:       `{"query":"mutation RefreshToken { refreshToken(input: {refreshToken: \"...\"}) { accessToken } }"}`,
+			description: "Should allow camelCase RefreshToken",
+		},
+		{
+			name:        "introspection_mixed_case",
+			query:       `{"query":"Query IntrospectionQuery { __schema { queryType { name } } }"}`,
+			description: "Should allow mixed case introspection",
+		},
+		{
+			name:        "login_without_operation_name",
+			query:       `{"query":"mutation { login(input: {username: \"test\", password: \"test\"}) { accessToken } }"}`,
+			description: "Should detect login even without operation name",
+		},
+		{
+			name:        "login_with_spaces",
+			query:       `{"query":"mutation   login   { login(input: {username: \"test\", password: \"test\"}) { accessToken } }"}`,
+			description: "Should handle extra spaces in mutation",
+		},
+		{
+			name:        "login_with_newlines",
+			query:       `{"query":"mutation login {\n  login(input: {\n    username: \"test\"\n    password: \"test\"\n  }) {\n    accessToken\n  }\n}"}`,
+			description: "Should handle newlines in mutation",
+		},
+		{
+			name:        "login_with_operation_name_uppercase",
+			query:       `{"operationName":"LOGIN","query":"mutation LOGIN($input: LoginInput!) { login(input: $input) { accessToken } }"}`,
+			description: "Should match operation name case-insensitive",
+		},
+	}
+
+	for _, tc := range caseSensitivityTests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Resetear la bandera
+			nextCalled = false
+
+			// Crear la solicitud
+			req := httptest.NewRequest("POST", "/graphql", strings.NewReader(tc.query))
+			req.Header.Set("Content-Type", "application/json")
+
+			// Configurar GetBody para que la solicitud pueda ser leída múltiples veces
+			req.GetBody = func() (io.ReadCloser, error) {
+				return io.NopCloser(strings.NewReader(tc.query)), nil
+			}
+
+			// Registrar la respuesta
+			w := httptest.NewRecorder()
+
+			// Ejecutar el middleware
+			handlerToTest := authMiddleware(nextHandler)
+			handlerToTest.ServeHTTP(w, req)
+
+			// Verificar que se llamó al siguiente handler (las operaciones públicas deben pasar)
+			assert.True(t, nextCalled, "Test %s failed: %s\nExpected handler to be called but it wasn't", tc.name, tc.description)
+
+			// Verificar que no se devolvió un error de autenticación
+			assert.Equal(t, http.StatusOK, w.Code, "Test %s failed: %s\nExpected status 200, got %d", tc.name, tc.description, w.Code)
+		})
+	}
+}
+
 // TestAuthMiddleware_InvalidTokenFormat prueba que los tokens con formato inválido devuelven un error 401
 func TestAuthMiddleware_InvalidTokenFormat(t *testing.T) {
 	// Configurar mocks

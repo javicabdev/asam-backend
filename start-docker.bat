@@ -96,9 +96,19 @@ echo.
 
 :: Ejecutar migraciones
 echo [7/7] Ejecutando migraciones y creando usuarios...
-docker-compose exec -T api go run ./cmd/migrate up >nul 2>&1
+:: Primero copiar .env a .env.development para que el comando de migración lo encuentre
+docker-compose exec -T api sh -c "cp .env .env.development" >nul 2>&1
+:: Ahora ejecutar las migraciones
+docker-compose exec -T api go run ./cmd/migrate -env local up >nul 2>&1
 if errorlevel 1 (
-    echo [AVISO] Error al ejecutar migraciones
+    echo [AVISO] Error al ejecutar migraciones - intentando método directo...
+    :: Método alternativo: ejecutar SQL directamente
+    type migrations\000001_initial_schema.up.sql | docker-compose exec -T postgres psql -U postgres -d asam_db >nul 2>&1
+    if errorlevel 1 (
+        echo [ERROR] No se pudieron ejecutar las migraciones
+    ) else (
+        echo [OK] Migraciones ejecutadas con método alternativo
+    )
 ) else (
     echo [OK] Migraciones ejecutadas
 )
