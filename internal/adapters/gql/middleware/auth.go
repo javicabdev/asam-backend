@@ -32,14 +32,20 @@ var publicOperations = map[string]bool{
 	"refreshToken":       true,
 	"introspection":      true,
 	"IntrospectionQuery": true,
+	"health":             true,
+	"ping":               true,
 }
 
 // Regex patterns for detecting public operations (case-insensitive)
 var (
 	// Pattern for login/refreshToken mutations
 	authOperationsRegex = regexp.MustCompile(`(?i)mutation\s+(login|refreshtoken)\s*[({]`)
+	// Pattern for anonymous mutations with login/refreshToken
+	anonymousAuthRegex = regexp.MustCompile(`(?i)mutation\s*\{\s*(login|refreshtoken)\s*\(`)
 	// Pattern for introspection queries
 	introspectionRegex = regexp.MustCompile(`(?i)(query\s+introspectionquery|__schema|__type)`)
+	// Pattern for health check queries
+	healthCheckRegex = regexp.MustCompile(`(?i)query\s+(health|ping)\s*[({]|\{\s*(health|ping)\s*\}`)
 	// Pattern for extracting operation name
 	operationNameRegex = regexp.MustCompile(`(?i)^\s*(query|mutation|subscription)\s+(\w+)`)
 )
@@ -252,10 +258,30 @@ func isPublicOperation(r *http.Request) (bool, string) {
 			}
 		}
 
+		// Check for anonymous mutations with login/refreshToken
+		if !isPublic && anonymousAuthRegex.MatchString(gqlRequest.Query) {
+			isPublic = true
+			// Extract the operation name from the regex match
+			matches := anonymousAuthRegex.FindStringSubmatch(gqlRequest.Query)
+			if len(matches) > 1 {
+				operationName = strings.ToLower(matches[1])
+			}
+		}
+
 		// Check for introspection queries
 		if !isPublic && introspectionRegex.MatchString(gqlRequest.Query) {
 			isPublic = true
 			operationName = "introspection"
+		}
+
+		// Check for health check queries
+		if !isPublic && healthCheckRegex.MatchString(gqlRequest.Query) {
+			isPublic = true
+			// Extract the operation name from the regex match
+			matches := healthCheckRegex.FindStringSubmatch(gqlRequest.Query)
+			if len(matches) > 1 {
+				operationName = strings.ToLower(matches[1])
+			}
 		}
 
 		// 3. Si no se encontró por regex, intentar extraer el nombre de la operación

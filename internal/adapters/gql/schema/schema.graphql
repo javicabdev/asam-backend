@@ -200,6 +200,9 @@ type TransactionConnection {
 
 # Query principal
 type Query {
+    # Health check - no authentication required
+    health: String!
+    ping: String!
     # Member Queries
     getMember(id: ID!): Member
     listMembers(filter: MemberFilter): MemberConnection!
