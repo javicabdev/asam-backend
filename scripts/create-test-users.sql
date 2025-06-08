@@ -7,7 +7,7 @@
 INSERT INTO users (username, password, role, is_active, created_at, updated_at)
 VALUES (
     'admin@asam.org',
-    '$2a$10$3bQXKBsekmOphw2DJQYgpOaVl5GWELfYjk0j5LzTc5FqMFKmgZALu',  -- 'admin123' hasheado
+    '$2a$10$K1kCTLS6VJ9U1lhH8hfste1Z7cUB7SvQH3fFtE3AqLYJrQ3GyqIKG',  -- 'admin123' hasheado CORRECTO
     'admin',  -- Changed from 'ADMIN' to 'admin'
     true,
     NOW(),
@@ -23,7 +23,7 @@ SET
 INSERT INTO users (username, password, role, is_active, created_at, updated_at)
 VALUES (
     'user@asam.org',
-    '$2a$10$3bQXKBsekmOphw2DJQYgpOaVl5GWELfYjk0j5LzTc5FqMFKmgZALu',  -- 'admin123' hasheado
+    '$2a$10$K1kCTLS6VJ9U1lhH8hfste1Z7cUB7SvQH3fFtE3AqLYJrQ3GyqIKG',  -- 'admin123' hasheado CORRECTO
     'user',  -- Changed from 'USER' to 'user'
     true,
     NOW(),
