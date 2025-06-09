@@ -1,7 +1,5 @@
 -- Script SQL para crear un usuario de prueba
 -- Este script crea un usuario administrador con contraseña 'admin123'
--- IMPORTANTE: Si el login falla, ejecutar fix-passwords.ps1 para regenerar el hash
-
 -- Insertar un usuario de prueba (la contraseña debe estar hasheada con bcrypt)
 -- La contraseña 'admin123' hasheada con bcrypt (cost 10)
 INSERT INTO users (username, password, role, is_active, created_at, updated_at)
