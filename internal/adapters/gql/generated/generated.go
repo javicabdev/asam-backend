@@ -1361,8 +1361,8 @@ enum TransactionSortField {
 }
 
 enum UserRole {
-    ADMIN
-    USER
+    admin
+    user
 }
 
 # Tipos de autenticación

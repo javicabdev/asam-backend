@@ -1,34 +1,53 @@
 # Gestión de Usuarios ASAM
 
-Este directorio contiene scripts para gestionar usuarios del sistema ASAM.
+Este directorio contiene herramientas para gestionar usuarios del sistema ASAM.
 
-## Uso
+## Herramientas Disponibles
 
-### Windows
+### 1. manage_users.go
+Herramienta interactiva para gestión manual de usuarios.
+
+**Uso:**
 ```batch
+# Windows
 run.bat
-```
 
-### Linux/Mac
-```bash
+# Linux/Mac/Docker
 go run manage_users.go
 ```
 
-## Funcionalidades
+**Funcionalidades:**
+- Crear usuarios con nombre, contraseña y rol (admin/user)
+- Listar todos los usuarios del sistema
+- Activar/Desactivar usuarios
+- Cambiar contraseñas
 
-1. **Crear usuarios**: Con nombre de usuario, contraseña y rol (admin/user)
-2. **Listar usuarios**: Ver todos los usuarios del sistema
-3. **Activar/Desactivar usuarios**: Cambiar el estado de un usuario
-4. **Cambiar contraseña**: Actualizar la contraseña de un usuario
+### 2. auto-create-test-users.go
+Script automatizado para crear usuarios de prueba sin interacción.
+
+**Uso:**
+```bash
+# Dentro del contenedor Docker
+go run scripts/user-management/auto-create-test-users.go
+
+# Desde el host
+docker-compose exec -T api go run scripts/user-management/auto-create-test-users.go
+```
+
+**Usuarios creados:**
+- admin@asam.org / admin123 (rol: admin)
+- user@asam.org / admin123 (rol: user)
+
+Este script es ejecutado automáticamente por `start-docker.ps1`.
+
+## Integración con Docker
+
+Al iniciar el proyecto con `start-docker.ps1`, se ejecuta automáticamente el script `auto-create-test-users.go` para crear los usuarios de prueba necesarios.
 
 ## Notas de Seguridad
 
-- Este script debe ejecutarse SOLO desde el servidor
-- NO exponer estos scripts a través de la API
+- Estos scripts deben ejecutarse SOLO desde el servidor o contenedor
+- NO exponer estas herramientas a través de la API
 - Las contraseñas se hashean automáticamente con bcrypt
-- Requiere acceso directo a la base de datos
-
-## Usuarios por defecto recomendados
-
-1. **admin** - Usuario administrador principal
-2. **user1**, **user2**, etc. - Usuarios normales según necesidad
+- Requieren acceso directo a la base de datos
+- Los usuarios de prueba con contraseñas simples solo deben usarse en desarrollo

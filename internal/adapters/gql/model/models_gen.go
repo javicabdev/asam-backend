@@ -526,8 +526,8 @@ func (e TransactionSortField) MarshalJSON() ([]byte, error) {
 type UserRole string
 
 const (
-	UserRoleAdmin UserRole = "ADMIN"
-	UserRoleUser  UserRole = "USER"
+	UserRoleAdmin UserRole = "admin"
+	UserRoleUser  UserRole = "user"
 )
 
 var AllUserRole = []UserRole{

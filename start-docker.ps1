@@ -106,13 +106,14 @@ if ($LASTEXITCODE -eq 0) {
     }
 }
 
-# Crear usuarios de prueba
+# Crear usuarios de prueba usando la herramienta de gestión de usuarios
 Write-Host "`n👥 Creando usuarios de prueba..." -ForegroundColor Yellow
-Get-Content scripts/create-test-users.sql | docker-compose exec -T postgres psql -U postgres -d asam_db
+# Usar el script automatizado que no requiere interacción
+docker-compose exec -T api go run scripts/user-management/auto-create-test-users.go
 if ($LASTEXITCODE -eq 0) {
-    Write-Host "✅ Usuarios de prueba creados" -ForegroundColor Green
+    Write-Host "✅ Usuarios de prueba creados correctamente" -ForegroundColor Green
 } else {
-    Write-Host "⚠️  Error al crear usuarios (puede que ya existan)" -ForegroundColor Yellow
+    Write-Host "⚠️  Error al crear usuarios - verificar logs" -ForegroundColor Yellow
 }
 
 # Mostrar logs en tiempo real

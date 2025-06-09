@@ -115,9 +115,9 @@ func (r *Resolver) RefreshToken(ctx context.Context, input model.RefreshTokenInp
 // Funciones auxiliares
 
 // mapUserToGQL convierte un modelo de dominio User a un modelo generado por gqlgen
-// Esta función simplemente devuelve el mismo user que recibe,
-// ya que estamos usando directamente el modelo del dominio en GraphQL
+// Ya no es necesaria la conversión de roles porque el schema GraphQL ahora usa minúsculas
 func mapUserToGQL(user *models.User) *models.User {
+	// Simplemente retornar el usuario tal cual, ya que los roles coinciden
 	return user
 }
 

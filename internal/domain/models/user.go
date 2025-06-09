@@ -1,6 +1,7 @@
 package models
 
 import (
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -40,7 +41,11 @@ func (u *User) SetPassword(password string) error {
 
 // CheckPassword verifica si la contraseña proporcionada es correcta
 func (u *User) CheckPassword(password string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password))
+	// Trim any whitespace that might have been added
+	trimmedPassword := strings.TrimSpace(password)
+	trimmedHash := strings.TrimSpace(u.Password)
+
+	err := bcrypt.CompareHashAndPassword([]byte(trimmedHash), []byte(trimmedPassword))
 	return err == nil
 }
 
