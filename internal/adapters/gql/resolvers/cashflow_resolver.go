@@ -28,12 +28,18 @@ func (r *cashFlowResolver) mapTransactionInputToModel(input *model.TransactionIn
 	}
 
 	if input.MemberID != nil {
-		memberID := parseID(*input.MemberID)
+		memberID, err := parseID(*input.MemberID)
+		if err != nil {
+			return nil
+		}
 		transaction.MemberID = &memberID
 	}
 
 	if input.FamilyID != nil {
-		familyID := parseID(*input.FamilyID)
+		familyID, err := parseID(*input.FamilyID)
+		if err != nil {
+			return nil
+		}
 		transaction.FamilyID = &familyID
 	}
 

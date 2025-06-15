@@ -13,7 +13,7 @@ import (
 // User Management Queries
 
 // GetUser retrieves a user by ID (Admin only)
-func (r *Resolver) GetUser(ctx context.Context, id string) (*models.User, error) {
+func (r *userResolver) GetUser(ctx context.Context, id string) (*models.User, error) {
 	// Check admin permission
 	if err := middleware.MustBeAdmin(ctx); err != nil {
 		return nil, err
@@ -24,16 +24,11 @@ func (r *Resolver) GetUser(ctx context.Context, id string) (*models.User, error)
 		return nil, err
 	}
 
-	user, err := r.userService.GetUser(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	return user, nil
+	return r.userService.GetUser(ctx, userID)
 }
 
 // ListUsers retrieves a paginated list of users (Admin only)
-func (r *Resolver) ListUsers(ctx context.Context, page *int, pageSize *int) ([]*models.User, error) {
+func (r *userResolver) ListUsers(ctx context.Context, page *int, pageSize *int) ([]*models.User, error) {
 	// Check admin permission
 	if err := middleware.MustBeAdmin(ctx); err != nil {
 		return nil, err
@@ -50,16 +45,11 @@ func (r *Resolver) ListUsers(ctx context.Context, page *int, pageSize *int) ([]*
 		size = *pageSize
 	}
 
-	users, err := r.userService.ListUsers(ctx, pageNum, size)
-	if err != nil {
-		return nil, err
-	}
-
-	return users, nil
+	return r.userService.ListUsers(ctx, pageNum, size)
 }
 
 // GetCurrentUser retrieves the currently authenticated user
-func (r *Resolver) GetCurrentUser(ctx context.Context) (*models.User, error) {
+func (r *userResolver) GetCurrentUser(ctx context.Context) (*models.User, error) {
 	// Get user from context
 	user, ok := ctx.Value(constants.UserContextKey).(*models.User)
 	if !ok || user == nil {
@@ -67,18 +57,13 @@ func (r *Resolver) GetCurrentUser(ctx context.Context) (*models.User, error) {
 	}
 
 	// Get fresh user data to ensure it's up to date
-	freshUser, err := r.userService.GetUser(ctx, user.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	return freshUser, nil
+	return r.userService.GetUser(ctx, user.ID)
 }
 
 // User Management Mutations
 
 // CreateUser creates a new user (Admin only)
-func (r *Resolver) CreateUser(ctx context.Context, input model.CreateUserInput) (*models.User, error) {
+func (r *userResolver) CreateUser(ctx context.Context, input model.CreateUserInput) (*models.User, error) {
 	// Check admin permission
 	if err := middleware.MustBeAdmin(ctx); err != nil {
 		return nil, err
@@ -87,16 +72,11 @@ func (r *Resolver) CreateUser(ctx context.Context, input model.CreateUserInput) 
 	// Convert role from GraphQL enum to domain model
 	role := convertGraphQLRoleToDomain(input.Role)
 
-	user, err := r.userService.CreateUser(ctx, input.Username, input.Password, role)
-	if err != nil {
-		return nil, err
-	}
-
-	return user, nil
+	return r.userService.CreateUser(ctx, input.Username, input.Password, role)
 }
 
 // UpdateUser updates an existing user (Admin only)
-func (r *Resolver) UpdateUser(ctx context.Context, input model.UpdateUserInput) (*models.User, error) {
+func (r *userResolver) UpdateUser(ctx context.Context, input model.UpdateUserInput) (*models.User, error) {
 	// Check admin permission
 	if err := middleware.MustBeAdmin(ctx); err != nil {
 		return nil, err
@@ -122,16 +102,11 @@ func (r *Resolver) UpdateUser(ctx context.Context, input model.UpdateUserInput) 
 		updates["isActive"] = *input.IsActive
 	}
 
-	user, err := r.userService.UpdateUser(ctx, userID, updates)
-	if err != nil {
-		return nil, err
-	}
-
-	return user, nil
+	return r.userService.UpdateUser(ctx, userID, updates)
 }
 
 // DeleteUser deletes a user (Admin only)
-func (r *Resolver) DeleteUser(ctx context.Context, id string) (*model.MutationResponse, error) {
+func (r *userResolver) DeleteUser(ctx context.Context, id string) (*model.MutationResponse, error) {
 	// Check admin permission
 	if err := middleware.MustBeAdmin(ctx); err != nil {
 		return nil, err
@@ -152,8 +127,7 @@ func (r *Resolver) DeleteUser(ctx context.Context, id string) (*model.MutationRe
 		}, nil
 	}
 
-	err = r.userService.DeleteUser(ctx, userID)
-	if err != nil {
+	if err := r.userService.DeleteUser(ctx, userID); err != nil {
 		errMsg := err.Error()
 		return &model.MutationResponse{
 			Success: false,
@@ -169,15 +143,14 @@ func (r *Resolver) DeleteUser(ctx context.Context, id string) (*model.MutationRe
 }
 
 // ChangePassword changes the current user's password
-func (r *Resolver) ChangePassword(ctx context.Context, input model.ChangePasswordInput) (*model.MutationResponse, error) {
+func (r *userResolver) ChangePassword(ctx context.Context, input model.ChangePasswordInput) (*model.MutationResponse, error) {
 	// Get current user
 	user, ok := ctx.Value(constants.UserContextKey).(*models.User)
 	if !ok || user == nil {
 		return nil, errors.NewUnauthorizedError()
 	}
 
-	err := r.userService.ChangePassword(ctx, user.ID, input.CurrentPassword, input.NewPassword)
-	if err != nil {
+	if err := r.userService.ChangePassword(ctx, user.ID, input.CurrentPassword, input.NewPassword); err != nil {
 		errMsg := err.Error()
 		return &model.MutationResponse{
 			Success: false,
@@ -193,7 +166,7 @@ func (r *Resolver) ChangePassword(ctx context.Context, input model.ChangePasswor
 }
 
 // ResetUserPassword resets a user's password (Admin only)
-func (r *Resolver) ResetUserPassword(ctx context.Context, userID string, newPassword string) (*model.MutationResponse, error) {
+func (r *userResolver) ResetUserPassword(ctx context.Context, userID string, newPassword string) (*model.MutationResponse, error) {
 	// Check admin permission
 	if err := middleware.MustBeAdmin(ctx); err != nil {
 		return nil, err
@@ -204,8 +177,7 @@ func (r *Resolver) ResetUserPassword(ctx context.Context, userID string, newPass
 		return nil, err
 	}
 
-	err = r.userService.ResetPassword(ctx, id, newPassword)
-	if err != nil {
+	if err := r.userService.ResetPassword(ctx, id, newPassword); err != nil {
 		errMsg := err.Error()
 		return &model.MutationResponse{
 			Success: false,

@@ -19,6 +19,11 @@ type AuthResponse struct {
 	ExpiresAt    time.Time    `json:"expiresAt"`
 }
 
+type ChangePasswordInput struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
 type CreateFamilyInput struct {
 	NumeroSocio              string     `json:"numero_socio"`
 	MiembroOrigenID          *string    `json:"miembro_origen_id,omitempty"`
@@ -50,6 +55,12 @@ type CreateMemberInput struct {
 	Profesion          *string        `json:"profesion,omitempty"`
 	Nacionalidad       *string        `json:"nacionalidad,omitempty"`
 	Observaciones      *string        `json:"observaciones,omitempty"`
+}
+
+type CreateUserInput struct {
+	Username string   `json:"username"`
+	Password string   `json:"password"`
+	Role     UserRole `json:"role"`
 }
 
 type FamiliarInput struct {
@@ -181,6 +192,14 @@ type UpdateMemberInput struct {
 	CorreoElectronico  *string `json:"correo_electronico,omitempty"`
 	Profesion          *string `json:"profesion,omitempty"`
 	Observaciones      *string `json:"observaciones,omitempty"`
+}
+
+type UpdateUserInput struct {
+	ID       string    `json:"id"`
+	Username *string   `json:"username,omitempty"`
+	Password *string   `json:"password,omitempty"`
+	Role     *UserRole `json:"role,omitempty"`
+	IsActive *bool     `json:"isActive,omitempty"`
 }
 
 type FamilySortField string

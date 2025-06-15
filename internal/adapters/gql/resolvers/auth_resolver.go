@@ -16,8 +16,13 @@ type contextKey string
 // Definir la clave para el token de autorización en el contexto
 const authorizationKey contextKey = "authorization"
 
+// authResolver contains auth-related resolvers
+type authResolver struct {
+	resolver *Resolver
+}
+
 // Login Mutation.login implementa la mutación de login
-func (r *Resolver) Login(ctx context.Context, input model.LoginInput) (*model.AuthResponse, error) {
+func (r *authResolver) Login(ctx context.Context, input model.LoginInput) (*model.AuthResponse, error) {
 	// Extraer username y password del input
 	username := input.Username
 	password := input.Password
@@ -34,7 +39,7 @@ func (r *Resolver) Login(ctx context.Context, input model.LoginInput) (*model.Au
 	}
 
 	// Check rate limiting
-	allowed, lockoutDuration := r.loginRateLimiter.AllowLogin(ctx, username)
+	allowed, lockoutDuration := r.resolver.loginRateLimiter.AllowLogin(ctx, username)
 	if !allowed {
 		if lockoutDuration > 0 {
 			return nil, errors.NewBusinessError(
@@ -49,18 +54,18 @@ func (r *Resolver) Login(ctx context.Context, input model.LoginInput) (*model.Au
 	}
 
 	// Llamada al servicio de autenticación
-	tokenDetails, err := r.authService.Login(ctx, username, password)
+	tokenDetails, err := r.resolver.authService.Login(ctx, username, password)
 	if err != nil {
 		// Record failure for rate limiting
-		r.loginRateLimiter.RecordFailure(ctx, username)
+		r.resolver.loginRateLimiter.RecordFailure(ctx, username)
 		return nil, errors.Wrap(err, errors.ErrUnauthorized, "credenciales inválidas")
 	}
 
 	// Record success and reset rate limit counter
-	r.loginRateLimiter.RecordSuccess(ctx, username)
+	r.resolver.loginRateLimiter.RecordSuccess(ctx, username)
 
 	// Validar el token para obtener información del usuario
-	userModel, err := r.authService.ValidateToken(ctx, tokenDetails.AccessToken)
+	userModel, err := r.resolver.authService.ValidateToken(ctx, tokenDetails.AccessToken)
 	if err != nil {
 		return nil, errors.Wrap(err, errors.ErrInternalError, "error validando token")
 	}
@@ -78,7 +83,7 @@ func (r *Resolver) Login(ctx context.Context, input model.LoginInput) (*model.Au
 }
 
 // Logout Mutation.logout implementa la mutación de logout
-func (r *Resolver) Logout(ctx context.Context) (any, error) {
+func (r *authResolver) Logout(ctx context.Context) (*model.MutationResponse, error) {
 	// Obtener token del contexto
 	token, err := getAccessTokenFromContext(ctx)
 	if err != nil {
@@ -90,7 +95,7 @@ func (r *Resolver) Logout(ctx context.Context) (any, error) {
 	}
 
 	// Llamada al servicio de autenticación
-	err = r.authService.Logout(ctx, token)
+	err = r.resolver.authService.Logout(ctx, token)
 	if err != nil {
 		errMsg := "Error al cerrar sesión: " + err.Error()
 		return &model.MutationResponse{
@@ -107,7 +112,7 @@ func (r *Resolver) Logout(ctx context.Context) (any, error) {
 }
 
 // RefreshToken Mutation.refreshToken implementa la mutación de refreshToken
-func (r *Resolver) RefreshToken(ctx context.Context, input model.RefreshTokenInput) (any, error) {
+func (r *authResolver) RefreshToken(ctx context.Context, input model.RefreshTokenInput) (*model.TokenResponse, error) {
 	// Extraer refreshToken del input
 	refreshToken := input.RefreshToken
 
@@ -120,7 +125,7 @@ func (r *Resolver) RefreshToken(ctx context.Context, input model.RefreshTokenInp
 	}
 
 	// Llamada al servicio de autenticación
-	tokenDetails, err := r.authService.RefreshToken(ctx, refreshToken)
+	tokenDetails, err := r.resolver.authService.RefreshToken(ctx, refreshToken)
 	if err != nil {
 		return nil, errors.Wrap(err, errors.ErrUnauthorized, "token de refresco inválido o expirado")
 	}

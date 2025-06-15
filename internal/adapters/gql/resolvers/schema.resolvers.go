@@ -161,7 +161,12 @@ func (r *mutationResolver) UpdateMember(ctx context.Context, input model.UpdateM
 
 // DeleteMember is the resolver for the deleteMember field.
 func (r *mutationResolver) DeleteMember(ctx context.Context, id string) (*model.MutationResponse, error) {
-	err := r.memberService.DeactivateMember(ctx, parseID(id), nil)
+	memberID, err := parseID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.memberService.DeactivateMember(ctx, memberID, nil)
 	if err != nil {
 		errMsg := err.Error()
 		return &model.MutationResponse{
@@ -179,7 +184,10 @@ func (r *mutationResolver) DeleteMember(ctx context.Context, id string) (*model.
 // ChangeMemberStatus is the resolver for the changeMemberStatus field.
 func (r *mutationResolver) ChangeMemberStatus(ctx context.Context, id string, status model.MemberStatus) (*models.Member, error) {
 	// 1) Parsear el ID a uint (o el tipo que uses internamente)
-	memberID := parseID(id)
+	memberID, err := parseID(id)
+	if err != nil {
+		return nil, err
+	}
 
 	// 2) Llamar al método handleMemberStatus del sub-resolver (member_resolver.go)
 	return r.Member().(*memberResolver).handleMemberStatus(ctx, memberID, status)
@@ -214,7 +222,10 @@ func (r *mutationResolver) UpdateFamily(ctx context.Context, input model.UpdateF
 	}
 
 	// 2) Convertir el string "familia_id" en uint (si parseID hace eso)
-	id := parseID(input.FamiliaID)
+	id, err := parseID(input.FamiliaID)
+	if err != nil {
+		return nil, err
+	}
 
 	// 3) Buscar la familia existente (usando familyService)
 	existing, err := r.familyService.GetByID(ctx, id)
@@ -235,7 +246,10 @@ func (r *mutationResolver) UpdateFamily(ctx context.Context, input model.UpdateF
 // AddFamilyMember is the resolver for the addFamilyMember field.
 func (r *mutationResolver) AddFamilyMember(ctx context.Context, familyID string, familiar model.FamiliarInput) (*models.Family, error) {
 	// 1) parseamos el ID
-	id := parseID(familyID)
+	id, err := parseID(familyID)
+	if err != nil {
+		return nil, err
+	}
 
 	// 2) obtener la familia
 	existing, err := r.familyService.GetByID(ctx, id)
@@ -266,10 +280,13 @@ func (r *mutationResolver) AddFamilyMember(ctx context.Context, familyID string,
 // RemoveFamilyMember is the resolver for the removeFamilyMember field.
 func (r *mutationResolver) RemoveFamilyMember(ctx context.Context, familiarID string) (*model.MutationResponse, error) {
 	// 1) parsear ID
-	famID := parseID(familiarID)
+	famID, err := parseID(familiarID)
+	if err != nil {
+		return nil, err
+	}
 
 	// 2) llamar a un método en familyService para eliminarlo
-	err := r.familyService.RemoveFamiliar(ctx, famID)
+	err = r.familyService.RemoveFamiliar(ctx, famID)
 	if err != nil {
 		errMsg := err.Error()
 		return &model.MutationResponse{
@@ -297,7 +314,10 @@ func (r *mutationResolver) RegisterPayment(ctx context.Context, input model.Paym
 
 // UpdatePayment is the resolver for the updatePayment field.
 func (r *mutationResolver) UpdatePayment(ctx context.Context, id string, input model.PaymentInput) (*models.Payment, error) {
-	paymentID := parseID(id)
+	paymentID, err := parseID(id)
+	if err != nil {
+		return nil, err
+	}
 
 	// 1) obtener el pago actual (opcional, para decidir si está cancelado o no)
 	existing, err := r.paymentService.GetPayment(ctx, paymentID)
@@ -319,7 +339,10 @@ func (r *mutationResolver) UpdatePayment(ctx context.Context, id string, input m
 
 // CancelPayment is the resolver for the cancelPayment field.
 func (r *mutationResolver) CancelPayment(ctx context.Context, id string, reason string) (*model.MutationResponse, error) {
-	paymentID := parseID(id)
+	paymentID, err := parseID(id)
+	if err != nil {
+		return nil, err
+	}
 
 	// 1) obtener el pago
 	existing, err := r.paymentService.GetPayment(ctx, paymentID)
@@ -392,7 +415,10 @@ func (r *mutationResolver) RegisterTransaction(ctx context.Context, input model.
 
 // UpdateTransaction is the resolver for the updateTransaction field.
 func (r *mutationResolver) UpdateTransaction(ctx context.Context, id string, input model.TransactionInput) (*models.CashFlow, error) {
-	transactionID := parseID(id)
+	transactionID, err := parseID(id)
+	if err != nil {
+		return nil, err
+	}
 
 	// Comprobar si existe
 	existing, err := r.cashFlowService.GetMovement(ctx, transactionID)
@@ -420,46 +446,19 @@ func (r *mutationResolver) AdjustBalance(ctx context.Context, amount float64, re
 // Login is the resolver for the login field.
 func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*model.AuthResponse, error) {
 	// Llamamos a la función implementada en auth_resolver.go
-	auth, err := r.Resolver.Login(ctx, input)
-	if err != nil {
-		return nil, err
-	}
-
-	return auth, nil
+	return r.Resolver.Login(ctx, input)
 }
 
 // Logout is the resolver for the logout field.
 func (r *mutationResolver) Logout(ctx context.Context) (*model.MutationResponse, error) {
 	// Llamamos a la función implementada en auth_resolver.go
-	result, err := r.Resolver.Logout(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Hacemos un cast al tipo adecuado
-	response, ok := result.(*model.MutationResponse)
-	if !ok {
-		return nil, fmt.Errorf("error interno: formato de respuesta inesperado")
-	}
-
-	return response, nil
+	return r.Resolver.Logout(ctx)
 }
 
 // RefreshToken is the resolver for the refreshToken field.
 func (r *mutationResolver) RefreshToken(ctx context.Context, input model.RefreshTokenInput) (*model.TokenResponse, error) {
 	// Llamamos a la función implementada en auth_resolver.go
-	result, err := r.Resolver.RefreshToken(ctx, input)
-	if err != nil {
-		return nil, err
-	}
-
-	// Hacemos un cast al tipo adecuado
-	response, ok := result.(*model.TokenResponse)
-	if !ok {
-		return nil, fmt.Errorf("error interno: formato de respuesta inesperado")
-	}
-
-	return response, nil
+	return r.Resolver.RefreshToken(ctx, input)
 }
 
 // CreateUser is the resolver for the createUser field.
@@ -520,7 +519,11 @@ func (r *queryResolver) GetCurrentUser(ctx context.Context) (*models.User, error
 
 // GetMember is the resolver for the getMember field.
 func (r *queryResolver) GetMember(ctx context.Context, id string) (*models.Member, error) {
-	memberID := parseID(id) // Convierte el string en uint
+	memberID, err := parseID(id) // Convierte el string en uint
+	if err != nil {
+		return nil, err
+	}
+
 	member, err := r.memberService.GetMemberByID(ctx, memberID)
 	if err != nil {
 		return nil, err
@@ -650,7 +653,10 @@ func (r *queryResolver) SearchMembers(ctx context.Context, criteria string) ([]*
 // GetFamily is the resolver for the getFamily field.
 func (r *queryResolver) GetFamily(ctx context.Context, id string) (*models.Family, error) {
 	// 1) parsear el id de string a uint (o lo que tu parseID retorne)
-	familyID := parseID(id)
+	familyID, err := parseID(id)
+	if err != nil {
+		return nil, err
+	}
 
 	// 2) llamar a tu servicio de familias
 	family, err := r.familyService.GetByID(ctx, familyID)
@@ -715,7 +721,10 @@ func (r *queryResolver) ListFamilies(ctx context.Context, filter *model.FamilyFi
 // GetFamilyMembers is the resolver for the getFamilyMembers field.
 func (r *queryResolver) GetFamilyMembers(ctx context.Context, familyID string) ([]*models.Familiar, error) {
 	// 1) Parsear el ID
-	fid := parseID(familyID)
+	fid, err := parseID(familyID)
+	if err != nil {
+		return nil, err
+	}
 
 	// 2) Verificar que la familia existe (opcional)
 	family, err := r.familyService.GetByID(ctx, fid)
@@ -739,7 +748,10 @@ func (r *queryResolver) GetFamilyMembers(ctx context.Context, familyID string) (
 // GetPayment is the resolver for the getPayment field.
 func (r *queryResolver) GetPayment(ctx context.Context, id string) (*models.Payment, error) {
 	// 1) parsear el ID de string a uint (u otro tipo interno)
-	paymentID := parseID(id)
+	paymentID, err := parseID(id)
+	if err != nil {
+		return nil, err
+	}
 
 	// 2) llamar a tu servicio de pagos para obtener el pago
 	payment, err := r.paymentService.GetPayment(ctx, paymentID)
@@ -759,7 +771,10 @@ func (r *queryResolver) GetPayment(ctx context.Context, id string) (*models.Paym
 // GetMemberPayments is the resolver for the getMemberPayments field.
 func (r *queryResolver) GetMemberPayments(ctx context.Context, memberID string) ([]*models.Payment, error) {
 	// 1) parsear el string "memberID" a uint
-	mid := parseID(memberID)
+	mid, err := parseID(memberID)
+	if err != nil {
+		return nil, err
+	}
 
 	// 2) Buscar los pagos del miembro
 	payments, err := r.paymentService.GetMemberPayments(ctx, mid)
@@ -774,7 +789,10 @@ func (r *queryResolver) GetMemberPayments(ctx context.Context, memberID string) 
 // GetFamilyPayments is the resolver for the getFamilyPayments field.
 func (r *queryResolver) GetFamilyPayments(ctx context.Context, familyID string) ([]*models.Payment, error) {
 	// 1) parsear la cadena "familyID" a uint
-	fid := parseID(familyID)
+	fid, err := parseID(familyID)
+	if err != nil {
+		return nil, err
+	}
 
 	// 2) (opcional) verificar que la familia exista
 	family, err := r.familyService.GetByID(ctx, fid)
@@ -798,7 +816,10 @@ func (r *queryResolver) GetFamilyPayments(ctx context.Context, familyID string) 
 // GetPaymentStatus is the resolver for the getPaymentStatus field.
 func (r *queryResolver) GetPaymentStatus(ctx context.Context, id string) (models.PaymentStatus, error) {
 	// 1) parsear el string "id" a uint (u otro tipo interno)
-	paymentID := parseID(id)
+	paymentID, err := parseID(id)
+	if err != nil {
+		return "", err
+	}
 
 	// 2) obtener el pago
 	payment, err := r.paymentService.GetPayment(ctx, paymentID)
@@ -816,7 +837,10 @@ func (r *queryResolver) GetPaymentStatus(ctx context.Context, id string) (models
 // GetCashFlow is the resolver for the getCashFlow field.
 func (r *queryResolver) GetCashFlow(ctx context.Context, id string) (*models.CashFlow, error) {
 	// 1) Parsear el string a uint
-	cfID := parseID(id)
+	cfID, err := parseID(id)
+	if err != nil {
+		return nil, err
+	}
 
 	// 2) Llamar a tu servicio para obtener la transacción
 	cashFlow, err := r.cashFlowService.GetMovement(ctx, cfID)

@@ -5,12 +5,12 @@ import (
 )
 
 // parseID convierte un ID de string a uint
-func parseID(id string) uint {
+func parseID(id string) (uint, error) {
 	parsed, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
-		return 0
+		return 0, err
 	}
-	return uint(parsed)
+	return uint(parsed), nil
 }
 
 // stringPtr creates a pointer to a string
