@@ -137,6 +137,14 @@ func executeMigrationsCI(cmd string, args []string) error {
 	if sslMode == "" {
 		sslMode = "disable" // Default SSL mode if not specified
 		log.Printf("DB_SSL_MODE not set for CI, defaulting to '%s'", sslMode)
+	} else {
+		log.Printf("Using DB_SSL_MODE from environment: '%s'", sslMode)
+	}
+
+	// Always use disable for localhost connections in CI to avoid SSL issues
+	if dbHost == "localhost" || dbHost == "127.0.0.1" {
+		sslMode = "disable"
+		log.Printf("Host is localhost, forcing SSL mode to 'disable' for CI environment")
 	}
 
 	log.Printf("CI Database configuration: Host=%s, Port=%s, User=%s, DB=%s, SSLMode=%s",
