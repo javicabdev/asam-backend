@@ -262,10 +262,10 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*i
 	// Preparar contexto con información adicional
 	ctxWithInfo := ctx
 	if ip := ctx.Value(constants.IPContextKey); ip != nil {
-		ctxWithInfo = context.WithValue(ctxWithInfo, "ip_address", ip)
+		ctxWithInfo = context.WithValue(ctxWithInfo, constants.IPAddressContextKey, ip)
 	}
 	if ua := ctx.Value(constants.UserAgentContextKey); ua != nil {
-		ctxWithInfo = context.WithValue(ctxWithInfo, string(constants.UserAgentContextKey), ua)
+		ctxWithInfo = context.WithValue(ctxWithInfo, constants.UserAgentContextKey, ua)
 	}
 	if device, ok := ctx.Value(constants.DeviceNameContextKey).(string); ok {
 		ctxWithInfo = context.WithValue(ctxWithInfo, string(constants.DeviceNameContextKey), device)

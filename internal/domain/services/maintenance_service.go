@@ -105,7 +105,7 @@ func (s *MaintenanceService) RunScheduledMaintenance(ctx context.Context, maxTok
 }
 
 // GenerateReport generates a report of maintenance results
-func (s *MaintenanceService) GenerateReport(ctx context.Context, results []MaintenanceResult) string {
+func (s *MaintenanceService) GenerateReport(_ context.Context, results []MaintenanceResult) string {
 	var report strings.Builder
 
 	report.WriteString(fmt.Sprintf("Maintenance Report - %s\n", time.Now().Format(time.RFC3339)))
@@ -122,7 +122,7 @@ func (s *MaintenanceService) GenerateReport(ctx context.Context, results []Maint
 		}
 
 		if result.Error != nil {
-			report.WriteString(fmt.Sprintf("Status: FAILED\n"))
+			report.WriteString("Status: FAILED\n")
 			report.WriteString(fmt.Sprintf("Error: %v\n", result.Error))
 		} else {
 			report.WriteString("Status: SUCCESS\n")

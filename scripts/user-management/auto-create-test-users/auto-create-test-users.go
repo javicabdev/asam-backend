@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -80,7 +81,8 @@ func createOrUpdateUser(db *gorm.DB, username, password string, role models.Role
 	// Check if user exists
 	err := db.Where("username = ?", username).First(&user).Error
 
-	if err == gorm.ErrRecordNotFound {
+	switch {
+	case errors.Is(err, gorm.ErrRecordNotFound):
 		// Create new user
 		user = models.User{
 			Username: username,
@@ -99,7 +101,8 @@ func createOrUpdateUser(db *gorm.DB, username, password string, role models.Role
 		}
 
 		fmt.Printf("Created new user: %s\n", username)
-	} else if err == nil {
+
+	case err == nil:
 		// Update existing user's password
 		if err := user.SetPassword(password); err != nil {
 			return fmt.Errorf("failed to set password: %w", err)
@@ -115,7 +118,8 @@ func createOrUpdateUser(db *gorm.DB, username, password string, role models.Role
 		}
 
 		fmt.Printf("Updated existing user: %s\n", username)
-	} else {
+
+	default:
 		return fmt.Errorf("database error: %w", err)
 	}
 
