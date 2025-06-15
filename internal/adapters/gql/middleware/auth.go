@@ -100,15 +100,6 @@ func enrichContextWithUserInfo(ctx context.Context, user *models.User, token str
 	return ctx
 }
 
-// handlePublicOperation maneja operaciones públicas que no requieren autenticación
-func handlePublicOperation(w http.ResponseWriter, r *http.Request, next http.Handler, logger logger.Logger, operationName string) {
-	logger.Debug("Operación pública permitida sin autenticación",
-		zap.String("operation", operationName),
-		zap.String("ip", getClientIP(r)),
-	)
-	next.ServeHTTP(w, r)
-}
-
 // handleAuthFailure maneja fallos de autenticación
 func handleAuthFailure(w http.ResponseWriter, msg string, logger logger.Logger, operation string, clientIP string, err error) {
 	if err != nil {
