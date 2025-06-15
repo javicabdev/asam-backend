@@ -154,9 +154,12 @@ CREATE TABLE refresh_tokens (
     device_name VARCHAR(255),
     ip_address VARCHAR(45),
     user_agent TEXT,
-    last_used_at TIMESTAMP WITH TIME ZONE,
-    CONSTRAINT uni_refresh_tokens_uuid UNIQUE (uuid)
+    last_used_at TIMESTAMP WITH TIME ZONE
 );
+
+-- Add explicit unique constraint with specific name for refresh_tokens.uuid
+-- This ensures the constraint name is exactly as expected by tests
+ALTER TABLE refresh_tokens ADD CONSTRAINT uni_refresh_tokens_uuid UNIQUE (uuid);
 
 -- Add foreign key constraints
 ALTER TABLE families 
