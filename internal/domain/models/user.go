@@ -21,7 +21,7 @@ const (
 // User representa un usuario del sistema con autenticación
 type User struct {
 	gorm.Model
-	Username      string `gorm:"uniqueIndex;not null"`
+	Username      string `gorm:"uniqueIndex:uni_users_username;not null"`
 	Password      string `gorm:"not null"`
 	Role          Role   `gorm:"type:varchar(20);not null;default:'user'"`
 	LastLogin     time.Time
