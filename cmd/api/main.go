@@ -13,7 +13,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -35,18 +34,11 @@ import (
 	"github.com/javicabdev/asam-backend/internal/domain/services"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/pkg/auth"
+	"github.com/javicabdev/asam-backend/pkg/constants"
 	"github.com/javicabdev/asam-backend/pkg/logger"
 	"github.com/javicabdev/asam-backend/pkg/logger/audit"
 	"github.com/javicabdev/asam-backend/pkg/metrics"
 	"github.com/javicabdev/asam-backend/pkg/monitoring"
-)
-
-// contextKey is a type for context keys to avoid collisions
-type contextKey string
-
-const (
-	// requestIDKey is the context key for request ID
-	requestIDKey contextKey = "requestID"
 )
 
 var (
@@ -225,38 +217,6 @@ func generateRequestID() string {
 	return hex.EncodeToString(b)
 }
 
-// clientInfoMiddleware extracts client information and adds it to context
-func clientInfoMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Extract IP address
-		var clientIP string
-		if xForwardedFor := r.Header.Get("X-Forwarded-For"); xForwardedFor != "" {
-			// Take the first IP if there are multiple
-			ips := strings.Split(xForwardedFor, ",")
-			if len(ips) > 0 {
-				clientIP = strings.TrimSpace(ips[0])
-			}
-		} else if xRealIP := r.Header.Get("X-Real-IP"); xRealIP != "" {
-			clientIP = xRealIP
-		} else {
-			// Fall back to RemoteAddr
-			clientIP = r.RemoteAddr
-			if colonIndex := strings.LastIndex(clientIP, ":"); colonIndex != -1 {
-				clientIP = clientIP[:colonIndex]
-			}
-		}
-
-		// Extract user agent
-		userAgent := r.UserAgent()
-
-		// Add to context
-		ctx := context.WithValue(r.Context(), "ip", clientIP)
-		ctx = context.WithValue(ctx, "user_agent", userAgent)
-
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
 // requestIDMiddleware adds a request ID to each request
 func requestIDMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -265,7 +225,7 @@ func requestIDMiddleware(next http.Handler) http.Handler {
 			requestID = generateRequestID()
 		}
 
-		ctx := context.WithValue(r.Context(), requestIDKey, requestID)
+		ctx := context.WithValue(r.Context(), constants.RequestIDContextKey, requestID)
 		w.Header().Set("X-Request-ID", requestID)
 
 		next.ServeHTTP(w, r.WithContext(ctx))

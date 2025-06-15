@@ -19,4 +19,6 @@ const (
 	UserAgentContextKey  contextKey = "user_agent"
 	DeviceNameContextKey contextKey = "device_name"
 	IPAddressContextKey  contextKey = "ip_address"
+	// RequestIDContextKey clave para el ID de la solicitud en el contexto
+	RequestIDContextKey contextKey = "request_id"
 )
