@@ -45,7 +45,7 @@ var (
 	// Pattern for introspection queries
 	introspectionRegex = regexp.MustCompile(`(?i)(query\s+introspectionquery|__schema|__type)`)
 	// Pattern for health check queries
-	healthCheckRegex = regexp.MustCompile(`(?i)query\s+(health|ping)\s*[({]|\{\s*(health|ping)\s*\}`)
+	healthCheckRegex = regexp.MustCompile(`(?i)query\s+(health|ping)\s*[({]|\{\s*(health|ping)\s*}`)
 	// Pattern for extracting operation name
 	operationNameRegex = regexp.MustCompile(`(?i)^\s*(query|mutation|subscription)\s+(\w+)`)
 )
