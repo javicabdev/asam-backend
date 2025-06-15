@@ -120,7 +120,7 @@ func main() {
 }
 
 // executeTask executes a maintenance task and returns the result
-func executeTask(ctx context.Context, taskName string, dryRun bool, task func() error) (services.MaintenanceResult, error) {
+func executeTask(_ context.Context, taskName string, dryRun bool, task func() error) (services.MaintenanceResult, error) {
 	result := services.MaintenanceResult{
 		TaskName:  taskName,
 		StartTime: time.Now(),
