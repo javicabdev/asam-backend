@@ -151,46 +151,12 @@ func (r *memberResolver) Observaciones(ctx context.Context, obj *models.Member) 
 
 // CreateMember is the resolver for the createMember field.
 func (r *mutationResolver) CreateMember(ctx context.Context, input model.CreateMemberInput) (*models.Member, error) {
-	// 1) Invocar alguna validación (si la tienes en member_resolver.go):
-	if err := r.Member().(*memberResolver).validateCreateInput(&input); err != nil {
-		return nil, err
-	}
-
-	// 2) Mapear el input al dominio
-	member, err := r.Member().(*memberResolver).mapCreateInputToMember(&input)
-	if err != nil {
-		return nil, err
-	}
-
-	// 3) Manejar la mutación en la capa de servicio
-	return r.Member().(*memberResolver).handleMemberMutation(ctx, member)
+	return r.Resolver.CreateMember(ctx, input)
 }
 
 // UpdateMember is the resolver for the updateMember field.
 func (r *mutationResolver) UpdateMember(ctx context.Context, input model.UpdateMemberInput) (*models.Member, error) {
-	// 1) Validar input si corresponde
-	if err := r.Member().(*memberResolver).validateUpdateInput(&input); err != nil {
-		return nil, err
-	}
-
-	// 2) Convertir el string MiembroID a uint (si parseID hace eso)
-	id := parseID(input.MiembroID)
-
-	// 3) Buscar el member existente (si procede)
-	existing, err := r.memberService.GetMemberByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	// Opcionalmente, manejar el caso de "no encontrado"
-	if existing == nil {
-		return nil, appErrors.NewNotFoundError("Member")
-	}
-
-	// 4) Mapear los campos de UpdateMemberInput a la entidad
-	member := r.Member().(*memberResolver).mapUpdateInputToMember(id, &input, existing)
-
-	// 5) Manejar la mutación / guardar cambios
-	return r.Member().(*memberResolver).handleMemberMutation(ctx, member)
+	return r.Resolver.UpdateMember(ctx, input)
 }
 
 // DeleteMember is the resolver for the deleteMember field.
@@ -496,6 +462,31 @@ func (r *mutationResolver) RefreshToken(ctx context.Context, input model.Refresh
 	return response, nil
 }
 
+// CreateUser is the resolver for the createUser field.
+func (r *mutationResolver) CreateUser(ctx context.Context, input model.CreateUserInput) (*models.User, error) {
+	return r.Resolver.CreateUser(ctx, input)
+}
+
+// UpdateUser is the resolver for the updateUser field.
+func (r *mutationResolver) UpdateUser(ctx context.Context, input model.UpdateUserInput) (*models.User, error) {
+	return r.Resolver.UpdateUser(ctx, input)
+}
+
+// DeleteUser is the resolver for the deleteUser field.
+func (r *mutationResolver) DeleteUser(ctx context.Context, id string) (*model.MutationResponse, error) {
+	return r.Resolver.DeleteUser(ctx, id)
+}
+
+// ChangePassword is the resolver for the changePassword field.
+func (r *mutationResolver) ChangePassword(ctx context.Context, input model.ChangePasswordInput) (*model.MutationResponse, error) {
+	return r.Resolver.ChangePassword(ctx, input)
+}
+
+// ResetUserPassword is the resolver for the resetUserPassword field.
+func (r *mutationResolver) ResetUserPassword(ctx context.Context, userID string, newPassword string) (*model.MutationResponse, error) {
+	return r.Resolver.ResetUserPassword(ctx, userID, newPassword)
+}
+
 // ID is the resolver for the id field.
 func (r *paymentResolver) ID(ctx context.Context, obj *models.Payment) (string, error) {
 	// Asumiendo que obj.ID es de tipo uint
@@ -510,6 +501,21 @@ func (r *queryResolver) Health(ctx context.Context) (string, error) {
 // Ping is the resolver for the ping field.
 func (r *queryResolver) Ping(ctx context.Context) (string, error) {
 	return "pong", nil
+}
+
+// GetUser is the resolver for the getUser field.
+func (r *queryResolver) GetUser(ctx context.Context, id string) (*models.User, error) {
+	return r.Resolver.GetUser(ctx, id)
+}
+
+// ListUsers is the resolver for the listUsers field.
+func (r *queryResolver) ListUsers(ctx context.Context, page *int, pageSize *int) ([]*models.User, error) {
+	return r.Resolver.ListUsers(ctx, page, pageSize)
+}
+
+// GetCurrentUser is the resolver for the getCurrentUser field.
+func (r *queryResolver) GetCurrentUser(ctx context.Context) (*models.User, error) {
+	return r.Resolver.GetCurrentUser(ctx)
 }
 
 // GetMember is the resolver for the getMember field.

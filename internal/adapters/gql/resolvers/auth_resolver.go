@@ -2,6 +2,7 @@ package resolvers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
@@ -32,11 +33,31 @@ func (r *Resolver) Login(ctx context.Context, input model.LoginInput) (*model.Au
 		)
 	}
 
+	// Check rate limiting
+	allowed, lockoutDuration := r.loginRateLimiter.AllowLogin(ctx, username)
+	if !allowed {
+		if lockoutDuration > 0 {
+			return nil, errors.NewBusinessError(
+				errors.ErrUnauthorized,
+				fmt.Sprintf("Demasiados intentos de inicio de sesión. Cuenta bloqueada por %v", lockoutDuration.Round(time.Minute)),
+			)
+		}
+		return nil, errors.NewBusinessError(
+			errors.ErrUnauthorized,
+			"Demasiados intentos de inicio de sesión. Por favor, intente más tarde",
+		)
+	}
+
 	// Llamada al servicio de autenticación
 	tokenDetails, err := r.authService.Login(ctx, username, password)
 	if err != nil {
+		// Record failure for rate limiting
+		r.loginRateLimiter.RecordFailure(ctx, username)
 		return nil, errors.Wrap(err, errors.ErrUnauthorized, "credenciales inválidas")
 	}
+
+	// Record success and reset rate limit counter
+	r.loginRateLimiter.RecordSuccess(ctx, username)
 
 	// Validar el token para obtener información del usuario
 	userModel, err := r.authService.ValidateToken(ctx, tokenDetails.AccessToken)

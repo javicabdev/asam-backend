@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -121,6 +122,7 @@ type appDependencies struct {
 	paymentService      input.PaymentService
 	cashFlowService     input.CashFlowService
 	authService         input.AuthService
+	userService         input.UserService
 	notificationService input.NotificationService
 	// Monitoring components
 	queryMonitor    *monitoring.QueryMonitor
@@ -221,6 +223,38 @@ func generateRequestID() string {
 	b := make([]byte, 16)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// clientInfoMiddleware extracts client information and adds it to context
+func clientInfoMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Extract IP address
+		var clientIP string
+		if xForwardedFor := r.Header.Get("X-Forwarded-For"); xForwardedFor != "" {
+			// Take the first IP if there are multiple
+			ips := strings.Split(xForwardedFor, ",")
+			if len(ips) > 0 {
+				clientIP = strings.TrimSpace(ips[0])
+			}
+		} else if xRealIP := r.Header.Get("X-Real-IP"); xRealIP != "" {
+			clientIP = xRealIP
+		} else {
+			// Fall back to RemoteAddr
+			clientIP = r.RemoteAddr
+			if colonIndex := strings.LastIndex(clientIP, ":"); colonIndex != -1 {
+				clientIP = clientIP[:colonIndex]
+			}
+		}
+
+		// Extract user agent
+		userAgent := r.UserAgent()
+
+		// Add to context
+		ctx := context.WithValue(r.Context(), "ip", clientIP)
+		ctx = context.WithValue(ctx, "user_agent", userAgent)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
 // requestIDMiddleware adds a request ID to each request
@@ -507,6 +541,7 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 	// Initialize domain services
 	memberService := services.NewMemberService(memberRepo, appLogger, auditLogger)
 	familyService := services.NewFamilyService(familyRepo, memberRepo)
+	userService := services.NewUserService(userRepo, appLogger)
 
 	notificationService, err := createNotificationService(cfg, appLogger)
 	if err != nil {
@@ -571,6 +606,7 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 		paymentService:      paymentService,
 		cashFlowService:     cashFlowService,
 		authService:         authService,
+		userService:         userService,
 		notificationService: notificationService,
 		queryMonitor:        queryMonitor,
 		gqlTracer:           gqlTracer,
@@ -756,6 +792,14 @@ func retryDatabaseConnection(ctx context.Context, state *appState, cfg *config.C
 				continue
 			}
 
+			// Initialize login rate limiter
+			loginRateLimiter := auth.NewLoginRateLimiterWithConfig(
+				appLogger,
+				cfg.LoginMaxAttempts,
+				cfg.LoginLockoutDuration,
+				cfg.LoginWindowDuration,
+			)
+
 			// Initialize GraphQL resolver
 			resolver := resolvers.NewResolver(
 				deps.memberService,
@@ -763,6 +807,8 @@ func retryDatabaseConnection(ctx context.Context, state *appState, cfg *config.C
 				deps.paymentService,
 				deps.cashFlowService,
 				deps.authService,
+				deps.userService,
+				loginRateLimiter,
 			)
 
 			// Initialize GraphQL handler
@@ -959,6 +1005,14 @@ func run(ctx context.Context) error {
 			return
 		}
 
+		// Initialize login rate limiter
+		loginRateLimiter := auth.NewLoginRateLimiterWithConfig(
+			appLogger,
+			cfg.LoginMaxAttempts,
+			cfg.LoginLockoutDuration,
+			cfg.LoginWindowDuration,
+		)
+
 		// Initialize GraphQL resolver
 		resolver := resolvers.NewResolver(
 			deps.memberService,
@@ -966,6 +1020,8 @@ func run(ctx context.Context) error {
 			deps.paymentService,
 			deps.cashFlowService,
 			deps.authService,
+			deps.userService,
+			loginRateLimiter,
 		)
 
 		// Initialize GraphQL handler

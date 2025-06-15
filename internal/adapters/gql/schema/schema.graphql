@@ -203,6 +203,12 @@ type Query {
     # Health check - no authentication required
     health: String!
     ping: String!
+    
+    # User Queries (Admin only)
+    getUser(id: ID!): User
+    listUsers(page: Int = 1, pageSize: Int = 10): [User!]!
+    getCurrentUser: User!
+    
     # Member Queries
     getMember(id: ID!): Member
     listMembers(filter: MemberFilter): MemberConnection!
@@ -320,6 +326,26 @@ input RefreshTokenInput {
     refreshToken: JWT!
 }
 
+# Input Types para User Management
+input CreateUserInput {
+    username: String!
+    password: String!
+    role: UserRole!
+}
+
+input UpdateUserInput {
+    id: ID!
+    username: String
+    password: String
+    role: UserRole
+    isActive: Boolean
+}
+
+input ChangePasswordInput {
+    currentPassword: String!
+    newPassword: String!
+}
+
 # Mutation Types
 type MutationResponse {
     success: Boolean!
@@ -355,4 +381,11 @@ type Mutation {
     login(input: LoginInput!): AuthResponse!
     logout: MutationResponse!
     refreshToken(input: RefreshTokenInput!): TokenResponse!
+
+    # User Management Mutations (Admin only)
+    createUser(input: CreateUserInput!): User!
+    updateUser(input: UpdateUserInput!): User!
+    deleteUser(id: ID!): MutationResponse!
+    changePassword(input: ChangePasswordInput!): MutationResponse!
+    resetUserPassword(userId: ID!, newPassword: String!): MutationResponse! # Admin only
 }

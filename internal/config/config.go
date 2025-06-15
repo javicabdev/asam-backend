@@ -42,6 +42,11 @@ type Config struct {
 	RateLimitBurst   int           `env:"RATE_LIMIT_BURST,default=20"`
 	RateLimitCleanup time.Duration `env:"RATE_LIMIT_CLEANUP,default=1h"`
 
+	// Login Rate Limiting
+	LoginMaxAttempts     int           `env:"LOGIN_MAX_ATTEMPTS,default=5"`
+	LoginLockoutDuration time.Duration `env:"LOGIN_LOCKOUT_DURATION,default=15m"`
+	LoginWindowDuration  time.Duration `env:"LOGIN_WINDOW_DURATION,default=5m"`
+
 	// Configuraciones de notificación por email
 	SMTPServer    string `env:"SMTP_SERVER,default=localhost"`
 	SMTPPort      int    `env:"SMTP_PORT,default=587"`
