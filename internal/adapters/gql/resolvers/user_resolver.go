@@ -85,7 +85,7 @@ func (r *Resolver) CreateUser(ctx context.Context, input model.CreateUserInput) 
 	}
 
 	// Convert role from GraphQL enum to domain model
-	role := models.UserRole(input.Role)
+	role := convertGraphQLRoleToDomain(input.Role)
 
 	user, err := r.userService.CreateUser(ctx, input.Username, input.Password, role)
 	if err != nil {
@@ -116,7 +116,7 @@ func (r *Resolver) UpdateUser(ctx context.Context, input model.UpdateUserInput) 
 		updates["password"] = *input.Password
 	}
 	if input.Role != nil {
-		updates["role"] = models.UserRole(*input.Role)
+		updates["role"] = convertGraphQLRoleToDomain(*input.Role)
 	}
 	if input.IsActive != nil {
 		updates["isActive"] = *input.IsActive

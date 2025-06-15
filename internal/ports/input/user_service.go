@@ -9,7 +9,7 @@ import (
 // UserService defines user management operations
 type UserService interface {
 	// CreateUser creates a new user with the given details
-	CreateUser(ctx context.Context, username, password string, role models.UserRole) (*models.User, error)
+	CreateUser(ctx context.Context, username, password string, role models.Role) (*models.User, error)
 
 	// UpdateUser updates an existing user's details
 	UpdateUser(ctx context.Context, id uint, updates map[string]interface{}) (*models.User, error)

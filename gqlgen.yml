@@ -32,6 +32,4 @@ models:
     model:
       - github.com/99designs/gqlgen/graphql.String
   User:
-    fields:
-      role:
-        resolver: true
+    model: github.com/javicabdev/asam-backend/internal/domain/models.User

@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"go.uber.org/zap"
@@ -30,7 +29,7 @@ func NewUserService(userRepo output.UserRepository, logger logger.Logger) input.
 }
 
 // CreateUser creates a new user with the given details
-func (s *userService) CreateUser(ctx context.Context, username, password string, role models.UserRole) (*models.User, error) {
+func (s *userService) CreateUser(ctx context.Context, username, password string, role models.Role) (*models.User, error) {
 	// Validate inputs
 	if err := s.validateUsername(username); err != nil {
 		return nil, err
@@ -126,7 +125,7 @@ func (s *userService) UpdateUser(ctx context.Context, id uint, updates map[strin
 		user.Password = string(hashedPassword)
 	}
 
-	if role, ok := updates["role"].(models.UserRole); ok {
+	if role, ok := updates["role"].(models.Role); ok {
 		user.Role = role
 	}
 
@@ -161,7 +160,7 @@ func (s *userService) DeleteUser(ctx context.Context, id uint) error {
 	}
 
 	// Prevent deleting the last admin
-	if user.Role == models.UserRoleAdmin {
+	if user.Role == models.RoleAdmin {
 		// Count remaining admins (this would need a new repository method)
 		// For now, we'll just log a warning
 		s.logger.Warn("Deleting an admin user",

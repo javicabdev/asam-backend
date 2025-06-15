@@ -27,7 +27,7 @@ func NewAuthorizationMiddleware(logger logger.Logger) *AuthorizationMiddleware {
 }
 
 // RequireRole creates a directive that checks if the user has one of the required roles
-func (m *AuthorizationMiddleware) RequireRole(ctx context.Context, obj interface{}, next graphql.Resolver, roles ...models.UserRole) (interface{}, error) {
+func (m *AuthorizationMiddleware) RequireRole(ctx context.Context, obj interface{}, next graphql.Resolver, roles ...models.Role) (interface{}, error) {
 	// Get user from context
 	user, ok := ctx.Value(constants.UserContextKey).(*models.User)
 	if !ok || user == nil {
@@ -79,7 +79,7 @@ func (m *AuthorizationMiddleware) RequireRole(ctx context.Context, obj interface
 
 // RequireAdmin is a convenience method that requires ADMIN role
 func (m *AuthorizationMiddleware) RequireAdmin(ctx context.Context, obj interface{}, next graphql.Resolver) (interface{}, error) {
-	return m.RequireRole(ctx, obj, next, models.UserRoleAdmin)
+	return m.RequireRole(ctx, obj, next, models.RoleAdmin)
 }
 
 // RequireAuthenticated just checks if user is authenticated (any role)
@@ -107,7 +107,7 @@ func getCurrentOperation(ctx context.Context) string {
 // Helper functions for resolver-level authorization
 
 // CheckUserRole verifies if the user in context has one of the required roles
-func CheckUserRole(ctx context.Context, roles ...models.UserRole) error {
+func CheckUserRole(ctx context.Context, roles ...models.Role) error {
 	user, ok := ctx.Value(constants.UserContextKey).(*models.User)
 	if !ok || user == nil {
 		return errors.NewUnauthorizedError()
@@ -133,7 +133,7 @@ func GetUserFromContext(ctx context.Context) (*models.User, error) {
 
 // MustBeAdmin returns an error if the user is not an admin
 func MustBeAdmin(ctx context.Context) error {
-	return CheckUserRole(ctx, models.UserRoleAdmin)
+	return CheckUserRole(ctx, models.RoleAdmin)
 }
 
 // MustBeAuthenticated returns an error if the user is not authenticated
