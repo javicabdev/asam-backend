@@ -129,8 +129,19 @@ func (s *authService) Login(ctx context.Context, username, password string) (*in
 		return nil, errors.Wrap(err, errors.ErrInternalError, "error generando tokens")
 	}
 
-	// Guardar refresh token
-	err = s.tokenRepo.SaveRefreshToken(ctx, td.RefreshUUID, user.ID, td.RtExpires)
+	// Guardar refresh token con información adicional del contexto
+	ctxWithInfo := ctx
+	if ip := ctx.Value(constants.IPContextKey); ip != nil {
+		ctxWithInfo = context.WithValue(ctxWithInfo, "ip_address", ip)
+	}
+	if ua := ctx.Value(constants.UserAgentContextKey); ua != nil {
+		ctxWithInfo = context.WithValue(ctxWithInfo, "user_agent", ua)
+	}
+	if device := ctx.Value("device_name"); device != nil {
+		ctxWithInfo = context.WithValue(ctxWithInfo, "device_name", device)
+	}
+
+	err = s.tokenRepo.SaveRefreshToken(ctxWithInfo, td.RefreshUUID, user.ID, td.RtExpires)
 	if err != nil {
 		return nil, errors.Wrap(err, errors.ErrInternalError, "error guardando refresh token")
 	}
@@ -232,13 +243,25 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*i
 		return nil, errors.Wrap(err, errors.ErrInternalError, "error generando nuevos tokens")
 	}
 
-	// 7. Actualizar refresh token en BD
+	// 7. Actualizar refresh token en BD con información del contexto
 	err = s.tokenRepo.DeleteRefreshToken(ctx, refreshUUID)
 	if err != nil {
 		return nil, errors.Wrap(err, errors.ErrInternalError, "error eliminando refresh token antiguo")
 	}
 
-	err = s.tokenRepo.SaveRefreshToken(ctx, td.RefreshUUID, user.ID, td.RtExpires)
+	// Preparar contexto con información adicional
+	ctxWithInfo := ctx
+	if ip := ctx.Value(constants.IPContextKey); ip != nil {
+		ctxWithInfo = context.WithValue(ctxWithInfo, "ip_address", ip)
+	}
+	if ua := ctx.Value(constants.UserAgentContextKey); ua != nil {
+		ctxWithInfo = context.WithValue(ctxWithInfo, "user_agent", ua)
+	}
+	if device := ctx.Value("device_name"); device != nil {
+		ctxWithInfo = context.WithValue(ctxWithInfo, "device_name", device)
+	}
+
+	err = s.tokenRepo.SaveRefreshToken(ctxWithInfo, td.RefreshUUID, user.ID, td.RtExpires)
 	if err != nil {
 		return nil, errors.Wrap(err, errors.ErrInternalError, "error guardando nuevo refresh token")
 	}

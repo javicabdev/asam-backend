@@ -4,9 +4,13 @@ This directory contains database migrations for the ASAM backend application.
 
 ## Current Schema
 
-The database schema is defined in a single initial migration that matches the existing Go models:
+The database schema is defined in the following migrations:
 - `000001_initial_schema.up.sql` - Creates all tables matching the GORM models
 - `000001_initial_schema.down.sql` - Drops all tables
+- `000002_add_refresh_token_to_users.up.sql` - Adds refresh token fields to users table (simple approach)
+- `000002_add_refresh_token_to_users.down.sql` - Removes refresh token fields from users
+
+**Note:** There's an alternative approach using a separate `refresh_tokens` table in the `alternatives/` directory.
 
 ## Tables
 
@@ -19,7 +23,7 @@ The schema includes the following tables (names match GORM conventions):
 5. **membership_fees** - Monthly membership fee definitions (model: MembershipFee)
 6. **payments** - Payment records (model: Payment)
 7. **cash_flows** - Financial movements (model: CashFlow)
-8. **users** - System users for authentication (model: User)
+8. **users** - System users for authentication (model: User) - includes refresh_token fields
 
 ## Important Notes
 

@@ -48,3 +48,6 @@ dist/
 
 # Scripts de prueba locales
 test-linter.sh
+
+# Archivos archivados
+_archived/

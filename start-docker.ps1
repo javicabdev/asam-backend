@@ -28,32 +28,168 @@ try {
     Write-Host "⚠️  Go no está instalado (opcional para solo ejecutar con Docker)" -ForegroundColor Yellow
 }
 
-# Copiar archivo de entorno si no existe
-if (-not (Test-Path ".env")) {
-    Write-Host "`n📋 Configurando archivo de entorno..." -ForegroundColor Yellow
-    if (Test-Path ".env.development.example") {
-        Copy-Item ".env.development.example" ".env"
-        Write-Host "✅ Archivo .env creado desde .env.development.example" -ForegroundColor Green
-    } else {
-        Write-Host "❌ No se encontró .env.development.example" -ForegroundColor Red
-        exit 1
-    }
-}
-
 # Detener contenedores previos
 Write-Host "`n🛑 Deteniendo contenedores previos..." -ForegroundColor Yellow
-docker-compose down 2>$null
+docker-compose down --remove-orphans 2>$null
 
 # Limpiar volúmenes si se especifica
 if ($args -contains "--clean") {
-    Write-Host "`n🧹 Limpiando volúmenes de datos..." -ForegroundColor Yellow
-    docker-compose down -v
-    Write-Host "✅ Volúmenes eliminados" -ForegroundColor Green
+    Write-Host "`n🧹 Limpieza completa del entorno..." -ForegroundColor Yellow
+    
+    # Detener y limpiar todo
+    Write-Host "   Deteniendo todos los contenedores..." -ForegroundColor Gray
+    docker-compose down -v --remove-orphans
+    
+    # Limpiar contenedores huérfanos adicionales
+    Write-Host "   Eliminando contenedores huérfanos..." -ForegroundColor Gray
+    docker container prune -f 2>$null
+    
+    # Limpiar redes no utilizadas
+    Write-Host "   Limpiando redes no utilizadas..." -ForegroundColor Gray
+    docker network prune -f 2>$null
+    
+    # Eliminar el archivo .env para empezar limpio
+    if (Test-Path ".env") {
+        Write-Host "   Eliminando archivo .env existente..." -ForegroundColor Gray
+        Remove-Item ".env" -Force
+    }
+    
+    Write-Host "✅ Limpieza completa finalizada" -ForegroundColor Green
+    Start-Sleep -Seconds 2
+}
+
+# Siempre verificar/crear archivo de entorno (especialmente después de --clean)
+Write-Host "`n📋 Configurando archivo de entorno..." -ForegroundColor Yellow
+if (-not (Test-Path ".env")) {
+    if (Test-Path ".env.development.example") {
+        Copy-Item ".env.development.example" ".env"
+        Write-Host "✅ Archivo .env creado desde .env.development.example" -ForegroundColor Green
+    } elseif (Test-Path ".env.development") {
+        Copy-Item ".env.development" ".env"
+        Write-Host "✅ Archivo .env creado desde .env.development" -ForegroundColor Green
+    } else {
+        Write-Host "❌ No se encontró archivo de configuración de ejemplo" -ForegroundColor Red
+        Write-Host "   Creando archivo .env mínimo..." -ForegroundColor Yellow
+        
+        # Crear un .env mínimo para desarrollo
+        @"
+# Database configuration
+DB_HOST=postgres
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=asam_db
+
+# API configuration
+API_PORT=8080
+ENVIRONMENT=development
+
+# JWT configuration
+JWT_ACCESS_SECRET=dev-access-secret-change-in-production
+JWT_REFRESH_SECRET=dev-refresh-secret-change-in-production
+JWT_ACCESS_TTL=15m
+JWT_REFRESH_TTL=168h
+
+# Admin user (for monitoring endpoints)
+ADMIN_USER=admin
+ADMIN_PASSWORD=admin123
+"@ | Out-File -FilePath ".env" -Encoding utf8
+        Write-Host "✅ Archivo .env creado con configuración mínima" -ForegroundColor Green
+    }
+} else {
+    Write-Host "✅ Archivo .env ya existe" -ForegroundColor Green
+}
+
+# Verificar y corregir DB_HOST para Docker
+Write-Host "`n🔧 Verificando configuración de base de datos..." -ForegroundColor Yellow
+$envContent = Get-Content ".env" -Raw
+
+# Si DB_HOST es localhost, cambiarlo a postgres para Docker
+if ($envContent -match "DB_HOST=localhost") {
+    Write-Host "   Corrigiendo DB_HOST de localhost a postgres para Docker..." -ForegroundColor Gray
+    $envContent = $envContent -replace "DB_HOST=localhost", "DB_HOST=postgres"
+    Set-Content ".env" -Value $envContent -NoNewline
+    Write-Host "✅ DB_HOST actualizado para Docker" -ForegroundColor Green
+} elseif ($envContent -match "DB_HOST=postgres") {
+    Write-Host "✅ DB_HOST ya configurado correctamente para Docker" -ForegroundColor Green
+} else {
+    Write-Host "⚠️  DB_HOST tiene un valor personalizado, verificar configuración" -ForegroundColor Yellow
+}
+
+# Verificar y agregar variables JWT si no existen
+Write-Host "`n🔐 Verificando configuración de JWT..." -ForegroundColor Yellow
+$envContent = Get-Content ".env" -Raw
+
+$jwtConfigAdded = $false
+if ($envContent -notmatch "JWT_ACCESS_SECRET") {
+    Write-Host "   Agregando JWT_ACCESS_SECRET..." -ForegroundColor Gray
+    Add-Content ".env" "`n# JWT Configuration (added by start-docker.ps1)"
+    Add-Content ".env" "JWT_ACCESS_SECRET=dev-access-secret-change-in-production"
+    $jwtConfigAdded = $true
+}
+
+if ($envContent -notmatch "JWT_REFRESH_SECRET") {
+    Write-Host "   Agregando JWT_REFRESH_SECRET..." -ForegroundColor Gray
+    if (-not $jwtConfigAdded) {
+        Add-Content ".env" "`n# JWT Configuration (added by start-docker.ps1)"
+    }
+    Add-Content ".env" "JWT_REFRESH_SECRET=dev-refresh-secret-change-in-production"
+    $jwtConfigAdded = $true
+}
+
+if ($envContent -notmatch "JWT_ACCESS_TTL") {
+    Write-Host "   Agregando JWT_ACCESS_TTL..." -ForegroundColor Gray
+    Add-Content ".env" "JWT_ACCESS_TTL=15m"
+    $jwtConfigAdded = $true
+}
+
+if ($envContent -notmatch "JWT_REFRESH_TTL") {
+    Write-Host "   Agregando JWT_REFRESH_TTL..." -ForegroundColor Gray
+    Add-Content ".env" "JWT_REFRESH_TTL=168h"
+    $jwtConfigAdded = $true
+}
+
+if ($jwtConfigAdded) {
+    Write-Host "✅ Configuración JWT agregada al archivo .env" -ForegroundColor Green
+} else {
+    Write-Host "✅ Configuración JWT ya existe" -ForegroundColor Green
+}
+
+# Verificar si hay problemas con contenedores existentes
+Write-Host "`n🔍 Verificando estado de contenedores..." -ForegroundColor Yellow
+$existingContainers = docker ps -a --filter "name=asam" --format "{{.Names}} {{.Status}}" 2>$null
+if ($existingContainers) {
+    $deadContainers = $existingContainers | Where-Object { $_ -match "Exited" -or $_ -match "Dead" }
+    if ($deadContainers) {
+        Write-Host "   ⚠️  Detectados contenedores en mal estado" -ForegroundColor Yellow
+        Write-Host "   Limpiando contenedores problemáticos..." -ForegroundColor Gray
+        docker-compose down -v --remove-orphans
+        Start-Sleep -Seconds 2
+    }
 }
 
 # Construir y arrancar servicios
 Write-Host "`n🚀 Construyendo y arrancando servicios..." -ForegroundColor Yellow
 docker-compose up -d --build
+
+# Verificar si los contenedores arrancaron correctamente
+Start-Sleep -Seconds 3
+$apiStatus = docker ps --filter "name=asam-backend-api" --format "{{.Status}}" 2>$null
+$dbStatus = docker ps --filter "name=asam-postgres" --format "{{.Status}}" 2>$null
+
+if (-not $apiStatus -or -not $dbStatus) {
+    Write-Host "❌ Error: Los contenedores no arrancaron correctamente" -ForegroundColor Red
+    Write-Host "   Intenta ejecutar: .\scripts\reset-emergency.ps1" -ForegroundColor Yellow
+    Write-Host "   Y luego: .\start-docker.ps1" -ForegroundColor Yellow
+    exit 1
+}
+
+# Si agregamos configuración JWT, reiniciar el contenedor API para cargar los cambios
+if ($jwtConfigAdded) {
+    Write-Host "`n🔄 Reiniciando API para aplicar cambios de configuración..." -ForegroundColor Yellow
+    docker-compose restart api
+    Start-Sleep -Seconds 3
+}
 
 # Esperar a que PostgreSQL esté listo
 Write-Host "`n⏳ Esperando a que PostgreSQL esté listo..." -ForegroundColor Yellow
@@ -89,31 +225,165 @@ if ($ready) {
 
 # Ejecutar migraciones
 Write-Host "`n🔄 Ejecutando migraciones..." -ForegroundColor Yellow
-# Primero copiar .env a .env.development para que el comando de migración lo encuentre
-docker-compose exec -T api sh -c "cp .env .env.development" 2>$null
-# Ahora ejecutar las migraciones
-docker-compose exec -T api go run ./cmd/migrate -env local up
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "✅ Migraciones ejecutadas" -ForegroundColor Green
-} else {
-    Write-Host "⚠️  Error al ejecutar migraciones - intentando método directo..." -ForegroundColor Yellow
-    # Alternativa: ejecutar SQL directamente
-    Get-Content migrations/000001_initial_schema.up.sql | docker-compose exec -T postgres psql -U postgres -d asam_db
+# Esperar un poco más para asegurar que el API esté lista
+Start-Sleep -Seconds 3
+
+# Primero verificar si ya existen las tablas
+$tablesExist = docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users';" 2>$null
+if ($tablesExist -is [array]) {
+    $tablesExist = $tablesExist -join ''
+}
+$tablesExist = $tablesExist -replace '\s', ''
+try {
+    $tablesCount = [int]$tablesExist
+} catch {
+    $tablesCount = 0
+}
+
+if ($tablesCount -eq 0) {
+    Write-Host "   Las tablas no existen, ejecutando migraciones..." -ForegroundColor Gray
+    
+    # Esperar un poco más para que el API esté completamente listo
+    Write-Host "   Esperando a que el API esté completamente listo..." -ForegroundColor Gray
+    Start-Sleep -Seconds 5
+    
+    # Primero copiar .env a .env.development para que el comando de migración lo encuentre
+    docker-compose exec -T api sh -c "cp .env .env.development" 2>$null
+    
+    # Intentar ejecutar migraciones con el comando Go
+    Write-Host "   Intentando migraciones con comando Go..." -ForegroundColor Gray
+    docker-compose exec -T api go run ./cmd/migrate -env local up
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "✅ Migraciones ejecutadas con método alternativo" -ForegroundColor Green
+        Write-Host "✅ Migraciones ejecutadas con éxito" -ForegroundColor Green
     } else {
-        Write-Host "❌ No se pudieron ejecutar las migraciones" -ForegroundColor Red
+        Write-Host "⚠️  Error al ejecutar migraciones con Go - intentando método SQL directo..." -ForegroundColor Yellow
+        
+        # Verificar que el archivo de migración existe
+        if (Test-Path "migrations/000001_initial_schema.up.sql") {
+            # Alternativa: ejecutar SQL directamente
+            $sqlContent = Get-Content "migrations/000001_initial_schema.up.sql" -Raw
+            $sqlContent | docker-compose exec -T postgres psql -U postgres -d asam_db
+            
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "✅ Migraciones ejecutadas con método SQL directo" -ForegroundColor Green
+            } else {
+                Write-Host "❌ Error al ejecutar SQL. Detalles del error arriba." -ForegroundColor Red
+                Write-Host "   Posibles soluciones:" -ForegroundColor Yellow
+                Write-Host "   1. Verifica que PostgreSQL esté funcionando correctamente" -ForegroundColor Yellow
+                Write-Host "   2. Intenta ejecutar: docker-compose down -v" -ForegroundColor Yellow
+                Write-Host "   3. Luego ejecuta: .\start-docker.ps1 --clean" -ForegroundColor Yellow
+                
+                # Salir del script si no se pueden ejecutar las migraciones
+                Write-Host "`n❌ Abortando inicio debido a error en migraciones" -ForegroundColor Red
+                exit 1
+            }
+        } else {
+            Write-Host "❌ No se encontró el archivo de migraciones: migrations/000001_initial_schema.up.sql" -ForegroundColor Red
+            exit 1
+        }
     }
+    
+    # Verificar que las tablas se crearon después de las migraciones
+    Start-Sleep -Seconds 2
+    $verifyTables = docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users';" 2>$null
+    if ($verifyTables -is [array]) {
+        $verifyTables = $verifyTables -join ''
+    }
+    $verifyTables = $verifyTables -replace '\s', ''
+    try {
+        $verifyCount = [int]$verifyTables
+        if ($verifyCount -gt 0) {
+            Write-Host "✅ Verificado: La tabla users fue creada exitosamente" -ForegroundColor Green
+        } else {
+            Write-Host "❌ Error: La tabla users no se creó correctamente" -ForegroundColor Red
+        }
+    } catch {
+        Write-Host "⚠️  No se pudo verificar la creación de tablas" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "✅ Las tablas ya existen, omitiendo migraciones" -ForegroundColor Green
 }
 
 # Crear usuarios de prueba usando la herramienta de gestión de usuarios
 Write-Host "`n👥 Creando usuarios de prueba..." -ForegroundColor Yellow
-# Usar el script automatizado que no requiere interacción
-docker-compose exec -T api go run scripts/user-management/auto-create-test-users.go
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "✅ Usuarios de prueba creados correctamente" -ForegroundColor Green
+
+# Verificar si ya existen usuarios
+$userCount = docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT COUNT(*) FROM users;" 2>$null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "   La tabla users no existe, necesita ejecutar migraciones primero" -ForegroundColor Yellow
+    $userCountInt = 0
 } else {
-    Write-Host "⚠️  Error al crear usuarios - verificar logs" -ForegroundColor Yellow
+    if ($userCount -is [array]) {
+        $userCount = $userCount -join ''
+    }
+    $userCount = $userCount -replace '\s', ''
+    try {
+        $userCountInt = [int]$userCount
+    } catch {
+        $userCountInt = 0
+    }
+}
+
+if ($userCountInt -eq 0) {
+    Write-Host "   No hay usuarios, creando usuarios de prueba..." -ForegroundColor Gray
+    # Esperar un poco para asegurar que el API esté completamente lista
+    Start-Sleep -Seconds 2
+    
+    # Usar el script automatizado que no requiere interacción
+    docker-compose exec -T api go run scripts/user-management/auto-create-test-users.go
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "✅ Usuarios de prueba creados correctamente" -ForegroundColor Green
+        
+        # Verificar que los usuarios se crearon
+        $newUserCount = docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT COUNT(*) FROM users;" 2>$null
+        if ($newUserCount -is [array]) {
+            $newUserCount = $newUserCount -join ''
+        }
+        $newUserCount = $newUserCount -replace '\s', ''
+        try {
+            $newUserCountInt = [int]$newUserCount
+            Write-Host "   Total de usuarios en la base de datos: $newUserCountInt" -ForegroundColor Gray
+        } catch {
+            Write-Host "   No se pudo verificar el número de usuarios creados" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "⚠️  Error al crear usuarios con el script" -ForegroundColor Yellow
+        Write-Host "   Intenta ejecutar manualmente: make db-seed" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "✅ Ya existen $userCountInt usuarios en la base de datos" -ForegroundColor Green
+    
+    # Mostrar los usuarios existentes
+    Write-Host "   Usuarios existentes:" -ForegroundColor Gray
+    docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT username, role FROM users;" | ForEach-Object {
+        if ($_ -match '\S') {
+            Write-Host "   - $_" -ForegroundColor DarkGray
+        }
+    }
+}
+
+# Verificación final antes de mostrar logs
+$finalUserCheck = docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT COUNT(*) FROM users WHERE username IN ('admin@asam.org', 'user@asam.org');" 2>$null
+if ($LASTEXITCODE -ne 0) {
+    $finalUserCount = 0
+} else {
+    if ($finalUserCheck -is [array]) {
+        $finalUserCheck = $finalUserCheck -join ''
+    }
+    $finalUserCheck = $finalUserCheck -replace '\s', ''
+    try {
+        $finalUserCount = [int]$finalUserCheck
+    } catch {
+        $finalUserCount = 0
+    }
+}
+
+if ($finalUserCount -lt 2) {
+    Write-Host "`n⚠️  ADVERTENCIA: Los usuarios de prueba no se crearon correctamente" -ForegroundColor Yellow
+    Write-Host "   Solución rápida: .\scripts\auto-fix.ps1" -ForegroundColor Cyan
+    Write-Host "   O manualmente: docker-compose exec api go run scripts/user-management/auto-create-test-users.go" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "   Para diagnóstico completo: .\scripts\diagnostico.ps1" -ForegroundColor Gray
 }
 
 # Mostrar logs en tiempo real
@@ -137,7 +407,11 @@ Write-Host @"
 ║  👤 Usuario:   user@asam.org  / admin123                  ║
 ╠════════════════════════════════════════════════════════════╣
 ║  🛑 Para detener: docker-compose down                      ║
-║  🧹 Limpiar todo: .\start-local.ps1 --clean              ║
+║  🧹 Limpiar todo: .\start-docker.ps1 --clean             ║
+╠════════════════════════════════════════════════════════════╣
+║  🔧 ¿Problemas? Ejecuta: .\scripts\auto-fix.ps1           ║
+║  📊 Diagnóstico: .\scripts\diagnostico.ps1                ║
+║  ❓ Ver ayuda: .\scripts\help.ps1                          ║
 ╚════════════════════════════════════════════════════════════╝
 
 "@ -ForegroundColor Cyan

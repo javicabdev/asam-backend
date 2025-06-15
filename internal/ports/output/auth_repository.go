@@ -16,10 +16,17 @@ type UserRepository interface {
 	Update(ctx context.Context, user *models.User) error
 }
 
-// TokenRepository internal/ports/output/auth_repository.go
+// TokenRepository handles refresh token operations
 type TokenRepository interface {
+	// Basic operations
 	SaveRefreshToken(ctx context.Context, uuid string, userID uint, expires int64) error
 	ValidateRefreshToken(ctx context.Context, uuid string, userID uint) error
 	DeleteRefreshToken(ctx context.Context, uuid string) error
-	CleanupExpiredTokens(ctx context.Context) error // Añadimos este método
+
+	// Session management
+	DeleteAllUserTokens(ctx context.Context, userID uint) error
+	GetUserActiveSessions(ctx context.Context, userID uint) ([]*models.RefreshToken, error)
+
+	// Maintenance
+	CleanupExpiredTokens(ctx context.Context) error
 }

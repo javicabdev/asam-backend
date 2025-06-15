@@ -11,6 +11,7 @@ DROP TRIGGER IF EXISTS update_families_updated_at ON families;
 DROP TRIGGER IF EXISTS update_members_updated_at ON members;
 
 -- Drop tables in reverse order of dependencies
+DROP TABLE IF EXISTS refresh_tokens CASCADE;
 DROP TABLE IF EXISTS cash_flows CASCADE;
 DROP TABLE IF EXISTS payments CASCADE;
 DROP TABLE IF EXISTS membership_fees CASCADE;

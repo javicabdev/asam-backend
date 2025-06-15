@@ -38,6 +38,66 @@ Antes de utilizar este workflow, necesitas:
 
 ## Desarrollo
 
+### Inicio rápido (Windows PowerShell)
+
+Para arrancar el entorno de desarrollo completo:
+
+```powershell
+# Inicio limpio (recomendado primera vez)
+.\start-docker.ps1 --clean
+
+# Inicio normal
+.\start-docker.ps1
+```
+
+**Usuarios de prueba:**
+- Admin: `admin@asam.org` / `admin123`
+- Usuario: `user@asam.org` / `admin123`
+
+### Si tienes problemas
+
+```powershell
+# Ejecutar diagnóstico
+.\scripts\diagnostico.ps1
+
+# Reinicio completo
+.\scripts\clean-restart.ps1
+
+# Setup manual
+.\scripts\manual-setup.ps1
+```
+
+Consulta [INICIO-RAPIDO.md](INICIO-RAPIDO.md) para más detalles.
+
+### Usando Make (Linux/Mac/WSL)
+
+```bash
+# Arrancar todo (Docker, migraciones, usuarios de prueba)
+make dev-setup
+
+# Ver los logs
+make dev-logs
+
+# Parar todo
+make dev-stop
+```
+
+### Comandos útiles
+
+```bash
+# Solo arrancar Docker
+make dev
+
+# Solo ejecutar migraciones
+make db-migrate
+
+# Resetear base de datos
+make db-reset
+
+# Limpiar todo (contenedores, volúmenes)
+make clean
+```
+
 ### Generación de código GraphQL
 
 Este proyecto utiliza GraphQL con la herramienta [gqlgen](https://github.com/99designs/gqlgen) para generar código automáticamente a partir de esquemas GraphQL. Antes de compilar el proyecto, es necesario generar estos archivos:

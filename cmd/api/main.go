@@ -818,10 +818,12 @@ func run(ctx context.Context) error {
 	mux := http.NewServeMux()
 
 	// Apply global middlewares
-	handler := requestIDMiddleware(
-		securityHeadersMiddleware(
-			rateLimitMiddleware(cfg.RateLimitRPS)(
-				prometheusMiddleware(mux),
+	handler := clientInfoMiddleware( // Capture client info first
+		requestIDMiddleware(
+			securityHeadersMiddleware(
+				rateLimitMiddleware(cfg.RateLimitRPS)(
+					prometheusMiddleware(mux),
+				),
 			),
 		),
 	)

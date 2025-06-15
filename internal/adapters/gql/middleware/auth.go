@@ -83,8 +83,19 @@ func enrichContextWithUserInfo(ctx context.Context, user *models.User, token str
 	// Guardar información para auditoría
 	ctx = context.WithValue(ctx, constants.UserIDContextKey, user.ID)
 	ctx = context.WithValue(ctx, constants.UserRoleContextKey, user.Role)
-	ctx = context.WithValue(ctx, constants.IPContextKey, clientIP)
-	ctx = context.WithValue(ctx, constants.UserAgentContextKey, userAgent)
+
+	// Preservar información del cliente si ya existe en el contexto
+	// (desde el middleware HTTP)
+	if ip := ctx.Value(constants.IPContextKey); ip == nil && clientIP != "" {
+		ctx = context.WithValue(ctx, constants.IPContextKey, clientIP)
+	}
+	if ua := ctx.Value(constants.UserAgentContextKey); ua == nil && userAgent != "" {
+		ctx = context.WithValue(ctx, constants.UserAgentContextKey, userAgent)
+	}
+	// Preservar device_name si existe
+	if deviceName := ctx.Value("device_name"); deviceName != nil {
+		ctx = context.WithValue(ctx, "device_name", deviceName)
+	}
 
 	return ctx
 }
@@ -128,7 +139,8 @@ func AuthMiddleware(authService input.AuthService, logger logger.Logger) func(ht
 			// Verificar si es una operación pública (login, refresh token, etc.)
 			isPublicOp, operationName := isPublicOperation(r)
 			if isPublicOp {
-				handlePublicOperation(w, r, next, logger, operationName)
+				// Pasar el contexto con la información del cliente a las operaciones públicas
+				next.ServeHTTP(w, r)
 				return
 			}
 
@@ -152,8 +164,23 @@ func AuthMiddleware(authService input.AuthService, logger logger.Logger) func(ht
 				return
 			}
 
+			// Obtener información del cliente del contexto (si fue establecida por middleware HTTP)
+			clientIP := getClientIP(r)
+			if ipFromCtx := r.Context().Value(constants.IPContextKey); ipFromCtx != nil {
+				if ip, ok := ipFromCtx.(string); ok && ip != "" {
+					clientIP = ip
+				}
+			}
+
+			userAgent := r.UserAgent()
+			if uaFromCtx := r.Context().Value(constants.UserAgentContextKey); uaFromCtx != nil {
+				if ua, ok := uaFromCtx.(string); ok && ua != "" {
+					userAgent = ua
+				}
+			}
+
 			// Enriquecer el contexto con la información del usuario
-			ctx := enrichContextWithUserInfo(r.Context(), user, token, getClientIP(r), r.UserAgent())
+			ctx := enrichContextWithUserInfo(r.Context(), user, token, clientIP, userAgent)
 
 			// Log de acceso exitoso
 			logger.Debug("Acceso autenticado exitoso",

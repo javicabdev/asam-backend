@@ -138,10 +138,22 @@ CREATE TABLE users (
     role VARCHAR(20) NOT NULL DEFAULT 'user',
     last_login TIMESTAMP WITH TIME ZONE,
     is_active BOOLEAN NOT NULL DEFAULT true,
-    refresh_token VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Create refresh_tokens table for JWT authentication
+CREATE TABLE refresh_tokens (
+    id SERIAL PRIMARY KEY,
+    uuid VARCHAR(255) UNIQUE NOT NULL,
+    user_id INTEGER NOT NULL,
+    expires_at BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    device_name VARCHAR(255),
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    last_used_at TIMESTAMP WITH TIME ZONE
 );
 
 -- Add foreign key constraints
@@ -181,6 +193,10 @@ ALTER TABLE cash_flows
     ADD CONSTRAINT cash_flows_payment_id_fkey 
     FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE SET NULL;
 
+ALTER TABLE refresh_tokens 
+    ADD CONSTRAINT refresh_tokens_user_id_fkey 
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+
 -- Create indexes for better performance
 CREATE INDEX idx_members_membership_number ON members(membership_number);
 CREATE INDEX idx_members_state ON members(state);
@@ -211,6 +227,11 @@ CREATE INDEX idx_cash_flows_deleted_at ON cash_flows(deleted_at);
 
 CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_users_deleted_at ON users(deleted_at);
+
+CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+CREATE INDEX idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
+CREATE INDEX idx_refresh_tokens_uuid ON refresh_tokens(uuid);
+CREATE INDEX idx_refresh_tokens_last_used_at ON refresh_tokens(last_used_at);
 
 -- Create triggers for updated_at
 CREATE TRIGGER update_members_updated_at

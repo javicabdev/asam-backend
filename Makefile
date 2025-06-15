@@ -42,6 +42,17 @@ dev:
 	@echo "✅ Development environment started"
 	@echo "📝 GraphQL Playground: http://localhost:8080/playground"
 
+## dev-setup: Complete setup (start, migrate, seed)
+.PHONY: dev-setup
+dev-setup: dev
+	@echo "⏳ Waiting for database to be ready..."
+	@sleep 5
+	@$(MAKE) db-migrate
+	@$(MAKE) db-seed
+	@echo "\n✅ Development environment ready!"
+	@echo "🌐 GraphQL Playground: http://localhost:8080/playground"
+	@echo "👤 Test users: admin@asam.org / admin123, user@asam.org / admin123"
+
 ## dev-logs: Show development logs
 .PHONY: dev-logs
 dev-logs:
@@ -99,7 +110,7 @@ db-reset:
 .PHONY: db-seed
 db-seed:
 	@echo "🌱 Seeding database..."
-	@cat scripts/create-test-users.sql | $(DOCKER_COMPOSE) exec -T postgres psql -U postgres -d asam_db
+	@$(DOCKER_COMPOSE) exec api go run scripts/user-management/auto-create-test-users.go
 	@echo "✅ Database seeded"
 
 ## db-shell: Open PostgreSQL shell

@@ -1,45 +1,104 @@
-# Scripts de Base de Datos
+# Scripts de Utilidad - ASAM Backend
 
-Esta carpeta contiene scripts útiles para la gestión de la base de datos.
+Esta carpeta contiene scripts de PowerShell para facilitar el desarrollo y solución de problemas del backend de ASAM.
 
-## create-test-users.sql
+## 🚀 Scripts Principales
 
-Crea usuarios de prueba con contraseñas predefinidas:
+### auto-fix.ps1
+**Corrección automática de problemas comunes**
+- Verifica y corrige el archivo `.env`
+- Agrega variables JWT faltantes
+- Inicia contenedores si están detenidos
+- Ejecuta migraciones pendientes
+- Crea usuarios de prueba
 
-- **admin@asam.org** / admin123 (rol ADMIN)
-- **user@asam.org** / admin123 (rol USER)
-
-### Uso con Docker
-
-```bash
-# Desde el directorio asam-backend
-docker-compose exec -T postgres psql -U postgres -d asam_db < scripts/create-test-users.sql
+```powershell
+.\scripts\auto-fix.ps1
 ```
 
-### Uso directo con psql
+### diagnostico.ps1
+**Analiza el estado del sistema y reporta problemas**
+- Verifica instalación de Docker
+- Revisa estado de contenedores
+- Analiza configuración del archivo `.env`
+- Verifica conexión y tablas de base de datos
+- Prueba conectividad de la API
 
-```bash
-psql -U postgres -d asam_db < scripts/create-test-users.sql
+```powershell
+.\scripts\diagnostico.ps1
 ```
 
-## Crear usuarios adicionales
+### clean-restart.ps1
+**Reinicio completo desde cero**
+- Detiene todos los contenedores
+- Elimina volúmenes de Docker
+- Elimina archivo `.env` existente
+- Ejecuta `start-docker.ps1 --clean`
 
-Para crear usuarios adicionales, usa el siguiente formato SQL:
-
-```sql
-INSERT INTO users (username, password, role, is_active, created_at, updated_at)
-VALUES (
-    'nuevo-usuario@asam.org',
-    '$2a$10$K1kCTLS6VJ9U1lhH8hfste1Z7cUB7SvQH3fFtE3AqLYJrQ3GyqIKG',  -- 'admin123' hasheado
-    'ADMIN',  -- o 'USER'
-    true,
-    NOW(),
-    NOW()
-);
+```powershell
+.\scripts\clean-restart.ps1
 ```
 
-### Hashes de contraseñas precalculados
+### manual-setup.ps1
+**Setup manual de base de datos y usuarios**
+- Ejecuta migraciones SQL directamente
+- Crea usuarios de prueba
+- Verifica tablas y usuarios creados
+- Útil cuando el proceso automático falla
 
-- **admin123**: `$2a$10$K1kCTLS6VJ9U1lhH8hfste1Z7cUB7SvQH3fFtE3AqLYJrQ3GyqIKG`
+```powershell
+.\scripts\manual-setup.ps1
+```
 
-Para generar nuevos hashes, necesitarías modificar el backend para incluir una función de utilidad.
+### fix-auth.ps1
+**Corrige problemas específicos de autenticación**
+- Verifica configuración JWT
+- Crea o actualiza usuarios de prueba
+- Interactivo - pregunta antes de hacer cambios
+
+```powershell
+.\scripts\fix-auth.ps1
+```
+
+### help.ps1
+**Muestra ayuda sobre todos los scripts disponibles**
+- Lista todos los scripts y sus funciones
+- Muestra el flujo recomendado de uso
+
+```powershell
+.\scripts\help.ps1
+```
+
+## 📋 Otros Scripts
+
+### generate-secrets.ps1
+Genera claves secretas seguras para JWT en producción.
+
+### user-management/
+Carpeta con herramientas para gestión de usuarios:
+- `create-user.go` - Crear usuarios interactivamente
+- `auto-create-test-users.go` - Crear usuarios de prueba automáticamente
+
+### Set-CloudRunEnv.ps1
+Configura variables de entorno en Google Cloud Run para producción.
+
+## 🔄 Flujo Recomendado
+
+1. **Primer problema**: Ejecuta `auto-fix.ps1`
+2. **Si persiste**: Ejecuta `diagnostico.ps1` para identificar el problema
+3. **Para empezar limpio**: Usa `clean-restart.ps1`
+4. **Problemas específicos de BD**: Usa `manual-setup.ps1`
+5. **Problemas de login**: Usa `fix-auth.ps1`
+
+## 💡 Tips
+
+- Siempre ejecuta los scripts desde la raíz del proyecto
+- Asegúrate de que Docker Desktop esté ejecutándose
+- Los scripts asumen PowerShell 5.0 o superior
+- Si un script falla, revisa los mensajes de error detallados
+
+## 🆘 Si Nada Funciona
+
+1. Ejecuta `diagnostico.ps1` y guarda la salida
+2. Revisa los logs: `docker-compose logs > logs.txt`
+3. Contacta al equipo de desarrollo con esta información
