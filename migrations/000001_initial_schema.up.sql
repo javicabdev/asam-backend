@@ -147,14 +147,15 @@ CREATE TABLE users (
 -- Create refresh_tokens table for JWT authentication
 CREATE TABLE refresh_tokens (
     id SERIAL PRIMARY KEY,
-    uuid VARCHAR(255) UNIQUE NOT NULL,
+    uuid VARCHAR(255) NOT NULL,
     user_id INTEGER NOT NULL,
     expires_at BIGINT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     device_name VARCHAR(255),
     ip_address VARCHAR(45),
     user_agent TEXT,
-    last_used_at TIMESTAMP WITH TIME ZONE
+    last_used_at TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT uni_refresh_tokens_uuid UNIQUE (uuid)
 );
 
 -- Add foreign key constraints
