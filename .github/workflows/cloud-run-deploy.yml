@@ -11,6 +11,11 @@ on:
         options:
           - production
           - staging
+      run_migrations:
+        description: 'Run database migrations'
+        required: false
+        default: false
+        type: boolean
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
@@ -176,10 +181,10 @@ jobs:
           echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Deployed at**: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
 
-  # Job separado para migraciones (ejecutar manualmente cuando sea necesario)
+  # Job separado para migraciones (opcional, controlado por el parámetro run_migrations)
   migrate:
     name: Run Database Migrations
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_migrations == 'true'
     needs: deploy
     runs-on: ubuntu-latest
     environment: production-migrations  # Entorno separado con aprobación manual
