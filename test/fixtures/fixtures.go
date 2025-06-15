@@ -1,6 +1,7 @@
 package fixtures
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -23,7 +24,18 @@ func CreateTestUser(t *testing.T, userRepo interface{}, username, password strin
 	require.NoError(t, err)
 
 	// Use the userRepo to create the user in the database
-	err = userRepo.(interface{ Create(*models.User) error }).Create(user)
+	// Try to use the context-aware Create method first
+	if repo, ok := userRepo.(interface {
+		Create(context.Context, *models.User) error
+	}); ok {
+		err = repo.Create(context.Background(), user)
+	} else if repo, ok := userRepo.(interface{ CreateUser(*models.User) error }); ok {
+		// Try the CreateUser method
+		err = repo.CreateUser(user)
+	} else {
+		// Fall back to the non-context Create method
+		err = userRepo.(interface{ Create(*models.User) error }).Create(user)
+	}
 	require.NoError(t, err)
 
 	return user

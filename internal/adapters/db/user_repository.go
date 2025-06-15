@@ -21,6 +21,7 @@ func NewUserRepository(db *gorm.DB) output.UserRepository {
 	return &userRepository{db: db}
 }
 
+// Create implements the output.UserRepository interface
 func (r *userRepository) Create(ctx context.Context, user *models.User) error {
 	result := r.db.WithContext(ctx).Create(user)
 	if result.Error != nil {
@@ -31,6 +32,12 @@ func (r *userRepository) Create(ctx context.Context, user *models.User) error {
 		return appErrors.DB(result.Error, "Error creating user")
 	}
 	return nil
+}
+
+// CreateUser is a method that doesn't require a context parameter.
+// This method is used by test fixtures.
+func (r *userRepository) CreateUser(user *models.User) error {
+	return r.Create(context.Background(), user)
 }
 
 func (r *userRepository) FindByID(ctx context.Context, id uint) (*models.User, error) {
