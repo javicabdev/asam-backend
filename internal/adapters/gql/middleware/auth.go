@@ -93,8 +93,8 @@ func enrichContextWithUserInfo(ctx context.Context, user *models.User, token str
 		ctx = context.WithValue(ctx, constants.UserAgentContextKey, userAgent)
 	}
 	// Preservar device_name si existe
-	if deviceName := ctx.Value("device_name"); deviceName != nil {
-		ctx = context.WithValue(ctx, "device_name", deviceName)
+	if deviceName, ok := ctx.Value(constants.DeviceNameContextKey).(string); ok {
+		ctx = context.WithValue(ctx, constants.DeviceNameContextKey, deviceName)
 	}
 
 	return ctx

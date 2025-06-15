@@ -9,6 +9,7 @@ import (
 
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/output"
+	"github.com/javicabdev/asam-backend/pkg/constants"
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 )
 
@@ -34,14 +35,14 @@ func (r *tokenRepository) SaveRefreshToken(ctx context.Context, uuid string, use
 	}
 
 	// Extract additional context if available
-	if ctx.Value("device_name") != nil {
-		token.DeviceName = ctx.Value("device_name").(string)
+	if deviceName, ok := ctx.Value(constants.DeviceNameContextKey).(string); ok {
+		token.DeviceName = deviceName
 	}
-	if ctx.Value("ip_address") != nil {
-		token.IPAddress = ctx.Value("ip_address").(string)
+	if ipAddress, ok := ctx.Value(constants.IPAddressContextKey).(string); ok {
+		token.IPAddress = ipAddress
 	}
-	if ctx.Value("user_agent") != nil {
-		token.UserAgent = ctx.Value("user_agent").(string)
+	if userAgent, ok := ctx.Value(constants.UserAgentContextKey).(string); ok {
+		token.UserAgent = userAgent
 	}
 
 	result := r.db.WithContext(ctx).Create(token)

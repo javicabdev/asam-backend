@@ -2,19 +2,21 @@
 package constants
 
 // ContextKey tipo utilizado para las claves en el contexto
-type ContextKey string
+type contextKey string
 
 const (
 	// UserContextKey clave para el usuario en el contexto
-	UserContextKey ContextKey = "user"
+	UserContextKey contextKey = "user"
 	// UserIDContextKey clave para el ID del usuario en el contexto
-	UserIDContextKey ContextKey = "user_id"
+	UserIDContextKey contextKey = "user_id"
 	// UserRoleContextKey clave para el rol del usuario en el contexto
-	UserRoleContextKey ContextKey = "user_role"
+	UserRoleContextKey contextKey = "user_role"
 	// AuthorizedContextKey clave para el estado de autorización en el contexto
-	AuthorizedContextKey ContextKey = "authorized"
+	AuthorizedContextKey contextKey = "authorized"
 	// IPContextKey clave para la dirección IP en el contexto
-	IPContextKey ContextKey = "ip"
+	IPContextKey contextKey = "ip"
 	// UserAgentContextKey clave para el agente de usuario en el contexto
-	UserAgentContextKey ContextKey = "user_agent"
+	UserAgentContextKey  contextKey = "user_agent"
+	DeviceNameContextKey contextKey = "device_name"
+	IPAddressContextKey  contextKey = "ip_address"
 )

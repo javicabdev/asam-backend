@@ -148,8 +148,8 @@ func deleteUser(db *gorm.DB, reader *bufio.Reader) {
 
 	fmt.Print("\nID del usuario a eliminar: ")
 	var id uint
-	fmt.Scanf("%d", &id)
-	reader.ReadString('\n') // Clear buffer
+	_, _ = fmt.Scanf("%d", &id)
+	_, _ = reader.ReadString('\n') // Clear buffer
 
 	// Confirm deletion
 	fmt.Print("¿Estás seguro? (s/n): ")

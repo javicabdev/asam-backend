@@ -91,8 +91,8 @@ func viewUserSessions(db *gorm.DB, reader *bufio.Reader) {
 
 	fmt.Print("\nID del usuario: ")
 	var userID uint
-	fmt.Scanf("%d", &userID)
-	reader.ReadString('\n') // Clear buffer
+	_, _ = fmt.Scanf("%d", &userID)
+	_, _ = reader.ReadString('\n') // Clear buffer
 
 	// Get active sessions
 	var tokens []models.RefreshToken
@@ -184,8 +184,8 @@ func revokeAllUserSessions(db *gorm.DB, reader *bufio.Reader) {
 
 	fmt.Print("\nID del usuario: ")
 	var userID uint
-	fmt.Scanf("%d", &userID)
-	reader.ReadString('\n') // Clear buffer
+	_, _ = fmt.Scanf("%d", &userID)
+	_, _ = reader.ReadString('\n') // Clear buffer
 
 	// Count active sessions
 	var count int64

@@ -61,8 +61,8 @@ func (s *authService) Login(ctx context.Context, username, password string) (*in
 	// Registrar intento de login
 	s.logger.Info("Login attempt",
 		zap.String("username", username),
-		zap.String("ip", getIPFromContext(ctx)),
-		zap.String("user_agent", getUserAgentFromContext(ctx)),
+		zap.String(string(constants.IPContextKey), getIPFromContext(ctx)),
+		zap.String(string(constants.UserAgentContextKey), getUserAgentFromContext(ctx)),
 	)
 
 	// Buscar usuario por username
@@ -132,13 +132,13 @@ func (s *authService) Login(ctx context.Context, username, password string) (*in
 	// Guardar refresh token con información adicional del contexto
 	ctxWithInfo := ctx
 	if ip := ctx.Value(constants.IPContextKey); ip != nil {
-		ctxWithInfo = context.WithValue(ctxWithInfo, "ip_address", ip)
+		ctxWithInfo = context.WithValue(ctxWithInfo, constants.IPAddressContextKey, ip)
 	}
 	if ua := ctx.Value(constants.UserAgentContextKey); ua != nil {
-		ctxWithInfo = context.WithValue(ctxWithInfo, "user_agent", ua)
+		ctxWithInfo = context.WithValue(ctxWithInfo, constants.UserAgentContextKey, ua)
 	}
-	if device := ctx.Value("device_name"); device != nil {
-		ctxWithInfo = context.WithValue(ctxWithInfo, "device_name", device)
+	if device, ok := ctx.Value(constants.DeviceNameContextKey).(string); ok {
+		ctxWithInfo = context.WithValue(ctxWithInfo, constants.DeviceNameContextKey, device)
 	}
 
 	err = s.tokenRepo.SaveRefreshToken(ctxWithInfo, td.RefreshUUID, user.ID, td.RtExpires)
@@ -265,10 +265,10 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*i
 		ctxWithInfo = context.WithValue(ctxWithInfo, "ip_address", ip)
 	}
 	if ua := ctx.Value(constants.UserAgentContextKey); ua != nil {
-		ctxWithInfo = context.WithValue(ctxWithInfo, "user_agent", ua)
+		ctxWithInfo = context.WithValue(ctxWithInfo, string(constants.UserAgentContextKey), ua)
 	}
-	if device := ctx.Value("device_name"); device != nil {
-		ctxWithInfo = context.WithValue(ctxWithInfo, "device_name", device)
+	if device, ok := ctx.Value(constants.DeviceNameContextKey).(string); ok {
+		ctxWithInfo = context.WithValue(ctxWithInfo, string(constants.DeviceNameContextKey), device)
 	}
 
 	err = s.tokenRepo.SaveRefreshToken(ctxWithInfo, td.RefreshUUID, user.ID, td.RtExpires)

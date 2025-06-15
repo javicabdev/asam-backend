@@ -25,7 +25,7 @@ func clientInfoMiddleware(next http.Handler) http.Handler {
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, constants.IPContextKey, clientIP)
 		ctx = context.WithValue(ctx, constants.UserAgentContextKey, userAgent)
-		ctx = context.WithValue(ctx, "device_name", deviceName)
+		ctx = context.WithValue(ctx, constants.DeviceNameContextKey, deviceName)
 
 		// Continue with the enriched context
 		next.ServeHTTP(w, r.WithContext(ctx))
