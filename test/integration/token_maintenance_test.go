@@ -13,6 +13,7 @@ import (
 
 	"github.com/javicabdev/asam-backend/internal/adapters/db"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/pkg/constants"
 	"github.com/javicabdev/asam-backend/test/fixtures"
 	"github.com/javicabdev/asam-backend/test/helpers"
 )
@@ -106,9 +107,9 @@ func TestTokenRepository_TokenMaintenance(t *testing.T) {
 	t.Run("SaveRefreshToken_WithContextInfo", func(t *testing.T) {
 		// Create context with client information
 		ctx := context.Background()
-		ctx = context.WithValue(ctx, "device_name", "iPhone 15")
-		ctx = context.WithValue(ctx, "ip_address", "192.168.1.100")
-		ctx = context.WithValue(ctx, "user_agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)")
+		ctx = context.WithValue(ctx, constants.DeviceNameContextKey, "iPhone 15")
+		ctx = context.WithValue(ctx, constants.IPAddressContextKey, "192.168.1.100")
+		ctx = context.WithValue(ctx, constants.UserAgentContextKey, "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)")
 
 		// Save token
 		err := tokenRepo.SaveRefreshToken(ctx, "context-test-uuid", user.ID, time.Now().Add(24*time.Hour).Unix())

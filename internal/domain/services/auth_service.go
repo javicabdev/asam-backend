@@ -61,8 +61,8 @@ func (s *authService) Login(ctx context.Context, username, password string) (*in
 	// Registrar intento de login
 	s.logger.Info("Login attempt",
 		zap.String("username", username),
-		zap.String(string(constants.IPContextKey), getIPFromContext(ctx)),
-		zap.String(string(constants.UserAgentContextKey), getUserAgentFromContext(ctx)),
+		zap.String("ip", getIPFromContext(ctx)),
+		zap.String("user_agent", getUserAgentFromContext(ctx)),
 	)
 
 	// Buscar usuario por username
@@ -268,7 +268,7 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*i
 		ctxWithInfo = context.WithValue(ctxWithInfo, constants.UserAgentContextKey, ua)
 	}
 	if device, ok := ctx.Value(constants.DeviceNameContextKey).(string); ok {
-		ctxWithInfo = context.WithValue(ctxWithInfo, string(constants.DeviceNameContextKey), device)
+		ctxWithInfo = context.WithValue(ctxWithInfo, constants.DeviceNameContextKey, device)
 	}
 
 	err = s.tokenRepo.SaveRefreshToken(ctxWithInfo, td.RefreshUUID, user.ID, td.RtExpires)
