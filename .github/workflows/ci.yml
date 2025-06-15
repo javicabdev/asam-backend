@@ -113,7 +113,7 @@ jobs:
           ENVIRONMENT: "test_unit"
 
       - name: Upload coverage to Codecov (opcional)
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           files: ./coverage.txt
           fail_ci_if_error: false
