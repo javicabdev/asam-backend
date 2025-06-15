@@ -29,4 +29,5 @@ type TokenRepository interface {
 
 	// Maintenance
 	CleanupExpiredTokens(ctx context.Context) error
+	EnforceTokenLimitPerUser(ctx context.Context, maxTokens int) error
 }

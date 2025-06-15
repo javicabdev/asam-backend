@@ -141,3 +141,48 @@ func (r *tokenRepository) CleanupExpiredTokens(ctx context.Context) error {
 
 	return nil
 }
+
+// EnforceTokenLimitPerUser removes oldest tokens if user has more than maxTokens
+func (r *tokenRepository) EnforceTokenLimitPerUser(ctx context.Context, maxTokens int) error {
+	// Get all users with their token counts
+	type userTokenCount struct {
+		UserID uint
+		Count  int64
+	}
+
+	var userCounts []userTokenCount
+	if err := r.db.WithContext(ctx).
+		Model(&models.RefreshToken{}).
+		Select("user_id, COUNT(*) as count").
+		Group("user_id").
+		Having("COUNT(*) > ?", maxTokens).
+		Scan(&userCounts).Error; err != nil {
+		return appErrors.DB(err, "Error getting user token counts")
+	}
+
+	// For each user with too many tokens
+	for _, uc := range userCounts {
+		// Calculate how many tokens to delete
+		tokensToDelete := int(uc.Count) - maxTokens
+
+		// Get the oldest tokens for this user
+		var oldestTokens []models.RefreshToken
+		if err := r.db.WithContext(ctx).
+			Where("user_id = ?", uc.UserID).
+			Order("created_at ASC").
+			Limit(tokensToDelete).
+			Find(&oldestTokens).Error; err != nil {
+			return appErrors.DB(err, "Error getting oldest tokens")
+		}
+
+		// Delete the oldest tokens
+		for _, token := range oldestTokens {
+			if err := r.db.WithContext(ctx).
+				Delete(&token).Error; err != nil {
+				return appErrors.DB(err, "Error deleting old token")
+			}
+		}
+	}
+
+	return nil
+}

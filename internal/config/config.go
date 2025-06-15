@@ -68,6 +68,11 @@ type Config struct {
 	// Configuración de GraphQL
 	GQLComplexityLimit     int `env:"GQL_COMPLEXITY_LIMIT,default=1000"`
 	GQLConcurrentResolvers int `env:"GQL_CONCURRENT_RESOLVERS,default=10"`
+
+	// Configuración de tokens
+	MaxTokensPerUser     int           `env:"MAX_TOKENS_PER_USER,default=5"`
+	TokenCleanupEnabled  bool          `env:"TOKEN_CLEANUP_ENABLED,default=true"`
+	TokenCleanupInterval time.Duration `env:"TOKEN_CLEANUP_INTERVAL,default=24h"`
 }
 
 // LoadConfig carga las variables de entorno y las mapea a la estructura Config.

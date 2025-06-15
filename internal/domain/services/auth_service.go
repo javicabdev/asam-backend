@@ -146,6 +146,16 @@ func (s *authService) Login(ctx context.Context, username, password string) (*in
 		return nil, errors.Wrap(err, errors.ErrInternalError, "error guardando refresh token")
 	}
 
+	// Aplicar límite de tokens por usuario si está configurado
+	maxTokens := 5 // Valor por defecto, idealmente vendría de la configuración
+	if err := s.tokenRepo.EnforceTokenLimitPerUser(ctx, maxTokens); err != nil {
+		// Log el error pero no fallar el login
+		s.logger.Warn("Failed to enforce token limit after login",
+			zap.Error(err),
+			zap.Uint("user_id", user.ID),
+		)
+	}
+
 	// Actualizar último login
 	user.LastLogin = time.Now()
 	err = s.userRepo.Update(ctx, user)

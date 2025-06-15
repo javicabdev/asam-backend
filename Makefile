@@ -254,6 +254,36 @@ docker-run:
 	@echo "🐳 Running Docker container..."
 	@docker run -p 8080:8080 --env-file .env asam-backend:latest
 
+## Maintenance commands
+## ─────────────────────────────────────────────────────────────────
+
+## maintenance-cleanup: Clean up expired tokens
+.PHONY: maintenance-cleanup
+maintenance-cleanup:
+	@echo "🧹 Cleaning up expired tokens..."
+	@$(GO) run ./cmd/maintenance -cleanup-tokens -report
+	@echo "✅ Token cleanup complete"
+
+## maintenance-limit: Enforce token limit per user
+.PHONY: maintenance-limit
+maintenance-limit:
+	@echo "🔒 Enforcing token limits..."
+	@$(GO) run ./cmd/maintenance -enforce-token-limit -report
+	@echo "✅ Token limit enforcement complete"
+
+## maintenance-all: Run all maintenance tasks
+.PHONY: maintenance-all
+maintenance-all:
+	@echo "🔧 Running all maintenance tasks..."
+	@$(GO) run ./cmd/maintenance -all -report
+	@echo "✅ All maintenance tasks complete"
+
+## maintenance-dry: Dry run of maintenance tasks
+.PHONY: maintenance-dry
+maintenance-dry:
+	@echo "👀 Running maintenance dry run..."
+	@$(GO) run ./cmd/maintenance -all -dry-run -report
+
 ## Utility commands
 ## ─────────────────────────────────────────────────────────────────
 
