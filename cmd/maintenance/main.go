@@ -30,17 +30,23 @@ func main() {
 
 	flag.Parse()
 
-	// Initialize logger
-	log := logger.New()
-
 	// Load configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Fatal("Failed to load config", zap.Error(err))
+		fmt.Printf("Failed to load config: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Initialize logger
+	logCfg := logger.DefaultConfig()
+	log, err := logger.InitLogger(logCfg)
+	if err != nil {
+		fmt.Printf("Failed to initialize logger: %v\n", err)
+		os.Exit(1)
 	}
 
 	// Initialize database
-	database, err := db.NewConnection(cfg)
+	database, err := db.InitDB(cfg, log)
 	if err != nil {
 		log.Fatal("Failed to connect to database", zap.Error(err))
 	}
