@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -12,14 +13,28 @@ import (
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 )
 
+// getEnvWithDefault returns the value of the environment variable or the default value if not set
+func getEnvWithDefault(key, defaultValue string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return defaultValue
+}
+
 // SetupTestDB creates and returns a test database connection
 // It initializes a PostgreSQL database for testing and migrates the necessary tables
 func SetupTestDB(t *testing.T) *gorm.DB {
+	// Get database configuration from environment variables with fallbacks
+	host := getEnvWithDefault("DB_HOST", "localhost")
+	user := getEnvWithDefault("DB_USER", "postgres")
+	password := getEnvWithDefault("DB_PASSWORD", "postgres")
+	dbname := getEnvWithDefault("DB_NAME", "asam_test_db")
+	port := getEnvWithDefault("DB_PORT", "5432")
+
 	// Connection string for test database
-	// In a real implementation, these values would come from environment variables or test config
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Europe/Madrid",
-		"localhost", "postgres", "postgres", "asam_test", "5432",
+		host, user, password, dbname, port,
 	)
 
 	// Open connection to database
