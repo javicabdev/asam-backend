@@ -11,6 +11,7 @@ import (
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/pkg/auth"
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/test"
 )
@@ -23,6 +24,7 @@ var _ = ginkgo.Describe("Family", func() {
 		paymentService  *test.MockPaymentService
 		cashFlowService *test.MockCashFlowService
 		authService     *test.MockAuthService
+		userService     *test.MockUserService
 	)
 
 	ginkgo.BeforeEach(func() {
@@ -31,6 +33,11 @@ var _ = ginkgo.Describe("Family", func() {
 		paymentService = new(test.MockPaymentService)
 		cashFlowService = new(test.MockCashFlowService)
 		authService = new(test.MockAuthService)
+		userService = new(test.MockUserService)
+
+		// Crear un mock logger para el rate limiter
+		mockLogger := &test.MockLogger{}
+		loginRateLimiter := auth.NewLoginRateLimiter(mockLogger)
 
 		resolver = resolvers.NewResolver(
 			memberService,
@@ -38,6 +45,8 @@ var _ = ginkgo.Describe("Family", func() {
 			paymentService,
 			cashFlowService,
 			authService,
+			userService,
+			loginRateLimiter,
 		)
 	})
 

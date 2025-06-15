@@ -15,6 +15,7 @@ import (
 	"github.com/javicabdev/asam-backend/internal/domain/services"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/internal/ports/output"
+	"github.com/javicabdev/asam-backend/pkg/auth"
 	"github.com/javicabdev/asam-backend/pkg/constants"
 	"github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/test"
@@ -143,6 +144,7 @@ func TestCreateMember(t *testing.T) {
 			paymentService := new(test.MockPaymentService)
 			cashFlowService := new(test.MockCashFlowService)
 			authService := new(test.MockAuthService)
+			userService := new(test.MockUserService)
 
 			// Crear un mockUser para autenticación
 			mockUser := &models.User{
@@ -154,12 +156,18 @@ func TestCreateMember(t *testing.T) {
 
 			tt.setupMock(memberService)
 
+			// Crear mock logger para el rate limiter
+			mockLogger := &test.MockLogger{}
+			loginRateLimiter := auth.NewLoginRateLimiter(mockLogger)
+
 			resolver := resolvers.NewResolver(
 				memberService,
 				familyService,
 				paymentService,
 				cashFlowService,
 				authService,
+				userService,
+				loginRateLimiter,
 			)
 
 			got, err := resolver.Mutation().CreateMember(ctx, tt.input)

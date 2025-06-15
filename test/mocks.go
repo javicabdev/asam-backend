@@ -1086,6 +1086,100 @@ func (m *MockCashFlowService) GetFinancialAlerts(ctx context.Context) ([]input.F
 	return alerts, err
 }
 
+// MockUserService es un mock de input.UserService
+type MockUserService struct {
+	mock.Mock
+}
+
+// CreateUser creates a new user with the given details.
+// Returns the created user or an error if the creation fails.
+func (m *MockUserService) CreateUser(ctx context.Context, username, password string, role models.Role) (*models.User, error) {
+	args := m.Called(ctx, username, password, role)
+	err := args.Error(1)
+	var user *models.User
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		user, ok = ret0.(*models.User)
+		if !ok {
+			return nil, err
+		}
+	}
+	return user, err
+}
+
+// UpdateUser updates an existing user's details.
+// Returns the updated user or an error if the update fails.
+func (m *MockUserService) UpdateUser(ctx context.Context, id uint, updates map[string]interface{}) (*models.User, error) {
+	args := m.Called(ctx, id, updates)
+	err := args.Error(1)
+	var user *models.User
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		user, ok = ret0.(*models.User)
+		if !ok {
+			return nil, err
+		}
+	}
+	return user, err
+}
+
+// DeleteUser deletes a user by ID (soft delete).
+// Returns an error if the deletion fails.
+func (m *MockUserService) DeleteUser(ctx context.Context, id uint) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+// GetUser retrieves a user by ID.
+// Returns the user or an error if not found or other issues occur.
+func (m *MockUserService) GetUser(ctx context.Context, id uint) (*models.User, error) {
+	args := m.Called(ctx, id)
+	err := args.Error(1)
+	var user *models.User
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		user, ok = ret0.(*models.User)
+		if !ok {
+			return nil, err
+		}
+	}
+	return user, err
+}
+
+// ListUsers retrieves a paginated list of users.
+// Returns the list of users or an error if the retrieval fails.
+func (m *MockUserService) ListUsers(ctx context.Context, page, pageSize int) ([]*models.User, error) {
+	args := m.Called(ctx, page, pageSize)
+	err := args.Error(1)
+	var users []*models.User
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		users, ok = ret0.([]*models.User)
+		if !ok {
+			return nil, err
+		}
+	}
+	return users, err
+}
+
+// ChangePassword changes a user's password.
+// Returns an error if the password change fails.
+func (m *MockUserService) ChangePassword(ctx context.Context, userID uint, currentPassword, newPassword string) error {
+	args := m.Called(ctx, userID, currentPassword, newPassword)
+	return args.Error(0)
+}
+
+// ResetPassword resets a user's password (admin function).
+// Returns an error if the password reset fails.
+func (m *MockUserService) ResetPassword(ctx context.Context, userID uint, newPassword string) error {
+	args := m.Called(ctx, userID, newPassword)
+	return args.Error(0)
+}
+
 // MockAuthService es un mock de input.AuthService
 type MockAuthService struct {
 	mock.Mock

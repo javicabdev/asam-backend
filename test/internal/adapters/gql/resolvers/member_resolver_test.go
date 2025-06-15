@@ -12,8 +12,10 @@ import (
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/pkg/auth"
 	"github.com/javicabdev/asam-backend/pkg/constants"
 	"github.com/javicabdev/asam-backend/pkg/errors"
+
 	"github.com/javicabdev/asam-backend/test"
 )
 
@@ -37,6 +39,7 @@ var _ = ginkgo.Describe("Member", func() {
 		paymentService  *test.MockPaymentService
 		cashFlowService *test.MockCashFlowService
 		authService     *test.MockAuthService
+		userService     *test.MockUserService
 		ctx             context.Context // Contexto autenticado para todas las pruebas
 	)
 
@@ -46,6 +49,11 @@ var _ = ginkgo.Describe("Member", func() {
 		paymentService = new(test.MockPaymentService)
 		cashFlowService = new(test.MockCashFlowService)
 		authService = new(test.MockAuthService)
+		userService = new(test.MockUserService)
+
+		// Crear un mock logger para el rate limiter
+		mockLogger := &test.MockLogger{}
+		loginRateLimiter := auth.NewLoginRateLimiter(mockLogger)
 
 		resolver = resolvers.NewResolver(
 			memberService,
@@ -53,6 +61,8 @@ var _ = ginkgo.Describe("Member", func() {
 			paymentService,
 			cashFlowService,
 			authService,
+			userService,
+			loginRateLimiter,
 		)
 
 		// Crear contexto autenticado para todas las pruebas
