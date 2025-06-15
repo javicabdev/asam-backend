@@ -16,15 +16,3 @@ func convertGraphQLRoleToDomain(role model.UserRole) models.Role {
 		return models.RoleUser
 	}
 }
-
-// convertDomainRoleToGraphQL converts domain Role to GraphQL UserRole
-func convertDomainRoleToGraphQL(role models.Role) model.UserRole {
-	switch role {
-	case models.RoleAdmin:
-		return model.UserRoleAdmin
-	case models.RoleUser:
-		return model.UserRoleUser
-	default:
-		return model.UserRoleUser
-	}
-}

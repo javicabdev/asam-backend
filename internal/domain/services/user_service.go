@@ -199,7 +199,7 @@ func (s *userService) GetUser(ctx context.Context, id uint) (*models.User, error
 }
 
 // ListUsers retrieves a paginated list of users
-func (s *userService) ListUsers(ctx context.Context, page, pageSize int) ([]*models.User, error) {
+func (s *userService) ListUsers(_ context.Context, _, _ int) ([]*models.User, error) {
 	// For now, we'll return all users and handle pagination in memory
 	// In a real implementation, this would be done at the repository level
 
@@ -321,10 +321,10 @@ func (s *userService) validateUsername(username string) error {
 
 	// Check for valid characters (alphanumeric, underscore, hyphen, dot)
 	for _, char := range username {
-		if !((char >= 'a' && char <= 'z') ||
-			(char >= 'A' && char <= 'Z') ||
-			(char >= '0' && char <= '9') ||
-			char == '_' || char == '-' || char == '.') {
+		if (char < 'a' || char > 'z') &&
+			(char < 'A' || char > 'Z') &&
+			(char < '0' || char > '9') &&
+			char != '_' && char != '-' && char != '.' {
 			return errors.NewValidationError(
 				"Invalid username format",
 				map[string]string{"username": "Username can only contain letters, numbers, underscore, hyphen, and dot"},
