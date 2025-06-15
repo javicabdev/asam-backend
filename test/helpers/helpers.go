@@ -40,5 +40,10 @@ func SetupTestDB(t *testing.T) *gorm.DB {
 	)
 	require.NoError(t, err)
 
+	// Ensure the unique constraint on refresh_tokens.uuid has the expected name
+	// This is needed because GORM's AutoMigrate might create a constraint with a different name
+	db.Exec("ALTER TABLE refresh_tokens DROP CONSTRAINT IF EXISTS uni_refresh_tokens_uuid")
+	db.Exec("ALTER TABLE refresh_tokens ADD CONSTRAINT uni_refresh_tokens_uuid UNIQUE (uuid)")
+
 	return db
 }
