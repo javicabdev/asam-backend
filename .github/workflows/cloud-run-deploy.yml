@@ -1,13 +1,6 @@
 name: Deploy to Google Cloud Run
 
 on:
-  push:
-    branches: [ main ]
-    paths-ignore:
-      - '**/*.md'
-      - '.gitignore'
-      - 'LICENSE'
-      - '.github/workflows/ci.yml'
   workflow_dispatch:  # Para despliegues manuales
     inputs:
       environment:
@@ -37,135 +30,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Para obtener el historial para análisis
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
-
-      - name: Verify dependencies
-        run: |
-          go mod download
-          go mod verify
-
-      - name: Install gqlgen
-        run: go install github.com/99designs/gqlgen@v0.17.73
-
-      - name: Generate GraphQL code
-        run: |
-          echo "Generating GraphQL code..."
-          gqlgen generate
-
-      - name: Install and run golangci-lint
-        uses: golangci/golangci-lint-action@v8
-        with:
-          version: v2.1.6  # Última versión de golangci-lint
-          args: --timeout=5m
-
-  test:
-    name: Test
-    needs: lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    services:
-      postgres:
-        image: postgres:16-alpine  # Usar alpine para imagen más ligera
-        env:
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
-
-      - name: Get dependencies
-        run: |
-          go mod download
-          go mod verify
-
-      - name: Install gqlgen
-        run: go install github.com/99designs/gqlgen@v0.17.73
-
-      - name: Generate GraphQL code
-        run: |
-          echo "Generating GraphQL code..."
-          gqlgen generate
-
-      - name: Run unit tests with coverage
-        run: |
-          go test -v -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./internal/... ./test/internal/...
-          go tool cover -func=coverage.txt
-        env:
-          JWT_ACCESS_SECRET: "test-access-secret-for-unit-tests"
-          JWT_REFRESH_SECRET: "test-refresh-secret-for-unit-tests"
-          CGO_ENABLED: 1
-          DB_HOST: "testhost-unit"
-          DB_PORT: "1234"
-          DB_USER: "testuser-unit"
-          DB_PASSWORD: "testpassword-unit"
-          DB_NAME: "testdb-unit"
-          DB_SSL_MODE: "disable"
-          ENVIRONMENT: "test_unit"
-
-      - name: Upload coverage to Codecov (opcional)
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./coverage.txt
-          fail_ci_if_error: false
-
-      - name: Setup test environment for integration tests
-        run: |
-          cp .env.test.example .env
-          go run cmd/migrate/main.go -cmd up
-        env:
-          CI: "true"
-          DB_HOST: ${{ env.POSTGRES_HOST }}
-          DB_PORT: ${{ env.POSTGRES_PORT }}
-          DB_USER: ${{ env.POSTGRES_USER }}
-          DB_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-          DB_NAME: ${{ env.POSTGRES_DB }}
-          DB_SSL_MODE: "disable"
-
-      - name: Run integration tests
-        run: go test -v -tags=integration -timeout 5m ./test/integration/...
-        env:
-          DB_HOST: ${{ env.POSTGRES_HOST }}
-          DB_PORT: ${{ env.POSTGRES_PORT }}
-          DB_USER: ${{ env.POSTGRES_USER }}
-          DB_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-          DB_NAME: ${{ env.POSTGRES_DB }}
-          DB_SSL_MODE: "disable"
-          JWT_ACCESS_SECRET: "test-access-secret-for-ci"
-          JWT_REFRESH_SECRET: "test-refresh-secret-for-ci"
-          ENVIRONMENT: "test"
-          CI: "true"
 
   build-and-push:
     name: Build and Push Docker Image
-    needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
@@ -252,7 +119,7 @@ jobs:
             IMAGE_URL="${{ env.ARTIFACT_REGISTRY }}/${{ env.PROJECT_ID }}/asam-backend/${{ env.SERVICE_NAME }}:latest"
           fi
           echo "Deploying image: $IMAGE_URL"
-          
+
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --image="$IMAGE_URL" \
             --region=${{ env.REGION }} \

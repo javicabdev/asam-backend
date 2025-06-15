@@ -18,7 +18,7 @@ El sistema está configurado para trabajar con dos entornos de base de datos:
   * Host: `pg-asam-asam-backend-db.l.aivencloud.com`
   * Puerto: `14276`
   * Usuario por defecto: `avnadmin`
-  * Base de datos por defecto: `defaultdb`
+  * Base de datos por defecto: `asam-backend-db`
 
 ## Migraciones de Base de Datos
 

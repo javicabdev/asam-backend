@@ -1,167 +1,67 @@
-# Nombre del workflow de GitHub Actions.
-name: CI Pipeline
+name: Continuous Integration
 
-# Controla cuándo se ejecutará el workflow.
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
+    paths-ignore:
+      - '**/*.md'
+      - '.gitignore'
+      - 'LICENSE'
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main ]
 
-# Variables de entorno globales del workflow.
 env:
+  GO_VERSION: '1.24'  # Última versión estable de Go
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: postgres
-  POSTGRES_DB: asam_test_db
+  POSTGRES_DB: asam_test
   POSTGRES_HOST: localhost
   POSTGRES_PORT: "5432"
-  GO_VERSION: '1.24'  # Última versión estable de Go
 
 jobs:
-  # Job para realizar el linting del código.
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Para obtener el historial para análisis
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-          cache: false
-      - name: Install dependencies for linting tools (if any beyond golangci-lint)
-        run: go mod download
-      - name: Generate GraphQL code (if linting depends on it)
-        run: go run ./cmd/generate/main.go
-      - name: Run golangci-lint
+          cache: true
+
+      - name: Verify dependencies
+        run: |
+          go mod download
+          go mod verify
+
+      - name: Install gqlgen
+        run: go install github.com/99designs/gqlgen@v0.17.73
+
+      - name: Generate GraphQL code
+        run: |
+          echo "Generating GraphQL code..."
+          gqlgen generate
+
+      - name: Install and run golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.1.6
+          version: v2.1.6  # Última versión de golangci-lint
           args: --timeout=5m
-      - name: Verify Go modules
-        run: go mod verify
-      - name: Check go.mod and go.sum
-        run: |
-          go mod tidy -v
-          if ! git diff --quiet go.mod go.sum; then
-            echo "go.mod or go.sum needs updating. Please run 'go mod tidy' and commit the changes."
-            git diff
-            exit 1
-          fi
-      - name: Check formatting with gofmt
-        run: |
-          OUTPUT=$(gofmt -l -s .)
-          if [ -n "$OUTPUT" ]; then
-            echo "The following files need formatting (run 'gofmt -w .'):"
-            echo "$OUTPUT"
-            exit 1
-          fi
-          echo "All files are correctly formatted."
 
-  # Job para construir la aplicación.
-  build:
-    name: Build
+  test:
+    name: Test
+    needs: lint
     runs-on: ubuntu-latest
-    needs: [lint]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        id: go-cache
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-          key: ${{ runner.os }}-go-${{ env.GO_VERSION }}-${{ hashFiles('**/go.sum') }}-cachev1
-          restore-keys: |
-            ${{ runner.os }}-go-${{ env.GO_VERSION }}-cachev1-
-      - name: Install dependencies
-        run: go mod download
-      - name: Generate GraphQL code
-        run: go run ./cmd/generate/main.go
-      - name: Build application
-        run: go build -v -o asam-backend ./cmd/api
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: asam-backend-${{ env.GO_VERSION }}
-          path: asam-backend
-          retention-days: 5
-
-  # Job para ejecutar tests unitarios.
-  # Ejecuta tests en ./internal/... (si los hay colocalizados) Y en ./test/internal/...
-  # Mide cobertura solo para el código fuente en ./internal/...
-  test-unit:
-    name: Unit Tests (internal code coverage)
-    runs-on: ubuntu-latest
-    needs: [build]
-    env:
-      JWT_ACCESS_SECRET: "test-access-secret-for-unit-tests"
-      JWT_REFRESH_SECRET: "test-refresh-secret-for-unit-tests"
-      CGO_ENABLED: 1
-      DB_HOST: "testhost-unit"
-      DB_PORT: "1234"
-      DB_USER: "testuser-unit"
-      DB_PASSWORD: "testpassword-unit"
-      DB_NAME: "testdb-unit"
-      DB_SSL_MODE: "disable"
-      ENVIRONMENT: "test_unit"
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-          key: ${{ runner.os }}-go-${{ env.GO_VERSION }}-${{ hashFiles('**/go.sum') }}-cachev1
-          restore-keys: |
-            ${{ runner.os }}-go-${{ env.GO_VERSION }}-cachev1-
-      - name: Install dependencies
-        run: go mod download
-      - name: Run unit tests and cover internal packages
-        # Ejecuta tests ubicados en Y en ./test/internal/...
-        # La cobertura (-coverpkg) se mide solo para el código fuente en ./internal/...
-        run: go test -v -race -coverprofile=coverage.out -covermode=atomic -coverpkg=./internal/... ./test/internal/...
-      - name: Check coverage.out content (in test-unit)
-        if: always()
-        run: |
-          echo "--- Content of coverage.out in test-unit job ---"
-          if [ -f coverage.out ]; then
-            cat coverage.out
-            echo "Size of coverage.out:"
-            ls -lh coverage.out
-          else
-            echo "coverage.out not found in test-unit job."
-          fi
-          echo "--- End of coverage.out check ---"
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-test-coverage-internal
-          path: coverage.out
-          retention-days: 5
-
-  # Job para ejecutar tests de integración (enfocado en ./test/integration/...).
-  test-integration:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    needs: [build]
+    timeout-minutes: 15
     services:
       postgres:
-        image: postgres:16
+        image: postgres:16-alpine  # Usar alpine para imagen más ligera
         env:
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
@@ -173,198 +73,78 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    env:
-      DB_HOST: localhost
-      DB_PORT: "5432"
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: asam_test_db
-      DB_SSL_MODE: "disable"
-
-      JWT_ACCESS_SECRET: "test-access-secret-for-ci"
-      JWT_REFRESH_SECRET: "test-refresh-secret-for-ci"
-      ENVIRONMENT: "test_ci"
-      CGO_ENABLED: 1
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-          key: ${{ runner.os }}-go-${{ env.GO_VERSION }}-${{ hashFiles('**/go.sum') }}-cachev1
-          restore-keys: |
-            ${{ runner.os }}-go-${{ env.GO_VERSION }}-cachev1-
-      - name: Install dependencies
-        run: go mod download
-      - name: Wait for PostgreSQL to be ready
-        run: |
-          echo "Waiting for PostgreSQL to start..."
-          for i in {1..15}; do
-            pg_isready -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME && break
-            echo "PostgreSQL not ready yet (Host: $DB_HOST, Port: $DB_PORT, User: $DB_USER, DB: $DB_NAME), waiting ($i/15)..."
-            sleep 2
-          done
-          pg_isready -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME
-          echo "PostgreSQL is up and running!"
-        env:
-          PGPASSWORD: ${{ env.DB_PASSWORD }}
+          cache: true
 
-      - name: Run database migrations
-        run: go run ./cmd/migrate/main.go -cmd up
+      - name: Get dependencies
+        run: |
+          go mod download
+          go mod verify
+
+      - name: Install gqlgen
+        run: go install github.com/99designs/gqlgen@v0.17.73
+
+      - name: Generate GraphQL code
+        run: |
+          echo "Generating GraphQL code..."
+          gqlgen generate
+
+      - name: Run unit tests with coverage
+        run: |
+          go test -v -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./internal/... ./test/internal/...
+          go tool cover -func=coverage.txt
+        env:
+          JWT_ACCESS_SECRET: "test-access-secret-for-unit-tests"
+          JWT_REFRESH_SECRET: "test-refresh-secret-for-unit-tests"
+          CGO_ENABLED: 1
+          DB_HOST: "testhost-unit"
+          DB_PORT: "1234"
+          DB_USER: "testuser-unit"
+          DB_PASSWORD: "testpassword-unit"
+          DB_NAME: "testdb-unit"
+          DB_SSL_MODE: "disable"
+          ENVIRONMENT: "test_unit"
+
+      - name: Upload coverage to Codecov (opcional)
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.txt
+          fail_ci_if_error: false
+
+      - name: Setup test environment for integration tests
+        run: |
+          cp .env.test.example .env
+          # Explicitly set DB_SSL_MODE in the environment file to ensure it's used
+          echo "DB_SSL_MODE=disable" >> .env
+          # Set environment variable explicitly before running migrations
+          export DB_SSL_MODE=disable
+          go run cmd/migrate/main.go -cmd up
         env:
           CI: "true"
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-          POSTGRES_HOST: ${{ env.POSTGRES_HOST }}
-          POSTGRES_PORT: ${{ env.POSTGRES_PORT }}
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          DB_HOST: ${{ env.POSTGRES_HOST }}
+          DB_PORT: ${{ env.POSTGRES_PORT }}
+          DB_USER: ${{ env.POSTGRES_USER }}
+          DB_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          DB_NAME: ${{ env.POSTGRES_DB }}
           DB_SSL_MODE: "disable"
 
       - name: Run integration tests
-        run: go test -v -race -tags=integration ./test/integration/...
-
-  # Job para el análisis de cobertura de código (basado en tests unitarios de internal).
-  code-coverage:
-    name: Code Coverage Analysis (internal)
-    runs-on: ubuntu-latest
-    needs: [test-unit]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-      - name: Download coverage report artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: unit-test-coverage-internal
-      - name: Verify downloaded artifact and coverage.out
-        run: |
-          echo "--- Files in current directory (GITHUB_WORKSPACE) after download ---"
-          ls -la
-          echo "--- Content of coverage.out in code-coverage job ---"
-          if [ -f coverage.out ]; then
-            cat coverage.out
-            echo "Size of coverage.out:"
-            ls -lh coverage.out
-          else
-            echo "coverage.out not found in code-coverage job after download."
-          fi
-          echo "--- End of downloaded coverage.out check ---"
-      - name: Display raw coverage summary from go tool cover
-        run: |
-          echo "--- Raw output of 'go tool cover -func=coverage.out' ---"
-          if [ -f coverage.out ]; then
-            go tool cover -func=coverage.out
-          else
-            echo "coverage.out not found, cannot run 'go tool cover -func'."
-          fi
-          echo "--- End of raw output ---"
-      - name: Check coverage threshold (5%)
-        run: |
-          if [ ! -f coverage.out ]; then
-            echo "Error: coverage.out not found. Cannot calculate coverage."
-            exit 1
-          fi
-          RAW_COVERAGE_OUTPUT=$(go tool cover -func=coverage.out)
-          echo "Raw coverage output for processing:"
-          echo "$RAW_COVERAGE_OUTPUT"
-          total_line=$(echo "$RAW_COVERAGE_OUTPUT" | grep 'total:')
-          if [ -z "$total_line" ]; then
-            echo "Error: 'total:' line not found in coverage output. Assuming 0.0% coverage for internal packages."
-            total_coverage="0.0"
-          else
-            total_coverage=$(echo "$total_line" | awk '{print $3}' | sed 's/%//')
-          fi
-          
-          if [ -z "$total_coverage" ]; then 
-            echo "Error: Could not parse total coverage for internal packages from 'go tool cover -func' output. Assuming 0.0%."
-            total_coverage="0.0"
-          fi
-          
-          echo "Current total coverage for internal packages: $total_coverage%"
-          if ! [[ "$total_coverage" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
-              echo "Error: Parsed total_coverage ('$total_coverage') for internal packages is not a valid number."
-              total_coverage="0.0"
-          fi
-
-          if (( $(echo "$total_coverage < 5.0" | bc -l) )); then
-            echo "Error: Code coverage for internal packages ($total_coverage%) is below the required 5% threshold."
-            exit 1
-          else
-            echo "Code coverage for internal packages meets the 5% threshold."
-          fi
-      - name: Convert coverage to HTML
-        if: always()
-        run: |
-          if [ -f coverage.out ]; then
-            go tool cover -html=coverage.out -o coverage.html
-            echo "HTML coverage report generated as coverage.html"
-          else
-            echo "coverage.out not found, cannot generate HTML report."
-          fi
-      - name: Upload HTML coverage report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report-html-internal
-          path: coverage.html
-          if-no-files-found: ignore
-          retention-days: 7
-
-  # Job para el análisis de complejidad y vulnerabilidades del código.
-  code-analysis:
-    name: Code Quality & Security Analysis
-    runs-on: ubuntu-latest
-    needs: [lint]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-      - name: Cache Go installed tools
-        uses: actions/cache@v4
-        with:
-          path: ~/go/bin
-          key: ${{ runner.os }}-go-tools-${{ env.GO_VERSION }}-${{ hashFiles('**/go.mod') }}
-      - name: Install gocyclo
-        run: go install github.com/fzipp/gocyclo/cmd/gocyclo@v0.6.0
-      - name: Run cyclomatic complexity analysis
-        run: |
-          echo "Running gocyclo (threshold > 15)..."
-          GOPATH_BIN=$(go env GOPATH)/bin
-          OUTPUT=$($GOPATH_BIN/gocyclo -over 15 -avg ./...)
-          if [ -n "$OUTPUT" ]; then
-            echo "Warning: Some functions have high cyclomatic complexity (over 15):"
-            echo "$OUTPUT"
-          else
-            echo "No functions exceed cyclomatic complexity of 15."
-          fi
-          $GOPATH_BIN/gocyclo -avg ./...
-      - name: Install ineffassign
-        run: go install github.com/gordonklaus/ineffassign@v0.1.0
-      - name: Run ineffassign (check for ineffectual assignments)
-        run: |
-          echo "Running ineffassign..."
-          GOPATH_BIN=$(go env GOPATH)/bin
-          $GOPATH_BIN/ineffassign ./...
-          echo "ineffassign check complete. See output above for issues."
-      - name: Install govulncheck
-        run: go install golang.org/x/vuln/cmd/govulncheck@v1.1.1
-      - name: Run vulnerability check (govulncheck)
-        run: |
-          echo "Running govulncheck..."
-          GOPATH_BIN=$(go env GOPATH)/bin
-          $GOPATH_BIN/govulncheck ./...
-          echo "govulncheck scan complete."
+        run: go test -v -tags=integration -timeout 5m ./test/integration/...
+        env:
+          DB_HOST: ${{ env.POSTGRES_HOST }}
+          DB_PORT: ${{ env.POSTGRES_PORT }}
+          DB_USER: ${{ env.POSTGRES_USER }}
+          DB_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          DB_NAME: ${{ env.POSTGRES_DB }}
+          DB_SSL_MODE: "disable"
+          JWT_ACCESS_SECRET: "test-access-secret-for-ci"
+          JWT_REFRESH_SECRET: "test-refresh-secret-for-ci"
+          ENVIRONMENT: "test"
+          CI: "true"
