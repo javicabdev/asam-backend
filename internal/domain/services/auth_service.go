@@ -4,11 +4,9 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"go.uber.org/zap"
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
@@ -83,34 +81,10 @@ func (s *authService) Login(ctx context.Context, username, password string) (*in
 
 	// Verificar contraseña
 	if !user.CheckPassword(password) {
-		// Debug: verificar qué está pasando
 		s.logger.Warn("Login failed: invalid password",
 			zap.String("username", username),
 			zap.Uint("user_id", user.ID),
-			zap.String("password_length", fmt.Sprintf("%d", len(password))),
-			zap.String("hash_length", fmt.Sprintf("%d", len(user.Password))),
-			zap.String("hash_prefix", user.Password[:10]), // Solo los primeros 10 caracteres del hash
 		)
-
-		// Generar un hash correcto para admin123
-		correctHash, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
-		s.logger.Info("Generated correct hash for admin123",
-			zap.String("correct_hash", string(correctHash)),
-		)
-
-		// Verificar si el hash generado funciona
-		err = bcrypt.CompareHashAndPassword(correctHash, []byte("admin123"))
-		s.logger.Info("Testing generated hash",
-			zap.Bool("generated_hash_valid", err == nil),
-		)
-
-		// Comparar con el hash de la BD
-		err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte("admin123"))
-		s.logger.Info("Testing DB hash directly",
-			zap.Bool("db_hash_valid", err == nil),
-			zap.String("db_hash_full", user.Password),
-		)
-
 		return nil, errors.NewBusinessError(errors.ErrUnauthorized, "credenciales inválidas")
 	}
 

@@ -170,6 +170,27 @@ test-coverage-view: test-coverage
 	@echo "🌐 Opening coverage report..."
 	@start coverage.html 2>/dev/null || open coverage.html 2>/dev/null || xdg-open coverage.html
 
+## test-auth: Run authentication system tests
+.PHONY: test-auth
+test-auth:
+	@echo "🔐 Running authentication system tests..."
+	@$(GOTEST) -v -race -coverprofile=coverage_auth.out -covermode=atomic -coverpkg=github.com/javicabdev/asam-backend/internal/domain/services ./test/internal/domain/services
+	@$(GO) tool cover -func=coverage_auth.out | grep -E "auth_service.go|user_service.go|total:"
+	@echo "✅ Auth tests complete"
+
+## test-auth-coverage: Run auth tests with HTML coverage report
+.PHONY: test-auth-coverage
+test-auth-coverage: test-auth
+	@echo "📊 Generating auth coverage report..."
+	@$(GO) tool cover -html=coverage_auth.out -o coverage_auth.html
+	@echo "✅ Coverage report: coverage_auth.html"
+
+## test-auth-view: Run auth tests and view coverage
+.PHONY: test-auth-view
+test-auth-view: test-auth-coverage
+	@echo "🌐 Opening auth coverage report..."
+	@start coverage_auth.html 2>/dev/null || open coverage_auth.html 2>/dev/null || xdg-open coverage_auth.html
+
 ## Code quality commands
 ## ─────────────────────────────────────────────────────────────────
 
@@ -322,8 +343,9 @@ version:
 	@echo "Build date: $(shell date +%Y-%m-%d)"
 
 # Quick aliases
-.PHONY: d dev-logs l c t
+.PHONY: d dev-logs l c t ta
 d: dev
 l: dev-logs
 c: clean
 t: test
+ta: test-auth

@@ -1,0 +1,1 @@
+PowerShell -ExecutionPolicy Bypass -Command "cd C:\Work\babacar\asam\asam-backend; go test -v ./test/internal/domain/services/... -run 'TestAuthService_Login_Success|TestAuthService_Login_InactiveUser|TestAuthService_Login_SaveRefreshTokenError|TestAuthService_Login_WithContextInfo|TestUserService_CreateUser_Success'"
