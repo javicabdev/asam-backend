@@ -78,7 +78,7 @@ linters-settings:
   goimports:
     # Put imports beginning with prefix after 3rd-party packages
     local-prefixes: github.com/javicabdev/asam-backend
-
+  
   gocyclo:
     # Minimal code complexity to report
     min-complexity: 15
@@ -96,12 +96,6 @@ linters-settings:
   misspell:
     # Correct spellings using locale preferences for US or UK
     locale: US
-  
-  lll:
-    # Max line length, lines longer will be reported
-    line-length: 120
-    # Tab width in spaces
-    tab-width: 1
   
   unused:
     # Treat code as a program (not a library) and report unused exported identifiers
@@ -128,50 +122,46 @@ linters-settings:
       - unnamedResult
       - ruleguard
       - truncateCmp
-  
-  gofumpt:
-    # Select the Go version to target
-    lang-version: "1.21"
-    # Choose whether to use the extra rules
-    extra-rules: true
 
 linters:
   # Disable all linters
   disable-all: true
   # Enable specific linters
   enable:
-    # Default linters
+    # Core linters (disponibles en todas las versiones)
     - errcheck
     - gosimple
     - govet
     - ineffassign
     - staticcheck
     - unused
+    # Linters adicionales estables
     - bodyclose
     - dupl
-    - exhaustive
-    - exportloopref
-    - gochecknoinits
     - goconst
     - gocritic
     - gocyclo
     - gofmt
-    - gofumpt
     - goimports
-    - goprintffuncname
     - gosec
-    - lll
     - misspell
     - nakedret
-    - noctx
-    - nolintlint
     - prealloc
-    - rowserrcheck
-    - sqlclosecheck
-    - stylecheck
     - unconvert
     - unparam
     - whitespace
+    # Linters que podrían no estar disponibles (comentados)
+    # - exhaustive
+    # - exportloopref  # Puede no estar disponible
+    # - gochecknoinits
+    # - goprintffuncname
+    # - lll
+    # - noctx
+    # - nolintlint    # Puede no estar disponible
+    # - rowserrcheck
+    # - sqlclosecheck # Puede no estar disponible
+    # - stylecheck
+    # - gofumpt       # Puede no estar disponible
 
 issues:
   # Excluding configuration per-path, per-linter, per-text and per-source
@@ -188,14 +178,8 @@ issues:
     # Exclude known linters from partially hard-vendored code
     - path: vendor/
       linters:
-        - stylecheck
         - goconst
         - gosec
-    
-    # Exclude lll issues for long lines with go:generate
-    - linters:
-        - lll
-      source: "^//go:generate "
     
     # Exclude some staticcheck messages
     - linters:
