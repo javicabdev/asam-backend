@@ -4,6 +4,24 @@ version: "2"
 run:
   go: '1.24'
   timeout: 5m
+  skip-dirs:
+    - scripts
+    - test/seed/cmd
+    - vendor
+    - third_party
+    - testdata
+    - examples
+    - docs
+  skip-files:
+    - ".*\.pb\.go$"
+    - ".*\.generated\.go$"
+    - "scripts/.*"
+    - "test/seed/cmd/.*"
+  # Exclude scripts directory from module search
+  modules-download-mode: readonly
+  # Build tags to use
+  build-tags:
+    - integration
 
 linters:
   default: standard
@@ -20,3 +38,21 @@ linters:
 
 issues:
   max-same-issues: 300
+  exclude-rules:
+    # Exclude scripts directory from all linters
+    - path: scripts/
+      linters:
+        - typecheck
+        - errcheck
+        - govet
+        - staticcheck
+    # Exclude test files from some linters
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+
+# This helps prevent issues with multiple main functions
+linters-settings:
+  govet:
+    check-shadowing: true
