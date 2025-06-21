@@ -261,6 +261,7 @@ func (s *SMTPEmailService) sendMailTLS(addr string, auth smtp.Auth, from string,
 	// Conectar al servidor
 	conn, err := tls.Dial("tcp", addr, &tls.Config{
 		ServerName: s.config.Host,
+		MinVersion: tls.VersionTLS12, // Enforce minimum TLS 1.2
 	})
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)

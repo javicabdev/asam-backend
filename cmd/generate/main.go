@@ -13,7 +13,7 @@ func main() {
 	// Verificar que los directorios existan
 	dirModel := "internal/adapters/gql/model"
 	if _, err := os.Stat(dirModel); os.IsNotExist(err) {
-		err := os.MkdirAll(dirModel, 0755)
+		err := os.MkdirAll(dirModel, 0750)
 		if err != nil {
 			log.Fatalf("Error al crear directorio %s: %v", dirModel, err)
 		}
@@ -21,7 +21,7 @@ func main() {
 
 	dirGenerated := "internal/adapters/gql/generated"
 	if _, err := os.Stat(dirGenerated); os.IsNotExist(err) {
-		err := os.MkdirAll(dirGenerated, 0755)
+		err := os.MkdirAll(dirGenerated, 0750)
 		if err != nil {
 			log.Fatalf("Error al crear directorio %s: %v", dirGenerated, err)
 		}

@@ -49,7 +49,7 @@ func NewMemoryMonitor(
 
 	// Create output directory if it doesn't exist
 	if outputDir != "" {
-		if err := os.MkdirAll(outputDir, 0755); err != nil {
+		if err := os.MkdirAll(outputDir, 0750); err != nil {
 			log.Error("Failed to create memory profile output directory", zap.Error(err))
 		}
 	}
@@ -139,7 +139,7 @@ func (m *MemoryMonitor) captureHeapProfile(level string) {
 	timestamp := time.Now().Format("20060102-150405")
 	filename := m.outputDir + "/heap-" + level + "-" + timestamp + ".pprof"
 
-	f, err := os.Create(filename)
+	f, err := os.Create(filename) //nolint:gosec // Filename is constructed from controlled inputs
 	if err != nil {
 		m.logger.Error("Failed to create memory profile", zap.Error(err))
 		return
@@ -158,7 +158,7 @@ func (m *MemoryMonitor) captureHeapProfile(level string) {
 
 	// Also save memory stats as JSON
 	statsFilename := m.outputDir + "/memstats-" + level + "-" + timestamp + ".json"
-	statsFile, err := os.Create(statsFilename)
+	statsFile, err := os.Create(statsFilename) //nolint:gosec // Filename is constructed from controlled inputs
 	if err != nil {
 		m.logger.Error("Failed to create memory stats file", zap.Error(err))
 		return

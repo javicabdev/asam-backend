@@ -72,8 +72,9 @@ func (p *ProfilingServer) Start() {
 
 	// Start server
 	p.server = &http.Server{
-		Addr:    p.addr,
-		Handler: mux,
+		Addr:              p.addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second, // Prevent Slowloris attacks
 	}
 
 	go func() {
@@ -189,7 +190,7 @@ func (p *ProfilingServer) handleSlowQueries(w http.ResponseWriter, _ *http.Reque
 		Frequency int    `json:"frequency"`
 	}
 
-	var queries []slowQuery
+	queries := make([]slowQuery, 0, len(slowQueries))
 	for query, frequency := range slowQueries {
 		queries = append(queries, slowQuery{
 			Query:     query,

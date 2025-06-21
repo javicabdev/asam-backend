@@ -35,6 +35,10 @@ type Payment struct {
 
 // NewPaymentGenerator creates a new payment generator
 func NewPaymentGenerator(db *sqlx.DB, seed int64) *PaymentGenerator {
+	// If seed is 0, generate a cryptographically secure seed
+	if seed == 0 {
+		seed = GenerateSecureSeed()
+	}
 	return &PaymentGenerator{
 		db:   db,
 		rand: rand.New(rand.NewSource(seed)),

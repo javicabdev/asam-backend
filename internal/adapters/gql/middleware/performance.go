@@ -103,7 +103,7 @@ func (a *GraphQLTracer) GetResolverMetrics() []ResolverMetrics {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	var metrics []ResolverMetrics
+	metrics := make([]ResolverMetrics, 0, len(a.resolverMetrics))
 
 	for path, durations := range a.resolverMetrics {
 		if len(durations) == 0 {

@@ -182,7 +182,7 @@ func (cb *dbCircuitBreaker) shouldAttempt() bool {
 // initLogging initializes the application and audit loggers.
 func initLogging() (logger.Logger, audit.Logger, error) {
 	logDir := "logs"
-	if err := os.MkdirAll(logDir, 0755); err != nil {
+	if err := os.MkdirAll(logDir, 0750); err != nil {
 		return nil, nil, fmt.Errorf("failed to create log directory: %w", err)
 	}
 
