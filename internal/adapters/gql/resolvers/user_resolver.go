@@ -132,7 +132,7 @@ func (r *userResolver) DeleteUser(ctx context.Context, id string) (*model.Mutati
 		return &model.MutationResponse{
 			Success: false,
 			Error:   &errMsg,
-		}, nil
+		}, err
 	}
 
 	successMsg := "User deleted successfully"
@@ -155,7 +155,7 @@ func (r *userResolver) ChangePassword(ctx context.Context, input model.ChangePas
 		return &model.MutationResponse{
 			Success: false,
 			Error:   &errMsg,
-		}, nil
+		}, err
 	}
 
 	successMsg := "Password changed successfully"
@@ -182,7 +182,7 @@ func (r *userResolver) ResetUserPassword(ctx context.Context, userID string, new
 		return &model.MutationResponse{
 			Success: false,
 			Error:   &errMsg,
-		}, nil
+		}, err
 	}
 
 	successMsg := "Password reset successfully"
