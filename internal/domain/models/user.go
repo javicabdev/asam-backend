@@ -21,12 +21,15 @@ const (
 // User representa un usuario del sistema con autenticación
 type User struct {
 	gorm.Model
-	Username      string `gorm:"uniqueIndex:uni_users_username;not null"`
-	Password      string `gorm:"not null"`
-	Role          Role   `gorm:"type:varchar(20);not null;default:'user'"`
-	LastLogin     time.Time
-	IsActive      bool           `gorm:"not null;default:true"`
-	RefreshTokens []RefreshToken `gorm:"foreignKey:UserID"` // Relación con tokens
+	Username           string `gorm:"uniqueIndex:uni_users_username;not null;size:100"`
+	Password           string `gorm:"not null"`
+	Role               Role   `gorm:"type:varchar(20);not null;default:'user'"`
+	LastLogin          time.Time
+	IsActive           bool `gorm:"not null;default:true"`
+	EmailVerified      bool `gorm:"not null;default:false"`
+	EmailVerifiedAt    *time.Time
+	RefreshTokens      []RefreshToken      `gorm:"foreignKey:UserID"` // Relación con tokens
+	VerificationTokens []VerificationToken `gorm:"foreignKey:UserID"` // Relación con tokens de verificación
 }
 
 // SetPassword hashea y guarda la contraseña del usuario

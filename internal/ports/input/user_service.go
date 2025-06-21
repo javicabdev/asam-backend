@@ -28,4 +28,19 @@ type UserService interface {
 
 	// ResetPassword resets a user's password (admin function)
 	ResetPassword(ctx context.Context, userID uint, newPassword string) error
+
+	// SendVerificationEmail sends a verification email to the user
+	SendVerificationEmail(ctx context.Context, userID uint) error
+
+	// VerifyEmail verifies a user's email with the provided token
+	VerifyEmail(ctx context.Context, token string) error
+
+	// RequestPasswordReset initiates a password reset for the given email
+	RequestPasswordReset(ctx context.Context, email string) error
+
+	// ResetPasswordWithToken resets password using a valid token
+	ResetPasswordWithToken(ctx context.Context, token, newPassword string) error
+
+	// ResendVerificationEmail resends the verification email
+	ResendVerificationEmail(ctx context.Context, email string) error
 }

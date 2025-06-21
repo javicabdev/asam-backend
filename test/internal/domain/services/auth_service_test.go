@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/domain/services"
@@ -18,37 +17,6 @@ import (
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/test"
 )
-
-// MockUserRepository es un mock del repositorio de usuarios
-type MockUserRepository struct {
-	mock.Mock
-}
-
-func (m *MockUserRepository) FindByUsername(ctx context.Context, username string) (*models.User, error) {
-	args := m.Called(ctx, username)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.User), args.Error(1)
-}
-
-func (m *MockUserRepository) FindByID(ctx context.Context, id uint) (*models.User, error) {
-	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.User), args.Error(1)
-}
-
-func (m *MockUserRepository) Create(ctx context.Context, user *models.User) error {
-	args := m.Called(ctx, user)
-	return args.Error(0)
-}
-
-func (m *MockUserRepository) Update(ctx context.Context, user *models.User) error {
-	args := m.Called(ctx, user)
-	return args.Error(0)
-}
 
 // MockTokenRepository es un mock del repositorio de tokens
 type MockTokenRepository struct {
@@ -91,20 +59,6 @@ func (m *MockTokenRepository) CleanupExpiredTokens(ctx context.Context) error {
 func (m *MockTokenRepository) EnforceTokenLimitPerUser(ctx context.Context, maxTokens int) error {
 	args := m.Called(ctx, maxTokens)
 	return args.Error(0)
-}
-
-// Funciones auxiliares para crear datos de prueba
-func createTestUser(id uint, username string, active bool) *models.User {
-	user := &models.User{
-		Model:     gorm.Model{ID: id},
-		Username:  username,
-		Role:      models.RoleUser,
-		IsActive:  active,
-		LastLogin: time.Now().Add(-24 * time.Hour),
-	}
-	// Set password using the model's method to ensure proper hashing
-	user.SetPassword("password123")
-	return user
 }
 
 func createTestJWTUtil() *auth.JWTUtil {

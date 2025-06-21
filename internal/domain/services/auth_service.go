@@ -4,6 +4,7 @@ package services
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -56,6 +57,11 @@ func getUserAgentFromContext(ctx context.Context) string {
 }
 
 func (s *authService) Login(ctx context.Context, username, password string) (*input.TokenDetails, error) {
+	// Normalize username if it's an email
+	if strings.Contains(username, "@") {
+		username = strings.ToLower(strings.TrimSpace(username))
+	}
+
 	// Registrar intento de login
 	s.logger.Info("Login attempt",
 		zap.String("username", username),

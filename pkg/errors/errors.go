@@ -39,6 +39,11 @@ const (
 	ErrUnauthorized ErrorCode = "UNAUTHORIZED"
 	ErrForbidden    ErrorCode = "FORBIDDEN"
 	ErrInvalidToken ErrorCode = "INVALID_TOKEN"
+
+	// ErrInvalidRequest error de solicitud inválida
+	ErrInvalidRequest ErrorCode = "INVALID_REQUEST"
+	// ErrRateLimitExceeded error de límite de tasa excedido
+	ErrRateLimitExceeded ErrorCode = "RATE_LIMIT_EXCEEDED"
 )
 
 // AppError representa un error de la aplicación

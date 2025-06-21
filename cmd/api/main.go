@@ -32,7 +32,9 @@ import (
 	"github.com/javicabdev/asam-backend/internal/config"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/domain/services"
+	infrastructure "github.com/javicabdev/asam-backend/internal/infrastructure/email"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
+	"github.com/javicabdev/asam-backend/internal/ports/output"
 	"github.com/javicabdev/asam-backend/pkg/auth"
 	"github.com/javicabdev/asam-backend/pkg/constants"
 	"github.com/javicabdev/asam-backend/pkg/logger"
@@ -494,14 +496,42 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 	cashFlowRepo := db.NewCashFlowRepository(database)
 	userRepo := db.NewUserRepository(database)
 	tokenRepo := db.NewTokenRepository(database)
+	verificationTokenRepo := db.NewVerificationTokenRepository(database)
 
 	// Initialize JWT utility
 	jwtUtil := auth.NewJWTUtil(cfg.JWTAccessSecret, cfg.JWTRefreshSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 
+	// Initialize email service
+	var emailService output.EmailService
+	if cfg.SMTPUser != "" && cfg.SMTPPassword != "" {
+		smtpConfig := infrastructure.SMTPConfig{
+			Host:     cfg.SMTPServer,
+			Port:     fmt.Sprintf("%d", cfg.SMTPPort),
+			Username: cfg.SMTPUser,
+			Password: cfg.SMTPPassword,
+			From:     cfg.SMTPFromEmail,
+			UseTLS:   cfg.SMTPUseTLS,
+		}
+		emailService = infrastructure.NewSMTPEmailService(smtpConfig, appLogger)
+		appLogger.Info("Email service configured with SMTP")
+	} else {
+		// In development or when SMTP is not configured, use mock email service
+		emailService = infrastructure.NewMockEmailService(appLogger)
+		appLogger.Warn("Using mock email service - emails will not be sent")
+	}
+
 	// Initialize domain services
 	memberService := services.NewMemberService(memberRepo, appLogger, auditLogger)
 	familyService := services.NewFamilyService(familyRepo, memberRepo)
-	userService := services.NewUserService(userRepo, appLogger)
+
+	// Initialize user service with all required dependencies
+	userService := services.NewUserService(
+		userRepo,
+		verificationTokenRepo,
+		emailService,
+		appLogger,
+		cfg.BaseURL,
+	)
 
 	notificationService, err := createNotificationService(cfg, appLogger)
 	if err != nil {

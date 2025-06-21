@@ -1180,6 +1180,41 @@ func (m *MockUserService) ResetPassword(ctx context.Context, userID uint, newPas
 	return args.Error(0)
 }
 
+// SendVerificationEmail sends a verification email to the user.
+// Returns an error if the email sending fails.
+func (m *MockUserService) SendVerificationEmail(ctx context.Context, userID uint) error {
+	args := m.Called(ctx, userID)
+	return args.Error(0)
+}
+
+// VerifyEmail verifies a user's email using the provided token.
+// Returns an error if the verification fails.
+func (m *MockUserService) VerifyEmail(ctx context.Context, token string) error {
+	args := m.Called(ctx, token)
+	return args.Error(0)
+}
+
+// RequestPasswordReset initiates a password reset request for the given email.
+// Returns an error if the request fails.
+func (m *MockUserService) RequestPasswordReset(ctx context.Context, email string) error {
+	args := m.Called(ctx, email)
+	return args.Error(0)
+}
+
+// ResetPasswordWithToken resets a user's password using a reset token.
+// Returns an error if the reset fails.
+func (m *MockUserService) ResetPasswordWithToken(ctx context.Context, token, newPassword string) error {
+	args := m.Called(ctx, token, newPassword)
+	return args.Error(0)
+}
+
+// ResendVerificationEmail resends the verification email to the user.
+// Returns an error if the email sending fails.
+func (m *MockUserService) ResendVerificationEmail(ctx context.Context, email string) error {
+	args := m.Called(ctx, email)
+	return args.Error(0)
+}
+
 // MockAuthService es un mock de input.AuthService
 type MockAuthService struct {
 	mock.Mock

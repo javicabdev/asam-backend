@@ -13,17 +13,28 @@ import (
 
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/domain/services"
+	"github.com/javicabdev/asam-backend/internal/ports/input"
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/test"
 )
 
+// Helper function to create user service with mocks
+func setupUserServiceTest() (input.UserService, *MockUserRepository, *MockVerificationTokenRepository, *MockEmailService) {
+	userRepo := new(MockUserRepository)
+	tokenRepo := new(MockVerificationTokenRepository)
+	emailService := new(MockEmailService)
+	logger := &test.MockLogger{}
+	baseURL := "http://test.example.com"
+
+	userService := services.NewUserService(userRepo, tokenRepo, emailService, logger, baseURL)
+
+	return userService, userRepo, tokenRepo, emailService
+}
+
 // TestUserService_CreateUser tests
 func TestUserService_CreateUser_Success(t *testing.T) {
 	// Arrange
-	userRepo := new(MockUserRepository)
-	logger := &test.MockLogger{}
-
-	userService := services.NewUserService(userRepo, logger)
+	userService, userRepo, _, _ := setupUserServiceTest()
 
 	ctx := context.Background()
 	username := "newuser"
@@ -62,12 +73,61 @@ func TestUserService_CreateUser_Success(t *testing.T) {
 	userRepo.AssertExpectations(t)
 }
 
+func TestUserService_CreateUser_WithEmail_Success(t *testing.T) {
+	// Arrange
+	userService, userRepo, tokenRepo, emailService := setupUserServiceTest()
+
+	ctx := context.Background()
+	username := "newuser@example.com"
+	password := "SecurePass123!"
+	role := models.RoleUser
+
+	// Setup mocks - user doesn't exist
+	userRepo.On("FindByUsername", ctx, username).Return(nil, nil)
+	userRepo.On("Create", ctx, mock.AnythingOfType("*models.User")).Return(nil).Run(func(args mock.Arguments) {
+		// Verify the user object passed to Create
+		user := args.Get(1).(*models.User)
+		assert.Equal(t, username, user.Username)
+		assert.Equal(t, role, user.Role)
+		assert.True(t, user.IsActive)
+		assert.False(t, user.EmailVerified) // Should not be verified for email username
+
+		// Verify password is hashed
+		err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+		assert.NoError(t, err)
+
+		// Set ID to simulate DB behavior
+		user.ID = 1
+	})
+
+	// Email verification should be sent
+	userRepo.On("FindByID", ctx, uint(1)).Return(&models.User{
+		Model:         gorm.Model{ID: 1},
+		Username:      username,
+		EmailVerified: false,
+	}, nil)
+	tokenRepo.On("DeleteUserTokensByType", ctx, uint(1), models.TokenTypeEmailVerification).Return(nil)
+	tokenRepo.On("Create", ctx, mock.AnythingOfType("*models.VerificationToken")).Return(nil)
+	emailService.On("SendVerificationEmail", ctx, username, mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
+
+	// Act
+	result, err := userService.CreateUser(ctx, username, password, role)
+
+	// Assert
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, uint(1), result.ID)
+	assert.Equal(t, username, result.Username)
+	assert.Equal(t, role, result.Role)
+	assert.True(t, result.IsActive)
+	assert.Empty(t, result.Password) // Password should be cleared
+
+	userRepo.AssertExpectations(t)
+}
+
 func TestUserService_CreateUser_InvalidUsername(t *testing.T) {
 	// Arrange
-	userRepo := new(MockUserRepository)
-	logger := &test.MockLogger{}
-
-	userService := services.NewUserService(userRepo, logger)
+	userService, _, _, _ := setupUserServiceTest()
 
 	ctx := context.Background()
 
@@ -88,13 +148,53 @@ func TestUserService_CreateUser_InvalidUsername(t *testing.T) {
 		},
 		{
 			name:     "Too long username",
-			username: "thisisaverylongusernamethatexceedsfiftycharactersandshouldfail",
-			errMsg:   "Username must not exceed 50 characters",
+			username: "thisisaverylongusernamethatexceedsonehundredcharactersandshouldfailvalidationbecauseitistoolongforusX",
+			errMsg:   "Username must not exceed 100 characters",
 		},
 		{
 			name:     "Invalid characters",
-			username: "user@#$%",
+			username: "user#$%!",
 			errMsg:   "Username can only contain letters, numbers, underscore, hyphen, and dot",
+		},
+		{
+			name:     "Invalid email - no domain",
+			username: "user@",
+			errMsg:   "Please provide a valid email address",
+		},
+		{
+			name:     "Invalid email - no local part",
+			username: "@example.com",
+			errMsg:   "Please provide a valid email address",
+		},
+		{
+			name:     "Invalid email - multiple @",
+			username: "user@@example.com",
+			errMsg:   "Please provide a valid email address",
+		},
+		{
+			name:     "Invalid email - no TLD",
+			username: "user@example",
+			errMsg:   "Please provide a valid email address",
+		},
+		{
+			name:     "Invalid email - consecutive dots",
+			username: "user..name@example.com",
+			errMsg:   "Email cannot contain consecutive dots",
+		},
+		{
+			name:     "Invalid email - starts with dot",
+			username: ".user@example.com",
+			errMsg:   "Email local part cannot start or end with a dot",
+		},
+		{
+			name:     "Invalid email - ends with dot",
+			username: "user.@example.com",
+			errMsg:   "Email local part cannot start or end with a dot",
+		},
+		{
+			name:     "Invalid email - local part too long",
+			username: "verylonglocalpartthathassixtyfivorcharactersandexceedsthelimitset@example.com",
+			errMsg:   "Email local part must be between 1 and 64 characters",
 		},
 	}
 
@@ -115,12 +215,65 @@ func TestUserService_CreateUser_InvalidUsername(t *testing.T) {
 	}
 }
 
+func TestUserService_CreateUser_ValidEmails(t *testing.T) {
+	// Arrange
+	userService, userRepo, tokenRepo, emailService := setupUserServiceTest()
+
+	ctx := context.Background()
+	password := "ValidPass123!"
+	role := models.RoleUser
+
+	validEmails := []string{
+		"user@example.com",
+		"user.name@example.com",
+		"user+tag@example.com",
+		"user_name@example.com",
+		"user-name@example.com",
+		"user123@example.com",
+		"123user@example.com",
+		"u@example.com",
+		"user@subdomain.example.com",
+		"user@example.co.uk",
+		"user%test@example.com",
+	}
+
+	for _, email := range validEmails {
+		t.Run(email, func(t *testing.T) {
+			// Setup mocks
+			userRepo.On("FindByUsername", ctx, email).Return(nil, nil).Once()
+			userRepo.On("Create", ctx, mock.AnythingOfType("*models.User")).Return(nil).Once().Run(func(args mock.Arguments) {
+				user := args.Get(1).(*models.User)
+				user.ID = 1
+			})
+
+			// Email verification mocks
+			userRepo.On("FindByID", ctx, uint(1)).Return(&models.User{
+				Model:         gorm.Model{ID: 1},
+				Username:      email,
+				EmailVerified: false,
+			}, nil).Once()
+			tokenRepo.On("DeleteUserTokensByType", ctx, uint(1), models.TokenTypeEmailVerification).Return(nil).Once()
+			tokenRepo.On("Create", ctx, mock.AnythingOfType("*models.VerificationToken")).Return(nil).Once()
+			emailService.On("SendVerificationEmail", ctx, email, mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil).Once()
+
+			// Act
+			result, err := userService.CreateUser(ctx, email, password, role)
+
+			// Assert
+			require.NoError(t, err)
+			assert.NotNil(t, result)
+			assert.Equal(t, email, result.Username)
+		})
+	}
+
+	userRepo.AssertExpectations(t)
+	tokenRepo.AssertExpectations(t)
+	emailService.AssertExpectations(t)
+}
+
 func TestUserService_CreateUser_InvalidPassword(t *testing.T) {
 	// Arrange
-	userRepo := new(MockUserRepository)
-	logger := &test.MockLogger{}
-
-	userService := services.NewUserService(userRepo, logger)
+	userService, _, _, _ := setupUserServiceTest()
 
 	ctx := context.Background()
 	username := "validuser"
@@ -181,10 +334,7 @@ func TestUserService_CreateUser_InvalidPassword(t *testing.T) {
 
 func TestUserService_CreateUser_UsernameAlreadyExists(t *testing.T) {
 	// Arrange
-	userRepo := new(MockUserRepository)
-	logger := &test.MockLogger{}
-
-	userService := services.NewUserService(userRepo, logger)
+	userService, userRepo, _, _ := setupUserServiceTest()
 
 	ctx := context.Background()
 	username := "existinguser"
@@ -214,10 +364,7 @@ func TestUserService_CreateUser_UsernameAlreadyExists(t *testing.T) {
 
 func TestUserService_CreateUser_DatabaseError(t *testing.T) {
 	// Arrange
-	userRepo := new(MockUserRepository)
-	logger := &test.MockLogger{}
-
-	userService := services.NewUserService(userRepo, logger)
+	userService, userRepo, _, _ := setupUserServiceTest()
 
 	ctx := context.Background()
 	username := "newuser"
@@ -247,10 +394,7 @@ func TestUserService_CreateUser_DatabaseError(t *testing.T) {
 // TestUserService_UpdateUser tests
 func TestUserService_UpdateUser_Success(t *testing.T) {
 	// Arrange
-	userRepo := new(MockUserRepository)
-	logger := &test.MockLogger{}
-
-	userService := services.NewUserService(userRepo, logger)
+	userService, userRepo, _, _ := setupUserServiceTest()
 
 	ctx := context.Background()
 	userID := uint(1)
@@ -287,12 +431,43 @@ func TestUserService_UpdateUser_Success(t *testing.T) {
 	userRepo.AssertExpectations(t)
 }
 
+func TestUserService_UpdateUser_ToEmail_Success(t *testing.T) {
+	// Arrange
+	userService, userRepo, _, _ := setupUserServiceTest()
+
+	ctx := context.Background()
+	userID := uint(1)
+	existingUser := createTestUser(userID, "oldusername", true)
+	newEmail := "newemail@example.com"
+
+	updates := map[string]interface{}{
+		"username": newEmail,
+	}
+
+	// Setup mocks
+	userRepo.On("FindByID", ctx, userID).Return(existingUser, nil)
+	userRepo.On("FindByUsername", ctx, newEmail).Return(nil, nil) // Email not taken
+	userRepo.On("Update", ctx, mock.AnythingOfType("*models.User")).Return(nil).Run(func(args mock.Arguments) {
+		// Verify the updated user
+		user := args.Get(1).(*models.User)
+		assert.Equal(t, newEmail, user.Username)
+		assert.False(t, user.EmailVerified) // Should be marked as unverified
+	})
+
+	// Act
+	result, err := userService.UpdateUser(ctx, userID, updates)
+
+	// Assert
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, newEmail, result.Username)
+
+	userRepo.AssertExpectations(t)
+}
+
 func TestUserService_UpdateUser_WithPassword(t *testing.T) {
 	// Arrange
-	userRepo := new(MockUserRepository)
-	logger := &test.MockLogger{}
-
-	userService := services.NewUserService(userRepo, logger)
+	userService, userRepo, _, _ := setupUserServiceTest()
 
 	ctx := context.Background()
 	userID := uint(1)
@@ -325,10 +500,7 @@ func TestUserService_UpdateUser_WithPassword(t *testing.T) {
 
 func TestUserService_UpdateUser_UserNotFound(t *testing.T) {
 	// Arrange
-	userRepo := new(MockUserRepository)
-	logger := &test.MockLogger{}
-
-	userService := services.NewUserService(userRepo, logger)
+	userService, userRepo, _, _ := setupUserServiceTest()
 
 	ctx := context.Background()
 	userID := uint(999)
@@ -356,10 +528,7 @@ func TestUserService_UpdateUser_UserNotFound(t *testing.T) {
 
 func TestUserService_UpdateUser_UsernameAlreadyTaken(t *testing.T) {
 	// Arrange
-	userRepo := new(MockUserRepository)
-	logger := &test.MockLogger{}
-
-	userService := services.NewUserService(userRepo, logger)
+	userService, userRepo, _, _ := setupUserServiceTest()
 
 	ctx := context.Background()
 	userID := uint(1)
@@ -392,10 +561,7 @@ func TestUserService_UpdateUser_UsernameAlreadyTaken(t *testing.T) {
 // TestUserService_DeleteUser tests
 func TestUserService_DeleteUser_Success(t *testing.T) {
 	// Arrange
-	userRepo := new(MockUserRepository)
-	logger := &test.MockLogger{}
-
-	userService := services.NewUserService(userRepo, logger)
+	userService, userRepo, _, _ := setupUserServiceTest()
 
 	ctx := context.Background()
 	userID := uint(1)
@@ -420,10 +586,7 @@ func TestUserService_DeleteUser_Success(t *testing.T) {
 
 func TestUserService_DeleteUser_NotFound(t *testing.T) {
 	// Arrange
-	userRepo := new(MockUserRepository)
-	logger := &test.MockLogger{}
-
-	userService := services.NewUserService(userRepo, logger)
+	userService, userRepo, _, _ := setupUserServiceTest()
 
 	ctx := context.Background()
 	userID := uint(999)
@@ -447,10 +610,7 @@ func TestUserService_DeleteUser_NotFound(t *testing.T) {
 // TestUserService_GetUser tests
 func TestUserService_GetUser_Success(t *testing.T) {
 	// Arrange
-	userRepo := new(MockUserRepository)
-	logger := &test.MockLogger{}
-
-	userService := services.NewUserService(userRepo, logger)
+	userService, userRepo, _, _ := setupUserServiceTest()
 
 	ctx := context.Background()
 	userID := uint(1)
@@ -474,10 +634,7 @@ func TestUserService_GetUser_Success(t *testing.T) {
 
 func TestUserService_GetUser_NotFound(t *testing.T) {
 	// Arrange
-	userRepo := new(MockUserRepository)
-	logger := &test.MockLogger{}
-
-	userService := services.NewUserService(userRepo, logger)
+	userService, userRepo, _, _ := setupUserServiceTest()
 
 	ctx := context.Background()
 	userID := uint(999)
@@ -502,10 +659,7 @@ func TestUserService_GetUser_NotFound(t *testing.T) {
 // TestUserService_ChangePassword tests
 func TestUserService_ChangePassword_Success(t *testing.T) {
 	// Arrange
-	userRepo := new(MockUserRepository)
-	logger := &test.MockLogger{}
-
-	userService := services.NewUserService(userRepo, logger)
+	userService, userRepo, _, emailService := setupUserServiceTest()
 
 	ctx := context.Background()
 	userID := uint(1)
@@ -515,7 +669,7 @@ func TestUserService_ChangePassword_Success(t *testing.T) {
 	// Create user with known password
 	user := &models.User{
 		Model:    gorm.Model{ID: userID},
-		Username: "testuser",
+		Username: "test@example.com",
 		Role:     models.RoleUser,
 		IsActive: true,
 	}
@@ -531,6 +685,7 @@ func TestUserService_ChangePassword_Success(t *testing.T) {
 		err := bcrypt.CompareHashAndPassword([]byte(updatedUser.Password), []byte(newPassword))
 		assert.NoError(t, err)
 	})
+	emailService.On("SendPasswordChangedEmail", ctx, "test@example.com", "test").Return(nil)
 
 	// Act
 	err := userService.ChangePassword(ctx, userID, currentPassword, newPassword)
@@ -539,14 +694,12 @@ func TestUserService_ChangePassword_Success(t *testing.T) {
 	assert.NoError(t, err)
 
 	userRepo.AssertExpectations(t)
+	emailService.AssertExpectations(t)
 }
 
 func TestUserService_ChangePassword_IncorrectCurrentPassword(t *testing.T) {
 	// Arrange
-	userRepo := new(MockUserRepository)
-	logger := &test.MockLogger{}
-
-	userService := services.NewUserService(userRepo, logger)
+	userService, userRepo, _, _ := setupUserServiceTest()
 
 	ctx := context.Background()
 	userID := uint(1)
@@ -571,10 +724,7 @@ func TestUserService_ChangePassword_IncorrectCurrentPassword(t *testing.T) {
 
 func TestUserService_ChangePassword_InvalidNewPassword(t *testing.T) {
 	// Arrange
-	userRepo := new(MockUserRepository)
-	logger := &test.MockLogger{}
-
-	userService := services.NewUserService(userRepo, logger)
+	userService, userRepo, _, _ := setupUserServiceTest()
 
 	ctx := context.Background()
 	userID := uint(1)
@@ -602,6 +752,7 @@ func TestUserService_ChangePassword_InvalidNewPassword(t *testing.T) {
 	appErr, ok := appErrors.AsAppError(err)
 	require.True(t, ok)
 	assert.Equal(t, appErrors.ErrValidationFailed, appErr.Code)
+	assert.Contains(t, appErr.Fields["password"], "Password must be at least 8 characters long")
 
 	userRepo.AssertExpectations(t)
 }
@@ -609,10 +760,7 @@ func TestUserService_ChangePassword_InvalidNewPassword(t *testing.T) {
 // TestUserService_ResetPassword tests
 func TestUserService_ResetPassword_Success(t *testing.T) {
 	// Arrange
-	userRepo := new(MockUserRepository)
-	logger := &test.MockLogger{}
-
-	userService := services.NewUserService(userRepo, logger)
+	userService, userRepo, _, _ := setupUserServiceTest()
 
 	ctx := context.Background()
 	userID := uint(1)
@@ -639,10 +787,7 @@ func TestUserService_ResetPassword_Success(t *testing.T) {
 
 func TestUserService_ResetPassword_UserNotFound(t *testing.T) {
 	// Arrange
-	userRepo := new(MockUserRepository)
-	logger := &test.MockLogger{}
-
-	userService := services.NewUserService(userRepo, logger)
+	userService, userRepo, _, _ := setupUserServiceTest()
 
 	ctx := context.Background()
 	userID := uint(999)
@@ -666,19 +811,12 @@ func TestUserService_ResetPassword_UserNotFound(t *testing.T) {
 
 func TestUserService_ResetPassword_InvalidPassword(t *testing.T) {
 	// Arrange
-	userRepo := new(MockUserRepository)
-	logger := &test.MockLogger{}
-
-	userService := services.NewUserService(userRepo, logger)
+	userService, _, _, _ := setupUserServiceTest()
 
 	ctx := context.Background()
 	userID := uint(1)
-	user := createTestUser(userID, "testuser", true)
 
-	// Setup mocks
-	userRepo.On("FindByID", ctx, userID).Return(user, nil)
-
-	// Act - password too short
+	// Act - password too short, no mocks needed since validation happens first
 	err := userService.ResetPassword(ctx, userID, "short")
 
 	// Assert
@@ -687,6 +825,5 @@ func TestUserService_ResetPassword_InvalidPassword(t *testing.T) {
 	appErr, ok := appErrors.AsAppError(err)
 	require.True(t, ok)
 	assert.Equal(t, appErrors.ErrValidationFailed, appErr.Code)
-
-	userRepo.AssertExpectations(t)
+	assert.Contains(t, appErr.Fields["password"], "Password must be at least 8 characters long")
 }

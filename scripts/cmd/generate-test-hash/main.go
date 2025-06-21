@@ -12,10 +12,10 @@ func main() {
 		fmt.Printf("Error generating hash: %v\n", err)
 		return
 	}
-	
+
 	fmt.Printf("Password: %s\n", password)
 	fmt.Printf("Hash: %s\n", string(hashedPassword))
-	
+
 	// Verify the hash works
 	err = bcrypt.CompareHashAndPassword(hashedPassword, []byte(password))
 	if err != nil {

@@ -63,6 +63,8 @@ type User {
     role: UserRole!
     isActive: Boolean!
     lastLogin: Time
+    emailVerified: Boolean!
+    emailVerifiedAt: Time
 }
 
 type AuthResponse {
@@ -388,4 +390,13 @@ type Mutation {
     deleteUser(id: ID!): MutationResponse!
     changePassword(input: ChangePasswordInput!): MutationResponse!
     resetUserPassword(userId: ID!, newPassword: String!): MutationResponse! # Admin only
+    
+    # Email Verification Mutations
+    sendVerificationEmail: MutationResponse!
+    verifyEmail(token: String!): MutationResponse!
+    resendVerificationEmail(email: String!): MutationResponse!
+    
+    # Password Recovery Mutations
+    requestPasswordReset(email: String!): MutationResponse!
+    resetPasswordWithToken(token: String!, newPassword: String!): MutationResponse!
 }
