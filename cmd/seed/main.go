@@ -16,6 +16,7 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq" // PostgreSQL driver for database/sql
 
+	"github.com/javicabdev/asam-backend/pkg/constants"
 	"github.com/javicabdev/asam-backend/test/seed"
 	"github.com/javicabdev/asam-backend/test/seed/data"
 )
@@ -73,25 +74,25 @@ func main() {
 
 	// Validate the environment flag
 	environment = strings.ToLower(environment)
-	if environment != "local" && environment != "aiven" && environment != "all" {
+	if environment != constants.EnvLocal && environment != constants.EnvAiven && environment != constants.EnvAll {
 		log.Fatalf("Invalid environment '%s'. Must be 'local', 'aiven', or 'all'.", environment)
 	}
 
 	// Execute seeder for the specified environment(s)
-	if environment == "local" || environment == "all" {
+	if environment == constants.EnvLocal || environment == constants.EnvAll {
 		log.Println("==================================================")
 		log.Println("Running seed on LOCAL database")
 		log.Println("==================================================")
 		clearDatabaseEnvVars()
 		if err := runSeedForEnv(LocalEnvFile); err != nil {
 			log.Printf("Error seeding local database: %v", err)
-			if environment == "local" { // Exit if only local was specified and it failed
+			if environment == constants.EnvLocal { // Exit if only local was specified and it failed
 				os.Exit(1)
 			}
 		}
 	}
 
-	if environment == "aiven" || environment == "all" {
+	if environment == constants.EnvAiven || environment == constants.EnvAll {
 		log.Println("==================================================")
 		log.Println("Running seed on AIVEN database")
 		log.Println("==================================================")
@@ -140,7 +141,7 @@ func connectToDatabase(envFile string) (*sqlx.DB, error) {
 			return nil, fmt.Errorf("database connection parameters (DB_HOST, DB_PORT, DB_USER, DB_NAME) not found in environment file %s", envFile)
 		}
 		if sslMode == "" {
-			sslMode = "disable" // Default SSL mode
+			sslMode = constants.SSLModeDisable // Default SSL mode
 			log.Printf("DB_SSL_MODE not set, defaulting to '%s'", sslMode)
 		}
 		dbConn = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",

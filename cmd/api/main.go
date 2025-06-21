@@ -188,7 +188,7 @@ func initLogging() (logger.Logger, audit.Logger, error) {
 
 	cfg := logger.DefaultConfig()
 	// Configure logger for development environment
-	if os.Getenv("GO_ENV") == "development" {
+	if os.Getenv("GO_ENV") == constants.EnvDevelopment {
 		cfg.Development = true
 		cfg.Level = logger.DebugLevel
 		cfg.MaxSize = 10   // 10 MB
@@ -373,7 +373,7 @@ func updateMetricsPeriodically(ctx context.Context, log logger.Logger, deps *app
 
 // createNotificationService creates a notification service based on the environment configuration.
 func createNotificationService(cfg *config.Config, log logger.Logger) (input.NotificationService, error) {
-	if cfg.Environment == "development" {
+	if cfg.Environment == constants.EnvDevelopment {
 		log.Warn("Using development notification service with placeholder SMTP values")
 		// For development, use mock or placeholder values
 		return services.NewEmailNotificationService(
@@ -556,7 +556,7 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 	// Initialize monitoring components
 	// 1. Setup query monitor for tracking slow queries
 	var slowThreshold time.Duration
-	if cfg.Environment == "development" {
+	if cfg.Environment == constants.EnvDevelopment {
 		slowThreshold = 200 * time.Millisecond
 	} else {
 		slowThreshold = 100 * time.Millisecond
@@ -587,7 +587,7 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 	)
 
 	// Only start the profiling server in development or when explicitly enabled
-	if cfg.Environment == "development" || cfg.EnableProfiling {
+	if cfg.Environment == constants.EnvDevelopment || cfg.EnableProfiling {
 		profilingServer.Start()
 	}
 
@@ -641,7 +641,7 @@ func healthHandler(cfg *config.Config, state *appState) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		health := HealthStatus{
-			Status:      "UP",
+			Status:      constants.HealthStatusUp,
 			Version:     Version,
 			Commit:      Commit,
 			BuildTime:   BuildTime,
@@ -667,18 +667,18 @@ func healthHandler(cfg *config.Config, state *appState) http.HandlerFunc {
 				defer cancel()
 
 				if err := sqlDB.PingContext(ctx); err == nil {
-					health.Database = "healthy"
+					health.Database = constants.HealthStatusHealthy
 				} else {
-					health.Database = "unhealthy"
-					health.Status = "DEGRADED"
+					health.Database = constants.HealthStatusUnhealthy
+					health.Status = constants.HealthStatusDegraded
 				}
 			} else {
 				health.Database = "error"
-				health.Status = "DEGRADED"
+				health.Status = constants.HealthStatusDegraded
 			}
 		} else if dbError != nil {
 			health.Database = "failed"
-			health.Status = "DEGRADED"
+			health.Status = constants.HealthStatusDegraded
 			if dbRetrying {
 				health.Database = "retrying"
 			}
@@ -689,20 +689,20 @@ func healthHandler(cfg *config.Config, state *appState) http.HandlerFunc {
 		// Check services status
 		if deps != nil && deps.serviceStatus != nil {
 			if deps.serviceStatus.Auth.Load() {
-				health.Services["auth"] = "healthy"
+				health.Services["auth"] = constants.HealthStatusHealthy
 			} else {
-				health.Services["auth"] = "unhealthy"
+				health.Services["auth"] = constants.HealthStatusUnhealthy
 			}
 
 			if deps.serviceStatus.Notification.Load() {
-				health.Services["notification"] = "healthy"
+				health.Services["notification"] = constants.HealthStatusHealthy
 			} else {
-				health.Services["notification"] = "unhealthy"
+				health.Services["notification"] = constants.HealthStatusUnhealthy
 			}
 		}
 
 		statusCode := http.StatusOK
-		if health.Status != "UP" {
+		if health.Status != constants.HealthStatusUp {
 			statusCode = http.StatusServiceUnavailable
 		}
 
@@ -1074,7 +1074,7 @@ func run(ctx context.Context) error {
 
 		// Graceful shutdown
 		shutdownTimeout := 30 * time.Second
-		if cfg.Environment == "development" {
+		if cfg.Environment == constants.EnvDevelopment {
 			shutdownTimeout = 5 * time.Second
 		}
 
