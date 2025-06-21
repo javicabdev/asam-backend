@@ -71,14 +71,6 @@ linters-settings:
     # Report about shadowed variables
     check-shadowing: true
   
-  gofmt:
-    # Simplify code
-    simplify: true
-  
-  goimports:
-    # Put imports beginning with prefix after 3rd-party packages
-    local-prefixes: github.com/javicabdev/asam-backend
-  
   gocyclo:
     # Minimal code complexity to report
     min-complexity: 15
@@ -92,10 +84,6 @@ linters-settings:
     min-len: 3
     # Minimal occurrences count to trigger
     min-occurrences: 3
-  
-  misspell:
-    # Correct spellings using locale preferences for US or UK
-    locale: US
   
   unused:
     # Treat code as a program (not a library) and report unused exported identifiers
@@ -122,46 +110,73 @@ linters-settings:
       - unnamedResult
       - ruleguard
       - truncateCmp
+  
+  revive:
+    # Confidence threshold, 0.8 by default
+    confidence: 0.8
+    # Fail if the confidence is below the threshold
+    ignore-generated-header: true
+    # Severity of the issue
+    severity: warning
+  
+  exhaustive:
+    # Check switch statements in generated files
+    check-generated: false
+    # Presence of "default" case satisfies exhaustiveness
+    default-signifies-exhaustive: false
+  
+  nolintlint:
+    # Enable specific requirements
+    allow-unused: false
+    allow-leading-space: false
+    require-explanation: true
+    require-specific: true
 
 linters:
   # Disable all linters
   disable-all: true
   # Enable specific linters
   enable:
-    # Core linters (disponibles en todas las versiones)
+    # Core linters (habilitados por defecto en golangci-lint)
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
     - unused
-    # Linters adicionales estables
+    
+    # Linters de formato y estilo
+    - whitespace
+    - revive        # Reemplazo moderno de golint
+    
+    # Linters de calidad de código
     - bodyclose
     - dupl
     - goconst
     - gocritic
     - gocyclo
-    - gofmt
-    - goimports
-    - gosec
-    - misspell
     - nakedret
     - prealloc
     - unconvert
     - unparam
-    - whitespace
-    # Linters que podrían no estar disponibles (comentados)
-    # - exhaustive
-    # - exportloopref  # Puede no estar disponible
-    # - gochecknoinits
-    # - goprintffuncname
-    # - lll
-    # - noctx
-    # - nolintlint    # Puede no estar disponible
-    # - rowserrcheck
-    # - sqlclosecheck # Puede no estar disponible
-    # - stylecheck
-    # - gofumpt       # Puede no estar disponible
+    
+    # Linters de seguridad
+    - gosec
+    
+    # Linters adicionales útiles
+    - exhaustive    # Verifica exhaustividad en switch de enums
+    - gochecknoinits
+    - goprintffuncname
+    - noctx        # HTTP requests sin context
+    - nolintlint   # Directivas nolint bien formadas
+    - rowserrcheck # Verifica rows.Err()
+    - sqlclosecheck # Verifica cierre de sql.Rows y sql.Stmt
+    - bidichk      # Caracteres unicode peligrosos
+    - durationcheck # Multiplicación de duraciones
+    - errname      # Convenciones de nombres de errores
+    - forcetypeassert # Type assertions sin verificación
+    - makezero     # Slices con longitud inicial no-zero
+    - nilerr       # Return nil con check de error
+    - wastedassign # Asignaciones no utilizadas
 
 issues:
   # Excluding configuration per-path, per-linter, per-text and per-source
@@ -174,6 +189,8 @@ issues:
         - dupl
         - gosec
         - goconst
+        - forcetypeassert
+        - noctx
     
     # Exclude known linters from partially hard-vendored code
     - path: vendor/
@@ -185,6 +202,17 @@ issues:
     - linters:
         - staticcheck
       text: "SA1019:" # Using a deprecated function, variable, constant or field
+    
+    # Exclude revive's exported comments check for main packages
+    - path: cmd/.*\.go
+      linters:
+        - revive
+      text: "exported .* should have comment or be unexported"
+    
+    # Allow init functions in main packages
+    - path: cmd/.*\.go
+      linters:
+        - gochecknoinits
   
   # Independently from option `exclude` we use default exclude patterns
   exclude-use-default: false
