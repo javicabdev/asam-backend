@@ -1,8 +1,9 @@
 # golangci-lint configuration
 # https://golangci-lint.run/usage/configuration/
 
-# Version is required for golangci-lint 2.1.6
-version: 2.1.6
+# Version of config format (not golangci-lint version)
+# Use version 2 for golangci-lint 2.x
+version: "2"
 
 # Options for analysis running
 run:
