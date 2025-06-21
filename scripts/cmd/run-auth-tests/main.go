@@ -32,7 +32,10 @@ func main() {
 	// Change to project root if we're in scripts directory
 	if strings.HasSuffix(projectRoot, "scripts") {
 		projectRoot = filepath.Dir(projectRoot)
-		os.Chdir(projectRoot)
+		if err := os.Chdir(projectRoot); err != nil {
+			fmt.Printf("%s❌ Error changing directory: %v%s\n", colorRed, err, colorReset)
+			os.Exit(1)
+		}
 	}
 
 	// Test package path
@@ -123,9 +126,13 @@ func main() {
 		if runtime.GOOS == "windows" {
 			fmt.Print("\nOpen report in browser? (y/n): ")
 			var response string
-			fmt.Scanln(&response)
+			if _, err := fmt.Scanln(&response); err != nil && err.Error() != "unexpected newline" {
+				fmt.Printf("\n%sWarning: Error reading response: %v%s\n", colorYellow, err, colorReset)
+			}
 			if strings.ToLower(response) == "y" {
-				exec.Command("cmd", "/c", "start", htmlFile).Start()
+				if err := exec.Command("cmd", "/c", "start", htmlFile).Start(); err != nil {
+					fmt.Printf("%s❌ Failed to open HTML file in browser: %v%s\n", colorRed, err, colorReset)
+				}
 			}
 		}
 	}
