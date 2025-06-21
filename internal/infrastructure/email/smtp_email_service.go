@@ -7,9 +7,10 @@ import (
 	"net/smtp"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/javicabdev/asam-backend/internal/ports/output"
 	"github.com/javicabdev/asam-backend/pkg/logger"
-	"go.uber.org/zap"
 )
 
 // SMTPConfig contiene la configuración para el servicio SMTP
@@ -37,7 +38,7 @@ func NewSMTPEmailService(config SMTPConfig, logger logger.Logger) output.EmailSe
 }
 
 // SendEmail envía un email de texto plano
-func (s *SMTPEmailService) SendEmail(ctx context.Context, to, subject, body string) error {
+func (s *SMTPEmailService) SendEmail(_ context.Context, to, subject, body string) error {
 	// Construir el mensaje
 	message := s.buildMessage(to, subject, body, false)
 
@@ -46,7 +47,7 @@ func (s *SMTPEmailService) SendEmail(ctx context.Context, to, subject, body stri
 }
 
 // SendHTMLEmail envía un email HTML
-func (s *SMTPEmailService) SendHTMLEmail(ctx context.Context, to, subject, htmlBody string) error {
+func (s *SMTPEmailService) SendHTMLEmail(_ context.Context, to, subject, htmlBody string) error {
 	// Construir el mensaje HTML
 	message := s.buildMessage(to, subject, htmlBody, true)
 
@@ -264,14 +265,22 @@ func (s *SMTPEmailService) sendMailTLS(addr string, auth smtp.Auth, from string,
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			s.logger.Warn("Failed to close TLS connection", zap.Error(err))
+		}
+	}()
 
 	// Crear cliente SMTP
 	client, err := smtp.NewClient(conn, s.config.Host)
 	if err != nil {
 		return fmt.Errorf("failed to create SMTP client: %w", err)
 	}
-	defer client.Close()
+	defer func() {
+		if err := client.Close(); err != nil {
+			s.logger.Warn("Failed to close SMTP client", zap.Error(err))
+		}
+	}()
 
 	// Autenticar
 	if err = client.Auth(auth); err != nil {
