@@ -1,4 +1,5 @@
-# Configuration file for golangci-lint v2.1.6
+version: v2
+
 run:
   timeout: 5m
   skip-dirs:
