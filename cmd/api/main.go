@@ -659,7 +659,8 @@ func healthHandler(cfg *config.Config, state *appState) http.HandlerFunc {
 		dbRetrying := state.dbRetrying
 		state.mu.RUnlock()
 
-		if database != nil {
+		switch {
+		case database != nil:
 			sqlDB, err := database.DB()
 			if err == nil {
 				// Reduced timeout from 2s to 1s for faster response
@@ -676,13 +677,13 @@ func healthHandler(cfg *config.Config, state *appState) http.HandlerFunc {
 				health.Database = "error"
 				health.Status = constants.HealthStatusDegraded
 			}
-		} else if dbError != nil {
+		case dbError != nil:
 			health.Database = "failed"
 			health.Status = constants.HealthStatusDegraded
 			if dbRetrying {
 				health.Database = "retrying"
 			}
-		} else {
+		default:
 			health.Database = "connecting"
 		}
 
@@ -1148,6 +1149,7 @@ func main() {
 		// Use fmt.Fprintln for critical errors, as logger might not be available
 		// or the error occurred before logger was fully set up.
 		_, _ = fmt.Fprintln(os.Stderr, "Application run failed:", err)
+		cancel()   // Call cancel explicitly before exit
 		os.Exit(1) // Exit with a non-zero status code to indicate failure.
 	}
 	fmt.Println("Application exited successfully.")

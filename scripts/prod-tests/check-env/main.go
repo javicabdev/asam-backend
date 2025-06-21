@@ -1,3 +1,4 @@
+// Package main provides a utility to check environment variables for production deployment
 package main
 
 import (
@@ -38,6 +39,7 @@ func main() {
 		"DB_HOST",
 		"DB_PORT",
 		"DB_USER",
+		"DB_PASSWORD",
 		"DB_NAME",
 		"DB_SSL_MODE",
 		"PORT",
@@ -45,11 +47,12 @@ func main() {
 
 	for _, envVar := range envVars {
 		value := os.Getenv(envVar)
-		if envVar == "DB_PASSWORD" && value != "" {
+		switch {
+		case envVar == "DB_PASSWORD" && value != "":
 			fmt.Printf("%s = ****** (oculto)\n", envVar)
-		} else if value != "" {
+		case value != "":
 			fmt.Printf("%s = %s\n", envVar, value)
-		} else {
+		default:
 			fmt.Printf("%s = (no definido)\n", envVar)
 		}
 	}

@@ -98,9 +98,10 @@ func (m *QueryMonitor) GetSlowQueriesReport() map[string]int {
 
 // normalizeSQL simplifies SQL queries for better grouping by replacing literal values
 func normalizeSQL(sql string) string {
-	// Replace numeric literals
-	sql = strings.ReplaceAll(sql, "?", "?")
-
-	// You can add more normalization rules as needed
+	// TODO: Add normalization rules as needed
+	// For example:
+	// - Replace numeric literals with placeholders
+	// - Replace string literals with placeholders
+	// - Normalize whitespace
 	return sql
 }
