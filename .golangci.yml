@@ -9,8 +9,6 @@ run:
   build-tags: []
   skip-dirs-use-default: true
   skip-dirs:
-    - scripts
-    - test
     - .git
     - vendor
   skip-files:
@@ -147,18 +145,3 @@ issues:
     - path: cmd/.*\.go
       linters:
         - revive
-    
-    # Excluir completamente scripts y test
-    - path: (scripts|test)/.*\.go
-      linters:
-        - errcheck
-        - exhaustive
-        - forcetypeassert
-        - gochecknoinits
-        - goconst
-        - gocritic
-        - gosec
-        - nilerr
-        - prealloc
-        - revive
-        - unparam

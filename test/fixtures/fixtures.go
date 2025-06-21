@@ -32,9 +32,12 @@ func CreateTestUser(t *testing.T, userRepo interface{}, username, password strin
 	} else if repo, ok := userRepo.(interface{ CreateUser(*models.User) error }); ok {
 		// Try the CreateUser method
 		err = repo.CreateUser(user)
-	} else {
+	} else if repo, ok := userRepo.(interface{ Create(*models.User) error }); ok {
 		// Fall back to the non-context Create method
-		err = userRepo.(interface{ Create(*models.User) error }).Create(user)
+		err = repo.Create(user)
+	} else {
+		// No suitable method found
+		t.Fatalf("userRepo does not implement any known Create method")
 	}
 	require.NoError(t, err)
 

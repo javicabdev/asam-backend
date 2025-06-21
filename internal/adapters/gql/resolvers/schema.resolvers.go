@@ -190,7 +190,11 @@ func (r *mutationResolver) ChangeMemberStatus(ctx context.Context, id string, st
 	}
 
 	// 2) Llamar al método handleMemberStatus del sub-resolver (member_resolver.go)
-	return r.Member().(*memberResolver).handleMemberStatus(ctx, memberID, status)
+	memberResolver, ok := r.Member().(*memberResolver)
+	if !ok {
+		return nil, appErrors.NewInternalError("invalid resolver type")
+	}
+	return memberResolver.handleMemberStatus(ctx, memberID, status)
 }
 
 // CreateFamily is the resolver for the createFamily field.
@@ -203,21 +207,31 @@ func (r *mutationResolver) CreateFamily(ctx context.Context, input model.CreateF
 		)
 	}
 
-	if err := r.Family().(*familyResolver).validateCreateFamilyInput(&input); err != nil {
+	familyResolver, ok := r.Family().(*familyResolver)
+	if !ok {
+		return nil, appErrors.NewInternalError("invalid resolver type")
+	}
+
+	if err := familyResolver.validateCreateFamilyInput(&input); err != nil {
 		return nil, err
 	}
 
 	// 2) Mapear el input a la entidad del dominio
-	family := r.Family().(*familyResolver).mapCreateInputToFamily(&input)
+	family := familyResolver.mapCreateInputToFamily(&input)
 
 	// 3) Manejar la mutación / guardar en BD
-	return r.Family().(*familyResolver).handleFamilyMutation(ctx, family)
+	return familyResolver.handleFamilyMutation(ctx, family)
 }
 
 // UpdateFamily is the resolver for the updateFamily field.
 func (r *mutationResolver) UpdateFamily(ctx context.Context, input model.UpdateFamilyInput) (*models.Family, error) {
 	// 1) Validación opcional
-	if err := r.Family().(*familyResolver).validateUpdateFamilyInput(&input); err != nil {
+	familyResolver, ok := r.Family().(*familyResolver)
+	if !ok {
+		return nil, appErrors.NewInternalError("invalid resolver type")
+	}
+
+	if err := familyResolver.validateUpdateFamilyInput(&input); err != nil {
 		return nil, err
 	}
 
@@ -237,10 +251,10 @@ func (r *mutationResolver) UpdateFamily(ctx context.Context, input model.UpdateF
 	}
 
 	// 4) Mapear los campos actualizables al modelo
-	updated := r.Family().(*familyResolver).mapUpdateInputToFamily(&input, existing)
+	updated := familyResolver.mapUpdateInputToFamily(&input, existing)
 
 	// 5) Manejar la mutación / persistir cambios
-	return r.Family().(*familyResolver).handleFamilyMutation(ctx, updated)
+	return familyResolver.handleFamilyMutation(ctx, updated)
 }
 
 // AddFamilyMember is the resolver for the addFamilyMember field.
@@ -261,7 +275,11 @@ func (r *mutationResolver) AddFamilyMember(ctx context.Context, familyID string,
 	}
 
 	// 3) mapear el FamiliarInput a *models.Familiar
-	fam := r.Family().(*familyResolver).mapFamiliarInputToModel(&familiar)
+	familyResolver, ok := r.Family().(*familyResolver)
+	if !ok {
+		return nil, appErrors.NewInternalError("invalid resolver type")
+	}
+	fam := familyResolver.mapFamiliarInputToModel(&familiar)
 
 	// 4) aquí, según tu capa de dominio, podrías:
 	//    - Llamar a un método "AddFamilyMember(ctx, existing, fam)"
@@ -306,10 +324,14 @@ func (r *mutationResolver) RemoveFamilyMember(ctx context.Context, familiarID st
 // RegisterPayment is the resolver for the registerPayment field.
 func (r *mutationResolver) RegisterPayment(ctx context.Context, input model.PaymentInput) (*models.Payment, error) {
 	// 1) mapear el input GraphQL al modelo de dominio
-	payment := r.Payment().(*paymentResolver).mapPaymentInputToModel(&input)
+	paymentResolver, ok := r.Payment().(*paymentResolver)
+	if !ok {
+		return nil, appErrors.NewInternalError("invalid resolver type")
+	}
+	payment := paymentResolver.mapPaymentInputToModel(&input)
 
 	// 2) llamar a la función que valida y persiste
-	return r.Payment().(*paymentResolver).handlePaymentMutation(ctx, payment)
+	return paymentResolver.handlePaymentMutation(ctx, payment)
 }
 
 // UpdatePayment is the resolver for the updatePayment field.
@@ -330,11 +352,15 @@ func (r *mutationResolver) UpdatePayment(ctx context.Context, id string, input m
 
 	// 2) mapear input a Payment
 	//    (puedes usar mapPaymentInputToModel y luego asignar payment.ID = paymentID)
-	updated := r.Payment().(*paymentResolver).mapPaymentInputToModel(&input)
+	paymentResolver, ok := r.Payment().(*paymentResolver)
+	if !ok {
+		return nil, appErrors.NewInternalError("invalid resolver type")
+	}
+	updated := paymentResolver.mapPaymentInputToModel(&input)
 	updated.ID = paymentID
 
 	// 3) manejar la mutación
-	return r.Payment().(*paymentResolver).handlePaymentMutation(ctx, updated)
+	return paymentResolver.handlePaymentMutation(ctx, updated)
 }
 
 // CancelPayment is the resolver for the cancelPayment field.
@@ -407,10 +433,14 @@ func (r *mutationResolver) RegisterFee(ctx context.Context, year int, month int,
 // schema.resolvers.go
 func (r *mutationResolver) RegisterTransaction(ctx context.Context, input model.TransactionInput) (*models.CashFlow, error) {
 	// 1) Mapear el input a tu entidad de dominio
-	transaction := r.CashFlow().(*cashFlowResolver).mapTransactionInputToModel(&input)
+	cashFlowResolver, ok := r.CashFlow().(*cashFlowResolver)
+	if !ok {
+		return nil, appErrors.NewInternalError("invalid resolver type")
+	}
+	transaction := cashFlowResolver.mapTransactionInputToModel(&input)
 
 	// 2) Manejar la lógica de validación y persistencia
-	return r.CashFlow().(*cashFlowResolver).handleTransactionMutation(ctx, transaction)
+	return cashFlowResolver.handleTransactionMutation(ctx, transaction)
 }
 
 // UpdateTransaction is the resolver for the updateTransaction field.
@@ -430,17 +460,25 @@ func (r *mutationResolver) UpdateTransaction(ctx context.Context, id string, inp
 	}
 
 	// mapear input a un *nuevo* CashFlow
-	updatedTx := r.CashFlow().(*cashFlowResolver).mapTransactionInputToModel(&input)
+	cashFlowResolver, ok := r.CashFlow().(*cashFlowResolver)
+	if !ok {
+		return nil, appErrors.NewInternalError("invalid resolver type")
+	}
+	updatedTx := cashFlowResolver.mapTransactionInputToModel(&input)
 	// forzar el ID para que la capa de persistencia sepa que es un update
 	updatedTx.ID = transactionID
 
 	// persistir
-	return r.CashFlow().(*cashFlowResolver).handleTransactionMutation(ctx, updatedTx)
+	return cashFlowResolver.handleTransactionMutation(ctx, updatedTx)
 }
 
 // AdjustBalance is the resolver for the adjustBalance field.
 func (r *mutationResolver) AdjustBalance(ctx context.Context, amount float64, reason string) (*model.MutationResponse, error) {
-	return r.CashFlow().(*cashFlowResolver).handleBalanceAdjustment(ctx, amount, reason)
+	cashFlowResolver, ok := r.CashFlow().(*cashFlowResolver)
+	if !ok {
+		return nil, appErrors.NewInternalError("invalid resolver type")
+	}
+	return cashFlowResolver.handleBalanceAdjustment(ctx, amount, reason)
 }
 
 // Login is the resolver for the login field.

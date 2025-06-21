@@ -361,6 +361,14 @@ func NewUnauthorizedError() error {
 	}
 }
 
+// NewInternalError crea un error interno del servidor
+func NewInternalError(message string) error {
+	return &AppError{
+		Code:    ErrInternalError,
+		Message: message,
+	}
+}
+
 // DB wraps database-specific errors into structured AppErrors
 func DB(err error, message string) error {
 	if err == nil {
