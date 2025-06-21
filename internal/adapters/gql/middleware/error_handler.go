@@ -82,12 +82,32 @@ const (
 // Map AppError codes to logging levels
 func (m *ErrorMiddleware) getErrorLevel(code appErrors.ErrorCode) string {
 	switch code {
-	case appErrors.ErrValidationFailed, appErrors.ErrInvalidFormat, appErrors.ErrNotFound:
+	// Debug level - Client errors that are expected
+	case appErrors.ErrValidationFailed,
+		appErrors.ErrInvalidFormat,
+		appErrors.ErrInvalidDate,
+		appErrors.ErrInvalidAmount,
+		appErrors.ErrInvalidStatus,
+		appErrors.ErrNotFound:
 		return levelDebug
-	case appErrors.ErrUnauthorized, appErrors.ErrForbidden, appErrors.ErrDuplicateEntry:
+
+	// Warn level - Important but expected errors
+	case appErrors.ErrUnauthorized,
+		appErrors.ErrForbidden,
+		appErrors.ErrDuplicateEntry,
+		appErrors.ErrInvalidOperation,
+		appErrors.ErrInsufficientFunds,
+		appErrors.ErrInvalidToken,
+		appErrors.ErrInvalidRequest,
+		appErrors.ErrRateLimitExceeded:
 		return levelWarn
-	case appErrors.ErrDatabaseError, appErrors.ErrInternalError:
+
+	// Error level - System errors that need attention
+	case appErrors.ErrDatabaseError,
+		appErrors.ErrInternalError,
+		appErrors.ErrNetworkError:
 		return levelError
+
 	default:
 		return levelWarn
 	}

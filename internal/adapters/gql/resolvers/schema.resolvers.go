@@ -971,13 +971,14 @@ func (r *userResolver) ID(ctx context.Context, obj *models.User) (string, error)
 // Role is the resolver for the role field.
 func (r *userResolver) Role(ctx context.Context, obj *models.User) (model.UserRole, error) {
 	// Convertir el role del modelo a UserRole
-	switch obj.Role {
-	case "admin":
+	switch models.Role(obj.Role) {
+	case models.RoleAdmin:
 		return model.UserRoleAdmin, nil
-	case "user":
+	case models.RoleUser:
 		return model.UserRoleUser, nil
 	default:
-		return model.UserRoleUser, nil // Valor predeterminado
+		// Este caso no debería ocurrir si los datos están bien validados
+		return model.UserRoleUser, nil
 	}
 }
 
