@@ -1,0 +1,130 @@
+# golangci-lint configuration for v2.1.6
+# Documentation: https://golangci-lint.run/usage/configuration/
+
+run:
+  # Timeout for analysis
+  timeout: 5m
+  
+  # Include test files
+  tests: true
+  
+  # Skip directories - these won't be analyzed
+  skip-dirs:
+    - scripts
+    - test
+    - vendor
+    - bin
+    - internal/adapters/gql/generated
+    - internal/adapters/gql/model
+    
+  # Use default skip dirs (vendor, .git, etc)
+  skip-dirs-use-default: true
+
+# Output configuration
+output:
+  # Format of output
+  format: colored-line-number
+  
+  # Print lines of code with issue
+  print-issued-lines: true
+  
+  # Print linter name in the end
+  print-linter-name: true
+
+# Linters configuration
+linters:
+  # Enable specific linters
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+    - gofmt
+    - goimports
+    - misspell
+    - revive
+    
+  # Disable problematic linters
+  disable:
+    - godox      # TODO/FIXME comments
+    - funlen     # Function length
+    - gocyclo    # Cyclomatic complexity
+    - dupl       # Code duplication
+    - wsl        # Whitespace linter
+
+# Linter settings
+linters-settings:
+  errcheck:
+    # Don't check for errors in deferred function calls
+    check-blank: false
+    check-type-assertions: false
+    
+  goimports:
+    # Put imports from this module after 3rd-party packages
+    local-prefixes: github.com/yourusername/asam-backend
+    
+  revive:
+    # Use default rules
+    enable-all-rules: false
+
+# Issues configuration
+issues:
+  # List of regexps of issue texts to exclude
+  exclude:
+    # Exclude errcheck in test files
+    - "Error return value of .* is not checked"
+    
+  # Exclude configuration per path and per linter
+  exclude-rules:
+    # Exclude all linters for scripts directory
+    - path: scripts/
+      linters:
+        - errcheck
+        - gosimple
+        - govet
+        - ineffassign
+        - staticcheck
+        - typecheck
+        - unused
+        - gofmt
+        - goimports
+        - misspell
+        - revive
+        
+    # Exclude all linters for test directory
+    - path: test/
+      linters:
+        - errcheck
+        - gosimple
+        - govet
+        - ineffassign
+        - staticcheck
+        - typecheck
+        - unused
+        - gofmt
+        - goimports
+        - misspell
+        - revive
+        
+    # Exclude test files
+    - path: _test\.go
+      linters:
+        - errcheck
+        
+  # Maximum issues per linter
+  max-issues-per-linter: 0
+  
+  # Maximum identical issues
+  max-same-issues: 0
+  
+  # Use default exclude patterns
+  exclude-use-default: true
+  
+  # Show all issues from a linter
+  max-per-linter: 0
+  
+  # Fix found issues (if it's supported by the linter)
+  fix: false
