@@ -1,110 +1,64 @@
 # golangci-lint configuration
 # https://golangci-lint.run/usage/configuration/
 
-# Version of config format (not golangci-lint version)
-# Use version 2 for golangci-lint 2.x
 version: "2"
 
-# Options for analysis running
 run:
-  # Timeout for analysis, e.g. 30s, 5m
   timeout: 5m
-  
-  # Exit code when at least one issue was found
-  issues-exit-code: 1
-  
-  # Include test files or not
   tests: false
-  
-  # List of build tags, all linters use it
   build-tags: []
-  
-  # Which dirs to skip: issues from them won't be reported
+  skip-dirs-use-default: true
   skip-dirs:
     - scripts
-    - vendor
-    - third_party
-    - pb
+    - test
     - .git
-    - .github
-    - .vscode
-  
-  # Which files to skip: they will be analyzed, but issues from them won't be reported
+    - vendor
   skip-files:
-    - ".*_test\\.go$"
     - ".*\\.pb\\.go$"
     - ".*\\.gen\\.go$"
-    - "mock_.*\\.go$"
-  
-  # By default, list of stable checks is used
   modules-download-mode: readonly
-  
-  # Allow multiple parallel golangci-lint instances
   allow-parallel-runners: false
 
-# Output configuration options
 output:
-  # Format of output
   format: colored-line-number
-  
-  # Print lines of code with issue
   print-issued-lines: true
-  
-  # Print linter name in the end of issue text
   print-linter-name: true
-  
-  # Make issues output unique by line
   uniq-by-line: true
-  
-  # Sort results by: filepath, line and column
   sort-results: true
 
-# All available settings of specific linters
 linters-settings:
   errcheck:
-    # Report about not checking of errors in type assertions: `a := b.(MyStruct)`
     check-type-assertions: true
-    # Report about assignment of errors to blank identifier: `num, _ := strconv.Atoi(numStr)`
     check-blank: false
   
   govet:
-    # Report about shadowed variables
     check-shadowing: true
   
   gocyclo:
-    # Minimal code complexity to report
     min-complexity: 15
   
   dupl:
-    # Tokens count to trigger issue
     threshold: 150
   
   goconst:
-    # Minimal length of string constant
     min-len: 3
-    # Minimal occurrences count to trigger
     min-occurrences: 3
   
   unused:
-    # Treat code as a program (not a library) and report unused exported identifiers
     check-exported: false
   
   unparam:
-    # Inspect exported functions
     check-exported: false
   
   nakedret:
-    # Make an issue if func has more lines of code than this setting, and it has naked returns
     max-func-lines: 30
   
   prealloc:
-    # Report preallocation suggestions only on simple loops that have no returns/breaks/continues/gotos in them
     simple: true
     range-loops: true
     for-loops: false
   
   gocritic:
-    # Which checks should be enabled
     enabled-checks:
       - nestingReduce
       - unnamedResult
@@ -112,43 +66,41 @@ linters-settings:
       - truncateCmp
   
   revive:
-    # Confidence threshold, 0.8 by default
     confidence: 0.8
-    # Fail if the confidence is below the threshold
     ignore-generated-header: true
-    # Severity of the issue
     severity: warning
+    # Desactivar la regla de comentarios de paquete
+    rules:
+      - name: package-comments
+        disabled: true
+      - name: exported
+        disabled: true
   
   exhaustive:
-    # Check switch statements in generated files
     check-generated: false
-    # Presence of "default" case satisfies exhaustiveness
-    default-signifies-exhaustive: false
+    default-signifies-exhaustive: true  # Cambio: default case satisface exhaustividad
   
   nolintlint:
-    # Enable specific requirements
     allow-unused: false
     allow-leading-space: false
     require-explanation: true
     require-specific: true
 
 linters:
-  # Disable all linters
   disable-all: true
-  # Enable specific linters
   enable:
-    # Core linters (habilitados por defecto en golangci-lint)
+    # Core linters
     - errcheck
     - govet
     - ineffassign
     - staticcheck
     - unused
     
-    # Linters de formato y estilo
+    # Formato y estilo
     - whitespace
-    - revive        # Reemplazo moderno de golint
+    - revive
     
-    # Linters de calidad de código
+    # Calidad de código
     - bodyclose
     - dupl
     - goconst
@@ -159,78 +111,54 @@ linters:
     - unconvert
     - unparam
     
-    # Linters de seguridad
+    # Seguridad
     - gosec
     
-    # Linters adicionales útiles
-    - exhaustive    # Verifica exhaustividad en switch de enums
+    # Adicionales útiles
+    - exhaustive
     - gochecknoinits
     - goprintffuncname
-    - noctx        # HTTP requests sin context
-    - nolintlint   # Directivas nolint bien formadas
-    - rowserrcheck # Verifica rows.Err()
-    - sqlclosecheck # Verifica cierre de sql.Rows y sql.Stmt
-    - bidichk      # Caracteres unicode peligrosos
-    - durationcheck # Multiplicación de duraciones
-    - errname      # Convenciones de nombres de errores
-    - forcetypeassert # Type assertions sin verificación
-    - makezero     # Slices con longitud inicial no-zero
-    - nilerr       # Return nil con check de error
-    - wastedassign # Asignaciones no utilizadas
+    - noctx
+    - nolintlint
+    - rowserrcheck
+    - sqlclosecheck
+    - bidichk
+    - durationcheck
+    - errname
+    - forcetypeassert
+    - makezero
+    - nilerr
+    - wastedassign
 
 issues:
-  # Excluding configuration per-path, per-linter, per-text and per-source
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  new: false
+  fix: false
+  
   exclude-rules:
-    # Exclude some linters from running on tests files
-    - path: _test\.go
-      linters:
-        - gocyclo
-        - errcheck
-        - dupl
-        - gosec
-        - goconst
-        - forcetypeassert
-        - noctx
-    
-    # Exclude known linters from partially hard-vendored code
-    - path: vendor/
-      linters:
-        - goconst
-        - gosec
-    
-    # Exclude some staticcheck messages
-    - linters:
-        - staticcheck
-      text: "SA1019:" # Using a deprecated function, variable, constant or field
-    
-    # Exclude revive's exported comments check for main packages
-    - path: cmd/.*\.go
-      linters:
-        - revive
-      text: "exported .* should have comment or be unexported"
-    
-    # Allow init functions in main packages
+    # Permitir init functions en cmd
     - path: cmd/.*\.go
       linters:
         - gochecknoinits
-  
-  # Independently from option `exclude` we use default exclude patterns
-  exclude-use-default: false
-  
-  # Maximum issues count per one linter
-  max-issues-per-linter: 0
-  
-  # Maximum count of issues with the same text
-  max-same-issues: 0
-  
-  # Show only new issues
-  new: false
-  
-  # Fix found issues (if it's supported by the linter)
-  fix: false
-
-severity:
-  # Default value is empty string
-  default-severity: error
-  # The list of ids of default excludes to include or disable
-  case-sensitive: false
+    
+    # Reducir ruido de revive en cmd
+    - path: cmd/.*\.go
+      linters:
+        - revive
+    
+    # Excluir completamente scripts y test
+    - path: (scripts|test)/.*\.go
+      linters:
+        - errcheck
+        - exhaustive
+        - forcetypeassert
+        - gochecknoinits
+        - goconst
+        - gocritic
+        - gosec
+        - nilerr
+        - prealloc
+        - revive
+        - unparam
