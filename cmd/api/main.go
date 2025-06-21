@@ -74,7 +74,8 @@ var (
 	})
 )
 
-func init() {
+// registerCustomMetrics registers all custom application metrics
+func registerCustomMetrics() {
 	prometheus.MustRegister(httpDuration)
 	prometheus.MustRegister(httpRequests)
 	prometheus.MustRegister(dbConnectionAttempts)
@@ -608,6 +609,9 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 
 // setupAndRegisterMetrics configures and registers Prometheus metrics collectors.
 func setupAndRegisterMetrics(appLogger logger.Logger) {
+	// Register custom application metrics
+	registerCustomMetrics()
+
 	// Register Go runtime metrics collector
 	if err := prometheus.Register(collectors.NewGoCollector()); err != nil {
 		appLogger.Warn("Could not register Go metrics collector", zap.Error(err))

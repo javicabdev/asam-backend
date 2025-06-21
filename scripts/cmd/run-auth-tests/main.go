@@ -1,3 +1,4 @@
+// Package main provides a test runner for authentication system tests
 package main
 
 import (

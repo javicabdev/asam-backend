@@ -37,13 +37,11 @@ var envVarsToClear = []string{
 	"DATABASE_URL", "DB_MAX_IDLE_CONNS", "DB_MAX_OPEN_CONNS", "DB_CONN_MAX_LIFETIME",
 }
 
-func init() {
+func main() {
 	// Setup command line flags
 	flag.StringVar(&environment, "env", "local", "Environment to use (local, aiven, all). Ignored in CI mode.")
 	flag.StringVar(&command, "cmd", "up", "Migration command (up, down, force, version, goto, drop)")
-}
 
-func main() {
 	flag.Parse()
 	args := flag.Args() // Get remaining arguments (e.g., number for 'up'/'down', version for 'force'/'goto')
 

@@ -51,7 +51,7 @@ var envVarsToClear = []string{
 	"DATABASE_URL", "DB_MAX_IDLE_CONNS", "DB_MAX_OPEN_CONNS", "DB_CONN_MAX_LIFETIME",
 }
 
-func init() {
+func main() {
 	// Setup command line flags with default values and descriptions
 	flag.StringVar(&datasetType, "type", "minimal", "Dataset type to seed (minimal, full, scenario, custom)")
 	flag.StringVar(&scenario, "scenario", "payment_overdue", "Scenario name (used if type=scenario, e.g., 'payment_overdue')")
@@ -68,9 +68,7 @@ func init() {
 	flag.IntVar(&numFamiliares, "familiares", 0, "Number of 'familiares' (relatives) to generate (custom type, overrides default)")
 	flag.IntVar(&numPayments, "payments", 0, "Number of payments to generate (custom type, overrides default)")
 	flag.IntVar(&numCashflows, "cashflows", 0, "Number of cashflow entries to generate (custom type, overrides default)")
-}
 
-func main() {
 	flag.Parse()
 
 	// Validate the environment flag
