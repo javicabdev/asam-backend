@@ -172,7 +172,7 @@ func (r *mutationResolver) DeleteMember(ctx context.Context, id string) (*model.
 		return &model.MutationResponse{
 			Success: false,
 			Error:   &errMsg,
-		}, nil
+		}, err
 	}
 	msg := "Member successfully deleted"
 	return &model.MutationResponse{
@@ -292,7 +292,7 @@ func (r *mutationResolver) RemoveFamilyMember(ctx context.Context, familiarID st
 		return &model.MutationResponse{
 			Success: false,
 			Error:   &errMsg,
-		}, nil
+		}, err
 	}
 
 	// 3) retornar respuesta de éxito
@@ -364,7 +364,7 @@ func (r *mutationResolver) CancelPayment(ctx context.Context, id string, reason 
 	// 3) llamar a un método de tu servicio
 	if err := r.paymentService.CancelPayment(ctx, paymentID, reason); err != nil {
 		errMsg := err.Error()
-		return &model.MutationResponse{Success: false, Error: &errMsg}, nil
+		return &model.MutationResponse{Success: false, Error: &errMsg}, err
 	}
 
 	// 4) devolver éxito

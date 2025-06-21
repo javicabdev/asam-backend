@@ -261,7 +261,7 @@ func (r *cashFlowResolver) processAdjustment(ctx context.Context, adjustment *mo
 		return &model.MutationResponse{
 			Success: false,
 			Error:   &errorMsg,
-		}, nil
+		}, err
 	}
 
 	// Success response

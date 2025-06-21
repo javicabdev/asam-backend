@@ -91,7 +91,7 @@ func (r *authResolver) Logout(ctx context.Context) (*model.MutationResponse, err
 		return &model.MutationResponse{
 			Success: false,
 			Error:   &errMsg,
-		}, nil
+		}, err
 	}
 
 	// Llamada al servicio de autenticación
@@ -101,7 +101,7 @@ func (r *authResolver) Logout(ctx context.Context) (*model.MutationResponse, err
 		return &model.MutationResponse{
 			Success: false,
 			Error:   &errMsg,
-		}, nil
+		}, err
 	}
 
 	successMsg := "Sesión cerrada correctamente"
