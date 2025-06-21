@@ -1,26 +1,47 @@
-# golangci-lint configuration for v2.1.6
-# Documentation: https://golangci-lint.run/usage/configuration/
+# golangci-lint configuration
+# https://golangci-lint.run/usage/configuration/
 
+# Version is required for golangci-lint 2.1.6
+version: 2.1.6
+
+# Options for analysis running
 run:
-  # Timeout for analysis
+  # Timeout for analysis, e.g. 30s, 5m
   timeout: 5m
   
-  # Include test files
-  tests: true
+  # Exit code when at least one issue was found
+  issues-exit-code: 1
   
-  # Skip directories - these won't be analyzed
+  # Include test files or not
+  tests: false
+  
+  # List of build tags, all linters use it
+  build-tags: []
+  
+  # Which dirs to skip: issues from them won't be reported
   skip-dirs:
     - scripts
-    - test
     - vendor
-    - bin
-    - internal/adapters/gql/generated
-    - internal/adapters/gql/model
-    
-  # Use default skip dirs (vendor, .git, etc)
-  skip-dirs-use-default: true
+    - third_party
+    - pb
+    - .git
+    - .github
+    - .vscode
+  
+  # Which files to skip: they will be analyzed, but issues from them won't be reported
+  skip-files:
+    - ".*_test\\.go$"
+    - ".*\\.pb\\.go$"
+    - ".*\\.gen\\.go$"
+    - "mock_.*\\.go$"
+  
+  # By default, list of stable checks is used
+  modules-download-mode: readonly
+  
+  # Allow multiple parallel golangci-lint instances
+  allow-parallel-runners: false
 
-# Output configuration
+# Output configuration options
 output:
   # Format of output
   format: colored-line-number
@@ -28,13 +49,97 @@ output:
   # Print lines of code with issue
   print-issued-lines: true
   
-  # Print linter name in the end
+  # Print linter name in the end of issue text
   print-linter-name: true
+  
+  # Make issues output unique by line
+  uniq-by-line: true
+  
+  # Sort results by: filepath, line and column
+  sort-results: true
 
-# Linters configuration
+# All available settings of specific linters
+linters-settings:
+  errcheck:
+    # Report about not checking of errors in type assertions: `a := b.(MyStruct)`
+    check-type-assertions: true
+    # Report about assignment of errors to blank identifier: `num, _ := strconv.Atoi(numStr)`
+    check-blank: false
+  
+  govet:
+    # Report about shadowed variables
+    check-shadowing: true
+  
+  gofmt:
+    # Simplify code
+    simplify: true
+  
+  goimports:
+    # Put imports beginning with prefix after 3rd-party packages
+    local-prefixes: github.com/javicabdev/asam-backend
+
+  gocyclo:
+    # Minimal code complexity to report
+    min-complexity: 15
+  
+  dupl:
+    # Tokens count to trigger issue
+    threshold: 150
+  
+  goconst:
+    # Minimal length of string constant
+    min-len: 3
+    # Minimal occurrences count to trigger
+    min-occurrences: 3
+  
+  misspell:
+    # Correct spellings using locale preferences for US or UK
+    locale: US
+  
+  lll:
+    # Max line length, lines longer will be reported
+    line-length: 120
+    # Tab width in spaces
+    tab-width: 1
+  
+  unused:
+    # Treat code as a program (not a library) and report unused exported identifiers
+    check-exported: false
+  
+  unparam:
+    # Inspect exported functions
+    check-exported: false
+  
+  nakedret:
+    # Make an issue if func has more lines of code than this setting, and it has naked returns
+    max-func-lines: 30
+  
+  prealloc:
+    # Report preallocation suggestions only on simple loops that have no returns/breaks/continues/gotos in them
+    simple: true
+    range-loops: true
+    for-loops: false
+  
+  gocritic:
+    # Which checks should be enabled
+    enabled-checks:
+      - nestingReduce
+      - unnamedResult
+      - ruleguard
+      - truncateCmp
+  
+  gofumpt:
+    # Select the Go version to target
+    lang-version: "1.21"
+    # Choose whether to use the extra rules
+    extra-rules: true
+
 linters:
+  # Disable all linters
+  disable-all: true
   # Enable specific linters
   enable:
+    # Default linters
     - errcheck
     - gosimple
     - govet
@@ -42,89 +147,79 @@ linters:
     - staticcheck
     - typecheck
     - unused
+    # Additional linters
+    - bodyclose
+    - dupl
+    - exhaustive
+    - exportloopref
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - gocyclo
     - gofmt
+    - gofumpt
     - goimports
+    - goprintffuncname
+    - gosec
+    - lll
     - misspell
-    - revive
-    
-  # Disable problematic linters
-  disable:
-    - godox      # TODO/FIXME comments
-    - funlen     # Function length
-    - gocyclo    # Cyclomatic complexity
-    - dupl       # Code duplication
-    - wsl        # Whitespace linter
+    - nakedret
+    - noctx
+    - nolintlint
+    - prealloc
+    - rowserrcheck
+    - sqlclosecheck
+    - stylecheck
+    - unconvert
+    - unparam
+    - whitespace
 
-# Linter settings
-linters-settings:
-  errcheck:
-    # Don't check for errors in deferred function calls
-    check-blank: false
-    check-type-assertions: false
-    
-  goimports:
-    # Put imports from this module after 3rd-party packages
-    local-prefixes: github.com/yourusername/asam-backend
-    
-  revive:
-    # Use default rules
-    enable-all-rules: false
-
-# Issues configuration
 issues:
-  # List of regexps of issue texts to exclude
-  exclude:
-    # Exclude errcheck in test files
-    - "Error return value of .* is not checked"
-    
-  # Exclude configuration per path and per linter
+  # Excluding configuration per-path, per-linter, per-text and per-source
   exclude-rules:
-    # Exclude all linters for scripts directory
-    - path: scripts/
-      linters:
-        - errcheck
-        - gosimple
-        - govet
-        - ineffassign
-        - staticcheck
-        - typecheck
-        - unused
-        - gofmt
-        - goimports
-        - misspell
-        - revive
-        
-    # Exclude all linters for test directory
-    - path: test/
-      linters:
-        - errcheck
-        - gosimple
-        - govet
-        - ineffassign
-        - staticcheck
-        - typecheck
-        - unused
-        - gofmt
-        - goimports
-        - misspell
-        - revive
-        
-    # Exclude test files
+    # Exclude some linters from running on tests files
     - path: _test\.go
       linters:
+        - gocyclo
         - errcheck
-        
-  # Maximum issues per linter
+        - dupl
+        - gosec
+        - goconst
+    
+    # Exclude known linters from partially hard-vendored code
+    - path: vendor/
+      linters:
+        - stylecheck
+        - goconst
+        - gosec
+    
+    # Exclude lll issues for long lines with go:generate
+    - linters:
+        - lll
+      source: "^//go:generate "
+    
+    # Exclude some staticcheck messages
+    - linters:
+        - staticcheck
+      text: "SA1019:" # Using a deprecated function, variable, constant or field
+  
+  # Independently from option `exclude` we use default exclude patterns
+  exclude-use-default: false
+  
+  # Maximum issues count per one linter
   max-issues-per-linter: 0
   
-  # Maximum identical issues
+  # Maximum count of issues with the same text
   max-same-issues: 0
   
-  # Use default exclude patterns
-  exclude-use-default: true
-  
-  # Show all issues from a linter
-  max-per-linter: 0
+  # Show only new issues
+  new: false
   
   # Fix found issues (if it's supported by the linter)
   fix: false
+
+severity:
+  # Default value is empty string
+  default-severity: error
+  # The list of ids of default excludes to include or disable
+  case-sensitive: false
