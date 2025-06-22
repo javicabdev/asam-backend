@@ -234,8 +234,10 @@ func (s *SMTPEmailService) sendMail(to string, message []byte) error {
 	// Dirección del servidor
 	addr := fmt.Sprintf("%s:%s", s.config.Host, s.config.Port)
 
-	// Para Zoho y otros servidores modernos, usar STARTTLS en puerto 587
-	if s.config.UseTLS && s.config.Port == "587" {
+	// Determinar el método de envío basado en la configuración
+	switch {
+	case s.config.UseTLS && s.config.Port == "587":
+		// Para Zoho y otros servidores modernos, usar STARTTLS en puerto 587
 		// Usar el método estándar que automáticamente hace STARTTLS en puerto 587
 		err := smtp.SendMail(addr, auth, s.config.From, []string{to}, message)
 		if err != nil {
@@ -245,10 +247,10 @@ func (s *SMTPEmailService) sendMail(to string, message []byte) error {
 			)
 			return fmt.Errorf("failed to send email: %w", err)
 		}
-	} else if s.config.UseTLS {
+	case s.config.UseTLS:
 		// Para otros puertos con TLS directo (465)
 		return s.sendMailTLS(addr, auth, s.config.From, []string{to}, message)
-	} else {
+	default:
 		// Sin TLS
 		err := smtp.SendMail(addr, auth, s.config.From, []string{to}, message)
 		if err != nil {
