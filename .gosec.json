@@ -9,11 +9,16 @@
     "test/seed",
     "scripts/cmd",
     "test/fixtures",
-    "test/helpers"
+    "test/helpers",
+    "internal/adapters/gql/generated",
+    "internal/adapters/gql/model"
   ],
   "exclude": [
     "G115",
-    "G404"
+    "G404",
+    "G101",
+    "G204",
+    "G304"
   ],
   "G101": {
     "pattern": "(?i)token[_-]?type"

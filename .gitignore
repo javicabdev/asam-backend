@@ -12,6 +12,8 @@ bin/
 
 # Output de coverage
 *.out
+coverage.txt
+coverage.html
 
 # Dependencias
 vendor/
@@ -32,6 +34,8 @@ Desktop.ini
 # Archivos de entorno
 .env
 .env.*
+!.env.example
+!.env.test.example
 
 # Logs
 *.log
@@ -40,7 +44,17 @@ Desktop.ini
 build/
 dist/
 /tmp/asam-backend
-# Keep generated files but ignore specific patterns
+
+# IMPORTANTE: El código generado por gqlgen NO debe ignorarse
+# ya que es necesario para compilar el proyecto.
+# Los archivos en estos directorios están versionados:
+# - /internal/adapters/gql/model/
+# - /internal/adapters/gql/generated/
+#
+# Sin embargo, están excluidos del análisis de seguridad
+# mediante .gosec.json y .golangci.yml
+
+# Archivos temporales de generación
 /internal/adapters/gql/model/*.tmp
 /internal/adapters/gql/generated/*.tmp
 /coverage*
@@ -50,3 +64,7 @@ test-linter.sh
 
 # Archivos archivados
 _archived/
+
+# Archivos de seguridad locales
+gosec-report.json
+gosec-report.txt

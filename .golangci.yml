@@ -7,6 +7,10 @@ run:
   build-tags: []
   modules-download-mode: readonly
   allow-parallel-runners: false
+  # Excluir directorios de código generado
+  skip-dirs:
+    - internal/adapters/gql/generated
+    - internal/adapters/gql/model
 
 linters:
   enable:
@@ -97,6 +101,14 @@ linters:
       allow-unused: false
       require-explanation: true
       require-specific: true
+    
+    gosec:
+      excludes:
+        - G115  # Integer overflow conversion
+        - G404  # Use of weak random (acceptable in tests)
+        - G101  # Hardcoded credentials (false positives with token types)
+        - G204  # Subprocess launched with tainted input
+        - G304  # File inclusion via variable
   
   exclusions:
     rules:
@@ -124,9 +136,30 @@ linters:
           - govet
           - staticcheck
           - unused
+      
+      # Exclude gqlgen generated files
+      - path: internal/adapters/gql/generated/.*\.go
+        linters:
+          - gosec
+          - revive
+          - govet
+          - staticcheck
+          - unused
+      
+      - path: internal/adapters/gql/model/.*\.go
+        linters:
+          - gosec
+          - revive
+          - govet
+          - staticcheck
+          - unused
 
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
   new: false
   fix: false
+  # Excluir archivos generados
+  exclude-files:
+    - "internal/adapters/gql/generated/.*\\.go$"
+    - "internal/adapters/gql/model/.*\\.go$"

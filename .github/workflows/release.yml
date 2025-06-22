@@ -30,8 +30,13 @@ jobs:
       - name: Install dependencies
         run: go mod download
 
+      - name: Install gqlgen
+        run: go install github.com/99designs/gqlgen@v0.17.73
+
       - name: Generate GraphQL code
-        run: go run ./cmd/generate/main.go
+        run: |
+          echo "Generating GraphQL code..."
+          gqlgen generate
 
       - name: Run unit tests
         run: go test -v -race ./internal/... ./pkg/...
@@ -39,7 +44,7 @@ jobs:
       - name: Run security scan
         uses: securego/gosec@master
         with:
-          args: '-conf .gosec.json ./...'
+          args: '-conf .gosec.json -exclude-dir=internal/adapters/gql/generated -exclude-dir=internal/adapters/gql/model ./...'
 
   # Job para crear y publicar el release en GitHub
   create-release:
@@ -112,6 +117,14 @@ jobs:
 
       - name: Install dependencies
         run: go mod download
+
+      - name: Install gqlgen
+        run: go install github.com/99designs/gqlgen@v0.17.73
+
+      - name: Generate GraphQL code
+        run: |
+          echo "Generating GraphQL code..."
+          gqlgen generate
 
       - name: Build binary
         env:
