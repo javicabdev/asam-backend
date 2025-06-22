@@ -5,12 +5,14 @@ This directory contains database migrations for the ASAM backend application.
 ## Current Schema
 
 The database schema is defined in the following migrations:
-- `000001_initial_schema.up.sql` - Creates all tables matching the GORM models
+- `000001_initial_schema.up.sql` - Creates all tables matching the GORM models (includes refresh_tokens table)
 - `000001_initial_schema.down.sql` - Drops all tables
-- `000002_add_refresh_token_to_users.up.sql` - Adds refresh token fields to users table (simple approach)
-- `000002_add_refresh_token_to_users.down.sql` - Removes refresh token fields from users
+- `000004_add_email_verification.up.sql` - Adds email verification fields and verification_tokens table
+- `000004_add_email_verification.down.sql` - Removes email verification features
+- `000006_add_token_cleanup_indexes.up.sql` - Adds indexes for token cleanup optimization
+- `000006_add_token_cleanup_indexes.down.sql` - Removes token cleanup indexes
 
-**Note:** There's an alternative approach using a separate `refresh_tokens` table in the `alternatives/` directory.
+**Note:** Migration numbers 000002, 000003, and 000005 were not used.
 
 ## Tables
 
@@ -23,28 +25,43 @@ The schema includes the following tables (names match GORM conventions):
 5. **membership_fees** - Monthly membership fee definitions (model: MembershipFee)
 6. **payments** - Payment records (model: Payment)
 7. **cash_flows** - Financial movements (model: CashFlow)
-8. **users** - System users for authentication (model: User) - includes refresh_token fields
+8. **users** - System users for authentication (model: User)
+9. **refresh_tokens** - JWT refresh tokens (separate table approach)
+10. **verification_tokens** - Email verification and password reset tokens
 
 ## Important Notes
 
 - The migrations respect the exact field names defined in the Go models
 - Some models use Spanish field names (families, familiars, telephones) while others use English
 - All timestamps use `TIMESTAMP WITH TIME ZONE`
-- Soft deletes are implemented with `deleted_at` columns
+- Soft deletes are implemented with `deleted_at` columns  
 - The `updated_at` column is automatically updated via triggers
 - All foreign key relationships match the GORM model definitions
+- The project uses PostgreSQL database
 
 ## Running Migrations
 
-To recreate the database from scratch:
+To run migrations:
 
-```powershell
-# Recreate the database (WARNING: This will delete all data!)
-.\scripts\recreate_database.ps1
+```bash
+# Apply all migrations
+go run cmd/migrate/main.go -cmd up
 
-# Or manually:
-.\migrate.ps1 local down  # Roll back all migrations
-.\migrate.ps1 local up     # Apply all migrations
+# Rollback all migrations  
+go run cmd/migrate/main.go -cmd down
+
+# Check migration status
+go run cmd/migrate/main.go -cmd status
+```
+
+For development with Docker:
+
+```bash
+# Apply migrations
+make db-migrate
+
+# Reset database (rollback and re-apply)
+make db-reset
 ```
 
 ## Model-Database Mapping
@@ -55,6 +72,9 @@ The migrations are designed to match the existing Go models exactly:
 - `Family` model → `families` table (Spanish fields like `numero_socio`, `miembro_origen_id`)
 - `Familiar` model → `familiars` table (Spanish fields like `familia_id`, `nombre`, `apellidos`)
 - `Telephone` model → `telephones` table (Spanish field `numero_telefono`)
+- `User` model → `users` table
+- `RefreshToken` model → `refresh_tokens` table
+- `VerificationToken` model → `verification_tokens` table
 - Other models use English field names
 
 This ensures compatibility with the existing codebase without requiring model changes.
