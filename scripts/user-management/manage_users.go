@@ -1,3 +1,4 @@
+// Package main provides user management functionality
 package main
 
 import (

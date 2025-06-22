@@ -1,3 +1,4 @@
+// Package infrastructure provides infrastructure layer implementations
 package infrastructure
 
 import (
@@ -21,7 +22,7 @@ func NewMockEmailService(logger logger.Logger) output.EmailService {
 }
 
 // SendEmail simula el envío de un email de texto plano
-func (s *MockEmailService) SendEmail(ctx context.Context, to, subject, body string) error {
+func (s *MockEmailService) SendEmail(_ context.Context, to, subject, body string) error {
 	s.logger.Info("Mock: Sending email",
 		zap.String("to", to),
 		zap.String("subject", subject),
@@ -31,7 +32,7 @@ func (s *MockEmailService) SendEmail(ctx context.Context, to, subject, body stri
 }
 
 // SendHTMLEmail simula el envío de un email HTML
-func (s *MockEmailService) SendHTMLEmail(ctx context.Context, to, subject, htmlBody string) error {
+func (s *MockEmailService) SendHTMLEmail(_ context.Context, to, subject, htmlBody string) error {
 	s.logger.Info("Mock: Sending HTML email",
 		zap.String("to", to),
 		zap.String("subject", subject),
@@ -41,7 +42,7 @@ func (s *MockEmailService) SendHTMLEmail(ctx context.Context, to, subject, htmlB
 }
 
 // SendVerificationEmail simula el envío de un email de verificación
-func (s *MockEmailService) SendVerificationEmail(ctx context.Context, to, username, verificationURL string) error {
+func (s *MockEmailService) SendVerificationEmail(_ context.Context, to, username, verificationURL string) error {
 	s.logger.Info("Mock: Sending verification email",
 		zap.String("to", to),
 		zap.String("username", username),
@@ -51,7 +52,7 @@ func (s *MockEmailService) SendVerificationEmail(ctx context.Context, to, userna
 }
 
 // SendPasswordResetEmail simula el envío de un email de recuperación de contraseña
-func (s *MockEmailService) SendPasswordResetEmail(ctx context.Context, to, username, resetURL string) error {
+func (s *MockEmailService) SendPasswordResetEmail(_ context.Context, to, username, resetURL string) error {
 	s.logger.Info("Mock: Sending password reset email",
 		zap.String("to", to),
 		zap.String("username", username),
@@ -61,7 +62,7 @@ func (s *MockEmailService) SendPasswordResetEmail(ctx context.Context, to, usern
 }
 
 // SendPasswordChangedEmail simula el envío de una notificación de cambio de contraseña
-func (s *MockEmailService) SendPasswordChangedEmail(ctx context.Context, to, username string) error {
+func (s *MockEmailService) SendPasswordChangedEmail(_ context.Context, to, username string) error {
 	s.logger.Info("Mock: Sending password changed notification",
 		zap.String("to", to),
 		zap.String("username", username),

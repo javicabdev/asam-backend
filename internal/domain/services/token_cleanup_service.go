@@ -92,7 +92,7 @@ func (s *TokenCleanupService) performCleanup(ctx context.Context) {
 }
 
 // enforceTokenLimitPerUser ensures no user has more than the maximum allowed tokens
-func (s *TokenCleanupService) enforceTokenLimitPerUser(ctx context.Context) error {
+func (s *TokenCleanupService) enforceTokenLimitPerUser(_ context.Context) error {
 	// This would need to be implemented in the repository
 	// For now, we'll log that this feature is pending
 	s.logger.Debug("Token limit per user enforcement is pending implementation")

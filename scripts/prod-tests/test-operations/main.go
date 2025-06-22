@@ -1,3 +1,4 @@
+// Package main provides production database operations testing
 package main
 
 import (
@@ -368,7 +369,7 @@ func testTransactionRollback(db *gorm.DB) TestResult {
 // Helper variables and functions
 var createdMemberID uint
 
-func extractMemberID(result TestResult) uint {
+func extractMemberID(_ TestResult) uint {
 	return createdMemberID
 }
 

@@ -372,22 +372,22 @@ func updateMetricsPeriodically(ctx context.Context, log logger.Logger, deps *app
 }
 
 // createNotificationService creates a notification service based on the environment configuration.
-func createNotificationService(cfg *config.Config, log logger.Logger) (input.NotificationService, error) {
+func createNotificationService(cfg *config.Config, log logger.Logger) input.NotificationService {
 	if cfg.Environment == constants.EnvDevelopment {
 		log.Warn("Using development notification service with placeholder SMTP values")
 		// For development, use mock or placeholder values
 		return services.NewEmailNotificationService(
 			"smtp.example.com", 587, "dev-user", "dev-password", false, "noreply-dev@asam.org",
-		), nil
+		)
 	}
 	// For production, check if SMTP credentials are configured
 	if cfg.SMTPUser == "" || cfg.SMTPPassword == "" {
 		log.Warn("SMTP credentials not configured - notification service will be disabled")
-		return nil, nil // Return nil service instead of error
+		return nil // Return nil service
 	}
 	return services.NewEmailNotificationService(
 		cfg.SMTPServer, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPassword, cfg.SMTPUseTLS, cfg.SMTPFromEmail,
-	), nil
+	)
 }
 
 // setupConfigurationAndLogger initializes logging and loads application configuration.
@@ -534,11 +534,7 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 		cfg.BaseURL,
 	)
 
-	notificationService, err := createNotificationService(cfg, appLogger)
-	if err != nil {
-		// Error already logged by createNotificationService if appLogger was passed
-		return nil, fmt.Errorf("failed to create notification service: %w", err)
-	}
+	notificationService := createNotificationService(cfg, appLogger)
 	if notificationService != nil {
 		serviceStatus.Notification.Store(true)
 	} else {

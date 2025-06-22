@@ -1,3 +1,4 @@
+// Package main generates test hashes for testing purposes
 package main
 
 import (

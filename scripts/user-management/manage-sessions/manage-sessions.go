@@ -1,3 +1,4 @@
+// Package main provides session management utilities
 package main
 
 import (

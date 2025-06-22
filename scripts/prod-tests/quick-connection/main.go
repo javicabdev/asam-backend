@@ -1,3 +1,4 @@
+// Package main provides quick database connection testing
 package main
 
 import (

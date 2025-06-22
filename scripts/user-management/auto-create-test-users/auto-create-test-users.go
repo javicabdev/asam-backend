@@ -1,3 +1,4 @@
+// Package main provides automated test user creation functionality
 package main
 
 import (

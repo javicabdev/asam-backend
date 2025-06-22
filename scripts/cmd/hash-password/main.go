@@ -1,3 +1,4 @@
+// Package main provides a utility to hash passwords
 package main
 
 import (
