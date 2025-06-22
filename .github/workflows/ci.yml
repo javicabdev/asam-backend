@@ -15,7 +15,6 @@ env:
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: postgres
   POSTGRES_DB: asam_test
-  POSTGRES_HOST: postgres
   POSTGRES_PORT: "5432"
 
 jobs:
@@ -51,7 +50,7 @@ jobs:
       - name: Install and run golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.1.6  # Última versión de golangci-lint
+          version: v2.1.6
           args: --timeout=5m
 
   test:
@@ -103,7 +102,7 @@ jobs:
         env:
           JWT_ACCESS_SECRET: "test-access-secret-for-unit-tests"
           JWT_REFRESH_SECRET: "test-refresh-secret-for-unit-tests"
-          CGO_ENABLED: 1
+          CGO_ENABLED: "1"
           DB_HOST: "testhost-unit"
           DB_PORT: "1234"
           DB_USER: "testuser-unit"
@@ -123,12 +122,11 @@ jobs:
           cp .env.test.example .env
           echo "DB_SSL_MODE=disable" >> .env
           echo "Waiting for PostgreSQL to be ready..."
-          sleep 10 # Añade una espera de 10 segundos para asegurar que el servicio esté listo
+          sleep 10
           go run cmd/migrate/main.go -cmd up
-          env:
+        env:
           CI: "true"
-          # Cambia el host a localhost
-          DB_HOST: localhost 
+          DB_HOST: localhost
           DB_PORT: ${{ env.POSTGRES_PORT }}
           DB_USER: ${{ env.POSTGRES_USER }}
           DB_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
@@ -138,7 +136,8 @@ jobs:
       - name: Run integration tests
         run: go test -v -tags=integration -timeout 5m ./test/integration/...
         env:
-          DB_HOST: ${{ env.POSTGRES_HOST }}
+          # Se usa localhost también aquí para asegurar la conexión
+          DB_HOST: localhost
           DB_PORT: ${{ env.POSTGRES_PORT }}
           DB_USER: ${{ env.POSTGRES_USER }}
           DB_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
