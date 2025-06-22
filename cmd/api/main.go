@@ -862,10 +862,7 @@ func performInitialization(ctx context.Context, state *appState, cfg *config.Con
 	}
 
 	// Initialize all components
-	if err := setupApplicationComponents(state, cfg, database, appLogger, auditLogger, initStart); err != nil {
-		appLogger.Error("Failed to setup application components", zap.Error(err))
-		return
-	}
+	setupApplicationComponents(state, cfg, database, appLogger, auditLogger, initStart)
 
 	// Start periodic metrics updates
 	go updateMetricsPeriodically(ctx, appLogger, state.deps)
@@ -875,7 +872,7 @@ func performInitialization(ctx context.Context, state *appState, cfg *config.Con
 }
 
 // setupApplicationComponents initializes all application components
-func setupApplicationComponents(state *appState, cfg *config.Config, database *gorm.DB, appLogger logger.Logger, auditLogger audit.Logger, initStart time.Time) error {
+func setupApplicationComponents(state *appState, cfg *config.Config, database *gorm.DB, appLogger logger.Logger, auditLogger audit.Logger, initStart time.Time) {
 	// Initialize services and other dependencies
 	deps := initializeServicesAndDependencies(cfg, database, appLogger, auditLogger)
 
@@ -916,8 +913,6 @@ func setupApplicationComponents(state *appState, cfg *config.Config, database *g
 	appLogger.Info("Database ready, GraphQL endpoints activated",
 		zap.Float64("initialization_duration_seconds", initDuration),
 	)
-
-	return nil
 }
 
 // playgroundHandler returns the GraphQL playground handler
@@ -941,14 +936,14 @@ func playgroundHandler(state *appState) http.HandlerFunc {
 			w.Header().Set("Content-Type", "text/html")
 			w.WriteHeader(http.StatusServiceUnavailable)
 			_, _ = w.Write([]byte(`
-				<html>
-				<head><title>GraphQL Playground - Initializing</title></head>
-				<body>
-					<h1>GraphQL Playground is initializing...</h1>
-					<p>The database connection is being established. Please refresh in a few seconds.</p>
-				</body>
-				</html>
-			`))
+             <html>
+             <head><title>GraphQL Playground - Initializing</title></head>
+             <body>
+                <h1>GraphQL Playground is initializing...</h1>
+                <p>The database connection is being established. Please refresh in a few seconds.</p>
+             </body>
+             </html>
+          `))
 			return
 		}
 

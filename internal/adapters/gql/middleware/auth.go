@@ -59,7 +59,7 @@ func isExemptRequest(r *http.Request) bool {
 }
 
 // validateAuthHeader valida el encabezado de autorización y extrae el token
-func validateAuthHeader(authHeader string) (string, error) {
+func validateAuthHeader(authHeader string) (token string, err error) {
 	if authHeader == "" {
 		return "", errors.NewUnauthorizedError()
 	}
@@ -211,7 +211,7 @@ type gqlRequest struct {
 }
 
 // isPublicOperation determina si la operación GraphQL es pública
-func isPublicOperation(r *http.Request) (bool, string) {
+func isPublicOperation(r *http.Request) (isPublic bool, operationName string) {
 	// Verificar casos especiales primero
 	if isPublic, opName := checkSpecialCases(r); isPublic {
 		return true, opName
@@ -228,7 +228,7 @@ func isPublicOperation(r *http.Request) (bool, string) {
 }
 
 // checkSpecialCases verifica casos especiales que no requieren parsear el body
-func checkSpecialCases(r *http.Request) (bool, string) {
+func checkSpecialCases(r *http.Request) (isPublic bool, operationName string) {
 	// Solo procesar solicitudes POST para GraphQL
 	if r.Method != http.MethodPost {
 		return true, "non-graphql"
@@ -243,7 +243,7 @@ func checkSpecialCases(r *http.Request) (bool, string) {
 }
 
 // parseGraphQLRequest parsea el body de la solicitud GraphQL
-func parseGraphQLRequest(r *http.Request) (*gqlRequest, error) {
+func parseGraphQLRequest(r *http.Request) (request *gqlRequest, err error) {
 	// Verificar que el body no sea nil
 	if r.Body == nil {
 		return nil, &parseError{message: "empty-body"}
@@ -263,12 +263,12 @@ func parseGraphQLRequest(r *http.Request) (*gqlRequest, error) {
 		return nil, &parseError{message: "empty-body"}
 	}
 
-	var request gqlRequest
-	if err := json.Unmarshal(bodyBytes, &request); err != nil {
+	var req gqlRequest
+	if err := json.Unmarshal(bodyBytes, &req); err != nil {
 		return nil, &parseError{message: "unparseable"}
 	}
 
-	return &request, nil
+	return &req, nil
 }
 
 // parseError represents an error during parsing
@@ -281,7 +281,7 @@ func (e *parseError) Error() string {
 }
 
 // checkIfPublicOperation verifica si la operación es pública
-func checkIfPublicOperation(request *gqlRequest) (bool, string) {
+func checkIfPublicOperation(request *gqlRequest) (isPublic bool, operationName string) {
 	// 1. Verificar por nombre de operación
 	if isPublic, opName := checkByOperationName(request.OperationName); isPublic {
 		return true, opName
@@ -296,23 +296,23 @@ func checkIfPublicOperation(request *gqlRequest) (bool, string) {
 }
 
 // checkByOperationName verifica si el nombre de la operación es público
-func checkByOperationName(operationName string) (bool, string) {
-	if operationName == "" {
+func checkByOperationName(name string) (isPublic bool, operationName string) {
+	if name == "" {
 		return false, ""
 	}
 
-	operationNameLower := strings.ToLower(operationName)
+	operationNameLower := strings.ToLower(name)
 	for publicOp := range publicOperations {
 		if strings.ToLower(publicOp) == operationNameLower {
 			return true, publicOp
 		}
 	}
 
-	return false, operationName
+	return false, name
 }
 
 // checkByQueryContent verifica el contenido de la query usando regex
-func checkByQueryContent(query string) (bool, string) {
+func checkByQueryContent(query string) (isPublic bool, operationName string) {
 	// Estructura para manejar los patrones de regex
 	patterns := []struct {
 		regex        *regexp.Regexp
@@ -328,17 +328,17 @@ func checkByQueryContent(query string) (bool, string) {
 	// Verificar cada patrón
 	for _, pattern := range patterns {
 		if pattern.regex.MatchString(query) {
-			operationName := pattern.defaultName
+			opName := pattern.defaultName
 
 			// Intentar extraer el nombre de la operación si es posible
 			if pattern.extractIndex > 0 {
 				matches := pattern.regex.FindStringSubmatch(query)
 				if len(matches) > pattern.extractIndex {
-					operationName = strings.ToLower(matches[pattern.extractIndex])
+					opName = strings.ToLower(matches[pattern.extractIndex])
 				}
 			}
 
-			return true, operationName
+			return true, opName
 		}
 	}
 
@@ -347,7 +347,7 @@ func checkByQueryContent(query string) (bool, string) {
 }
 
 // checkByExtractedOperationName intenta extraer y verificar el nombre de la operación
-func checkByExtractedOperationName(query string) (bool, string) {
+func checkByExtractedOperationName(query string) (isPublic bool, operationName string) {
 	matches := operationNameRegex.FindStringSubmatch(query)
 	if len(matches) > 2 {
 		extractedName := strings.ToLower(matches[2])

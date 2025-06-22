@@ -113,11 +113,12 @@ func runTests(config testConfig) time.Duration {
 
 	start := time.Now()
 
-	// Build test command
+	// Build test command securely by passing each argument separately.
+	//nolint:gosec // G204: Inputs are from a trusted, hardcoded config struct.
 	cmd := exec.Command("go", "test", "-v", "-race",
-		"-coverprofile="+config.coverageFile,
-		"-covermode=atomic",
-		"-coverpkg="+config.coveragePackage,
+		"-coverprofile", config.coverageFile,
+		"-covermode", "atomic",
+		"-coverpkg", config.coveragePackage,
 		config.testPath)
 
 	// Set output
@@ -140,7 +141,7 @@ func runTests(config testConfig) time.Duration {
 func showCoverageSummary(coverageFile string) {
 	fmt.Printf("\n%s📊 Coverage Summary:%s\n", colorYellow, colorReset)
 
-	coverCmd := exec.Command("go", "tool", "cover", "-func="+coverageFile)
+	coverCmd := exec.Command("go", "tool", "cover", "-func", coverageFile)
 	output, err := coverCmd.Output()
 	if err != nil {
 		return
@@ -175,7 +176,7 @@ func generateHTMLReport(coverageFile string) {
 	fmt.Printf("\n%s📄 Generating HTML coverage report...%s\n", colorYellow, colorReset)
 
 	htmlFile := "coverage_auth.html"
-	htmlCmd := exec.Command("go", "tool", "cover", "-html="+coverageFile, "-o", htmlFile)
+	htmlCmd := exec.Command("go", "tool", "cover", "-html", coverageFile, "-o", htmlFile)
 
 	if err := htmlCmd.Run(); err != nil {
 		return
