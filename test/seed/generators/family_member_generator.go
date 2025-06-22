@@ -31,7 +31,7 @@ type FamiliarMember struct {
 func NewFamilyMemberGenerator(db *sqlx.DB, seed int64) *FamilyMemberGenerator {
 	return &FamilyMemberGenerator{
 		db:   db,
-		rand: rand.New(rand.NewSource(seed)),
+		rand: rand.New(rand.NewSource(seed)), //nolint:gosec // G404: math/rand is acceptable for test data
 	}
 }
 
@@ -180,6 +180,11 @@ func (g *FamilyMemberGenerator) generateFamilyMember(familiaID int) FamiliarMemb
 	// 10% chance of being "Otro" (other relationship)
 	if g.rand.Float64() < 0.1 {
 		parentesco = "Otro"
+	}
+
+	// Ensure familiaID is positive before conversion
+	if familiaID < 0 {
+		panic(fmt.Sprintf("familiaID cannot be negative: %d", familiaID))
 	}
 
 	return FamiliarMember{

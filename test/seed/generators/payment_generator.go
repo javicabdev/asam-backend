@@ -42,7 +42,7 @@ func NewPaymentGenerator(db *sqlx.DB, seed int64) *PaymentGenerator {
 	}
 	return &PaymentGenerator{
 		db:   db,
-		rand: rand.New(rand.NewSource(seed)),
+		rand: rand.New(rand.NewSource(seed)), //nolint:gosec // G404: math/rand is acceptable for test data
 	}
 }
 
@@ -71,7 +71,7 @@ func (g *PaymentGenerator) Generate(ctx context.Context, n int) error {
 	// Defer rollback, commit will override if successful
 	defer func(tx *sqlx.Tx) {
 		_ = tx.Rollback()
-	}(tx) // nolint:errcheck // Rollback errors are usually secondary
+	}(tx)
 
 	batchSize := 100 // Optimal batch size can depend on DB and network
 	for i := 0; i < n; i += batchSize {

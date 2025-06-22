@@ -484,7 +484,7 @@ func setupDatabaseWithRetry(cfg *config.Config, appLogger logger.Logger, maxRetr
 
 // initializeServicesAndDependencies sets up repositories, services, JWT utility,
 // and other core application components, returning them in an appDependencies struct.
-func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, appLogger logger.Logger, auditLogger audit.Logger) (*appDependencies, error) {
+func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, appLogger logger.Logger, auditLogger audit.Logger) *appDependencies {
 	// Initialize service status
 	serviceStatus := &ServiceStatus{}
 	serviceStatus.Database.Store(true)
@@ -600,7 +600,7 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 		memoryMonitor:       memoryMonitor,
 		profilingServer:     profilingServer,
 		serviceStatus:       serviceStatus,
-	}, nil
+	}
 }
 
 // setupAndRegisterMetrics configures and registers Prometheus metrics collectors.
@@ -777,11 +777,7 @@ func retryDatabaseConnection(ctx context.Context, state *appState, cfg *config.C
 			}
 
 			// Initialize services and dependencies
-			deps, err := initializeServicesAndDependencies(cfg, database, appLogger, auditLogger)
-			if err != nil {
-				appLogger.Error("Failed to initialize dependencies after reconnection", zap.Error(err))
-				continue
-			}
+			deps := initializeServicesAndDependencies(cfg, database, appLogger, auditLogger)
 
 			// Initialize login rate limiter
 			loginRateLimiter := auth.NewLoginRateLimiterWithConfig(
@@ -987,14 +983,7 @@ func run(ctx context.Context) error {
 		}
 
 		// Initialize services and other dependencies
-		deps, err := initializeServicesAndDependencies(cfg, database, appLogger, auditLogger)
-		if err != nil {
-			appLogger.Error("Failed to initialize dependencies", zap.Error(err))
-			state.mu.Lock()
-			state.dbError = err
-			state.mu.Unlock()
-			return
-		}
+		deps := initializeServicesAndDependencies(cfg, database, appLogger, auditLogger)
 
 		// Initialize login rate limiter
 		loginRateLimiter := auth.NewLoginRateLimiterWithConfig(
@@ -1137,17 +1126,24 @@ func main() {
 	fmt.Printf("Version: %s, Commit: %s, Built: %s\n", Version, Commit, BuildTime)
 	fmt.Printf("PORT environment variable: %s\n", os.Getenv("PORT"))
 
+	// Track exit code
+	exitCode := 0
+
 	// Run with proper signal handling
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
+	defer func() {
+		cancel()
+		if exitCode != 0 {
+			os.Exit(exitCode)
+		}
+	}()
 
 	if err := run(ctx); err != nil {
 		// Use fmt.Fprintln for critical errors, as logger might not be available
 		// or the error occurred before logger was fully set up.
 		_, _ = fmt.Fprintln(os.Stderr, "Application run failed:", err)
-		cancel()   // Call cancel explicitly before exit
-		os.Exit(1) // Exit with a non-zero status code to indicate failure.
+		exitCode = 1
+		return
 	}
 	fmt.Println("Application exited successfully.")
-	// os.Exit(0) is implicit for a successful main function return.
 }

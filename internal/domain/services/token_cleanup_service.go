@@ -85,18 +85,15 @@ func (s *TokenCleanupService) performCleanup(ctx context.Context) {
 
 	// 2. If max tokens per user is set, enforce the limit
 	if s.maxTokensPerUser > 0 {
-		if err := s.enforceTokenLimitPerUser(ctx); err != nil {
-			s.logger.Error("Error enforcing token limit per user", zap.Error(err))
-		}
+		s.enforceTokenLimitPerUser(ctx)
 	}
 }
 
 // enforceTokenLimitPerUser ensures no user has more than the maximum allowed tokens
-func (s *TokenCleanupService) enforceTokenLimitPerUser(_ context.Context) error {
+func (s *TokenCleanupService) enforceTokenLimitPerUser(_ context.Context) {
 	// This would need to be implemented in the repository
 	// For now, we'll log that this feature is pending
 	s.logger.Debug("Token limit per user enforcement is pending implementation")
-	return nil
 }
 
 // CleanupNow performs an immediate cleanup (useful for manual triggers)
