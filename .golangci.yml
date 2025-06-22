@@ -1,104 +1,22 @@
-# golangci-lint configuration
-# https://golangci-lint.run/usage/configuration/
-
+# golangci-lint configuration for v2.1.6
 version: "2"
 
 run:
   timeout: 5m
   tests: false
   build-tags: []
-  skip-dirs-use-default: true
-  skip-dirs:
-    - .git
-    - vendor
-  skip-files:
-    - ".*\\.pb\\.go$"
-    - ".*\\.gen\\.go$"
   modules-download-mode: readonly
   allow-parallel-runners: false
 
-output:
-  format: colored-line-number
-  print-issued-lines: true
-  print-linter-name: true
-  uniq-by-line: true
-  sort-results: true
-
-linters-settings:
-  errcheck:
-    check-type-assertions: true
-    check-blank: false
-  
-  govet:
-    check-shadowing: true
-  
-  gocyclo:
-    min-complexity: 15
-  
-  dupl:
-    threshold: 150
-  
-  goconst:
-    min-len: 3
-    min-occurrences: 3
-  
-  unused:
-    check-exported: false
-  
-  unparam:
-    check-exported: false
-  
-  nakedret:
-    max-func-lines: 30
-  
-  prealloc:
-    simple: true
-    range-loops: true
-    for-loops: false
-  
-  gocritic:
-    enabled-checks:
-      - nestingReduce
-      - unnamedResult
-      - ruleguard
-      - truncateCmp
-  
-  revive:
-    confidence: 0.8
-    ignore-generated-header: true
-    severity: warning
-    # Desactivar la regla de comentarios de paquete
-    rules:
-      - name: package-comments
-        disabled: true
-      - name: exported
-        disabled: true
-  
-  exhaustive:
-    check-generated: false
-    default-signifies-exhaustive: true  # Cambio: default case satisface exhaustividad
-  
-  nolintlint:
-    allow-unused: false
-    allow-leading-space: false
-    require-explanation: true
-    require-specific: true
-
 linters:
-  disable-all: true
   enable:
-    # Core linters
     - errcheck
     - govet
     - ineffassign
     - staticcheck
     - unused
-    
-    # Formato y estilo
     - whitespace
     - revive
-    
-    # Calidad de código
     - bodyclose
     - dupl
     - goconst
@@ -108,11 +26,7 @@ linters:
     - prealloc
     - unconvert
     - unparam
-    
-    # Seguridad
     - gosec
-    
-    # Adicionales útiles
     - exhaustive
     - gochecknoinits
     - goprintffuncname
@@ -127,21 +41,92 @@ linters:
     - makezero
     - nilerr
     - wastedassign
+  
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: false
+    
+    govet:
+      enable-all: false
+    
+    gocyclo:
+      min-complexity: 15
+    
+    dupl:
+      threshold: 150
+    
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+    
+    unused:
+      exported-fields-are-used: true
+    
+    unparam:
+      check-exported: false
+    
+    nakedret:
+      max-func-lines: 30
+    
+    prealloc:
+      simple: true
+      range-loops: true
+      for-loops: false
+    
+    gocritic:
+      enabled-checks:
+        - nestingReduce
+        - unnamedResult
+        - ruleguard
+        - truncateCmp
+    
+    revive:
+      confidence: 0.8
+      severity: warning
+      rules:
+        - name: package-comments
+          disabled: true
+        - name: exported
+          disabled: true
+    
+    exhaustive:
+      default-signifies-exhaustive: true
+    
+    nolintlint:
+      allow-unused: false
+      require-explanation: true
+      require-specific: true
+  
+  exclusions:
+    rules:
+      # Allow init functions in cmd
+      - path: cmd/.*\.go
+        linters:
+          - gochecknoinits
+      
+      # Reduce revive noise in cmd
+      - path: cmd/.*\.go
+        linters:
+          - revive
+      
+      # Exclude generated files
+      - path: '.*\.pb\.go$'
+        linters:
+          - revive
+          - govet
+          - staticcheck
+          - unused
+      
+      - path: '.*\.gen\.go$'
+        linters:
+          - revive
+          - govet
+          - staticcheck
+          - unused
 
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
   new: false
   fix: false
-  
-  exclude-rules:
-    # Permitir init functions en cmd
-    - path: cmd/.*\.go
-      linters:
-        - gochecknoinits
-    
-    # Reducir ruido de revive en cmd
-    - path: cmd/.*\.go
-      linters:
-        - revive
