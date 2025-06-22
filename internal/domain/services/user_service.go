@@ -126,62 +126,12 @@ func (s *userService) UpdateUser(ctx context.Context, id uint, updates map[strin
 		return nil, errors.NewNotFoundError("user")
 	}
 
-	// Apply updates
-	if username, ok := updates["username"].(string); ok && username != "" {
-		// Normalize username first
-		username = strings.TrimSpace(username)
-		if strings.Contains(username, "@") {
-			username = strings.ToLower(username)
-		}
-
-		// Validate username before any DB operations
-		if err := s.validateUsername(username); err != nil {
-			return nil, err
-		}
-
-		// Check if new username is taken by another user (only if it's different)
-		if username != user.Username {
-			existingUser, err := s.userRepo.FindByUsername(ctx, username)
-			if err != nil && !errors.IsNotFoundError(err) {
-				return nil, errors.DB(err, "error checking username availability")
-			}
-			if existingUser != nil && existingUser.ID != user.ID {
-				return nil, errors.NewValidationError(
-					"Username already exists",
-					map[string]string{"username": "This username is already taken"},
-				)
-			}
-
-			// Si cambia a un email, marcar como no verificado
-			if strings.Contains(username, "@") {
-				user.EmailVerified = false
-				user.EmailVerifiedAt = nil
-			}
-		}
-		user.Username = username
+	// Apply all updates
+	if err := s.applyUserUpdates(ctx, user, updates); err != nil {
+		return nil, err
 	}
 
-	if password, ok := updates["password"].(string); ok && password != "" {
-		if err := s.validatePassword(password); err != nil {
-			return nil, err
-		}
-
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-		if err != nil {
-			return nil, errors.Wrap(err, errors.ErrInternalError, "error hashing password")
-		}
-		user.Password = string(hashedPassword)
-	}
-
-	if role, ok := updates["role"].(models.Role); ok {
-		user.Role = role
-	}
-
-	if isActive, ok := updates["isActive"].(bool); ok {
-		user.IsActive = isActive
-	}
-
-	// Update user
+	// Update user in database
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, errors.DB(err, "error updating user")
 	}
@@ -194,6 +144,118 @@ func (s *userService) UpdateUser(ctx context.Context, id uint, updates map[strin
 	// Clear password before returning
 	user.Password = ""
 	return user, nil
+}
+
+// applyUserUpdates applies all updates to the user object
+func (s *userService) applyUserUpdates(ctx context.Context, user *models.User, updates map[string]interface{}) error {
+	// Update username if provided
+	if err := s.updateUsername(ctx, user, updates); err != nil {
+		return err
+	}
+
+	// Update password if provided
+	if err := s.updatePassword(user, updates); err != nil {
+		return err
+	}
+
+	// Update role if provided
+	s.updateRole(user, updates)
+
+	// Update isActive if provided
+	s.updateIsActive(user, updates)
+
+	return nil
+}
+
+// updateUsername handles username update logic
+func (s *userService) updateUsername(ctx context.Context, user *models.User, updates map[string]interface{}) error {
+	username, ok := updates["username"].(string)
+	if !ok || username == "" {
+		return nil
+	}
+
+	// Normalize username
+	username = s.normalizeUsername(username)
+
+	// Validate username
+	if err := s.validateUsername(username); err != nil {
+		return err
+	}
+
+	// Check if username is changing
+	if username != user.Username {
+		// Check if new username is available
+		if err := s.checkUsernameAvailability(ctx, username, user.ID); err != nil {
+			return err
+		}
+
+		// Update email verification status if changing to email
+		if strings.Contains(username, "@") {
+			user.EmailVerified = false
+			user.EmailVerifiedAt = nil
+		}
+	}
+
+	user.Username = username
+	return nil
+}
+
+// normalizeUsername normalizes the username format
+func (s *userService) normalizeUsername(username string) string {
+	username = strings.TrimSpace(username)
+	if strings.Contains(username, "@") {
+		username = strings.ToLower(username)
+	}
+	return username
+}
+
+// checkUsernameAvailability checks if a username is available for a specific user
+func (s *userService) checkUsernameAvailability(ctx context.Context, username string, userID uint) error {
+	existingUser, err := s.userRepo.FindByUsername(ctx, username)
+	if err != nil && !errors.IsNotFoundError(err) {
+		return errors.DB(err, "error checking username availability")
+	}
+	if existingUser != nil && existingUser.ID != userID {
+		return errors.NewValidationError(
+			"Username already exists",
+			map[string]string{"username": "This username is already taken"},
+		)
+	}
+	return nil
+}
+
+// updatePassword handles password update logic
+func (s *userService) updatePassword(user *models.User, updates map[string]interface{}) error {
+	password, ok := updates["password"].(string)
+	if !ok || password == "" {
+		return nil
+	}
+
+	if err := s.validatePassword(password); err != nil {
+		return err
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return errors.Wrap(err, errors.ErrInternalError, "error hashing password")
+	}
+
+	user.Password = string(hashedPassword)
+	return nil
+}
+
+// updateRole handles role update
+func (s *userService) updateRole(user *models.User, updates map[string]interface{}) {
+	if role, ok := updates["role"].(models.Role); ok {
+		user.Role = role
+	}
+}
+
+// updateIsActive handles active status update
+func (s *userService) updateIsActive(user *models.User, updates map[string]interface{}) {
+	if isActive, ok := updates["isActive"].(bool); ok {
+		user.IsActive = isActive
+	}
 }
 
 // DeleteUser deletes a user by ID
@@ -782,8 +844,41 @@ func (s *userService) validateEmail(email string) error {
 	return nil
 }
 
+// passwordComplexity holds the results of password complexity analysis
+type passwordComplexity struct {
+	hasUpper   bool
+	hasLower   bool
+	hasNumber  bool
+	hasSpecial bool
+}
+
 // validatePassword validates password requirements
 func (s *userService) validatePassword(password string) error {
+	// Validate password length
+	if err := s.validatePasswordLength(password); err != nil {
+		return err
+	}
+
+	// Check password complexity
+	complexity := s.analyzePasswordComplexity(password)
+
+	// Validate complexity requirements
+	if err := s.validatePasswordComplexity(complexity); err != nil {
+		return err
+	}
+
+	// Log recommendation if no special characters
+	if !complexity.hasSpecial {
+		s.logger.Debug("Password does not contain special characters",
+			zap.String("recommendation", "Consider adding special characters for better security"),
+		)
+	}
+
+	return nil
+}
+
+// validatePasswordLength validates password length requirements
+func (s *userService) validatePasswordLength(password string) error {
 	if password == "" {
 		return errors.NewValidationError(
 			"Password is required",
@@ -805,26 +900,33 @@ func (s *userService) validatePassword(password string) error {
 		)
 	}
 
-	// Check password complexity
-	hasUpper := false
-	hasLower := false
-	hasNumber := false
-	hasSpecial := false
+	return nil
+}
+
+// analyzePasswordComplexity analyzes the character types in a password
+func (s *userService) analyzePasswordComplexity(password string) passwordComplexity {
+	complexity := passwordComplexity{}
+	specialChars := "!@#$%^&*()_+-=[]{}|;:,.<>?"
 
 	for _, char := range password {
 		switch {
-		case char >= 'A' && char <= 'Z':
-			hasUpper = true
-		case char >= 'a' && char <= 'z':
-			hasLower = true
-		case char >= '0' && char <= '9':
-			hasNumber = true
-		case strings.ContainsRune("!@#$%^&*()_+-=[]{}|;:,.<>?", char):
-			hasSpecial = true
+		case isUpperCase(char):
+			complexity.hasUpper = true
+		case isLowerCase(char):
+			complexity.hasLower = true
+		case isNumber(char):
+			complexity.hasNumber = true
+		case strings.ContainsRune(specialChars, char):
+			complexity.hasSpecial = true
 		}
 	}
 
-	if !hasUpper || !hasLower || !hasNumber {
+	return complexity
+}
+
+// validatePasswordComplexity validates that password meets complexity requirements
+func (s *userService) validatePasswordComplexity(complexity passwordComplexity) error {
+	if !complexity.hasUpper || !complexity.hasLower || !complexity.hasNumber {
 		return errors.NewValidationError(
 			"Password does not meet complexity requirements",
 			map[string]string{
@@ -832,13 +934,18 @@ func (s *userService) validatePassword(password string) error {
 			},
 		)
 	}
-
-	// hasSpecial is optional but recommended
-	if !hasSpecial {
-		s.logger.Debug("Password does not contain special characters",
-			zap.String("recommendation", "Consider adding special characters for better security"),
-		)
-	}
-
 	return nil
+}
+
+// Helper functions for character type checking
+func isUpperCase(char rune) bool {
+	return char >= 'A' && char <= 'Z'
+}
+
+func isLowerCase(char rune) bool {
+	return char >= 'a' && char <= 'z'
+}
+
+func isNumber(char rune) bool {
+	return char >= '0' && char <= '9'
 }

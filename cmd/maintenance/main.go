@@ -17,106 +17,45 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
+// maintenanceFlags holds command-line flags
+type maintenanceFlags struct {
+	cleanupTokens  bool
+	enforceLimit   bool
+	runAll         bool
+	dryRun         bool
+	customLimit    int
+	generateReport bool
+}
+
 func main() {
-	// Define command-line flags
-	var (
-		cleanupTokens  = flag.Bool("cleanup-tokens", false, "Clean up expired tokens")
-		enforceLimit   = flag.Bool("enforce-token-limit", false, "Enforce token limit per user")
-		runAll         = flag.Bool("all", false, "Run all maintenance tasks")
-		dryRun         = flag.Bool("dry-run", false, "Show what would be done without executing")
-		customLimit    = flag.Int("token-limit", 0, "Custom token limit (overrides config)")
-		generateReport = flag.Bool("report", false, "Generate maintenance report")
-	)
+	// Parse command-line flags
+	flags := parseFlags()
 
-	flag.Parse()
-
-	// Load configuration
-	cfg, err := config.LoadConfig()
+	// Initialize application components
+	cfg, log, maintenanceService, err := initializeApplication()
 	if err != nil {
-		fmt.Printf("Failed to load config: %v\n", err)
+		fmt.Printf("Failed to initialize application: %v\n", err)
 		os.Exit(1)
 	}
-
-	// Initialize logger
-	logCfg := logger.DefaultConfig()
-	log, err := logger.InitLogger(logCfg)
-	if err != nil {
-		fmt.Printf("Failed to initialize logger: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Initialize database
-	database, err := db.InitDB(cfg, log)
-	if err != nil {
-		log.Fatal("Failed to connect to database", zap.Error(err))
-	}
-
-	// Initialize repositories
-	tokenRepo := db.NewTokenRepository(database)
-
-	// Initialize maintenance service
-	maintenanceService := services.NewMaintenanceService(tokenRepo, log)
 
 	ctx := context.Background()
 	startTime := time.Now()
 
 	// Determine token limit
-	tokenLimit := cfg.MaxTokensPerUser
-	if *customLimit > 0 {
-		tokenLimit = *customLimit
-	}
+	tokenLimit := determineTokenLimit(cfg, flags)
 
 	log.Info("Starting maintenance tasks",
-		zap.Bool("dry_run", *dryRun),
-		zap.Bool("cleanup_tokens", *cleanupTokens || *runAll),
-		zap.Bool("enforce_limit", *enforceLimit || *runAll),
+		zap.Bool("dry_run", flags.dryRun),
+		zap.Bool("cleanup_tokens", flags.cleanupTokens || flags.runAll),
+		zap.Bool("enforce_limit", flags.enforceLimit || flags.runAll),
 		zap.Int("token_limit", tokenLimit),
 	)
 
-	// Track results
-	var results []services.MaintenanceResult
+	// Execute maintenance tasks
+	results := executeTasks(ctx, log, maintenanceService, flags, tokenLimit)
 
-	// Execute requested maintenance tasks
-	if *cleanupTokens || *runAll {
-		result, err := executeTask(ctx, "Token Cleanup", *dryRun, func() error {
-			return maintenanceService.CleanupExpiredTokens(ctx)
-		})
-		if err != nil {
-			log.Error("Token cleanup failed", zap.Error(err))
-		}
-		results = append(results, result)
-	}
-
-	if *enforceLimit || *runAll {
-		result, err := executeTask(ctx, "Enforce Token Limit", *dryRun, func() error {
-			return maintenanceService.EnforceTokenLimitPerUser(ctx, tokenLimit)
-		})
-		if err != nil {
-			log.Error("Token limit enforcement failed", zap.Error(err))
-		}
-		results = append(results, result)
-	}
-
-	// Generate report if requested
-	if *generateReport {
-		report := maintenanceService.GenerateReport(ctx, results)
-		fmt.Println("\n=== Maintenance Report ===")
-		fmt.Println(report)
-	}
-
-	// Log completion
-	duration := time.Since(startTime)
-	log.Info("Maintenance tasks completed",
-		zap.Duration("duration", duration),
-		zap.Int("tasks_executed", len(results)),
-	)
-
-	// Exit with appropriate code
-	for _, result := range results {
-		if result.Error != nil {
-			os.Exit(1)
-		}
-	}
+	// Generate report and exit
+	handleCompletion(log, maintenanceService, results, flags, startTime)
 }
 
 // executeTask executes a maintenance task and returns the result
@@ -144,4 +83,117 @@ func executeTask(_ context.Context, taskName string, dryRun bool, task func() er
 	}
 
 	return result, err
+}
+
+// parseFlags parses command-line flags
+func parseFlags() maintenanceFlags {
+	// Define command-line flags
+	cleanupTokens := flag.Bool("cleanup-tokens", false, "Clean up expired tokens")
+	enforceLimit := flag.Bool("enforce-token-limit", false, "Enforce token limit per user")
+	runAll := flag.Bool("all", false, "Run all maintenance tasks")
+	dryRun := flag.Bool("dry-run", false, "Show what would be done without executing")
+	customLimit := flag.Int("token-limit", 0, "Custom token limit (overrides config)")
+	generateReport := flag.Bool("report", false, "Generate maintenance report")
+
+	flag.Parse()
+
+	return maintenanceFlags{
+		cleanupTokens:  *cleanupTokens,
+		enforceLimit:   *enforceLimit,
+		runAll:         *runAll,
+		dryRun:         *dryRun,
+		customLimit:    *customLimit,
+		generateReport: *generateReport,
+	}
+}
+
+// initializeApplication initializes all application components
+func initializeApplication() (*config.Config, logger.Logger, *services.MaintenanceService, error) {
+	// Load configuration
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Initialize logger
+	logCfg := logger.DefaultConfig()
+	log, err := logger.InitLogger(logCfg)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to initialize logger: %w", err)
+	}
+
+	// Initialize database
+	database, err := db.InitDB(cfg, log)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to connect to database: %w", err)
+	}
+
+	// Initialize repositories
+	tokenRepo := db.NewTokenRepository(database)
+
+	// Initialize maintenance service
+	maintenanceService := services.NewMaintenanceService(tokenRepo, log)
+
+	return cfg, log, maintenanceService, nil
+}
+
+// determineTokenLimit determines the token limit based on config and flags
+func determineTokenLimit(cfg *config.Config, flags maintenanceFlags) int {
+	if flags.customLimit > 0 {
+		return flags.customLimit
+	}
+	return cfg.MaxTokensPerUser
+}
+
+// executeTasks executes all requested maintenance tasks
+func executeTasks(ctx context.Context, log logger.Logger, maintenanceService *services.MaintenanceService, flags maintenanceFlags, tokenLimit int) []services.MaintenanceResult {
+	var results []services.MaintenanceResult
+
+	// Execute token cleanup if requested
+	if flags.cleanupTokens || flags.runAll {
+		result, err := executeTask(ctx, "Token Cleanup", flags.dryRun, func() error {
+			return maintenanceService.CleanupExpiredTokens(ctx)
+		})
+		if err != nil {
+			log.Error("Token cleanup failed", zap.Error(err))
+		}
+		results = append(results, result)
+	}
+
+	// Enforce token limit if requested
+	if flags.enforceLimit || flags.runAll {
+		result, err := executeTask(ctx, "Enforce Token Limit", flags.dryRun, func() error {
+			return maintenanceService.EnforceTokenLimitPerUser(ctx, tokenLimit)
+		})
+		if err != nil {
+			log.Error("Token limit enforcement failed", zap.Error(err))
+		}
+		results = append(results, result)
+	}
+
+	return results
+}
+
+// handleCompletion handles report generation and exit code
+func handleCompletion(log logger.Logger, maintenanceService *services.MaintenanceService, results []services.MaintenanceResult, flags maintenanceFlags, startTime time.Time) {
+	// Generate report if requested
+	if flags.generateReport {
+		report := maintenanceService.GenerateReport(context.Background(), results)
+		fmt.Println("\n=== Maintenance Report ===")
+		fmt.Println(report)
+	}
+
+	// Log completion
+	duration := time.Since(startTime)
+	log.Info("Maintenance tasks completed",
+		zap.Duration("duration", duration),
+		zap.Int("tasks_executed", len(results)),
+	)
+
+	// Exit with appropriate code
+	for _, result := range results {
+		if result.Error != nil {
+			os.Exit(1)
+		}
+	}
 }

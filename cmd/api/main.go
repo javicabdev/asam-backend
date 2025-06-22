@@ -745,6 +745,248 @@ func dynamicGraphQLHandler(state *appState) http.HandlerFunc {
 	}
 }
 
+// setupHTTPHandler configures all HTTP routes and middleware
+func setupHTTPHandler(cfg *config.Config, state *appState) http.Handler {
+	// Create the main mux
+	mux := http.NewServeMux()
+
+	// Register routes
+	registerRoutes(mux, cfg, state)
+
+	// Apply global middlewares
+	return clientInfoMiddleware( // Capture client info first
+		requestIDMiddleware(
+			securityHeadersMiddleware(
+				rateLimitMiddleware(cfg.RateLimitRPS)(
+					prometheusMiddleware(mux),
+				),
+			),
+		),
+	)
+}
+
+// registerRoutes registers all HTTP routes
+func registerRoutes(mux *http.ServeMux, cfg *config.Config, state *appState) {
+	// Root endpoint for basic connectivity test
+	mux.HandleFunc("/", rootHandler())
+
+	// Health endpoints
+	mux.Handle("/health/live", http.HandlerFunc(healthLiveHandler))
+	mux.Handle("/health/ready", healthReadyHandler(state))
+	mux.Handle("/health", healthHandler(cfg, state))
+
+	// Prometheus metrics endpoint (always available)
+	mux.Handle("/metrics", promhttp.Handler())
+
+	// GraphQL endpoints with dynamic handlers
+	mux.Handle("/playground", playgroundHandler(state))
+	mux.Handle("/graphql", dynamicGraphQLHandler(state))
+}
+
+// rootHandler returns the root endpoint handler
+func rootHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"service": "asam-backend",
+			"version": Version,
+			"status":  "running",
+		})
+	}
+}
+
+// healthLiveHandler handles liveness checks
+func healthLiveHandler(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("OK"))
+}
+
+// healthReadyHandler returns the readiness check handler
+func healthReadyHandler(state *appState) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		state.mu.RLock()
+		isReady := state.isReady
+		state.mu.RUnlock()
+
+		if isReady {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("Ready"))
+		} else {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte("Database not ready"))
+		}
+	}
+}
+
+// initializeServicesAsync handles the asynchronous initialization of database and services
+func initializeServicesAsync(ctx context.Context, state *appState, cfg *config.Config, appLogger logger.Logger, auditLogger audit.Logger, circuitBreaker *dbCircuitBreaker, initStart time.Time) {
+	initTimeout := time.NewTimer(5 * time.Minute)
+	defer initTimeout.Stop()
+	initComplete := make(chan bool, 1)
+
+	// Start initialization in goroutine
+	go performInitialization(ctx, state, cfg, appLogger, auditLogger, circuitBreaker, initStart, initComplete)
+
+	// Monitor initialization timeout
+	select {
+	case <-initComplete:
+		appLogger.Info("Service initialization completed successfully")
+	case <-initTimeout.C:
+		appLogger.Error("Service initialization timeout - operating in degraded mode")
+		state.mu.Lock()
+		if !state.isReady {
+			state.dbError = fmt.Errorf("initialization timeout after 5 minutes")
+		}
+		state.mu.Unlock()
+	}
+}
+
+// performInitialization performs the actual service initialization
+func performInitialization(ctx context.Context, state *appState, cfg *config.Config, appLogger logger.Logger, auditLogger audit.Logger, circuitBreaker *dbCircuitBreaker, initStart time.Time, initComplete chan bool) {
+	appLogger.Info("Initializing database connection asynchronously...")
+
+	// Setup database connection with retries
+	database, dbErr := setupDatabaseWithRetry(cfg, appLogger, 30, circuitBreaker)
+	if dbErr != nil {
+		appLogger.Error("Failed to setup database after retries", zap.Error(dbErr))
+
+		// Update state to reflect error
+		state.mu.Lock()
+		state.dbError = dbErr
+		state.mu.Unlock()
+
+		// Start automatic retry mechanism
+		go retryDatabaseConnection(ctx, state, cfg, appLogger, auditLogger, circuitBreaker)
+		return
+	}
+
+	// Initialize all components
+	if err := setupApplicationComponents(state, cfg, database, appLogger, auditLogger, initStart); err != nil {
+		appLogger.Error("Failed to setup application components", zap.Error(err))
+		return
+	}
+
+	// Start periodic metrics updates
+	go updateMetricsPeriodically(ctx, appLogger, state.deps)
+
+	// Signal initialization complete
+	initComplete <- true
+}
+
+// setupApplicationComponents initializes all application components
+func setupApplicationComponents(state *appState, cfg *config.Config, database *gorm.DB, appLogger logger.Logger, auditLogger audit.Logger, initStart time.Time) error {
+	// Initialize services and other dependencies
+	deps := initializeServicesAndDependencies(cfg, database, appLogger, auditLogger)
+
+	// Initialize login rate limiter
+	loginRateLimiter := auth.NewLoginRateLimiterWithConfig(
+		appLogger,
+		cfg.LoginMaxAttempts,
+		cfg.LoginLockoutDuration,
+		cfg.LoginWindowDuration,
+	)
+
+	// Initialize GraphQL resolver
+	resolver := resolvers.NewResolver(
+		deps.memberService,
+		deps.familyService,
+		deps.paymentService,
+		deps.cashFlowService,
+		deps.authService,
+		deps.userService,
+		loginRateLimiter,
+	)
+
+	// Initialize GraphQL handler
+	graphqlHandler := gql.NewHandler(deps.authService, resolver, cfg, appLogger, database)
+
+	// Update state
+	state.mu.Lock()
+	state.database = database
+	state.deps = deps
+	state.graphqlHandler = graphqlHandler
+	state.isReady = true
+	state.mu.Unlock()
+
+	// Record initialization duration
+	initDuration := time.Since(initStart).Seconds()
+	initializationDuration.Observe(initDuration)
+
+	appLogger.Info("Database ready, GraphQL endpoints activated",
+		zap.Float64("initialization_duration_seconds", initDuration),
+	)
+
+	return nil
+}
+
+// playgroundHandler returns the GraphQL playground handler
+func playgroundHandler(state *appState) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Handle CORS for playground
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		state.mu.RLock()
+		isReady := state.isReady
+		state.mu.RUnlock()
+
+		if !isReady {
+			w.Header().Set("Content-Type", "text/html")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte(`
+				<html>
+				<head><title>GraphQL Playground - Initializing</title></head>
+				<body>
+					<h1>GraphQL Playground is initializing...</h1>
+					<p>The database connection is being established. Please refresh in a few seconds.</p>
+				</body>
+				</html>
+			`))
+			return
+		}
+
+		gql.NewPlaygroundHandler().ServeHTTP(w, r)
+	}
+}
+
+// cleanupResources performs cleanup of application resources
+func cleanupResources(state *appState, appLogger logger.Logger) {
+	state.mu.RLock()
+	database := state.database
+	deps := state.deps
+	state.mu.RUnlock()
+
+	if database != nil {
+		sqlDB, err := database.DB()
+		if err == nil {
+			appLogger.Info("Closing database connection...")
+			if errDBClose := sqlDB.Close(); errDBClose != nil {
+				appLogger.Error("Error closing database connection", zap.Error(errDBClose))
+			}
+		}
+	}
+
+	if deps != nil {
+		if deps.memoryMonitor != nil {
+			appLogger.Info("Stopping memory monitor...")
+			deps.memoryMonitor.Stop()
+		}
+		if deps.profilingServer != nil {
+			appLogger.Info("Stopping profiling server...")
+			if err := deps.profilingServer.Stop(); err != nil {
+				appLogger.Error("Error stopping profiling server", zap.Error(err))
+			}
+		}
+	}
+}
+
 // retryDatabaseConnection implements automatic database reconnection with backoff
 func retryDatabaseConnection(ctx context.Context, state *appState, cfg *config.Config, appLogger logger.Logger, auditLogger audit.Logger, circuitBreaker *dbCircuitBreaker) {
 	ticker := time.NewTicker(30 * time.Second)
@@ -847,91 +1089,8 @@ func run(ctx context.Context) error {
 	// Step 4: Start HTTP server immediately with dynamic handlers
 	appLogger.Info("Starting HTTP server immediately for Cloud Run...")
 
-	// Create the main mux
-	mux := http.NewServeMux()
-
-	// Apply global middlewares
-	handler := clientInfoMiddleware( // Capture client info first
-		requestIDMiddleware(
-			securityHeadersMiddleware(
-				rateLimitMiddleware(cfg.RateLimitRPS)(
-					prometheusMiddleware(mux),
-				),
-			),
-		),
-	)
-
-	// Root endpoint for basic connectivity test
-	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(map[string]string{
-			"service": "asam-backend",
-			"version": Version,
-			"status":  "running",
-		})
-	})
-
-	// Health endpoints
-	mux.Handle("/health/live", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("OK"))
-	}))
-
-	mux.Handle("/health/ready", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		state.mu.RLock()
-		isReady := state.isReady
-		state.mu.RUnlock()
-
-		if isReady {
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("Ready"))
-		} else {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			_, _ = w.Write([]byte("Database not ready"))
-		}
-	}))
-
-	mux.Handle("/health", healthHandler(cfg, state))
-
-	// Prometheus metrics endpoint (always available)
-	mux.Handle("/metrics", promhttp.Handler())
-
-	// GraphQL endpoints with dynamic handlers
-	mux.Handle("/playground", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Handle CORS for playground
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		state.mu.RLock()
-		isReady := state.isReady
-		state.mu.RUnlock()
-
-		if !isReady {
-			w.Header().Set("Content-Type", "text/html")
-			w.WriteHeader(http.StatusServiceUnavailable)
-			_, _ = w.Write([]byte(`
-				<html>
-				<head><title>GraphQL Playground - Initializing</title></head>
-				<body>
-					<h1>GraphQL Playground is initializing...</h1>
-					<p>The database connection is being established. Please refresh in a few seconds.</p>
-				</body>
-				</html>
-			`))
-			return
-		}
-
-		gql.NewPlaygroundHandler().ServeHTTP(w, r)
-	}))
-
-	mux.Handle("/graphql", dynamicGraphQLHandler(state))
+	// Setup HTTP routes and middleware
+	handler := setupHTTPHandler(cfg, state)
 
 	// Configure the HTTP server
 	listenAddr := fmt.Sprintf(":%s", cfg.Port)
@@ -960,90 +1119,7 @@ func run(ctx context.Context) error {
 	// Step 5: Initialize database and services asynchronously with timeout
 	circuitBreaker := newDBCircuitBreaker()
 	initStart := time.Now()
-	initTimeout := time.NewTimer(5 * time.Minute)
-	defer initTimeout.Stop()
-	initComplete := make(chan bool, 1)
-
-	go func() {
-		appLogger.Info("Initializing database connection asynchronously...")
-
-		// Setup database connection with retries
-		database, dbErr := setupDatabaseWithRetry(cfg, appLogger, 30, circuitBreaker)
-		if dbErr != nil {
-			appLogger.Error("Failed to setup database after retries", zap.Error(dbErr))
-
-			// Update state to reflect error
-			state.mu.Lock()
-			state.dbError = dbErr
-			state.mu.Unlock()
-
-			// Start automatic retry mechanism
-			go retryDatabaseConnection(ctx, state, cfg, appLogger, auditLogger, circuitBreaker)
-			return
-		}
-
-		// Initialize services and other dependencies
-		deps := initializeServicesAndDependencies(cfg, database, appLogger, auditLogger)
-
-		// Initialize login rate limiter
-		loginRateLimiter := auth.NewLoginRateLimiterWithConfig(
-			appLogger,
-			cfg.LoginMaxAttempts,
-			cfg.LoginLockoutDuration,
-			cfg.LoginWindowDuration,
-		)
-
-		// Initialize GraphQL resolver
-		resolver := resolvers.NewResolver(
-			deps.memberService,
-			deps.familyService,
-			deps.paymentService,
-			deps.cashFlowService,
-			deps.authService,
-			deps.userService,
-			loginRateLimiter,
-		)
-
-		// Initialize GraphQL handler
-		graphqlHandler := gql.NewHandler(deps.authService, resolver, cfg, appLogger, database)
-
-		// Update state
-		state.mu.Lock()
-		state.database = database
-		state.deps = deps
-		state.graphqlHandler = graphqlHandler
-		state.isReady = true
-		state.mu.Unlock()
-
-		// Record initialization duration
-		initDuration := time.Since(initStart).Seconds()
-		initializationDuration.Observe(initDuration)
-
-		appLogger.Info("Database ready, GraphQL endpoints activated",
-			zap.Float64("initialization_duration_seconds", initDuration),
-		)
-
-		// Start periodic metrics updates
-		go updateMetricsPeriodically(ctx, appLogger, deps)
-
-		// Signal initialization complete
-		initComplete <- true
-	}()
-
-	// Monitor initialization timeout
-	go func() {
-		select {
-		case <-initComplete:
-			appLogger.Info("Service initialization completed successfully")
-		case <-initTimeout.C:
-			appLogger.Error("Service initialization timeout - operating in degraded mode")
-			state.mu.Lock()
-			if !state.isReady {
-				state.dbError = fmt.Errorf("initialization timeout after 5 minutes")
-			}
-			state.mu.Unlock()
-		}
-	}()
+	go initializeServicesAsync(ctx, state, cfg, appLogger, auditLogger, circuitBreaker, initStart)
 
 	// Step 6: Handle shutdown signals
 	shutdownSignal := make(chan os.Signal, 1)
@@ -1079,34 +1155,8 @@ func run(ctx context.Context) error {
 		appLogger.Info("Server shutdown gracefully.")
 	}
 
-	// Cleanup
-	state.mu.RLock()
-	database := state.database
-	deps := state.deps
-	state.mu.RUnlock()
-
-	if database != nil {
-		sqlDB, err := database.DB()
-		if err == nil {
-			appLogger.Info("Closing database connection...")
-			if errDBClose := sqlDB.Close(); errDBClose != nil {
-				appLogger.Error("Error closing database connection", zap.Error(errDBClose))
-			}
-		}
-	}
-
-	if deps != nil {
-		if deps.memoryMonitor != nil {
-			appLogger.Info("Stopping memory monitor...")
-			deps.memoryMonitor.Stop()
-		}
-		if deps.profilingServer != nil {
-			appLogger.Info("Stopping profiling server...")
-			if err := deps.profilingServer.Stop(); err != nil {
-				appLogger.Error("Error stopping profiling server", zap.Error(err))
-			}
-		}
-	}
+	// Cleanup resources
+	cleanupResources(state, appLogger)
 
 	appLogger.Info("Application run cleanup finished.")
 	return nil

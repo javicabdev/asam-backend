@@ -204,9 +204,31 @@ func getClientIP(r *http.Request) string {
 	return strings.Split(r.RemoteAddr, ":")[0]
 }
 
+// gqlRequest represents a GraphQL request
+type gqlRequest struct {
+	OperationName string `json:"operationName"`
+	Query         string `json:"query"`
+}
+
 // isPublicOperation determina si la operación GraphQL es pública
-// Mejorado con regex patterns case-insensitive para mayor flexibilidad
 func isPublicOperation(r *http.Request) (bool, string) {
+	// Verificar casos especiales primero
+	if isPublic, opName := checkSpecialCases(r); isPublic {
+		return true, opName
+	}
+
+	// Parsear el body de la solicitud GraphQL
+	request, err := parseGraphQLRequest(r)
+	if err != nil {
+		return false, err.Error()
+	}
+
+	// Verificar si es una operación pública
+	return checkIfPublicOperation(request)
+}
+
+// checkSpecialCases verifica casos especiales que no requieren parsear el body
+func checkSpecialCases(r *http.Request) (bool, string) {
 	// Solo procesar solicitudes POST para GraphQL
 	if r.Method != http.MethodPost {
 		return true, "non-graphql"
@@ -217,105 +239,125 @@ func isPublicOperation(r *http.Request) (bool, string) {
 		return true, "playground"
 	}
 
+	return false, ""
+}
+
+// parseGraphQLRequest parsea el body de la solicitud GraphQL
+func parseGraphQLRequest(r *http.Request) (*gqlRequest, error) {
 	// Verificar que el body no sea nil
 	if r.Body == nil {
-		return false, "empty-body"
-	}
-
-	// Intentar parsear el cuerpo de la solicitud para obtener la operación
-	var gqlRequest struct {
-		OperationName string `json:"operationName"`
-		Query         string `json:"query"`
+		return nil, &parseError{message: "empty-body"}
 	}
 
 	// Leer el body actual
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		// Si no se puede leer el body, asumir que necesita autenticación
-		return false, "read-error"
+		return nil, &parseError{message: "read-error"}
 	}
 
 	// Restaurar el body para que pueda ser leído nuevamente
 	r.Body = io.NopCloser(strings.NewReader(string(bodyBytes)))
 
-	// Si el body está vacío, retornar false
+	// Si el body está vacío, retornar error
 	if len(bodyBytes) == 0 {
-		return false, "empty-body"
+		return nil, &parseError{message: "empty-body"}
 	}
 
-	if err := json.Unmarshal(bodyBytes, &gqlRequest); err != nil {
-		// Si no podemos decodificar, asumir que necesita autenticación
-		return false, "unparseable"
+	var request gqlRequest
+	if err := json.Unmarshal(bodyBytes, &request); err != nil {
+		return nil, &parseError{message: "unparseable"}
 	}
 
-	// Verificar si la operación está en la lista de operaciones públicas
-	isPublic := false
-	operationName := gqlRequest.OperationName
+	return &request, nil
+}
 
-	// 1. Verificar por nombre de operación (case-insensitive)
-	if operationName != "" {
-		operationNameLower := strings.ToLower(operationName)
-		for publicOp := range publicOperations {
-			if strings.ToLower(publicOp) == operationNameLower {
-				isPublic = true
-				operationName = publicOp
-				break
-			}
+// parseError represents an error during parsing
+type parseError struct {
+	message string
+}
+
+func (e *parseError) Error() string {
+	return e.message
+}
+
+// checkIfPublicOperation verifica si la operación es pública
+func checkIfPublicOperation(request *gqlRequest) (bool, string) {
+	// 1. Verificar por nombre de operación
+	if isPublic, opName := checkByOperationName(request.OperationName); isPublic {
+		return true, opName
+	}
+
+	// 2. Verificar por contenido de la query
+	if request.Query != "" {
+		return checkByQueryContent(request.Query)
+	}
+
+	return false, request.OperationName
+}
+
+// checkByOperationName verifica si el nombre de la operación es público
+func checkByOperationName(operationName string) (bool, string) {
+	if operationName == "" {
+		return false, ""
+	}
+
+	operationNameLower := strings.ToLower(operationName)
+	for publicOp := range publicOperations {
+		if strings.ToLower(publicOp) == operationNameLower {
+			return true, publicOp
 		}
 	}
 
-	// 2. Si no es pública por nombre, verificar el contenido de la query usando regex
-	if !isPublic && gqlRequest.Query != "" {
-		// Check for auth operations (login/refreshToken)
-		if authOperationsRegex.MatchString(gqlRequest.Query) {
-			isPublic = true
-			// Extract the operation name from the regex match
-			matches := authOperationsRegex.FindStringSubmatch(gqlRequest.Query)
-			if len(matches) > 1 {
-				operationName = strings.ToLower(matches[1])
-			}
-		}
+	return false, operationName
+}
 
-		// Check for anonymous mutations with login/refreshToken
-		if !isPublic && anonymousAuthRegex.MatchString(gqlRequest.Query) {
-			isPublic = true
-			// Extract the operation name from the regex match
-			matches := anonymousAuthRegex.FindStringSubmatch(gqlRequest.Query)
-			if len(matches) > 1 {
-				operationName = strings.ToLower(matches[1])
-			}
-		}
+// checkByQueryContent verifica el contenido de la query usando regex
+func checkByQueryContent(query string) (bool, string) {
+	// Estructura para manejar los patrones de regex
+	patterns := []struct {
+		regex        *regexp.Regexp
+		defaultName  string
+		extractIndex int
+	}{
+		{authOperationsRegex, "auth", 1},
+		{anonymousAuthRegex, "auth", 1},
+		{introspectionRegex, "introspection", 0},
+		{healthCheckRegex, "health", 1},
+	}
 
-		// Check for introspection queries
-		if !isPublic && introspectionRegex.MatchString(gqlRequest.Query) {
-			isPublic = true
-			operationName = "introspection"
-		}
+	// Verificar cada patrón
+	for _, pattern := range patterns {
+		if pattern.regex.MatchString(query) {
+			operationName := pattern.defaultName
 
-		// Check for health check queries
-		if !isPublic && healthCheckRegex.MatchString(gqlRequest.Query) {
-			isPublic = true
-			// Extract the operation name from the regex match
-			matches := healthCheckRegex.FindStringSubmatch(gqlRequest.Query)
-			if len(matches) > 1 {
-				operationName = strings.ToLower(matches[1])
-			}
-		}
-
-		// 3. Si no se encontró por regex, intentar extraer el nombre de la operación
-		if operationName == "" {
-			matches := operationNameRegex.FindStringSubmatch(gqlRequest.Query)
-			if len(matches) > 2 {
-				extractedName := strings.ToLower(matches[2])
-				if publicOperations[extractedName] {
-					isPublic = true
-					operationName = extractedName
+			// Intentar extraer el nombre de la operación si es posible
+			if pattern.extractIndex > 0 {
+				matches := pattern.regex.FindStringSubmatch(query)
+				if len(matches) > pattern.extractIndex {
+					operationName = strings.ToLower(matches[pattern.extractIndex])
 				}
 			}
+
+			return true, operationName
 		}
 	}
 
-	return isPublic, operationName
+	// Si no coincide con ningún patrón, intentar extraer el nombre de la operación
+	return checkByExtractedOperationName(query)
+}
+
+// checkByExtractedOperationName intenta extraer y verificar el nombre de la operación
+func checkByExtractedOperationName(query string) (bool, string) {
+	matches := operationNameRegex.FindStringSubmatch(query)
+	if len(matches) > 2 {
+		extractedName := strings.ToLower(matches[2])
+		if publicOperations[extractedName] {
+			return true, extractedName
+		}
+		return false, extractedName
+	}
+
+	return false, ""
 }
 
 // respondWithAuthError envía una respuesta de error de autenticación en formato GraphQL
