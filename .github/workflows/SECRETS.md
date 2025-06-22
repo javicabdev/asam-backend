@@ -1,118 +1,191 @@
-# GitHub Actions Secrets Configuration
+# Configuración de Secrets
 
-This document lists all the required secrets that need to be configured in GitHub for the CI/CD pipeline to work properly.
+Este documento explica cómo configurar los secrets necesarios para el despliegue del ASAM Backend.
 
-## Required Secrets
+## 🔐 Arquitectura de Secrets
 
-### Google Cloud Platform Secrets
+El proyecto utiliza **Google Secret Manager** para almacenar información sensible de forma segura. Los secrets se referencian en Cloud Run pero nunca se exponen en el código o en los logs.
 
-1. **GCP_PROJECT_ID**
-   - Your Google Cloud Project ID
-   - Example: `my-project-12345`
+## 📋 Secrets Requeridos
 
-2. **GCP_SA_KEY**
-   - Service Account JSON key with permissions to deploy to Cloud Run
-   - This should be the entire JSON content of the service account key file
+### En GitHub Actions
 
-### Database Secrets (Aiven PostgreSQL)
+Solo necesitas configurar estos dos secrets en GitHub:
 
-3. **AIVEN_DB_HOST**
-   - Aiven PostgreSQL host
-   - Example: `pg-asam-asam-backend-db.l.aivencloud.com`
+1. **`GCP_PROJECT_ID`**: ID de tu proyecto en Google Cloud Platform
+2. **`GCP_SA_KEY`**: JSON de la cuenta de servicio con permisos para:
+   - Cloud Run Admin
+   - Artifact Registry Writer
+   - Service Account User
+   - Secret Manager Viewer (para las migraciones)
 
-4. **AIVEN_DB_PORT**
-   - Aiven PostgreSQL port
-   - Example: `14276`
+### En Google Secret Manager
 
-5. **AIVEN_DB_USER**
-   - Database user
-   - Example: `avnadmin`
+Todos los demás secrets se almacenan en Google Secret Manager:
 
-6. **AIVEN_DB_PASSWORD**
-   - Database password
+#### Base de Datos (Aiven PostgreSQL)
+- `db-host`: Host de la base de datos
+- `db-port`: Puerto (generalmente 14276 para Aiven)
+- `db-user`: Usuario de la base de datos
+- `db-password`: Contraseña de la base de datos
+- `db-name`: Nombre de la base de datos
 
-7. **AIVEN_DB_NAME**
-   - Database name
-   - Example: `defaultdb`
+#### Autenticación JWT
+- `jwt-access-secret`: Secret para tokens de acceso (generado automáticamente)
+- `jwt-refresh-secret`: Secret para refresh tokens (generado automáticamente)
 
-### Application Secrets
+#### Credenciales de Admin
+- `admin-user`: Usuario administrador inicial
+- `admin-password`: Contraseña del administrador
 
-8. **JWT_ACCESS_SECRET**
-   - Secret key for JWT access tokens
-   - Should be a strong, random string (32+ characters)
+#### SMTP (Opcional)
+- `smtp-user`: Usuario SMTP (email)
+- `smtp-password`: Contraseña de aplicación SMTP
 
-9. **JWT_REFRESH_SECRET**
-   - Secret key for JWT refresh tokens
-   - Should be a strong, random string (32+ characters)
+## 🚀 Configuración Paso a Paso
 
-10. **ADMIN_USER**
-    - Administrator username for protected endpoints
-    - Example: `admin`
-
-11. **ADMIN_PASSWORD**
-    - Administrator password
-    - Should be a strong password
-
-### Optional Secrets
-
-12. **SMTP_USER** (Optional)
-    - SMTP username for email notifications
-    - If not set, defaults to `noreply@asam.org`
-
-13. **SMTP_PASSWORD** (Optional)
-    - SMTP password for email notifications
-    - If not set, defaults to `temp-smtp-pass`
-
-## How to Configure Secrets
-
-1. Go to your GitHub repository
-2. Click on "Settings" → "Secrets and variables" → "Actions"
-3. Click "New repository secret"
-4. Add each secret with its name and value
-
-## Generating Secure Secrets
-
-For JWT secrets, you can generate secure random strings using:
+### 1. Crear Cuenta de Servicio en GCP
 
 ```bash
-# Linux/Mac
-openssl rand -base64 32
+# Crear cuenta de servicio
+gcloud iam service-accounts create asam-backend-sa \
+  --display-name="ASAM Backend Service Account" \
+  --project=TU_PROJECT_ID
 
-# Or using Node.js
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+# Asignar roles necesarios
+gcloud projects add-iam-policy-binding TU_PROJECT_ID \
+  --member="serviceAccount:asam-backend-sa@TU_PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/run.admin"
+
+gcloud projects add-iam-policy-binding TU_PROJECT_ID \
+  --member="serviceAccount:asam-backend-sa@TU_PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/artifactregistry.writer"
+
+gcloud projects add-iam-policy-binding TU_PROJECT_ID \
+  --member="serviceAccount:asam-backend-sa@TU_PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountUser"
+
+gcloud projects add-iam-policy-binding TU_PROJECT_ID \
+  --member="serviceAccount:asam-backend-sa@TU_PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/secretmanager.viewer"
+
+# Crear y descargar key JSON
+gcloud iam service-accounts keys create sa-key.json \
+  --iam-account=asam-backend-sa@TU_PROJECT_ID.iam.gserviceaccount.com
 ```
 
-## Service Account Permissions
+### 2. Configurar Secrets en GitHub
 
-The Google Cloud Service Account needs the following permissions:
-- Cloud Run Admin
-- Service Account User
-- Artifact Registry Writer
-- Cloud Build Service Account
+1. Ve a tu repositorio en GitHub
+2. Settings > Secrets and variables > Actions
+3. Crea los siguientes secrets:
+   - `GCP_PROJECT_ID`: Tu ID de proyecto
+   - `GCP_SA_KEY`: Contenido del archivo `sa-key.json`
 
-You can create a service account with:
+### 3. Configurar Secrets en Google Secret Manager
+
+#### Opción A: Usando PowerShell (Windows)
+
+```powershell
+# Establecer proyecto
+$env:PROJECT_ID = "TU_PROJECT_ID"
+
+# Ejecutar script
+.\scripts\create-secrets.ps1
+```
+
+#### Opción B: Usando Bash (Linux/Mac)
 
 ```bash
-# Create service account
-gcloud iam service-accounts create github-actions \
-    --display-name="GitHub Actions"
+# Establecer proyecto
+export PROJECT_ID="TU_PROJECT_ID"
 
-# Grant permissions
-gcloud projects add-iam-policy-binding YOUR-PROJECT-ID \
-    --member="serviceAccount:github-actions@YOUR-PROJECT-ID.iam.gserviceaccount.com" \
-    --role="roles/run.admin"
-
-gcloud projects add-iam-policy-binding YOUR-PROJECT-ID \
-    --member="serviceAccount:github-actions@YOUR-PROJECT-ID.iam.gserviceaccount.com" \
-    --role="roles/iam.serviceAccountUser"
-
-gcloud projects add-iam-policy-binding YOUR-PROJECT-ID \
-    --member="serviceAccount:github-actions@YOUR-PROJECT-ID.iam.gserviceaccount.com" \
-    --role="roles/artifactregistry.writer"
-
-# Create and download key
-gcloud iam service-accounts keys create key.json \
-    --iam-account=github-actions@YOUR-PROJECT-ID.iam.gserviceaccount.com
+# Ejecutar script
+chmod +x scripts/create-secrets.sh
+./scripts/create-secrets.sh
 ```
 
-Copy the contents of `key.json` to the `GCP_SA_KEY` secret.
+#### Opción C: Manualmente
+
+```bash
+# Habilitar API
+gcloud services enable secretmanager.googleapis.com
+
+# Crear cada secret
+echo -n "valor-del-secret" | gcloud secrets create nombre-del-secret --data-file=-
+
+# Ejemplo para la base de datos
+echo -n "pg-asam-asam-backend-db.l.aivencloud.com" | gcloud secrets create db-host --data-file=-
+echo -n "14276" | gcloud secrets create db-port --data-file=-
+# ... continuar con los demás
+```
+
+## 🔍 Verificar Configuración
+
+### Listar secrets creados
+
+```bash
+gcloud secrets list --project=TU_PROJECT_ID
+```
+
+### Verificar permisos de Cloud Run
+
+```bash
+# Obtener cuenta de servicio de Cloud Run
+SERVICE_ACCOUNT=$(gcloud iam service-accounts list \
+  --filter="displayName:Compute Engine default service account" \
+  --format="value(email)")
+
+# Verificar permisos en un secret
+gcloud secrets get-iam-policy db-password --project=TU_PROJECT_ID
+```
+
+### Test de conexión local
+
+```bash
+# Exportar secrets para prueba local
+export DB_HOST=$(gcloud secrets versions access latest --secret=db-host)
+export DB_PORT=$(gcloud secrets versions access latest --secret=db-port)
+export DB_USER=$(gcloud secrets versions access latest --secret=db-user)
+export DB_PASSWORD=$(gcloud secrets versions access latest --secret=db-password)
+export DB_NAME=$(gcloud secrets versions access latest --secret=db-name)
+
+# Ejecutar test
+go run cmd/test-db-connection/main.go
+```
+
+## 🚨 Seguridad
+
+1. **Nunca** incluyas valores de secrets en el código
+2. **Nunca** hagas commit de archivos `.env` con valores reales
+3. **Siempre** usa `--set-secrets` en Cloud Run, no `--set-env-vars` para información sensible
+4. **Rota** los secrets periódicamente, especialmente JWT secrets
+5. **Limita** el acceso a Secret Manager solo a las cuentas de servicio necesarias
+
+## 📝 Notas Importantes
+
+- Los secrets JWT se generan automáticamente con valores aleatorios fuertes
+- La contraseña de admin debe ser cambiada después del primer login
+- Los secrets SMTP son opcionales; si no se configuran, las notificaciones estarán deshabilitadas
+- Cloud Run cachea los secrets, los cambios pueden tardar unos minutos en aplicarse
+
+## 🆘 Troubleshooting
+
+### Error: "Permission denied accessing secret"
+
+```bash
+# Otorgar permisos a la cuenta de servicio de Cloud Run
+gcloud secrets add-iam-policy-binding SECRET_NAME \
+  --member="serviceAccount:SERVICE_ACCOUNT_EMAIL" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+### Error: "Secret not found"
+
+Verifica que el nombre del secret en Cloud Run coincida exactamente con el nombre en Secret Manager.
+
+### Ver logs de Cloud Run
+
+```bash
+gcloud run services logs read asam-backend --region=europe-west1 --limit=50
+```

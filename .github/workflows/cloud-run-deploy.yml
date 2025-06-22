@@ -21,13 +21,8 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   SERVICE_NAME: asam-backend
   REGION: europe-west1
-  GO_VERSION: '1.24'  # Última versión estable de Go
+  GO_VERSION: '1.24'
   ARTIFACT_REGISTRY: europe-west1-docker.pkg.dev
-  POSTGRES_USER: postgres
-  POSTGRES_PASSWORD: postgres
-  POSTGRES_DB: asam_test
-  POSTGRES_HOST: localhost
-  POSTGRES_PORT: "5432"
 
 # Limitar concurrencia para evitar despliegues simultáneos
 concurrency:
@@ -35,7 +30,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-
   build-and-push:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
@@ -90,14 +84,13 @@ jobs:
           IMAGE_URL="${{ env.ARTIFACT_REGISTRY }}/${{ env.PROJECT_ID }}/asam-backend/${{ env.SERVICE_NAME }}:${{ steps.meta.outputs.sha_short }}"
           echo "Generated image URL: $IMAGE_URL"
           echo "url=$IMAGE_URL" >> $GITHUB_OUTPUT
-          echo "image-url=$IMAGE_URL" >> $GITHUB_ENV
 
   deploy:
     name: Deploy to Cloud Run
     needs: build-and-push
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: production  # Protección de entorno en GitHub
+    environment: production
     steps:
       - uses: actions/checkout@v4
 
@@ -109,15 +102,9 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Debug outputs
-        run: |
-          echo "Image URL from previous job: ${{ needs.build-and-push.outputs.image-url }}"
-          echo "All outputs: ${{ toJSON(needs.build-and-push.outputs) }}"
-
       - name: Deploy to Cloud Run
         id: deploy
         run: |
-          # Use the output or fallback to latest
           IMAGE_URL="${{ needs.build-and-push.outputs.image-url }}"
           if [ -z "$IMAGE_URL" ]; then
             echo "Warning: image-url is empty, using latest tag"
@@ -130,19 +117,33 @@ jobs:
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
-            --set-env-vars="DB_HOST=${{ secrets.AIVEN_DB_HOST }}" \
-            --set-env-vars="DB_PORT=${{ secrets.AIVEN_DB_PORT }}" \
-            --set-env-vars="DB_USER=${{ secrets.AIVEN_DB_USER }}" \
-            --set-env-vars="DB_PASSWORD=${{ secrets.AIVEN_DB_PASSWORD }}" \
-            --set-env-vars="DB_NAME=${{ secrets.AIVEN_DB_NAME }}" \
-            --set-env-vars="DB_SSL_MODE=require" \
-            --set-env-vars="JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}" \
-            --set-env-vars="JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}" \
             --set-env-vars="ENVIRONMENT=production" \
-            --set-env-vars="ADMIN_USER=${{ secrets.ADMIN_USER }}" \
-            --set-env-vars="ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}" \
-            --set-env-vars="SMTP_USER=${{ secrets.SMTP_USER || 'noreply@asam.org' }}" \
-            --set-env-vars="SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD || 'temp-smtp-pass' }}" \
+            --set-env-vars="DB_SSL_MODE=require" \
+            --set-env-vars="JWT_ACCESS_TTL=15m" \
+            --set-env-vars="JWT_REFRESH_TTL=168h" \
+            --set-env-vars="SMTP_SERVER=smtp.gmail.com" \
+            --set-env-vars="SMTP_PORT=587" \
+            --set-env-vars="SMTP_USE_TLS=true" \
+            --set-env-vars="SMTP_FROM_EMAIL=noreply@asam.org" \
+            --set-env-vars="RATE_LIMIT_RPS=10" \
+            --set-env-vars="RATE_LIMIT_BURST=20" \
+            --set-env-vars="LOG_SLOW_QUERIES=true" \
+            --set-env-vars="SLOW_QUERY_THRESHOLD=100ms" \
+            --set-env-vars="LOG_SLOW_RESOLVERS=true" \
+            --set-env-vars="SLOW_RESOLVER_THRESHOLD=100ms" \
+            --set-env-vars="GQL_COMPLEXITY_LIMIT=1000" \
+            --set-env-vars="GQL_CONCURRENT_RESOLVERS=10" \
+            --set-secrets="DB_HOST=db-host:latest" \
+            --set-secrets="DB_PORT=db-port:latest" \
+            --set-secrets="DB_USER=db-user:latest" \
+            --set-secrets="DB_PASSWORD=db-password:latest" \
+            --set-secrets="DB_NAME=db-name:latest" \
+            --set-secrets="JWT_ACCESS_SECRET=jwt-access-secret:latest" \
+            --set-secrets="JWT_REFRESH_SECRET=jwt-refresh-secret:latest" \
+            --set-secrets="ADMIN_USER=admin-user:latest" \
+            --set-secrets="ADMIN_PASSWORD=admin-password:latest" \
+            --set-secrets="SMTP_USER=smtp-user:latest" \
+            --set-secrets="SMTP_PASSWORD=smtp-password:latest" \
             --cpu=1 \
             --memory=512Mi \
             --concurrency=80 \
@@ -181,13 +182,12 @@ jobs:
           echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Deployed at**: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
 
-  # Job separado para migraciones (opcional, controlado por el parámetro run_migrations)
   migrate:
     name: Run Database Migrations
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_migrations == 'true'
     needs: deploy
     runs-on: ubuntu-latest
-    environment: production-migrations  # Entorno separado con aprobación manual
+    environment: production-migrations
     steps:
       - uses: actions/checkout@v4
 
@@ -197,13 +197,25 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get database secrets
+        id: secrets
+        run: |
+          echo "DB_HOST=$(gcloud secrets versions access latest --secret=db-host)" >> $GITHUB_ENV
+          echo "DB_PORT=$(gcloud secrets versions access latest --secret=db-port)" >> $GITHUB_ENV
+          echo "DB_USER=$(gcloud secrets versions access latest --secret=db-user)" >> $GITHUB_ENV
+          echo "DB_PASSWORD=$(gcloud secrets versions access latest --secret=db-password)" >> $GITHUB_ENV
+          echo "DB_NAME=$(gcloud secrets versions access latest --secret=db-name)" >> $GITHUB_ENV
+
       - name: Run migrations
         run: |
           go run cmd/migrate/main.go -cmd up
         env:
-          DB_HOST: ${{ secrets.AIVEN_DB_HOST }}
-          DB_PORT: ${{ secrets.AIVEN_DB_PORT }}
-          DB_USER: ${{ secrets.AIVEN_DB_USER }}
-          DB_PASSWORD: ${{ secrets.AIVEN_DB_PASSWORD }}
-          DB_NAME: ${{ secrets.AIVEN_DB_NAME }}
           DB_SSL_MODE: require
