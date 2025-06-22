@@ -39,7 +39,7 @@ jobs:
       - name: Run security scan
         uses: securego/gosec@master
         with:
-          args: ./...
+          args: '-conf .gosec.json ./...'
 
   # Job para crear y publicar el release en GitHub
   create-release:

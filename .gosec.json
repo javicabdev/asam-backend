@@ -1,0 +1,21 @@
+{
+  "global": {
+    "nosec": true,
+    "exclude-generated": true,
+    "severity": "medium",
+    "confidence": "medium"
+  },
+  "exclude-dir": [
+    "test/seed",
+    "scripts/cmd",
+    "test/fixtures",
+    "test/helpers"
+  ],
+  "exclude": [
+    "G115",
+    "G404"
+  ],
+  "G101": {
+    "pattern": "(?i)token[_-]?type"
+  }
+}
