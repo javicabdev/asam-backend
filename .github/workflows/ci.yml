@@ -121,14 +121,14 @@ jobs:
       - name: Setup test environment for integration tests
         run: |
           cp .env.test.example .env
-          # Explicitly set DB_SSL_MODE in the environment file to ensure it's used
           echo "DB_SSL_MODE=disable" >> .env
-          # Set environment variable explicitly before running migrations
-          export DB_SSL_MODE=disable
+          echo "Waiting for PostgreSQL to be ready..."
+          sleep 10 # Añade una espera de 10 segundos para asegurar que el servicio esté listo
           go run cmd/migrate/main.go -cmd up
-        env:
+          env:
           CI: "true"
-          DB_HOST: ${{ env.POSTGRES_HOST }}
+          # Cambia el host a localhost
+          DB_HOST: localhost 
           DB_PORT: ${{ env.POSTGRES_PORT }}
           DB_USER: ${{ env.POSTGRES_USER }}
           DB_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
