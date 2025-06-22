@@ -138,9 +138,7 @@ func (g *CashflowGenerator) attemptSetAssociation(
 	memberProb float64,
 	members []MemberIDInfo,
 	families []FamilyIDInfo,
-) (*int, *int) {
-	var memberID, familyID *int
-
+) (memberID *int, familyID *int) {
 	// Helper to get a random member ID if members exist
 	getRandomMemberID := func() *int {
 		if len(members) > 0 {
@@ -178,7 +176,7 @@ func (g *CashflowGenerator) determineCashflowAssociation(
 	operationType string,
 	members []MemberIDInfo,
 	families []FamilyIDInfo,
-) (*int, *int) {
+) (memberID *int, familyID *int) {
 	switch operationType {
 	case "ingreso_cuota":
 		// 80% member, 20% family, with fallback

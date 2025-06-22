@@ -58,14 +58,13 @@ func randomItem(items []string, r *rand.Rand) string {
 }
 
 // GenerateRandomName generates a random full name
-func GenerateRandomName(r *rand.Rand, gender string) (string, string) {
-	var firstName string
+func GenerateRandomName(r *rand.Rand, gender string) (firstName string, lastName string) {
 	if gender == "male" {
 		firstName = randomItem(firstNamesMale, r)
 	} else {
 		firstName = randomItem(firstNamesFemale, r)
 	}
-	lastName := randomItem(lastNames, r)
+	lastName = randomItem(lastNames, r)
 
 	// 30% chance to have compound last name
 	if r.Float64() < 0.3 {
@@ -76,7 +75,7 @@ func GenerateRandomName(r *rand.Rand, gender string) (string, string) {
 }
 
 // GenerateRandomAddress generates a random address
-func GenerateRandomAddress(r *rand.Rand) (string, string, string, string) {
+func GenerateRandomAddress(r *rand.Rand) (address string, postalCode string, city string, province string) {
 	street := randomItem(streetNames, r)
 	num := r.Intn(150) + 1
 	floor := ""
@@ -89,10 +88,10 @@ func GenerateRandomAddress(r *rand.Rand) (string, string, string, string) {
 		floor = fmt.Sprintf(", %dº %s", floorNum, door)
 	}
 
-	address := fmt.Sprintf("%s, %d%s", street, num, floor)
-	postalCode := fmt.Sprintf("%d", 8000+r.Intn(100)) // Barcelona postal codes 08001-08099
-	city := randomItem(cities, r)
-	province := randomItem(provinces, r)
+	address = fmt.Sprintf("%s, %d%s", street, num, floor)
+	postalCode = fmt.Sprintf("%d", 8000+r.Intn(100)) // Barcelona postal codes 08001-08099
+	city = randomItem(cities, r)
+	province = randomItem(provinces, r)
 
 	return address, postalCode, city, province
 }

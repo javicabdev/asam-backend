@@ -180,9 +180,9 @@ func (cb *dbCircuitBreaker) shouldAttempt() bool {
 }
 
 // initLogging initializes the application and audit loggers.
-func initLogging() (logger.Logger, audit.Logger, error) {
+func initLogging() (appLogger logger.Logger, auditLogger audit.Logger, err error) {
 	logDir := "logs"
-	if err := os.MkdirAll(logDir, 0750); err != nil {
+	if err = os.MkdirAll(logDir, 0750); err != nil {
 		return nil, nil, fmt.Errorf("failed to create log directory: %w", err)
 	}
 
@@ -204,12 +204,12 @@ func initLogging() (logger.Logger, audit.Logger, error) {
 		cfg.Compress = true // Compress log files
 	}
 
-	appLogger, err := logger.InitLogger(cfg)
+	appLogger, err = logger.InitLogger(cfg)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to initialize app logger: %w", err)
 	}
 
-	auditLogger := audit.NewLogger(appLogger)
+	auditLogger = audit.NewLogger(appLogger)
 	return appLogger, auditLogger, nil
 }
 
@@ -392,14 +392,14 @@ func createNotificationService(cfg *config.Config, log logger.Logger) input.Noti
 
 // setupConfigurationAndLogger initializes logging and loads application configuration.
 // It returns the loaded configuration, application logger, audit logger, or an error.
-func setupConfigurationAndLogger() (*config.Config, logger.Logger, audit.Logger, error) {
-	appLogger, auditLogger, err := initLogging()
+func setupConfigurationAndLogger() (cfg *config.Config, appLogger logger.Logger, auditLogger audit.Logger, err error) {
+	appLogger, auditLogger, err = initLogging()
 	if err != nil {
 		// Logging initialization failed, cannot use appLogger here.
 		return nil, nil, nil, fmt.Errorf("error initializing logging: %w", err)
 	}
 
-	cfgLoaded, err := config.LoadConfig() // Renamed to avoid conflict with outer scope cfg if any
+	cfg, err = config.LoadConfig()
 	if err != nil {
 		// Log configuration loading failure if logger is available
 		appLogger.Error("Failed to load configuration", zap.Error(err))
@@ -415,12 +415,12 @@ func setupConfigurationAndLogger() (*config.Config, logger.Logger, audit.Logger,
 		)
 
 		// Optimize for Cloud Run
-		cfgLoaded.DBMaxIdleConns = 2 // Reduce idle connections
-		cfgLoaded.DBConnMaxLifetime = 5 * time.Minute
-		cfgLoaded.RateLimitRPS = 50 // Higher rate limit for Cloud Run
+		cfg.DBMaxIdleConns = 2 // Reduce idle connections
+		cfg.DBConnMaxLifetime = 5 * time.Minute
+		cfg.RateLimitRPS = 50 // Higher rate limit for Cloud Run
 	}
 
-	return cfgLoaded, appLogger, auditLogger, nil
+	return cfg, appLogger, auditLogger, nil
 }
 
 // setupDatabase initializes and returns the database connection (gorm.DB).

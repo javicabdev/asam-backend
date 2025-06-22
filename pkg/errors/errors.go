@@ -240,8 +240,8 @@ func extractFieldsFromAppError(appErr *AppError, fields map[string]string) {
 }
 
 // findBaseError encuentra el primer error no nulo para usar como base
-func findBaseError(errs []error) (*AppError, map[string]string) {
-	fields := make(map[string]string)
+func findBaseError(errs []error) (baseError *AppError, fields map[string]string) {
+	fields = make(map[string]string)
 
 	for _, err := range errs {
 		if err == nil {
