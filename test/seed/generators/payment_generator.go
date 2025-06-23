@@ -42,7 +42,7 @@ func NewPaymentGenerator(db *sqlx.DB, seed int64) *PaymentGenerator {
 	}
 	return &PaymentGenerator{
 		db:   db,
-		rand: rand.New(rand.NewSource(seed)),
+		rand: rand.New(rand.NewSource(seed)), //nolint:gosec // Deterministic random for test data generation
 	}
 }
 

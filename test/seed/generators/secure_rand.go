@@ -23,5 +23,5 @@ func GenerateSecureSeed() int64 {
 //
 
 func NewSecureRand() *mathRand.Rand {
-	return mathRand.New(mathRand.NewSource(GenerateSecureSeed()))
+	return mathRand.New(mathRand.NewSource(GenerateSecureSeed())) //nolint:gosec // Intentionally using math/rand for test data
 }

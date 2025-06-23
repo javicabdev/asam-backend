@@ -43,7 +43,7 @@ type Member struct {
 func NewMemberGenerator(db *sqlx.DB, seed int64) *MemberGenerator {
 	return &MemberGenerator{
 		db:   db,
-		rand: rand.New(rand.NewSource(seed)),
+		rand: rand.New(rand.NewSource(seed)), //nolint:gosec // Deterministic random for test data generation
 	}
 }
 
