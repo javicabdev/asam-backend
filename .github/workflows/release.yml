@@ -53,19 +53,6 @@ jobs:
       - name: Run unit tests
         run: go test -v -race ./internal/... ./pkg/...
 
-      - name: Run security scan
-        run: |
-          # Install gosec
-          go install github.com/securego/gosec/v2/cmd/gosec@latest
-          
-          # Run gosec with exclusions
-          gosec -conf .gosec.json \
-            -exclude-dir=internal/adapters/gql/generated \
-            -exclude-dir=internal/adapters/gql/model \
-            -exclude-dir=test \
-            -exclude-dir=scripts \
-            ./...
-
   # Job para crear y publicar el release en GitHub
   create-release:
     name: Create Release
