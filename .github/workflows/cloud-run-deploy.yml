@@ -189,6 +189,7 @@ jobs:
           go run cmd/migrate/main.go -cmd up
           echo "✅ Migrations completed successfully"
         env:
+          CI: "true"
           DB_SSL_MODE: require
 
       - name: Create migration summary
