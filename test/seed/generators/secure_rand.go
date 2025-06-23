@@ -21,7 +21,7 @@ func GenerateSecureSeed() int64 {
 // NewSecureRand creates a new math/rand.Rand instance with a cryptographically secure seed
 // This is intentionally using math/rand for test data generation, seeded with crypto/rand
 //
-//nolint:gosec // G404: math/rand is acceptable for test data generation
+
 func NewSecureRand() *mathRand.Rand {
 	return mathRand.New(mathRand.NewSource(GenerateSecureSeed()))
 }

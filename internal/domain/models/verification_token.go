@@ -10,7 +10,7 @@ type TokenType string
 
 const (
 	// TokenTypeEmailVerification para verificación de email
-	TokenTypeEmailVerification TokenType = "email_verification" //nolint:gosec // This is a token type identifier, not a credential
+	TokenTypeEmailVerification TokenType = "email_verification"
 	// TokenTypePasswordReset para recuperación de contraseña
 	TokenTypePasswordReset TokenType = "password_reset"
 )

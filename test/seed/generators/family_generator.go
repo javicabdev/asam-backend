@@ -37,7 +37,7 @@ type Family struct {
 func NewFamilyGenerator(db *sqlx.DB, seed int64) *FamilyGenerator {
 	return &FamilyGenerator{
 		db:   db,
-		rand: rand.New(rand.NewSource(seed)), //nolint:gosec // G404: math/rand is acceptable for test data
+		rand: rand.New(rand.NewSource(seed)),
 	}
 }
 

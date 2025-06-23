@@ -49,7 +49,7 @@ type Cashflow struct {
 func NewCashflowGenerator(db *sqlx.DB, seed int64) *CashflowGenerator {
 	return &CashflowGenerator{
 		db:   db,
-		rand: rand.New(rand.NewSource(seed)), //nolint:gosec // G404: math/rand is acceptable for test data
+		rand: rand.New(rand.NewSource(seed)),
 		operationTypes: []string{
 			"ingreso_cuota",
 			"gasto_corriente",
