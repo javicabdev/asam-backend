@@ -40,7 +40,7 @@ ARG BUILD_TIME=unknown
 RUN go build -ldflags "-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.BuildTime=${BUILD_TIME}" -o asam-backend ./cmd/api
 
 # Etapa 2: Imagen final mínima
-FROM alpine:3.19
+FROM alpine:3.22
 
 # Argumentos para metadatos
 ARG VERSION=unknown
