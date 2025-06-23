@@ -7,6 +7,11 @@ on:
     tags:
       - 'v*.*.*'
 
+permissions:
+  contents: write  # Necesario para crear releases
+  packages: write  # Necesario para publicar paquetes
+  actions: read    # Necesario para leer los workflows
+
 env:
   GO_VERSION: '1.24'
   REGISTRY: ghcr.io
@@ -58,9 +63,7 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     needs: [verify]
-    permissions:
-      contents: write
-      packages: write
+    # Los permisos ya están definidos a nivel de workflow
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
       version: ${{ steps.get_version.outputs.version }}
@@ -161,14 +164,38 @@ jobs:
           tag_name: ${{ github.ref }}
           files: ${{ env.ASSET }}
 
+  # Job para desplegar a producción (opcional, se puede activar manualmente)
+  deploy-to-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [create-release]
+    # Este job NO se ejecuta automáticamente. Debe activarse manualmente desde GitHub Actions
+    if: false  # Cambia a 'true' si quieres deployment automático con cada release
+    environment: production
+    steps:
+      - name: Trigger Cloud Run Deployment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'cloud-run-deploy.yml',
+              ref: 'main',
+              inputs: {
+                environment: 'production',
+                run_migrations: 'true'
+              }
+            });
+            console.log('Cloud Run deployment triggered with migrations');
+
   # Job para construir y publicar la imagen de Docker
   build-docker-image:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
     needs: [create-release]
-    permissions:
-      contents: read
-      packages: write
+    # Los permisos ya están definidos a nivel de workflow
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

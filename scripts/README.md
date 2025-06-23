@@ -1,104 +1,118 @@
-# Scripts de Utilidad - ASAM Backend
+# Scripts de Migraciones para Producción
 
-Esta carpeta contiene scripts de PowerShell para facilitar el desarrollo y solución de problemas del backend de ASAM.
+Este directorio contiene scripts para ejecutar migraciones de base de datos en el entorno de producción.
 
-## 🚀 Scripts Principales
+## Requisitos previos
 
-### auto-fix.ps1
-**Corrección automática de problemas comunes**
-- Verifica y corrige el archivo `.env`
-- Agrega variables JWT faltantes
-- Inicia contenedores si están detenidos
-- Ejecuta migraciones pendientes
-- Crea usuarios de prueba
+1. **Google Cloud CLI** instalado y configurado:
+   ```bash
+   # Instalar desde: https://cloud.google.com/sdk/docs/install
+   
+   # Autenticarse
+   gcloud auth login
+   
+   # Configurar proyecto
+   gcloud config set project YOUR_PROJECT_ID
+   ```
 
-```powershell
-.\scripts\auto-fix.ps1
-```
+2. **Permisos necesarios**:
+   - Acceso a Google Secret Manager
+   - Permisos para leer los secretos de la base de datos
 
-### diagnostico.ps1
-**Analiza el estado del sistema y reporta problemas**
-- Verifica instalación de Docker
-- Revisa estado de contenedores
-- Analiza configuración del archivo `.env`
-- Verifica conexión y tablas de base de datos
-- Prueba conectividad de la API
+3. **Go** instalado en tu máquina local
 
-```powershell
-.\scripts\diagnostico.ps1
-```
+## Uso
 
-### clean-restart.ps1
-**Reinicio completo desde cero**
-- Detiene todos los contenedores
-- Elimina volúmenes de Docker
-- Elimina archivo `.env` existente
-- Ejecuta `start-docker.ps1 --clean`
+### Windows (PowerShell)
 
 ```powershell
-.\scripts\clean-restart.ps1
+# Ejecutar migraciones hacia arriba (por defecto)
+.\scripts\run-production-migrations.ps1
+
+# Ver la versión actual
+.\scripts\run-production-migrations.ps1 -Command version
+
+# Revertir todas las migraciones (¡CUIDADO!)
+.\scripts\run-production-migrations.ps1 -Command down
 ```
 
-### manual-setup.ps1
-**Setup manual de base de datos y usuarios**
-- Ejecuta migraciones SQL directamente
-- Crea usuarios de prueba
-- Verifica tablas y usuarios creados
-- Útil cuando el proceso automático falla
+### Linux/Mac
 
-```powershell
-.\scripts\manual-setup.ps1
+```bash
+# Dar permisos de ejecución
+chmod +x scripts/run-production-migrations.sh
+
+# Ejecutar migraciones hacia arriba (por defecto)
+./scripts/run-production-migrations.sh
+
+# Ver la versión actual
+./scripts/run-production-migrations.sh version
+
+# Revertir todas las migraciones (¡CUIDADO!)
+./scripts/run-production-migrations.sh down
 ```
 
-### fix-auth.ps1
-**Corrige problemas específicos de autenticación**
-- Verifica configuración JWT
-- Crea o actualiza usuarios de prueba
-- Interactivo - pregunta antes de hacer cambios
+## Alternativas
 
-```powershell
-.\scripts\fix-auth.ps1
+### 1. Desde GitHub Actions (Recomendado)
+
+Ve a GitHub → Actions → "Deploy to Google Cloud Run" y activa las migraciones:
+- Environment: `production`
+- Run database migrations: ✅
+
+### 2. Con variables de entorno locales
+
+Si tienes las credenciales directamente (no recomendado para producción):
+
+```bash
+export DB_HOST="tu-host.aivencloud.com"
+export DB_PORT="14276"
+export DB_USER="avnadmin"
+export DB_PASSWORD="tu-password"
+export DB_NAME="defaultdb"
+export DB_SSL_MODE="require"
+
+go run cmd/migrate/main.go -cmd up
 ```
 
-### help.ps1
-**Muestra ayuda sobre todos los scripts disponibles**
-- Lista todos los scripts y sus funciones
-- Muestra el flujo recomendado de uso
+## Seguridad
 
-```powershell
-.\scripts\help.ps1
-```
+- **NUNCA** hardcodees credenciales en los scripts
+- **NUNCA** commits archivos con credenciales
+- Usa siempre Google Secret Manager para producción
+- Los scripts limpian las variables de entorno después de usarlas
 
-## 📋 Otros Scripts
+## Troubleshooting
 
-### generate-secrets.ps1
-Genera claves secretas seguras para JWT en producción.
+### Error: "No se pudieron obtener todas las credenciales"
 
-### user-management/
-Carpeta con herramientas para gestión de usuarios:
-- `create-user.go` - Crear usuarios interactivamente
-- `auto-create-test-users.go` - Crear usuarios de prueba automáticamente
+1. Verifica que estás autenticado:
+   ```bash
+   gcloud auth list
+   ```
 
-### Set-CloudRunEnv.ps1
-Configura variables de entorno en Google Cloud Run para producción.
+2. Verifica el proyecto actual:
+   ```bash
+   gcloud config get-value project
+   ```
 
-## 🔄 Flujo Recomendado
+3. Lista los secretos disponibles:
+   ```bash
+   gcloud secrets list
+   ```
 
-1. **Primer problema**: Ejecuta `auto-fix.ps1`
-2. **Si persiste**: Ejecuta `diagnostico.ps1` para identificar el problema
-3. **Para empezar limpio**: Usa `clean-restart.ps1`
-4. **Problemas específicos de BD**: Usa `manual-setup.ps1`
-5. **Problemas de login**: Usa `fix-auth.ps1`
+### Error: "Error al conectar a la base de datos"
 
-## 💡 Tips
+1. Verifica que tu IP está en la lista blanca de Aiven
+2. Verifica que las credenciales son correctas
+3. Prueba la conexión con psql:
+   ```bash
+   psql "postgres://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=require"
+   ```
 
-- Siempre ejecuta los scripts desde la raíz del proyecto
-- Asegúrate de que Docker Desktop esté ejecutándose
-- Los scripts asumen PowerShell 5.0 o superior
-- Si un script falla, revisa los mensajes de error detallados
+## Mejores prácticas
 
-## 🆘 Si Nada Funciona
-
-1. Ejecuta `diagnostico.ps1` y guarda la salida
-2. Revisa los logs: `docker-compose logs > logs.txt`
-3. Contacta al equipo de desarrollo con esta información
+1. **Siempre** ejecuta `version` antes de hacer cambios para saber el estado actual
+2. **Siempre** haz backup antes de ejecutar migraciones en producción
+3. **Nunca** ejecutes `down` en producción sin un plan de rollback
+4. **Considera** ejecutar las migraciones durante ventanas de mantenimiento
