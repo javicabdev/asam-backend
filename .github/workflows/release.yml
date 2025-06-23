@@ -38,13 +38,33 @@ jobs:
           echo "Generating GraphQL code..."
           gqlgen generate
 
+      - name: Run golangci-lint
+        run: |
+          # Install golangci-lint
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.1.6
+          
+          # Run with explicit flags (avoiding config file issues)
+          golangci-lint run \
+            --enable=errcheck,govet,ineffassign,staticcheck,unused,gosec \
+            --skip-dirs=internal/adapters/gql/generated,internal/adapters/gql/model,test,scripts,vendor \
+            --timeout=5m \
+            ./...
+
       - name: Run unit tests
         run: go test -v -race ./internal/... ./pkg/...
 
       - name: Run security scan
-        uses: securego/gosec@master
-        with:
-          args: '-conf .gosec.json -exclude-dir=internal/adapters/gql/generated -exclude-dir=internal/adapters/gql/model ./...'
+        run: |
+          # Install gosec
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          
+          # Run gosec with exclusions
+          gosec -conf .gosec.json \
+            -exclude-dir=internal/adapters/gql/generated \
+            -exclude-dir=internal/adapters/gql/model \
+            -exclude-dir=test \
+            -exclude-dir=scripts \
+            ./...
 
   # Job para crear y publicar el release en GitHub
   create-release:

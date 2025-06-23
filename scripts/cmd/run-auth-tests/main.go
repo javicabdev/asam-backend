@@ -115,6 +115,7 @@ func runTests(config testConfig) time.Duration {
 
 	// Build test command securely by passing each argument separately.
 
+	//nolint:gosec // G204: Inputs are from a trusted, hardcoded config struct.
 	cmd := exec.Command("go", "test", "-v", "-race",
 		"-coverprofile", config.coverageFile,
 		"-covermode", "atomic",

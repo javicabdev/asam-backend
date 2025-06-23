@@ -139,6 +139,7 @@ func (m *MemoryMonitor) captureHeapProfile(level string) {
 	timestamp := time.Now().Format("20060102-150405")
 	filename := m.outputDir + "/heap-" + level + "-" + timestamp + ".pprof"
 
+	//nolint:gosec // G304: Filename is constructed from controlled inputs (timestamp and level)
 	f, err := os.Create(filename)
 	if err != nil {
 		m.logger.Error("Failed to create memory profile", zap.Error(err))
@@ -158,6 +159,7 @@ func (m *MemoryMonitor) captureHeapProfile(level string) {
 
 	// Also save memory stats as JSON
 	statsFilename := m.outputDir + "/memstats-" + level + "-" + timestamp + ".json"
+	//nolint:gosec // G304: Filename is constructed from controlled inputs (timestamp and level)
 	statsFile, err := os.Create(statsFilename)
 	if err != nil {
 		m.logger.Error("Failed to create memory stats file", zap.Error(err))

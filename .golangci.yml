@@ -7,10 +7,6 @@ run:
   build-tags: []
   modules-download-mode: readonly
   allow-parallel-runners: false
-  # Excluir directorios de código generado
-  skip-dirs:
-    - internal/adapters/gql/generated
-    - internal/adapters/gql/model
 
 linters:
   enable:
@@ -45,46 +41,46 @@ linters:
     - makezero
     - nilerr
     - wastedassign
-  
+
   settings:
     errcheck:
       check-type-assertions: true
       check-blank: false
-    
+
     govet:
       enable-all: false
-    
+
     gocyclo:
       min-complexity: 15
-    
+
     dupl:
       threshold: 150
-    
+
     goconst:
       min-len: 3
       min-occurrences: 3
-    
+
     unused:
       exported-fields-are-used: true
-    
+
     unparam:
       check-exported: false
-    
+
     nakedret:
       max-func-lines: 30
-    
+
     prealloc:
       simple: true
       range-loops: true
       for-loops: false
-    
+
     gocritic:
       enabled-checks:
         - nestingReduce
         - unnamedResult
         - ruleguard
         - truncateCmp
-    
+
     revive:
       confidence: 0.8
       severity: warning
@@ -93,35 +89,27 @@ linters:
           disabled: true
         - name: exported
           disabled: true
-    
+
     exhaustive:
       default-signifies-exhaustive: true
-    
+
     nolintlint:
       allow-unused: false
       require-explanation: true
       require-specific: true
-    
-    gosec:
-      excludes:
-        - G115  # Integer overflow conversion
-        - G404  # Use of weak random (acceptable in tests)
-        - G101  # Hardcoded credentials (false positives with token types)
-        - G204  # Subprocess launched with tainted input
-        - G304  # File inclusion via variable
-  
+
   exclusions:
     rules:
       # Allow init functions in cmd
       - path: cmd/.*\.go
         linters:
           - gochecknoinits
-      
+
       # Reduce revive noise in cmd
       - path: cmd/.*\.go
         linters:
           - revive
-      
+
       # Exclude generated files
       - path: '.*\.pb\.go$'
         linters:
@@ -129,26 +117,9 @@ linters:
           - govet
           - staticcheck
           - unused
-      
+
       - path: '.*\.gen\.go$'
         linters:
-          - revive
-          - govet
-          - staticcheck
-          - unused
-      
-      # Exclude gqlgen generated files
-      - path: internal/adapters/gql/generated/.*\.go
-        linters:
-          - gosec
-          - revive
-          - govet
-          - staticcheck
-          - unused
-      
-      - path: internal/adapters/gql/model/.*\.go
-        linters:
-          - gosec
           - revive
           - govet
           - staticcheck
@@ -159,7 +130,3 @@ issues:
   max-same-issues: 0
   new: false
   fix: false
-  # Excluir archivos generados
-  exclude-files:
-    - "internal/adapters/gql/generated/.*\\.go$"
-    - "internal/adapters/gql/model/.*\\.go$"

@@ -5,22 +5,11 @@
     "severity": "medium",
     "confidence": "medium"
   },
-  "exclude-dir": [
-    "test/seed",
-    "scripts/cmd",
-    "test/fixtures",
-    "test/helpers",
-    "internal/adapters/gql/generated",
-    "internal/adapters/gql/model"
-  ],
-  "exclude": [
+  "excludes": [
     "G115",
     "G404",
     "G101",
     "G204",
     "G304"
-  ],
-  "G101": {
-    "pattern": "(?i)token[_-]?type"
-  }
+  ]
 }
