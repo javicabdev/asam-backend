@@ -31,28 +31,28 @@ RUN if [ ! -f "internal/adapters/gql/generated/generated.go" ]; then \
         echo "=== Archivos GraphQL ya generados, omitiendo generación ==="; \
     fi
 
-# Compilar la aplicación con información de versión
+# Build arguments
 ARG VERSION=unknown
 ARG COMMIT=unknown
 ARG BUILD_TIME=unknown
-RUN go build -ldflags="-s -w \
-    -X main.Version=${VERSION} \
-    -X main.Commit=${COMMIT} \
-    -X main.BuildTime=${BUILD_TIME}" \
-    -o asam-backend ./cmd/api
 
-# Etapa 2: Verificación de seguridad (opcional pero recomendado)
-FROM aquasec/trivy:latest AS security
-COPY --from=builder /build/go.mod /build/go.sum /
-RUN trivy fs --no-progress --security-checks vuln --exit-code 0 /
+# Compilar la aplicación con información de versión
+RUN go build -ldflags "-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.BuildTime=${BUILD_TIME}" -o asam-backend ./cmd/api
 
-# Etapa 3: Imagen final mínima
+# Etapa 2: Imagen final mínima
 FROM alpine:3.19
+
+# Argumentos para metadatos
+ARG VERSION=unknown
+ARG COMMIT=unknown
+ARG BUILD_TIME=unknown
 
 # Metadatos de la imagen
 LABEL maintainer="ASAM Backend Team" \
       description="ASAM Backend Service" \
-      version="${VERSION}"
+      version="${VERSION}" \
+      commit="${COMMIT}" \
+      build_time="${BUILD_TIME}"
 
 # Instalar certificados, timezone data y dumb-init para mejor manejo de señales
 RUN apk --no-cache add ca-certificates tzdata dumb-init && \
