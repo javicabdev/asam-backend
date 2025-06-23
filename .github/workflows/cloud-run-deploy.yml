@@ -1,5 +1,8 @@
 name: Deploy to Google Cloud Run
 
+# Esta versión simplificada despliega directamente desde GitHub Container Registry
+# Funciona porque el paquete es público
+
 on:
   workflow_dispatch:
     inputs:
@@ -49,40 +52,13 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Docker for Artifact Registry
-        run: |
-          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
-
-      - name: Pull from GHCR and push to GAR
-        id: transfer_image
-        run: |
-          # Variables
-          IMAGE_TAG="${{ github.event.inputs.image_tag || 'latest' }}"
-          GHCR_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}"
-          GAR_IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/asam-backend/${{ env.SERVICE_NAME }}:${IMAGE_TAG}"
-          
-          echo "Pulling from GitHub Container Registry..."
-          docker pull $GHCR_IMAGE
-          
-          echo "Tagging for Google Artifact Registry..."
-          docker tag $GHCR_IMAGE $GAR_IMAGE
-          
-          echo "Pushing to Google Artifact Registry..."
-          docker push $GAR_IMAGE
-          
-          echo "image_url=$GAR_IMAGE" >> $GITHUB_OUTPUT
-
       - name: Deploy to Cloud Run
         id: deploy
         run: |
-          IMAGE_URL="${{ steps.transfer_image.outputs.image_url }}"
+          # Usar la imagen directamente desde GitHub Container Registry
+          IMAGE_TAG="${{ github.event.inputs.image_tag || 'latest' }}"
+          IMAGE_URL="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}"
+          
           echo "Deploying image: $IMAGE_URL"
 
           gcloud run deploy ${{ env.SERVICE_NAME }} \
@@ -165,8 +141,8 @@ jobs:
           echo "- **URL**: ${{ steps.service.outputs.url }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Docker Image" >> $GITHUB_STEP_SUMMARY
-          echo "- **Source**: GitHub Container Registry (private)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Target**: Google Artifact Registry" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry**: GitHub Container Registry (public)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Tag**: \`${{ github.event.inputs.image_tag || 'latest' }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Deployment Info" >> $GITHUB_STEP_SUMMARY
