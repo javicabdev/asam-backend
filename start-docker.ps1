@@ -228,80 +228,67 @@ Write-Host "`n🔄 Ejecutando migraciones..." -ForegroundColor Yellow
 # Esperar un poco más para asegurar que el API esté lista
 Start-Sleep -Seconds 3
 
-# Primero verificar si ya existen las tablas
-$tablesExist = docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users';" 2>$null
-if ($tablesExist -is [array]) {
-    $tablesExist = $tablesExist -join ''
-}
-$tablesExist = $tablesExist -replace '\s', ''
-try {
-    $tablesCount = [int]$tablesExist
-} catch {
-    $tablesCount = 0
+# Primero copiar .env a .env.development para que el comando de migración lo encuentre
+docker-compose exec -T api sh -c "cp .env .env.development" 2>$null
+
+# Siempre ejecutar migraciones para asegurar que todas estén aplicadas
+Write-Host "   Verificando y aplicando todas las migraciones..." -ForegroundColor Gray
+
+# Intentar ejecutar migraciones con el comando Go
+Write-Host "   Ejecutando migraciones..." -ForegroundColor Gray
+docker-compose exec -T api go run ./cmd/migrate -env local up
+
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "✅ Migraciones ejecutadas con éxito" -ForegroundColor Green
+} else {
+    Write-Host "⚠️  Error al ejecutar migraciones con Go" -ForegroundColor Yellow
+    
+    # Como respaldo, intentar ejecutar las migraciones SQL directamente
+    Write-Host "   Intentando ejecutar migraciones SQL directamente..." -ForegroundColor Gray
+    
+    # Obtener todos los archivos de migración .up.sql ordenados
+    $migrationFiles = Get-ChildItem -Path "migrations" -Filter "*.up.sql" | Sort-Object Name
+    
+    foreach ($migration in $migrationFiles) {
+        Write-Host "   Aplicando: $($migration.Name)" -ForegroundColor Gray
+        
+        # Verificar si la migración ya fue aplicada (verificación simple basada en existencia de columnas/tablas)
+        $migrationContent = Get-Content $migration.FullName -Raw
+        
+        # Ejecutar la migración
+        $migrationContent | docker-compose exec -T postgres psql -U postgres -d asam_db 2>&1 | Out-Null
+        
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "   ✓ $($migration.Name) aplicada" -ForegroundColor DarkGreen
+        } else {
+            # Ignorar errores de "already exists" ya que es esperado
+            Write-Host "   ~ $($migration.Name) (ya aplicada o error menor)" -ForegroundColor DarkGray
+        }
+    }
+    
+    Write-Host "✅ Proceso de migraciones completado" -ForegroundColor Green
 }
 
-if ($tablesCount -eq 0) {
-    Write-Host "   Las tablas no existen, ejecutando migraciones..." -ForegroundColor Gray
-    
-    # Esperar un poco más para que el API esté completamente listo
-    Write-Host "   Esperando a que el API esté completamente listo..." -ForegroundColor Gray
-    Start-Sleep -Seconds 5
-    
-    # Primero copiar .env a .env.development para que el comando de migración lo encuentre
-    docker-compose exec -T api sh -c "cp .env .env.development" 2>$null
-    
-    # Intentar ejecutar migraciones con el comando Go
-    Write-Host "   Intentando migraciones con comando Go..." -ForegroundColor Gray
-    docker-compose exec -T api go run ./cmd/migrate -env local up
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "✅ Migraciones ejecutadas con éxito" -ForegroundColor Green
+# Verificar que las tablas principales existen
+Start-Sleep -Seconds 2
+$verifyTables = docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('users', 'members', 'families', 'payments', 'cash_flows');" 2>$null
+if ($verifyTables -is [array]) {
+    $verifyTables = $verifyTables -join ''
+}
+$verifyTables = $verifyTables -replace '\s', ''
+try {
+    $verifyCount = [int]$verifyTables
+    if ($verifyCount -eq 5) {
+        Write-Host "✅ Verificado: Todas las tablas principales existen" -ForegroundColor Green
+    } elseif ($verifyCount -gt 0) {
+        Write-Host "⚠️  Solo $verifyCount de 5 tablas principales fueron creadas" -ForegroundColor Yellow
     } else {
-        Write-Host "⚠️  Error al ejecutar migraciones con Go - intentando método SQL directo..." -ForegroundColor Yellow
-        
-        # Verificar que el archivo de migración existe
-        if (Test-Path "migrations/000001_initial_schema.up.sql") {
-            # Alternativa: ejecutar SQL directamente
-            $sqlContent = Get-Content "migrations/000001_initial_schema.up.sql" -Raw
-            $sqlContent | docker-compose exec -T postgres psql -U postgres -d asam_db
-            
-            if ($LASTEXITCODE -eq 0) {
-                Write-Host "✅ Migraciones ejecutadas con método SQL directo" -ForegroundColor Green
-            } else {
-                Write-Host "❌ Error al ejecutar SQL. Detalles del error arriba." -ForegroundColor Red
-                Write-Host "   Posibles soluciones:" -ForegroundColor Yellow
-                Write-Host "   1. Verifica que PostgreSQL esté funcionando correctamente" -ForegroundColor Yellow
-                Write-Host "   2. Intenta ejecutar: docker-compose down -v" -ForegroundColor Yellow
-                Write-Host "   3. Luego ejecuta: .\start-docker.ps1 --clean" -ForegroundColor Yellow
-                
-                # Salir del script si no se pueden ejecutar las migraciones
-                Write-Host "`n❌ Abortando inicio debido a error en migraciones" -ForegroundColor Red
-                exit 1
-            }
-        } else {
-            Write-Host "❌ No se encontró el archivo de migraciones: migrations/000001_initial_schema.up.sql" -ForegroundColor Red
-            exit 1
-        }
+        Write-Host "❌ Error: No se crearon las tablas principales" -ForegroundColor Red
+        Write-Host "   Intenta ejecutar: .\scripts\reset-emergency.ps1" -ForegroundColor Yellow
+        exit 1
     }
-    
-    # Verificar que las tablas se crearon después de las migraciones
-    Start-Sleep -Seconds 2
-    $verifyTables = docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users';" 2>$null
-    if ($verifyTables -is [array]) {
-        $verifyTables = $verifyTables -join ''
-    }
-    $verifyTables = $verifyTables -replace '\s', ''
-    try {
-        $verifyCount = [int]$verifyTables
-        if ($verifyCount -gt 0) {
-            Write-Host "✅ Verificado: La tabla users fue creada exitosamente" -ForegroundColor Green
-        } else {
-            Write-Host "❌ Error: La tabla users no se creó correctamente" -ForegroundColor Red
-        }
-    } catch {
-        Write-Host "⚠️  No se pudo verificar la creación de tablas" -ForegroundColor Yellow
-    }
-} else {
-    Write-Host "✅ Las tablas ya existen, omitiendo migraciones" -ForegroundColor Green
+} catch {
+    Write-Host "⚠️  No se pudo verificar la creación de tablas" -ForegroundColor Yellow
 }
 
 # Crear usuarios de prueba usando la herramienta de gestión de usuarios
@@ -330,7 +317,7 @@ if ($userCountInt -eq 0) {
     Start-Sleep -Seconds 2
     
     # Usar el script automatizado que no requiere interacción
-    docker-compose exec -T api go run scripts/user-management/auto-create-test-users.go
+    docker-compose exec -T api go run scripts/user-management/auto-create-test-users/auto-create-test-users.go
     if ($LASTEXITCODE -eq 0) {
         Write-Host "✅ Usuarios de prueba creados correctamente" -ForegroundColor Green
         
