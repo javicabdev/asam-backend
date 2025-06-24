@@ -125,29 +125,34 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddFamilyMember     func(childComplexity int, familyID string, familiar model.FamiliarInput) int
-		AdjustBalance       func(childComplexity int, amount float64, reason string) int
-		CancelPayment       func(childComplexity int, id string, reason string) int
-		ChangeMemberStatus  func(childComplexity int, id string, status model.MemberStatus) int
-		ChangePassword      func(childComplexity int, input model.ChangePasswordInput) int
-		CreateFamily        func(childComplexity int, input model.CreateFamilyInput) int
-		CreateMember        func(childComplexity int, input model.CreateMemberInput) int
-		CreateUser          func(childComplexity int, input model.CreateUserInput) int
-		DeleteMember        func(childComplexity int, id string) int
-		DeleteUser          func(childComplexity int, id string) int
-		Login               func(childComplexity int, input model.LoginInput) int
-		Logout              func(childComplexity int) int
-		RefreshToken        func(childComplexity int, input model.RefreshTokenInput) int
-		RegisterFee         func(childComplexity int, year int, month int, baseAmount float64) int
-		RegisterPayment     func(childComplexity int, input model.PaymentInput) int
-		RegisterTransaction func(childComplexity int, input model.TransactionInput) int
-		RemoveFamilyMember  func(childComplexity int, familiarID string) int
-		ResetUserPassword   func(childComplexity int, userID string, newPassword string) int
-		UpdateFamily        func(childComplexity int, input model.UpdateFamilyInput) int
-		UpdateMember        func(childComplexity int, input model.UpdateMemberInput) int
-		UpdatePayment       func(childComplexity int, id string, input model.PaymentInput) int
-		UpdateTransaction   func(childComplexity int, id string, input model.TransactionInput) int
-		UpdateUser          func(childComplexity int, input model.UpdateUserInput) int
+		AddFamilyMember         func(childComplexity int, familyID string, familiar model.FamiliarInput) int
+		AdjustBalance           func(childComplexity int, amount float64, reason string) int
+		CancelPayment           func(childComplexity int, id string, reason string) int
+		ChangeMemberStatus      func(childComplexity int, id string, status model.MemberStatus) int
+		ChangePassword          func(childComplexity int, input model.ChangePasswordInput) int
+		CreateFamily            func(childComplexity int, input model.CreateFamilyInput) int
+		CreateMember            func(childComplexity int, input model.CreateMemberInput) int
+		CreateUser              func(childComplexity int, input model.CreateUserInput) int
+		DeleteMember            func(childComplexity int, id string) int
+		DeleteUser              func(childComplexity int, id string) int
+		Login                   func(childComplexity int, input model.LoginInput) int
+		Logout                  func(childComplexity int) int
+		RefreshToken            func(childComplexity int, input model.RefreshTokenInput) int
+		RegisterFee             func(childComplexity int, year int, month int, baseAmount float64) int
+		RegisterPayment         func(childComplexity int, input model.PaymentInput) int
+		RegisterTransaction     func(childComplexity int, input model.TransactionInput) int
+		RemoveFamilyMember      func(childComplexity int, familiarID string) int
+		RequestPasswordReset    func(childComplexity int, email string) int
+		ResendVerificationEmail func(childComplexity int, email string) int
+		ResetPasswordWithToken  func(childComplexity int, token string, newPassword string) int
+		ResetUserPassword       func(childComplexity int, userID string, newPassword string) int
+		SendVerificationEmail   func(childComplexity int) int
+		UpdateFamily            func(childComplexity int, input model.UpdateFamilyInput) int
+		UpdateMember            func(childComplexity int, input model.UpdateMemberInput) int
+		UpdatePayment           func(childComplexity int, id string, input model.PaymentInput) int
+		UpdateTransaction       func(childComplexity int, id string, input model.TransactionInput) int
+		UpdateUser              func(childComplexity int, input model.UpdateUserInput) int
+		VerifyEmail             func(childComplexity int, token string) int
 	}
 
 	MutationResponse struct {
@@ -206,11 +211,13 @@ type ComplexityRoot struct {
 	}
 
 	User struct {
-		ID        func(childComplexity int) int
-		IsActive  func(childComplexity int) int
-		LastLogin func(childComplexity int) int
-		Role      func(childComplexity int) int
-		Username  func(childComplexity int) int
+		EmailVerified   func(childComplexity int) int
+		EmailVerifiedAt func(childComplexity int) int
+		ID              func(childComplexity int) int
+		IsActive        func(childComplexity int) int
+		LastLogin       func(childComplexity int) int
+		Role            func(childComplexity int) int
+		Username        func(childComplexity int) int
 	}
 }
 
@@ -268,6 +275,11 @@ type MutationResolver interface {
 	DeleteUser(ctx context.Context, id string) (*model.MutationResponse, error)
 	ChangePassword(ctx context.Context, input model.ChangePasswordInput) (*model.MutationResponse, error)
 	ResetUserPassword(ctx context.Context, userID string, newPassword string) (*model.MutationResponse, error)
+	SendVerificationEmail(ctx context.Context) (*model.MutationResponse, error)
+	VerifyEmail(ctx context.Context, token string) (*model.MutationResponse, error)
+	ResendVerificationEmail(ctx context.Context, email string) (*model.MutationResponse, error)
+	RequestPasswordReset(ctx context.Context, email string) (*model.MutationResponse, error)
+	ResetPasswordWithToken(ctx context.Context, token string, newPassword string) (*model.MutationResponse, error)
 }
 type PaymentResolver interface {
 	ID(ctx context.Context, obj *models.Payment) (string, error)
@@ -859,6 +871,42 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.RemoveFamilyMember(childComplexity, args["familiar_id"].(string)), true
 
+	case "Mutation.requestPasswordReset":
+		if e.complexity.Mutation.RequestPasswordReset == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_requestPasswordReset_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.RequestPasswordReset(childComplexity, args["email"].(string)), true
+
+	case "Mutation.resendVerificationEmail":
+		if e.complexity.Mutation.ResendVerificationEmail == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_resendVerificationEmail_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ResendVerificationEmail(childComplexity, args["email"].(string)), true
+
+	case "Mutation.resetPasswordWithToken":
+		if e.complexity.Mutation.ResetPasswordWithToken == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_resetPasswordWithToken_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ResetPasswordWithToken(childComplexity, args["token"].(string), args["newPassword"].(string)), true
+
 	case "Mutation.resetUserPassword":
 		if e.complexity.Mutation.ResetUserPassword == nil {
 			break
@@ -870,6 +918,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.ResetUserPassword(childComplexity, args["userId"].(string), args["newPassword"].(string)), true
+
+	case "Mutation.sendVerificationEmail":
+		if e.complexity.Mutation.SendVerificationEmail == nil {
+			break
+		}
+
+		return e.complexity.Mutation.SendVerificationEmail(childComplexity), true
 
 	case "Mutation.updateFamily":
 		if e.complexity.Mutation.UpdateFamily == nil {
@@ -930,6 +985,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.UpdateUser(childComplexity, args["input"].(model.UpdateUserInput)), true
+
+	case "Mutation.verifyEmail":
+		if e.complexity.Mutation.VerifyEmail == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_verifyEmail_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.VerifyEmail(childComplexity, args["token"].(string)), true
 
 	case "MutationResponse.error":
 		if e.complexity.MutationResponse.Error == nil {
@@ -1260,6 +1327,20 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.TransactionConnection.PageInfo(childComplexity), true
 
+	case "User.emailVerified":
+		if e.complexity.User.EmailVerified == nil {
+			break
+		}
+
+		return e.complexity.User.EmailVerified(childComplexity), true
+
+	case "User.emailVerifiedAt":
+		if e.complexity.User.EmailVerifiedAt == nil {
+			break
+		}
+
+		return e.complexity.User.EmailVerifiedAt(childComplexity), true
+
 	case "User.id":
 		if e.complexity.User.ID == nil {
 			break
@@ -1482,6 +1563,8 @@ type User {
     role: UserRole!
     isActive: Boolean!
     lastLogin: Time
+    emailVerified: Boolean!
+    emailVerifiedAt: Time
 }
 
 type AuthResponse {
@@ -1807,6 +1890,15 @@ type Mutation {
     deleteUser(id: ID!): MutationResponse!
     changePassword(input: ChangePasswordInput!): MutationResponse!
     resetUserPassword(userId: ID!, newPassword: String!): MutationResponse! # Admin only
+    
+    # Email Verification Mutations
+    sendVerificationEmail: MutationResponse!
+    verifyEmail(token: String!): MutationResponse!
+    resendVerificationEmail(email: String!): MutationResponse!
+    
+    # Password Recovery Mutations
+    requestPasswordReset(email: String!): MutationResponse!
+    resetPasswordWithToken(token: String!, newPassword: String!): MutationResponse!
 }`, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
@@ -2401,6 +2493,113 @@ func (ec *executionContext) field_Mutation_removeFamilyMember_argsFamiliarID(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_requestPasswordReset_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_requestPasswordReset_argsEmail(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["email"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_requestPasswordReset_argsEmail(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["email"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("email"))
+	if tmp, ok := rawArgs["email"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_resendVerificationEmail_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_resendVerificationEmail_argsEmail(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["email"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_resendVerificationEmail_argsEmail(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["email"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("email"))
+	if tmp, ok := rawArgs["email"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_resetPasswordWithToken_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_resetPasswordWithToken_argsToken(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["token"] = arg0
+	arg1, err := ec.field_Mutation_resetPasswordWithToken_argsNewPassword(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["newPassword"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_resetPasswordWithToken_argsToken(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["token"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("token"))
+	if tmp, ok := rawArgs["token"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_resetPasswordWithToken_argsNewPassword(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["newPassword"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("newPassword"))
+	if tmp, ok := rawArgs["newPassword"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_resetUserPassword_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -2635,6 +2834,34 @@ func (ec *executionContext) field_Mutation_updateUser_argsInput(
 	}
 
 	var zeroVal model.UpdateUserInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_verifyEmail_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_verifyEmail_argsToken(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["token"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_verifyEmail_argsToken(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["token"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("token"))
+	if tmp, ok := rawArgs["token"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
 	return zeroVal, nil
 }
 
@@ -3250,6 +3477,10 @@ func (ec *executionContext) fieldContext_AuthResponse_user(_ context.Context, fi
 				return ec.fieldContext_User_isActive(ctx, field)
 			case "lastLogin":
 				return ec.fieldContext_User_lastLogin(ctx, field)
+			case "emailVerified":
+				return ec.fieldContext_User_emailVerified(ctx, field)
+			case "emailVerifiedAt":
+				return ec.fieldContext_User_emailVerifiedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -6868,6 +7099,10 @@ func (ec *executionContext) fieldContext_Mutation_createUser(ctx context.Context
 				return ec.fieldContext_User_isActive(ctx, field)
 			case "lastLogin":
 				return ec.fieldContext_User_lastLogin(ctx, field)
+			case "emailVerified":
+				return ec.fieldContext_User_emailVerified(ctx, field)
+			case "emailVerifiedAt":
+				return ec.fieldContext_User_emailVerifiedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -6935,6 +7170,10 @@ func (ec *executionContext) fieldContext_Mutation_updateUser(ctx context.Context
 				return ec.fieldContext_User_isActive(ctx, field)
 			case "lastLogin":
 				return ec.fieldContext_User_lastLogin(ctx, field)
+			case "emailVerified":
+				return ec.fieldContext_User_emailVerified(ctx, field)
+			case "emailVerifiedAt":
+				return ec.fieldContext_User_emailVerifiedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -7136,6 +7375,310 @@ func (ec *executionContext) fieldContext_Mutation_resetUserPassword(ctx context.
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_resetUserPassword_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_sendVerificationEmail(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_sendVerificationEmail(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().SendVerificationEmail(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.MutationResponse)
+	fc.Result = res
+	return ec.marshalNMutationResponse2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMutationResponse(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_sendVerificationEmail(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_MutationResponse_success(ctx, field)
+			case "message":
+				return ec.fieldContext_MutationResponse_message(ctx, field)
+			case "error":
+				return ec.fieldContext_MutationResponse_error(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MutationResponse", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_verifyEmail(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_verifyEmail(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().VerifyEmail(rctx, fc.Args["token"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.MutationResponse)
+	fc.Result = res
+	return ec.marshalNMutationResponse2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMutationResponse(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_verifyEmail(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_MutationResponse_success(ctx, field)
+			case "message":
+				return ec.fieldContext_MutationResponse_message(ctx, field)
+			case "error":
+				return ec.fieldContext_MutationResponse_error(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MutationResponse", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_verifyEmail_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_resendVerificationEmail(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_resendVerificationEmail(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().ResendVerificationEmail(rctx, fc.Args["email"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.MutationResponse)
+	fc.Result = res
+	return ec.marshalNMutationResponse2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMutationResponse(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_resendVerificationEmail(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_MutationResponse_success(ctx, field)
+			case "message":
+				return ec.fieldContext_MutationResponse_message(ctx, field)
+			case "error":
+				return ec.fieldContext_MutationResponse_error(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MutationResponse", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_resendVerificationEmail_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_requestPasswordReset(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_requestPasswordReset(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().RequestPasswordReset(rctx, fc.Args["email"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.MutationResponse)
+	fc.Result = res
+	return ec.marshalNMutationResponse2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMutationResponse(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_requestPasswordReset(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_MutationResponse_success(ctx, field)
+			case "message":
+				return ec.fieldContext_MutationResponse_message(ctx, field)
+			case "error":
+				return ec.fieldContext_MutationResponse_error(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MutationResponse", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_requestPasswordReset_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_resetPasswordWithToken(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_resetPasswordWithToken(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().ResetPasswordWithToken(rctx, fc.Args["token"].(string), fc.Args["newPassword"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.MutationResponse)
+	fc.Result = res
+	return ec.marshalNMutationResponse2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMutationResponse(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_resetPasswordWithToken(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_MutationResponse_success(ctx, field)
+			case "message":
+				return ec.fieldContext_MutationResponse_message(ctx, field)
+			case "error":
+				return ec.fieldContext_MutationResponse_error(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MutationResponse", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_resetPasswordWithToken_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -7935,6 +8478,10 @@ func (ec *executionContext) fieldContext_Query_getUser(ctx context.Context, fiel
 				return ec.fieldContext_User_isActive(ctx, field)
 			case "lastLogin":
 				return ec.fieldContext_User_lastLogin(ctx, field)
+			case "emailVerified":
+				return ec.fieldContext_User_emailVerified(ctx, field)
+			case "emailVerifiedAt":
+				return ec.fieldContext_User_emailVerifiedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -8002,6 +8549,10 @@ func (ec *executionContext) fieldContext_Query_listUsers(ctx context.Context, fi
 				return ec.fieldContext_User_isActive(ctx, field)
 			case "lastLogin":
 				return ec.fieldContext_User_lastLogin(ctx, field)
+			case "emailVerified":
+				return ec.fieldContext_User_emailVerified(ctx, field)
+			case "emailVerifiedAt":
+				return ec.fieldContext_User_emailVerifiedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -8069,6 +8620,10 @@ func (ec *executionContext) fieldContext_Query_getCurrentUser(_ context.Context,
 				return ec.fieldContext_User_isActive(ctx, field)
 			case "lastLogin":
 				return ec.fieldContext_User_lastLogin(ctx, field)
+			case "emailVerified":
+				return ec.fieldContext_User_emailVerified(ctx, field)
+			case "emailVerifiedAt":
+				return ec.fieldContext_User_emailVerifiedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -9552,6 +10107,91 @@ func (ec *executionContext) _User_lastLogin(ctx context.Context, field graphql.C
 }
 
 func (ec *executionContext) fieldContext_User_lastLogin(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_emailVerified(ctx context.Context, field graphql.CollectedField, obj *models.User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_emailVerified(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.EmailVerified, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_User_emailVerified(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_emailVerifiedAt(ctx context.Context, field graphql.CollectedField, obj *models.User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_emailVerifiedAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.EmailVerifiedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*time.Time)
+	fc.Result = res
+	return ec.marshalOTime2ᚖtimeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_User_emailVerifiedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "User",
 		Field:      field,
@@ -13821,6 +14461,41 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "sendVerificationEmail":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_sendVerificationEmail(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "verifyEmail":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_verifyEmail(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resendVerificationEmail":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_resendVerificationEmail(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "requestPasswordReset":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_requestPasswordReset(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resetPasswordWithToken":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_resetPasswordWithToken(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -14651,6 +15326,13 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			}
 		case "lastLogin":
 			out.Values[i] = ec._User_lastLogin(ctx, field, obj)
+		case "emailVerified":
+			out.Values[i] = ec._User_emailVerified(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "emailVerifiedAt":
+			out.Values[i] = ec._User_emailVerifiedAt(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
