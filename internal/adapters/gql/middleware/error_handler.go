@@ -138,6 +138,25 @@ func (m *ErrorMiddleware) handleAppError(ctx context.Context, err *appErrors.App
 	}
 }
 
+// getOperationName safely extracts the operation name from context
+func getOperationName(ctx context.Context) string {
+	// Use defer to recover from any potential panic
+	defer func() {
+		if r := recover(); r != nil {
+			// Operation context not available
+		}
+	}()
+
+	// Try to get operation context
+	if ctx != nil {
+		if op := graphql.GetOperationContext(ctx); op != nil {
+			return op.OperationName
+		}
+	}
+
+	return ""
+}
+
 // logError logs errors in a standardized format
 func (m *ErrorMiddleware) logError(ctx context.Context, errType, message, level string, code any, path any) {
 	if m.logger == nil {
@@ -157,9 +176,9 @@ func (m *ErrorMiddleware) logError(ctx context.Context, errType, message, level 
 		fields = append(fields, zap.Any("path", path))
 	}
 
-	// Add operation name if available
-	if op := graphql.GetOperationContext(ctx); op != nil {
-		fields = append(fields, zap.String("operation", op.OperationName))
+	// Safely add operation name if available
+	if operationName := getOperationName(ctx); operationName != "" {
+		fields = append(fields, zap.String("operation", operationName))
 	}
 
 	// Log at the appropriate level
