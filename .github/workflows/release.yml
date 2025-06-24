@@ -1,6 +1,7 @@
 name: Release Pipeline
 
 # Este workflow se activa cuando se crea un tag con el formato 'v*.*.*'
+# Verifica el código, crea el GitHub Release y construye la imagen Docker oficial
 on:
   push:
     tags:
@@ -8,13 +9,12 @@ on:
 
 permissions:
   contents: write  # Necesario para crear releases
-  packages: write  # Necesario para publicar paquetes
   actions: read    # Necesario para leer los workflows
 
 env:
   GO_VERSION: '1.24'
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  SERVICE_NAME: asam-backend
 
 jobs:
   # Verificar el código antes de crear el release
@@ -99,67 +99,72 @@ jobs:
             
             ### 🐳 Docker Image
             ```bash
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.get_version.outputs.version }}
+            docker pull gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ steps.get_version.outputs.version }}
             ```
             
             ### ☁️ Cloud Run Deployment
             This release is ready for deployment to Google Cloud Run.
             
-            To deploy with migrations:
+            To deploy this version:
             1. Go to Actions → "Deploy to Google Cloud Run"
-            2. Run workflow with "Run database migrations" checked
+            2. Run workflow with image tag: `${{ steps.get_version.outputs.version }}`
+            3. Check "Run database migrations" if needed
             
             ### 📝 What's Changed
             See the auto-generated release notes below for details.
 
-      # Construir y publicar imagen Docker
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      # Autenticar con Google Cloud y construir imagen Docker
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=tag
-            type=semver,pattern={{version}},value=${{ steps.get_version.outputs.version }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ steps.get_version.outputs.version }}
-            latest
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            VERSION=${{ steps.get_version.outputs.version }}
-            COMMIT=${{ github.sha }}
-            BUILD_TIME=${{ steps.get_version.outputs.build_time }}
+      - name: Configure Docker for Google Cloud
+        run: |
+          gcloud auth configure-docker --quiet
+
+      - name: Build and push Docker image to GCR
+        run: |
+          VERSION=${{ steps.get_version.outputs.version }}
+          
+          # Construir imagen con metadatos
+          docker build \
+            --build-arg VERSION=$VERSION \
+            --build-arg COMMIT=${{ github.sha }} \
+            --build-arg BUILD_TIME=${{ steps.get_version.outputs.build_time }} \
+            -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:$VERSION \
+            -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:latest \
+            .
+          
+          # Subir ambas etiquetas
+          docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:$VERSION
+          docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:latest
+          
+          echo "✅ Docker image pushed successfully:"
+          echo "  - gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:$VERSION"
+          echo "  - gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:latest"
 
       - name: Create deployment instructions
         run: |
           echo "## 🚀 Deployment Instructions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Docker Image Published" >> $GITHUB_STEP_SUMMARY
+          echo "### Docker Image Published to GCR" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.get_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ steps.get_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Available Tags" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ steps.get_version.outputs.version }}\` - This release" >> $GITHUB_STEP_SUMMARY
+          echo "- \`latest\` - Updated to this release" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
-          echo "1. Run database migrations (if needed)" >> $GITHUB_STEP_SUMMARY
-          echo "2. Deploy to Cloud Run via GitHub Actions" >> $GITHUB_STEP_SUMMARY
+          echo "1. Go to [Deploy to Google Cloud Run](https://github.com/${{ github.repository }}/actions/workflows/cloud-run-deploy.yml)" >> $GITHUB_STEP_SUMMARY
+          echo "2. Click 'Run workflow'" >> $GITHUB_STEP_SUMMARY
+          echo "3. Use image tag: \`${{ steps.get_version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "4. Check 'Run database migrations' if needed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Version**: ${{ steps.get_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
