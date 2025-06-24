@@ -7,6 +7,25 @@
 - Access to the Google Cloud project
 - PostgreSQL database already configured (Aiven)
 
+## Quick Start - Pre-deployment Check
+
+Before deploying, run the pre-deployment check script to ensure everything is configured correctly:
+
+```powershell
+# Windows
+.\scripts\gcp\pre-deploy-check.ps1 -ProjectId YOUR-PROJECT-ID
+
+# Linux/Mac
+./scripts/gcp/pre-deploy-check.sh YOUR-PROJECT-ID
+```
+
+This script will verify:
+- Google Cloud SDK installation and authentication
+- Required APIs are enabled
+- Service account exists with correct permissions
+- All required secrets are configured
+- Docker images availability
+
 ## Environment Variables
 
 The application requires the following environment variables in production:
@@ -28,6 +47,25 @@ The application requires the following environment variables in production:
 
 If SMTP credentials are not provided, the notification service will be disabled but the application will continue to function.
 
+## Database Secrets Configuration
+
+Before deploying, ensure all database secrets are configured in Google Secret Manager:
+
+```powershell
+# Windows - Verify and create secrets
+.\scripts\gcp\verify-db-secrets.ps1 -ProjectId YOUR-PROJECT-ID -CreateSecrets
+
+# Linux/Mac - Verify and create secrets
+./scripts/gcp/verify-db-secrets.sh YOUR-PROJECT-ID --create-secrets
+```
+
+Required secrets:
+- `db-host`: PostgreSQL host (e.g., pg-xxx.aivencloud.com)
+- `db-port`: PostgreSQL port (e.g., 14276)
+- `db-user`: Database user (e.g., avnadmin)
+- `db-password`: Database password
+- `db-name`: Database name (e.g., defaultdb)
+
 ## Deployment Steps
 
 ### 1. Fix Lint Issues (if any)
@@ -36,7 +74,18 @@ The project uses golangci-lint v2.1.6. If you encounter lint issues, they are co
 
 ### 2. Deploy to Cloud Run
 
-The deployment is automated through GitHub Actions, but you can also deploy manually:
+The deployment is automated through GitHub Actions. To deploy:
+
+1. Go to your repository on GitHub
+2. Navigate to Actions tab
+3. Select "Deploy to Google Cloud Run" workflow
+4. Click "Run workflow"
+5. Select options:
+   - Environment: production or staging
+   - Image tag: latest or specific version
+   - Run migrations: check if you need to run database migrations
+
+You can also deploy manually:
 
 ```bash
 # Build and push to Google Container Registry
@@ -88,23 +137,32 @@ curl https://YOUR-SERVICE-URL/health
 
 ## Troubleshooting
 
-### Database Connection Issues
+For detailed troubleshooting guide, see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 
-If you see "admin credentials must be set for production" error:
-- Ensure you've run the environment configuration script
-- Verify the ADMIN_USER and ADMIN_PASSWORD are set
+### Common Issues
 
-### SMTP Configuration Issues
+#### Database Migration Errors
 
-If you see "SMTP credentials not configured" warning:
-- This is not an error - the app will run without email notifications
-- To enable emails, provide SMTP_USER and SMTP_PASSWORD when running the configuration script
+If migrations fail with "connection parameters not found":
+1. Verify secrets are configured: `.\scripts\gcp\verify-db-secrets.ps1 -ProjectId YOUR-PROJECT-ID`
+2. The workflow exports variables with both `DB_` and `POSTGRES_` prefixes for compatibility
+3. Check the migration logs in GitHub Actions for specific errors
 
-### Build Failures
+#### Service Account Permission Issues
 
-If the Docker build fails at the GraphQL generation step:
-- The Dockerfile now uses `gqlgen` directly instead of the custom generator
-- Ensure all GraphQL schema files are present in `internal/adapters/gql/schema/`
+If you see permission errors:
+```bash
+gcloud projects add-iam-policy-binding YOUR-PROJECT-ID \
+  --member='serviceAccount:github-actions-deploy@YOUR-PROJECT-ID.iam.gserviceaccount.com' \
+  --role='roles/secretmanager.secretAccessor'
+```
+
+#### Build Failures
+
+If the Docker build fails:
+- Ensure all GraphQL schema files are present
+- Check that the image tag format is correct
+- Verify Container Registry API is enabled
 
 ## Security Notes
 
@@ -124,6 +182,22 @@ Once deployed, you can monitor the application through:
 - **Metrics**: Available at `/metrics` endpoint (Prometheus format)
 - **Health**: `/health` endpoint provides detailed health status
 - **Cloud Run Console**: View metrics, logs, and revisions in the GCP Console
+
+### Useful Commands
+
+```bash
+# View service details
+gcloud run services describe asam-backend --region europe-west1
+
+# Stream logs in real-time
+gcloud run services logs tail asam-backend --region europe-west1
+
+# List all revisions
+gcloud run revisions list --service asam-backend --region europe-west1
+
+# Check current traffic allocation
+gcloud run services describe asam-backend --region europe-west1 --format="value(spec.traffic[].percent)"
+```
 
 ## Rolling Back
 

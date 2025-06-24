@@ -195,19 +195,177 @@ jobs:
 
       - name: Get database secrets
         run: |
-          echo "::add-mask::$(gcloud secrets versions access latest --secret=db-host)"
-          echo "::add-mask::$(gcloud secrets versions access latest --secret=db-password)"
-          echo "DB_HOST=$(gcloud secrets versions access latest --secret=db-host)" >> $GITHUB_ENV
-          echo "DB_PORT=$(gcloud secrets versions access latest --secret=db-port)" >> $GITHUB_ENV
-          echo "DB_USER=$(gcloud secrets versions access latest --secret=db-user)" >> $GITHUB_ENV
-          echo "DB_PASSWORD=$(gcloud secrets versions access latest --secret=db-password)" >> $GITHUB_ENV
-          echo "DB_NAME=$(gcloud secrets versions access latest --secret=db-name)" >> $GITHUB_ENV
+          echo "Obteniendo secretos de la base de datos..."
+          
+          # Obtener y verificar cada secreto
+          DB_HOST_VALUE=$(gcloud secrets versions access latest --secret=db-host 2>&1)
+          if [[ $? -ne 0 ]]; then
+            echo "❌ Error: No se pudo obtener db-host"
+            echo "Detalles: $DB_HOST_VALUE"
+            exit 1
+          fi
+          echo "✅ db-host obtenido"
+          
+          DB_PORT_VALUE=$(gcloud secrets versions access latest --secret=db-port 2>&1)
+          if [[ $? -ne 0 ]]; then
+            echo "❌ Error: No se pudo obtener db-port"
+            echo "Detalles: $DB_PORT_VALUE"
+            exit 1
+          fi
+          echo "✅ db-port obtenido"
+          
+          DB_USER_VALUE=$(gcloud secrets versions access latest --secret=db-user 2>&1)
+          if [[ $? -ne 0 ]]; then
+            echo "❌ Error: No se pudo obtener db-user"
+            echo "Detalles: $DB_USER_VALUE"
+            exit 1
+          fi
+          echo "✅ db-user obtenido"
+          
+          DB_PASSWORD_VALUE=$(gcloud secrets versions access latest --secret=db-password 2>&1)
+          if [[ $? -ne 0 ]]; then
+            echo "❌ Error: No se pudo obtener db-password"
+            echo "Detalles: $DB_PASSWORD_VALUE"
+            exit 1
+          fi
+          echo "✅ db-password obtenido"
+          
+          DB_NAME_VALUE=$(gcloud secrets versions access latest --secret=db-name 2>&1)
+          if [[ $? -ne 0 ]]; then
+            echo "❌ Error: No se pudo obtener db-name"
+            echo "Detalles: $DB_NAME_VALUE"
+            exit 1
+          fi
+          echo "✅ db-name obtenido"
+          
+          # Agregar máscaras para valores sensibles
+          echo "::add-mask::$DB_HOST_VALUE"
+          echo "::add-mask::$DB_PASSWORD_VALUE"
+          
+          # Exportar con ambos prefijos para compatibilidad
+          # Primero con prefijo DB_
+          echo "DB_HOST=$DB_HOST_VALUE" >> $GITHUB_ENV
+          echo "DB_PORT=$DB_PORT_VALUE" >> $GITHUB_ENV
+          echo "DB_USER=$DB_USER_VALUE" >> $GITHUB_ENV
+          echo "DB_PASSWORD=$DB_PASSWORD_VALUE" >> $GITHUB_ENV
+          echo "DB_NAME=$DB_NAME_VALUE" >> $GITHUB_ENV
+          
+          # También con prefijo POSTGRES_ para compatibilidad con el código de migración
+          echo "POSTGRES_HOST=$DB_HOST_VALUE" >> $GITHUB_ENV
+          echo "POSTGRES_PORT=$DB_PORT_VALUE" >> $GITHUB_ENV
+          echo "POSTGRES_USER=$DB_USER_VALUE" >> $GITHUB_ENV
+          echo "POSTGRES_PASSWORD=$DB_PASSWORD_VALUE" >> $GITHUB_ENV
+          echo "POSTGRES_DB=$DB_NAME_VALUE" >> $GITHUB_ENV
+          
+          echo ""
+          echo "✅ Todos los secretos obtenidos y exportados correctamente"
+
+      - name: Verify environment variables
+        run: |
+          echo "Verificando variables de entorno..."
+          echo ""
+          echo "=== Variables con prefijo DB_ ==="
+          
+          # Verificar variables DB_
+          if [[ -z "$DB_HOST" ]]; then
+            echo "❌ Error: DB_HOST no está configurado"
+            exit 1
+          fi
+          echo "✅ DB_HOST configurado"
+          
+          if [[ -z "$DB_PORT" ]]; then
+            echo "❌ Error: DB_PORT no está configurado"
+            exit 1
+          fi
+          echo "✅ DB_PORT configurado: $DB_PORT"
+          
+          if [[ -z "$DB_USER" ]]; then
+            echo "❌ Error: DB_USER no está configurado"
+            exit 1
+          fi
+          echo "✅ DB_USER configurado: $DB_USER"
+          
+          if [[ -z "$DB_PASSWORD" ]]; then
+            echo "❌ Error: DB_PASSWORD no está configurado"
+            exit 1
+          fi
+          echo "✅ DB_PASSWORD configurado (oculto)"
+          
+          if [[ -z "$DB_NAME" ]]; then
+            echo "❌ Error: DB_NAME no está configurado"
+            exit 1
+          fi
+          echo "✅ DB_NAME configurado: $DB_NAME"
+          
+          echo ""
+          echo "=== Variables con prefijo POSTGRES_ ==="
+          
+          # Verificar variables POSTGRES_
+          if [[ -z "$POSTGRES_HOST" ]]; then
+            echo "❌ Error: POSTGRES_HOST no está configurado"
+            exit 1
+          fi
+          echo "✅ POSTGRES_HOST configurado"
+          
+          if [[ -z "$POSTGRES_PORT" ]]; then
+            echo "❌ Error: POSTGRES_PORT no está configurado"
+            exit 1
+          fi
+          echo "✅ POSTGRES_PORT configurado: $POSTGRES_PORT"
+          
+          if [[ -z "$POSTGRES_USER" ]]; then
+            echo "❌ Error: POSTGRES_USER no está configurado"
+            exit 1
+          fi
+          echo "✅ POSTGRES_USER configurado: $POSTGRES_USER"
+          
+          if [[ -z "$POSTGRES_PASSWORD" ]]; then
+            echo "❌ Error: POSTGRES_PASSWORD no está configurado"
+            exit 1
+          fi
+          echo "✅ POSTGRES_PASSWORD configurado (oculto)"
+          
+          if [[ -z "$POSTGRES_DB" ]]; then
+            echo "❌ Error: POSTGRES_DB no está configurado"
+            exit 1
+          fi
+          echo "✅ POSTGRES_DB configurado: $POSTGRES_DB"
+          
+          echo ""
+          echo "✅ Todas las variables de entorno están configuradas correctamente"
+          echo ""
+          echo "SSL Mode configurado: ${DB_SSL_MODE:-no configurado}"
 
       - name: Run migrations
         run: |
           echo "Running database migrations..."
+          echo "Environment: CI mode"
+          echo "SSL Mode: ${DB_SSL_MODE:-require}"
+          echo ""
+          echo "=== Debug Information ==="
+          echo "Current directory: $(pwd)"
+          echo "Go version: $(go version)"
+          echo ""
+          echo "Checking for migrations directory..."
+          if [ -d "migrations" ]; then
+            echo "✅ Migrations directory found"
+            echo "Number of migration files: $(ls -1 migrations/*.sql 2>/dev/null | wc -l)"
+          else
+            echo "❌ Migrations directory not found!"
+            exit 1
+          fi
+          echo ""
+          echo "=== Running migrations ==="
           go run cmd/migrate/main.go -cmd up
-          echo "✅ Migrations completed successfully"
+          
+          if [ $? -eq 0 ]; then
+            echo ""
+            echo "✅ Migrations completed successfully"
+          else
+            echo ""
+            echo "❌ Migration failed"
+            exit 1
+          fi
         env:
           CI: "true"
           DB_SSL_MODE: require

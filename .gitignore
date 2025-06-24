@@ -68,3 +68,4 @@ _archived/
 # Archivos de seguridad locales
 gosec-report.json
 gosec-report.txt
+/github-actions-sa-key.json
