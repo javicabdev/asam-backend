@@ -52,7 +52,7 @@ func (r *memberRepository) GetByID(ctx context.Context, id uint) (*models.Member
 // GetByNumeroSocio busca un miembro por su número de socio
 func (r *memberRepository) GetByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Member, error) {
 	var member models.Member
-	result := r.db.WithContext(ctx).Where("numero_socio = ?", numeroSocio).First(&member)
+	result := r.db.WithContext(ctx).Where("membership_number = ?", numeroSocio).First(&member)
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -107,17 +107,17 @@ func (r *memberRepository) List(ctx context.Context, filters output.MemberFilter
 
 	// Aplicar filtros
 	if filters.Estado != nil {
-		query = query.Where("estado = ?", *filters.Estado)
+		query = query.Where("state = ?", *filters.Estado)
 	}
 
 	if filters.TipoMembresia != nil {
-		query = query.Where("tipo_membresia = ?", *filters.TipoMembresia)
+		query = query.Where("membership_type = ?", *filters.TipoMembresia)
 	}
 
 	if filters.SearchTerm != nil {
 		searchTerm := "%" + *filters.SearchTerm + "%"
 		query = query.Where(
-			"numero_socio ILIKE ? OR nombre ILIKE ? OR apellidos ILIKE ?",
+			"membership_number ILIKE ? OR name ILIKE ? OR surnames ILIKE ?",
 			searchTerm, searchTerm, searchTerm,
 		)
 	}
