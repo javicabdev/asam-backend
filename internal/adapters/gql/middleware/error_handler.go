@@ -140,11 +140,10 @@ func (m *ErrorMiddleware) handleAppError(ctx context.Context, err *appErrors.App
 
 // getOperationName safely extracts the operation name from context
 func getOperationName(ctx context.Context) string {
-	// Use defer to recover from any potential panic
+	// Use defer to recover from any potential panic from graphql.GetOperationContext
 	defer func() {
-		if r := recover(); r != nil {
-			// Operation context not available
-		}
+		// Assign to blank identifier to appease errcheck and explicitly ignore the value.
+		_ = recover()
 	}()
 
 	// Try to get operation context
