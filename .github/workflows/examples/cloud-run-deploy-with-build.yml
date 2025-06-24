@@ -1,0 +1,197 @@
+name: Deploy to Google Cloud Run
+
+on:
+  workflow_dispatch:  # Para despliegues manuales
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      image_tag:
+        description: 'Docker image tag to deploy (e.g., v1.0.0, latest)'
+        required: false
+        default: 'latest'
+        type: string
+      run_migrations:
+        description: 'Run database migrations'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  SERVICE_NAME: asam-backend
+  REGION: europe-west1
+  GO_VERSION: '1.24'
+  # Usar GitHub Container Registry en lugar de Google Artifact Registry
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+# Limitar concurrencia para evitar despliegues simultáneos
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Cloud Run
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull Docker image from GHCR
+        id: pull_image
+        run: |
+          # Construir la URL de la imagen desde GitHub Container Registry
+          IMAGE_TAG="${{ github.event.inputs.image_tag || 'latest' }}"
+          GHCR_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}"
+          echo "Pulling image: $GHCR_IMAGE"
+          
+          # Pull de la imagen desde GHCR
+          docker pull $GHCR_IMAGE
+          
+          # Re-tag para Google Artifact Registry
+          GAR_IMAGE="europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/asam-backend/${{ env.SERVICE_NAME }}:${IMAGE_TAG}"
+          docker tag $GHCR_IMAGE $GAR_IMAGE
+          
+          # Push a Google Artifact Registry
+          gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
+          docker push $GAR_IMAGE
+          
+          echo "image_url=$GAR_IMAGE" >> $GITHUB_OUTPUT
+          echo "Image ready for deployment: $GAR_IMAGE"
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        run: |
+          IMAGE_URL="${{ steps.pull_image.outputs.image_url }}"
+          echo "Deploying image: $IMAGE_URL"
+
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image="$IMAGE_URL" \
+            --region=${{ env.REGION }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --set-env-vars="ENVIRONMENT=production" \
+            --set-env-vars="DB_SSL_MODE=require" \
+            --set-env-vars="JWT_ACCESS_TTL=15m" \
+            --set-env-vars="JWT_REFRESH_TTL=168h" \
+            --set-env-vars="SMTP_SERVER=smtp.gmail.com" \
+            --set-env-vars="SMTP_PORT=587" \
+            --set-env-vars="SMTP_USE_TLS=true" \
+            --set-env-vars="SMTP_FROM_EMAIL=noreply@asam.org" \
+            --set-env-vars="RATE_LIMIT_RPS=10" \
+            --set-env-vars="RATE_LIMIT_BURST=20" \
+            --set-env-vars="LOG_SLOW_QUERIES=true" \
+            --set-env-vars="SLOW_QUERY_THRESHOLD=100ms" \
+            --set-env-vars="LOG_SLOW_RESOLVERS=true" \
+            --set-env-vars="SLOW_RESOLVER_THRESHOLD=100ms" \
+            --set-env-vars="GQL_COMPLEXITY_LIMIT=1000" \
+            --set-env-vars="GQL_CONCURRENT_RESOLVERS=10" \
+            --set-secrets="DB_HOST=db-host:latest" \
+            --set-secrets="DB_PORT=db-port:latest" \
+            --set-secrets="DB_USER=db-user:latest" \
+            --set-secrets="DB_PASSWORD=db-password:latest" \
+            --set-secrets="DB_NAME=db-name:latest" \
+            --set-secrets="JWT_ACCESS_SECRET=jwt-access-secret:latest" \
+            --set-secrets="JWT_REFRESH_SECRET=jwt-refresh-secret:latest" \
+            --set-secrets="ADMIN_USER=admin-user:latest" \
+            --set-secrets="ADMIN_PASSWORD=admin-password:latest" \
+            --set-secrets="SMTP_USER=smtp-user:latest" \
+            --set-secrets="SMTP_PASSWORD=smtp-password:latest" \
+            --cpu=1 \
+            --memory=512Mi \
+            --concurrency=80 \
+            --min-instances=0 \
+            --max-instances=3 \
+            --timeout=60s \
+            --labels="managed-by=github-actions,commit-sha=${{ github.sha }},image-tag=${{ github.event.inputs.image_tag || 'latest' }}" \
+            --quiet
+
+      - name: Get service URL
+        id: service
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --format='value(status.url)')
+          echo "url=$SERVICE_URL" >> $GITHUB_OUTPUT
+
+      - name: Smoke test
+        run: |
+          echo "Testing service at ${{ steps.service.outputs.url }}"
+          for i in {1..5}; do
+            if curl -f -s "${{ steps.service.outputs.url }}/health/live"; then
+              echo "Health check passed"
+              break
+            fi
+            echo "Attempt $i failed, retrying..."
+            sleep 5
+          done
+
+      - name: Create deployment summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service**: ${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: ${{ steps.service.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: ${{ steps.pull_image.outputs.image_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: ${{ github.event.inputs.image_tag || 'latest' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployed at**: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+
+  migrate:
+    name: Run Database Migrations
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_migrations == 'true'
+    needs: deploy
+    runs-on: ubuntu-latest
+    environment: production-migrations
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get database secrets
+        id: secrets
+        run: |
+          echo "DB_HOST=$(gcloud secrets versions access latest --secret=db-host)" >> $GITHUB_ENV
+          echo "DB_PORT=$(gcloud secrets versions access latest --secret=db-port)" >> $GITHUB_ENV
+          echo "DB_USER=$(gcloud secrets versions access latest --secret=db-user)" >> $GITHUB_ENV
+          echo "DB_PASSWORD=$(gcloud secrets versions access latest --secret=db-password)" >> $GITHUB_ENV
+          echo "DB_NAME=$(gcloud secrets versions access latest --secret=db-name)" >> $GITHUB_ENV
+
+      - name: Run migrations
+        run: |
+          go run cmd/migrate/main.go -cmd up
+        env:
+          DB_SSL_MODE: require

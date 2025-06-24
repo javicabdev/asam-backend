@@ -48,7 +48,7 @@ Para que GitHub Actions pueda desplegar en tu proyecto de GCP, necesitas crear u
    - **Cloud Run Admin** (roles/run.admin)
    - **Cloud Build Service Account** (roles/cloudbuild.builds.builder)
    - **Service Account User** (roles/iam.serviceAccountUser)
-   - **Storage Admin** (roles/storage.admin)
+   - **Storage Admin** (roles/storage.admin) - ⚠️ **IMPORTANTE**: Necesario para crear repositorios en GCR
 6. Haz clic en "Continuar"
 7. En "Otorgar a los usuarios acceso a esta cuenta de servicio", puedes dejarlo vacío
 8. Haz clic en "Listo"
@@ -79,6 +79,37 @@ Necesitarás el ID del proyecto para configurarlo en GitHub Actions:
 Sigue las instrucciones en el archivo [github-secrets-setup.md](github-secrets-setup.md) para configurar los secretos en GitHub, utilizando:
 - El ID del proyecto que acabas de copiar como valor para `GCP_PROJECT_ID`
 - El contenido completo del archivo JSON de la clave de cuenta de servicio como valor para `GCP_SA_KEY`
+
+## 7. Configuración adicional para Google Container Registry
+
+Para que los workflows puedan subir imágenes a Google Container Registry, es necesario:
+
+### Opción A: Verificar permisos (Recomendado)
+
+Asegúrate de que la cuenta de servicio tiene el rol **Storage Admin** como se indicó en el paso 3. Este rol permite:
+- Crear automáticamente repositorios en GCR cuando se hace push
+- Subir y descargar imágenes
+- Gestionar tags y versiones
+
+### Opción B: Ejecutar script de configuración
+
+Si encuentras errores de permisos al hacer push a GCR, ejecuta uno de estos scripts:
+
+**En Windows (PowerShell):**
+```powershell
+.\scripts\gcp\fix-gcr-permissions.ps1 <PROJECT_ID>
+```
+
+**En Linux/Mac:**
+```bash
+chmod +x ./scripts/gcp/fix-gcr-permissions.sh
+./scripts/gcp/fix-gcr-permissions.sh <PROJECT_ID>
+```
+
+Estos scripts:
+1. Habilitan la API de Container Registry
+2. Verifican/agregan permisos de Storage Admin
+3. Crean el repositorio inicial en GCR
 
 ## Nota sobre facturación
 

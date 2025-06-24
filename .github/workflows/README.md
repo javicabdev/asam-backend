@@ -143,6 +143,29 @@ Usar el script local:
   - La versión específica (ej: `v1.0.0`)
   - `latest` (siempre apunta al último release)
 
+## Solución de Problemas Comunes
+
+### Error: "gcr.io repo does not exist"
+
+Si el Release Pipeline falla con este error al intentar subir imágenes:
+```
+denied: gcr.io repo does not exist. Creating on push requires the artifactregistry.repositories.createOnPush permission
+```
+
+**Solución:**
+1. Verifica que la cuenta de servicio tenga el rol **Storage Admin**
+2. Ejecuta el script de corrección:
+   ```bash
+   # Windows
+   .\scripts\gcp\fix-gcr-permissions.ps1 <PROJECT_ID>
+   
+   # Linux/Mac
+   ./scripts/gcp/fix-gcr-permissions.sh <PROJECT_ID>
+   ```
+3. Vuelve a ejecutar el workflow
+
+Para más detalles, consulta [scripts/gcp/README.md](../../scripts/gcp/README.md).
+
 ## Carpeta `examples/`
 
 Contiene workflows alternativos y documentación adicional:
