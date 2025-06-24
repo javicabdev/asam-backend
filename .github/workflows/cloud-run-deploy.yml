@@ -197,8 +197,8 @@ jobs:
         run: |
           echo "Obteniendo secretos de la base de datos..."
           
-          # Obtener y verificar cada secreto
-          DB_HOST_VALUE=$(gcloud secrets versions access latest --secret=db-host 2>&1)
+          # Obtener y verificar cada secreto, limpiando caracteres de control
+          DB_HOST_VALUE=$(gcloud secrets versions access latest --secret=db-host 2>&1 | tr -d '\r\n')
           if [[ $? -ne 0 ]]; then
             echo "❌ Error: No se pudo obtener db-host"
             echo "Detalles: $DB_HOST_VALUE"
@@ -206,7 +206,7 @@ jobs:
           fi
           echo "✅ db-host obtenido"
           
-          DB_PORT_VALUE=$(gcloud secrets versions access latest --secret=db-port 2>&1)
+          DB_PORT_VALUE=$(gcloud secrets versions access latest --secret=db-port 2>&1 | tr -d '\r\n')
           if [[ $? -ne 0 ]]; then
             echo "❌ Error: No se pudo obtener db-port"
             echo "Detalles: $DB_PORT_VALUE"
@@ -214,7 +214,7 @@ jobs:
           fi
           echo "✅ db-port obtenido"
           
-          DB_USER_VALUE=$(gcloud secrets versions access latest --secret=db-user 2>&1)
+          DB_USER_VALUE=$(gcloud secrets versions access latest --secret=db-user 2>&1 | tr -d '\r\n')
           if [[ $? -ne 0 ]]; then
             echo "❌ Error: No se pudo obtener db-user"
             echo "Detalles: $DB_USER_VALUE"
@@ -222,7 +222,7 @@ jobs:
           fi
           echo "✅ db-user obtenido"
           
-          DB_PASSWORD_VALUE=$(gcloud secrets versions access latest --secret=db-password 2>&1)
+          DB_PASSWORD_VALUE=$(gcloud secrets versions access latest --secret=db-password 2>&1 | tr -d '\r\n')
           if [[ $? -ne 0 ]]; then
             echo "❌ Error: No se pudo obtener db-password"
             echo "Detalles: $DB_PASSWORD_VALUE"
@@ -230,7 +230,7 @@ jobs:
           fi
           echo "✅ db-password obtenido"
           
-          DB_NAME_VALUE=$(gcloud secrets versions access latest --secret=db-name 2>&1)
+          DB_NAME_VALUE=$(gcloud secrets versions access latest --secret=db-name 2>&1 | tr -d '\r\n')
           if [[ $? -ne 0 ]]; then
             echo "❌ Error: No se pudo obtener db-name"
             echo "Detalles: $DB_NAME_VALUE"
