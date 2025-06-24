@@ -16,6 +16,8 @@ env:
   POSTGRES_PASSWORD: postgres
   POSTGRES_DB: asam_test
   POSTGRES_PORT: "5432"
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  SERVICE_NAME: asam-backend
 
 jobs:
   lint:
@@ -147,3 +149,69 @@ jobs:
           JWT_REFRESH_SECRET: "test-refresh-secret-for-ci"
           ENVIRONMENT: "test"
           CI: "true"
+
+  build:
+    name: Build and Push Docker Image
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Google Cloud
+        run: |
+          gcloud auth configure-docker --quiet
+
+      - name: Build and push image
+        run: |
+          # Usar el SHA del commit como tag principal
+          COMMIT_SHA=${{ github.sha }}
+          SHORT_SHA=$(echo $COMMIT_SHA | cut -c1-7)
+          
+          # Construir imagen con metadatos
+          docker build \
+            --build-arg VERSION=$SHORT_SHA \
+            --build-arg COMMIT=$COMMIT_SHA \
+            --build-arg BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
+            -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:$SHORT_SHA \
+            -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:latest \
+            .
+          
+          # Subir ambas etiquetas
+          docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:$SHORT_SHA
+          docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:latest
+          
+          echo "✅ Image pushed successfully:"
+          echo "  - gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:$SHORT_SHA"
+          echo "  - gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:latest"
+
+      - name: Create build summary
+        run: |
+          COMMIT_SHA=${{ github.sha }}
+          SHORT_SHA=$(echo $COMMIT_SHA | cut -c1-7)
+          
+          echo "## 🐳 Docker Image Built" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Image Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry**: Google Container Registry" >> $GITHUB_STEP_SUMMARY
+          echo "- **Repository**: \`gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tags**:" >> $GITHUB_STEP_SUMMARY
+          echo "  - \`$SHORT_SHA\` (commit SHA)" >> $GITHUB_STEP_SUMMARY
+          echo "  - \`latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Build Info" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: [$SHORT_SHA](${{ github.server_url }}/${{ github.repository }}/commit/$COMMIT_SHA)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Built at**: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by**: @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY

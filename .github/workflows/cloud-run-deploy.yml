@@ -1,7 +1,11 @@
 name: Deploy to Google Cloud Run
 
-# Esta versión simplificada despliega directamente desde GitHub Container Registry
-# Funciona porque el paquete es público
+# Este workflow despliega la aplicación a Google Cloud Run usando imágenes pre-construidas
+# Las imágenes se construyen automáticamente en el CI cuando se hace push a main
+# Puedes desplegar usando:
+# - 'latest': la última imagen construida de main
+# - SHA corto del commit (ej: 'a1b2c3d'): una versión específica
+# - Cualquier otro tag disponible en GCR
 
 on:
   workflow_dispatch:
@@ -15,7 +19,7 @@ on:
           - production
           - staging
       image_tag:
-        description: 'Docker image tag (e.g., v1.0.0, 1.0.0, latest)'
+        description: 'Docker image tag to deploy (e.g., latest, a1b2c3d, v1.0.0)'
         required: false
         default: 'latest'
         type: string
@@ -30,8 +34,6 @@ env:
   SERVICE_NAME: asam-backend
   REGION: europe-west1
   GO_VERSION: '1.24'
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 concurrency:
   group: production-deploy
@@ -52,17 +54,35 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Determine image to deploy
+        id: image
+        run: |
+          IMAGE_TAG="${{ github.event.inputs.image_tag || 'latest' }}"
+          GCR_IMAGE="gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${IMAGE_TAG}"
+          
+          echo "Image to deploy: $GCR_IMAGE"
+          echo "gcr_image=$GCR_IMAGE" >> $GITHUB_OUTPUT
+          echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Verify image exists
+        run: |
+          echo "Verifying image exists in registry..."
+          if gcloud container images describe ${{ steps.image.outputs.gcr_image }} > /dev/null 2>&1; then
+            echo "✅ Image found: ${{ steps.image.outputs.gcr_image }}"
+          else
+            echo "❌ Error: Image not found: ${{ steps.image.outputs.gcr_image }}"
+            echo "Available tags for this repository:"
+            gcloud container images list-tags gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }} --limit=10 --format="table(tags,timestamp)"
+            exit 1
+          fi
+
       - name: Deploy to Cloud Run
         id: deploy
         run: |
-          # Usar la imagen directamente desde GitHub Container Registry
-          IMAGE_TAG="${{ github.event.inputs.image_tag || 'latest' }}"
-          IMAGE_URL="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}"
-          
-          echo "Deploying image: $IMAGE_URL"
+          echo "Deploying image: ${{ steps.image.outputs.gcr_image }}"
 
           gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image="$IMAGE_URL" \
+            --image="${{ steps.image.outputs.gcr_image }}" \
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
@@ -141,9 +161,9 @@ jobs:
           echo "- **URL**: ${{ steps.service.outputs.url }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Docker Image" >> $GITHUB_STEP_SUMMARY
-          echo "- **Registry**: GitHub Container Registry (public)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image**: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tag**: \`${{ github.event.inputs.image_tag || 'latest' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry**: Google Container Registry" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: \`${{ steps.image.outputs.gcr_image }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: \`${{ steps.image.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Deployment Info" >> $GITHUB_STEP_SUMMARY
           echo "- **Deployed by**: @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
