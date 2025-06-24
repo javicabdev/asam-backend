@@ -53,6 +53,7 @@ cp .env.example .env.development
 
 ### 2. Configuración de Variables de Entorno
 
+#### Desarrollo Local (Backend Local)
 ```bash
 # .env.development
 REACT_APP_API_URL=http://localhost:8080
@@ -71,16 +72,49 @@ REACT_APP_APOLLO_DEVTOOLS=true
 REACT_APP_REDUX_DEVTOOLS=true
 ```
 
-### 3. Configuración del Backend Local
+#### Desarrollo con Backend de Producción
+```bash
+# .env.development.prod
+REACT_APP_API_URL=https://asam-backend-jtpswzdxuq-ew.a.run.app
+REACT_APP_GRAPHQL_URL=https://asam-backend-jtpswzdxuq-ew.a.run.app/graphql
+REACT_APP_WS_URL=wss://asam-backend-jtpswzdxuq-ew.a.run.app/ws
+REACT_APP_ENVIRONMENT=development
 
+# Features flags
+REACT_APP_ENABLE_ANALYTICS=false
+REACT_APP_ENABLE_SENTRY=false
+REACT_APP_ENABLE_MOCK_DATA=false
+
+# Development tools
+REACT_APP_ENABLE_DEVTOOLS=true
+REACT_APP_APOLLO_DEVTOOLS=true
+```
+
+### 3. Configuración del Backend
+
+#### Opción A: Backend Local
 ```bash
 # En otra terminal, levantar el backend
 cd ../asam-backend
+make dev-setup  # Configuración completa con Docker
+
+# O solo Docker
 docker-compose up -d
 
 # Verificar que esté funcionando
 curl http://localhost:8080/health
 # Output: {"status":"healthy"}
+```
+
+#### Opción B: Backend de Producción
+```bash
+# Verificar conexión al backend de producción
+curl https://asam-backend-jtpswzdxuq-ew.a.run.app/health
+# Output: {"status":"healthy"}
+
+# Usar el script para cambiar entre entornos
+npm run start:prod  # Usa backend de producción
+npm run start:local # Usa backend local
 ```
 
 ## Desarrollo con React
@@ -109,6 +143,7 @@ asam-frontend/
 │   ├── App.js
 │   └── index.js
 ├── .env.development
+├── .env.development.prod
 ├── .eslintrc.js
 ├── .prettierrc
 └── package.json
@@ -121,8 +156,12 @@ asam-frontend/
 {
   "scripts": {
     "start": "react-scripts start",
+    "start:local": "REACT_APP_ENV_FILE=.env.development npm start",
+    "start:prod": "REACT_APP_ENV_FILE=.env.development.prod npm start",
     "start:mock": "REACT_APP_USE_MOCK=true npm start",
     "build": "react-scripts build",
+    "build:staging": "REACT_APP_ENV_FILE=.env.staging npm run build",
+    "build:prod": "REACT_APP_ENV_FILE=.env.production npm run build",
     "test": "react-scripts test",
     "test:coverage": "npm test -- --coverage --watchAll=false",
     "lint": "eslint src --ext .js,.jsx",
@@ -145,9 +184,19 @@ import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
 import { ApolloLink } from '@apollo/client/link/core';
 
+// Determinar el endpoint basado en el entorno
+const getGraphQLEndpoint = () => {
+  const envFile = process.env.REACT_APP_ENV_FILE;
+  if (envFile === '.env.development.prod') {
+    return 'https://asam-backend-jtpswzdxuq-ew.a.run.app/graphql';
+  }
+  return process.env.REACT_APP_GRAPHQL_URL || 'http://localhost:8080/graphql';
+};
+
 // Development-specific link for logging
 const loggingLink = new ApolloLink((operation, forward) => {
-  console.group(`GraphQL ${operation.operationName}`);
+  const endpoint = getGraphQLEndpoint();
+  console.group(`GraphQL ${operation.operationName} → ${endpoint}`);
   console.log('Query:', operation.query.loc?.source.body);
   console.log('Variables:', operation.variables);
   console.groupEnd();
@@ -175,6 +224,16 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
         `GraphQL error: Message: ${message}, Location: ${locations}, Path: ${path}`,
         extensions
       );
+      
+      // Mostrar notificación en desarrollo
+      if (window.showDevNotification) {
+        window.showDevNotification({
+          type: 'error',
+          title: 'GraphQL Error',
+          message: message,
+          details: extensions
+        });
+      }
     });
   }
   
@@ -190,7 +249,7 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
 
 // HTTP Link
 const httpLink = createHttpLink({
-  uri: process.env.REACT_APP_GRAPHQL_URL,
+  uri: getGraphQLEndpoint(),
   credentials: 'include'
 });
 
@@ -217,7 +276,22 @@ export const apolloClient = new ApolloClient({
   cache: new InMemoryCache({
     addTypename: true,
     typePolicies: {
-      // Development-specific type policies
+      Query: {
+        fields: {
+          listMembers: {
+            keyArgs: ["filter"],
+            merge(existing, incoming) {
+              return incoming;
+            }
+          },
+          listUsers: {
+            keyArgs: ["page", "pageSize"],
+            merge(existing, incoming) {
+              return incoming;
+            }
+          }
+        }
+      }
     }
   }),
   defaultOptions: {
@@ -240,6 +314,22 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
+
+// Mostrar banner de desarrollo
+if (process.env.NODE_ENV === 'development') {
+  const endpoint = process.env.REACT_APP_GRAPHQL_URL;
+  console.log(`
+    %c🚀 ASAM Frontend Development Mode
+    %c📡 Backend: ${endpoint}
+    %c🔧 DevTools: Enabled
+    %c📚 Docs: http://localhost:3000/docs
+  `,
+    'color: #007acc; font-size: 16px; font-weight: bold;',
+    'color: #28a745; font-size: 12px;',
+    'color: #ffc107; font-size: 12px;',
+    'color: #6c757d; font-size: 12px;'
+  );
+}
 
 function render() {
   root.render(
@@ -281,6 +371,7 @@ asam-frontend-vue/
 │   ├── App.vue
 │   └── main.js
 ├── .env.development
+├── .env.development.prod
 ├── vite.config.js
 └── package.json
 ```
@@ -289,37 +380,47 @@ asam-frontend-vue/
 
 ```javascript
 // vite.config.js
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import path from 'path';
 
-export default defineConfig({
-  plugins: [vue()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
-  server: {
-    port: 3000,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/graphql': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        secure: false,
-        ws: true,
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const isProductionBackend = env.VITE_USE_PRODUCTION_BACKEND === 'true';
+  
+  return {
+    plugins: [vue()],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
       },
     },
-  },
-  define: {
-    __VUE_OPTIONS_API__: true,
-    __VUE_PROD_DEVTOOLS__: false,
-  },
+    server: {
+      port: 3000,
+      proxy: isProductionBackend ? {} : {
+        '/api': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+          secure: false,
+        },
+        '/graphql': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+          secure: false,
+          ws: true,
+        },
+      },
+    },
+    define: {
+      __VUE_OPTIONS_API__: true,
+      __VUE_PROD_DEVTOOLS__: false,
+      __BACKEND_URL__: JSON.stringify(
+        isProductionBackend 
+          ? 'https://asam-backend-jtpswzdxuq-ew.a.run.app'
+          : 'http://localhost:8080'
+      ),
+    },
+  };
 });
 ```
 
@@ -331,6 +432,7 @@ import { ref, onMounted } from 'vue';
 
 export function useDevTools() {
   const isDevToolsOpen = ref(false);
+  const backendUrl = ref(window.__BACKEND_URL__ || 'http://localhost:8080');
   
   onMounted(() => {
     // Detectar si DevTools está abierto
@@ -356,31 +458,41 @@ export function useDevTools() {
   });
   
   const log = (label, data) => {
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.group(`🔍 ${label}`);
       console.log(data);
+      console.log('Backend:', backendUrl.value);
       console.trace();
       console.groupEnd();
     }
   };
   
   const time = (label) => {
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.time(label);
     }
   };
   
   const timeEnd = (label) => {
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.timeEnd(label);
+    }
+  };
+  
+  const switchBackend = (useProduction) => {
+    if (import.meta.env.DEV) {
+      localStorage.setItem('useProductionBackend', useProduction);
+      window.location.reload();
     }
   };
   
   return {
     isDevToolsOpen,
+    backendUrl,
     log,
     time,
-    timeEnd
+    timeEnd,
+    switchBackend
   };
 }
 ```
@@ -417,7 +529,88 @@ if (process.env.NODE_ENV === 'development' &&
 }
 ```
 
-### 2. Redux DevTools
+### 2. Backend Switcher Component
+
+```javascript
+// src/components/DevTools/BackendSwitcher.jsx
+import { useState, useEffect } from 'react';
+
+export function BackendSwitcher() {
+  const [currentBackend, setCurrentBackend] = useState('local');
+  
+  useEffect(() => {
+    const endpoint = process.env.REACT_APP_GRAPHQL_URL;
+    if (endpoint.includes('asam-backend-jtpswzdxuq-ew.a.run.app')) {
+      setCurrentBackend('production');
+    }
+  }, []);
+  
+  if (process.env.NODE_ENV !== 'development') {
+    return null;
+  }
+  
+  const switchBackend = (backend) => {
+    if (backend === 'production') {
+      localStorage.setItem('REACT_APP_ENV_FILE', '.env.development.prod');
+    } else {
+      localStorage.setItem('REACT_APP_ENV_FILE', '.env.development');
+    }
+    window.location.reload();
+  };
+  
+  return (
+    <div className="backend-switcher">
+      <span>Backend:</span>
+      <button 
+        className={currentBackend === 'local' ? 'active' : ''}
+        onClick={() => switchBackend('local')}
+      >
+        Local
+      </button>
+      <button 
+        className={currentBackend === 'production' ? 'active' : ''}
+        onClick={() => switchBackend('production')}
+      >
+        Production
+      </button>
+      
+      <style jsx>{`
+        .backend-switcher {
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          background: #333;
+          color: white;
+          padding: 10px;
+          border-radius: 8px;
+          font-size: 12px;
+          z-index: 9999;
+        }
+        
+        .backend-switcher button {
+          margin-left: 10px;
+          padding: 4px 8px;
+          border: none;
+          background: #555;
+          color: white;
+          cursor: pointer;
+          border-radius: 4px;
+        }
+        
+        .backend-switcher button.active {
+          background: #007acc;
+        }
+        
+        .backend-switcher button:hover {
+          opacity: 0.8;
+        }
+      `}</style>
+    </div>
+  );
+}
+```
+
+### 3. Redux DevTools
 
 ```javascript
 // src/store/index.js
@@ -459,37 +652,64 @@ export const store = configureStore({
 });
 ```
 
-### 3. React Query DevTools
+### 4. Apollo DevTools Helper
 
 ```javascript
-// src/App.js
-import { QueryClient, QueryClientProvider } from 'react-query';
-import { ReactQueryDevtools } from 'react-query/devtools';
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: process.env.NODE_ENV === 'production' ? 3 : 0,
-      staleTime: 5 * 60 * 1000, // 5 minutos
-    },
-  },
-});
-
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <Router>
-        {/* Tu aplicación */}
-      </Router>
-      {process.env.NODE_ENV === 'development' && (
-        <ReactQueryDevtools 
-          initialIsOpen={false}
-          position="bottom-right"
-        />
-      )}
-    </QueryClientProvider>
-  );
+// src/utils/apolloDevTools.js
+export function setupApolloDevTools(client) {
+  if (process.env.NODE_ENV === 'development') {
+    // Exponer cliente para debugging
+    window.__APOLLO_CLIENT__ = client;
+    
+    // Helper functions
+    window.apolloDevTools = {
+      // Ver cache
+      cache: () => client.cache.extract(),
+      
+      // Ejecutar query
+      query: async (query, variables) => {
+        const result = await client.query({ query, variables });
+        console.log('Query result:', result);
+        return result;
+      },
+      
+      // Ejecutar mutation
+      mutate: async (mutation, variables) => {
+        const result = await client.mutate({ mutation, variables });
+        console.log('Mutation result:', result);
+        return result;
+      },
+      
+      // Limpiar cache
+      clearCache: () => {
+        client.clearStore();
+        console.log('Cache cleared');
+      },
+      
+      // Ver queries activas
+      activeQueries: () => {
+        const queries = client.getObservableQueries();
+        console.log('Active queries:', queries);
+        return queries;
+      },
+      
+      // Cambiar backend
+      switchBackend: (useProduction) => {
+        localStorage.setItem('useProductionBackend', useProduction);
+        window.location.reload();
+      },
+      
+      // Estado actual
+      status: () => {
+        const endpoint = process.env.REACT_APP_GRAPHQL_URL;
+        console.log('Current endpoint:', endpoint);
+        console.log('Environment:', process.env.NODE_ENV);
+        console.log('Cache size:', Object.keys(client.cache.extract()).length);
+      }
+    };
+    
+    console.log('🚀 Apollo DevTools ready. Use window.apolloDevTools');
+  }
 }
 ```
 
@@ -526,7 +746,25 @@ function App() {
   "javascript.updateImportsOnFileMove.enabled": "always",
   "typescript.updateImportsOnFileMove.enabled": "always",
   "editor.snippetSuggestions": "top",
-  "editor.suggestSelection": "first"
+  "editor.suggestSelection": "first",
+  
+  // Configuración específica para ASAM
+  "workbench.colorCustomizations": {
+    "activityBar.background": "#1a1a2e",
+    "titleBar.activeBackground": "#16213e",
+    "titleBar.activeForeground": "#e7e7e7"
+  },
+  
+  // Variables de entorno
+  "terminal.integrated.env.windows": {
+    "REACT_APP_GRAPHQL_URL": "http://localhost:8080/graphql"
+  },
+  "terminal.integrated.env.linux": {
+    "REACT_APP_GRAPHQL_URL": "http://localhost:8080/graphql"
+  },
+  "terminal.integrated.env.osx": {
+    "REACT_APP_GRAPHQL_URL": "http://localhost:8080/graphql"
+  }
 }
 ```
 
@@ -562,7 +800,7 @@ function App() {
 ### 3. Snippets Personalizados
 
 ```json
-// .vscode/react.code-snippets
+// .vscode/asam.code-snippets
 {
   "GraphQL Query Hook": {
     "prefix": "gqlquery",
@@ -622,6 +860,35 @@ function App() {
       "  };",
       "}"
     ]
+  },
+  "ASAM Component": {
+    "prefix": "asamcomp",
+    "body": [
+      "import React from 'react';",
+      "import { useQuery } from '@apollo/client';",
+      "import { ${1:QUERY_NAME} } from '@/graphql/queries/${2:queryFile}';",
+      "import { useAuth } from '@/hooks/useAuth';",
+      "import { useNotification } from '@/hooks/useNotification';",
+      "",
+      "export function ${3:ComponentName}() {",
+      "  const { isAdmin } = useAuth();",
+      "  const { showError } = useNotification();",
+      "  ",
+      "  const { data, loading, error } = useQuery(${1:QUERY_NAME});",
+      "  ",
+      "  if (loading) return <div>Cargando...</div>;",
+      "  if (error) {",
+      "    showError('Error al cargar datos');",
+      "    return <div>Error: {error.message}</div>;",
+      "  }",
+      "  ",
+      "  return (",
+      "    <div className=\"${4:component-class}\">",
+      "      ${5:content}",
+      "    </div>",
+      "  );",
+      "}"
+    ]
   }
 }
 ```
@@ -638,21 +905,30 @@ function App() {
     {
       "type": "chrome",
       "request": "launch",
-      "name": "Launch Chrome against localhost",
+      "name": "Launch Chrome (Local Backend)",
       "url": "http://localhost:3000",
       "webRoot": "${workspaceFolder}/src",
       "sourceMaps": true,
       "sourceMapPathOverrides": {
         "webpack:///src/*": "${webRoot}/*"
+      },
+      "env": {
+        "REACT_APP_GRAPHQL_URL": "http://localhost:8080/graphql"
       }
     },
     {
       "type": "chrome",
-      "request": "attach",
-      "name": "Attach to Chrome",
-      "port": 9222,
+      "request": "launch",
+      "name": "Launch Chrome (Production Backend)",
+      "url": "http://localhost:3000",
       "webRoot": "${workspaceFolder}/src",
-      "sourceMaps": true
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "webpack:///src/*": "${webRoot}/*"
+      },
+      "env": {
+        "REACT_APP_GRAPHQL_URL": "https://asam-backend-jtpswzdxuq-ew.a.run.app/graphql"
+      }
     },
     {
       "type": "node",
@@ -680,7 +956,8 @@ export const debug = {
   // Log con estilo
   log: (message, data, style = 'color: #007acc; font-weight: bold;') => {
     if (process.env.NODE_ENV === 'development') {
-      console.log(`%c[DEBUG] ${message}`, style, data);
+      const backend = process.env.REACT_APP_GRAPHQL_URL;
+      console.log(`%c[DEBUG] ${message} (Backend: ${backend})`, style, data);
     }
   },
   
@@ -713,7 +990,8 @@ export const debug = {
   // GraphQL query logger
   graphql: (operation, variables, result) => {
     if (process.env.NODE_ENV === 'development') {
-      console.group(`🔄 GraphQL ${operation}`);
+      const backend = process.env.REACT_APP_GRAPHQL_URL;
+      console.group(`🔄 GraphQL ${operation} → ${backend}`);
       console.log('Variables:', variables);
       console.log('Result:', result);
       console.groupEnd();
@@ -729,6 +1007,20 @@ export const debug = {
       debug.renders.set(componentName, count);
       console.log(`🔄 ${componentName} rendered ${count} times`);
     }
+  },
+  
+  // Backend status
+  checkBackend: async () => {
+    const backend = process.env.REACT_APP_GRAPHQL_URL;
+    try {
+      const response = await fetch(backend.replace('/graphql', '/health'));
+      const data = await response.json();
+      console.log(`✅ Backend ${backend} is ${data.status}`);
+      return data;
+    } catch (error) {
+      console.error(`❌ Backend ${backend} is unavailable`, error);
+      return null;
+    }
   }
 };
 
@@ -742,49 +1034,48 @@ export function useDebug(componentName) {
 }
 ```
 
-### 3. Apollo Client DevTools Helper
+### 3. Network Request Logger
 
 ```javascript
-// src/utils/apolloDevTools.js
-export function setupApolloDevTools(client) {
+// src/utils/networkLogger.js
+export function setupNetworkLogger() {
   if (process.env.NODE_ENV === 'development') {
-    // Exponer cliente para debugging
-    window.__APOLLO_CLIENT__ = client;
+    const originalFetch = window.fetch;
     
-    // Helper functions
-    window.apolloDevTools = {
-      // Ver cache
-      cache: () => client.cache.extract(),
+    window.fetch = async (...args) => {
+      const [url, options] = args;
+      const isGraphQL = url.includes('/graphql');
+      const backend = new URL(url).hostname;
       
-      // Ejecutar query
-      query: async (query, variables) => {
-        const result = await client.query({ query, variables });
-        console.log('Query result:', result);
-        return result;
-      },
+      console.group(`🌐 ${options?.method || 'GET'} ${url}`);
+      console.log('Backend:', backend);
+      console.log('Options:', options);
       
-      // Ejecutar mutation
-      mutate: async (mutation, variables) => {
-        const result = await client.mutate({ mutation, variables });
-        console.log('Mutation result:', result);
-        return result;
-      },
+      if (isGraphQL && options?.body) {
+        try {
+          const body = JSON.parse(options.body);
+          console.log('GraphQL Operation:', body.operationName);
+          console.log('Variables:', body.variables);
+        } catch (e) {}
+      }
       
-      // Limpiar cache
-      clearCache: () => {
-        client.clearStore();
-        console.log('Cache cleared');
-      },
+      const startTime = performance.now();
       
-      // Ver queries activas
-      activeQueries: () => {
-        const queries = client.getObservableQueries();
-        console.log('Active queries:', queries);
-        return queries;
+      try {
+        const response = await originalFetch(...args);
+        const duration = performance.now() - startTime;
+        
+        console.log(`✅ Status: ${response.status} (${duration.toFixed(2)}ms)`);
+        console.groupEnd();
+        
+        return response;
+      } catch (error) {
+        const duration = performance.now() - startTime;
+        console.error(`❌ Error (${duration.toFixed(2)}ms):`, error);
+        console.groupEnd();
+        throw error;
       }
     };
-    
-    console.log('🚀 Apollo DevTools ready. Use window.apolloDevTools');
   }
 }
 ```
@@ -812,6 +1103,20 @@ export function setupDevShortcuts() {
         window.location.reload();
       }
       
+      // Ctrl+Shift+B: Switch backend
+      if (e.ctrlKey && e.shiftKey && e.key === 'B') {
+        const currentBackend = process.env.REACT_APP_GRAPHQL_URL;
+        const isProduction = currentBackend.includes('asam-backend-jtpswzdxuq-ew.a.run.app');
+        
+        if (isProduction) {
+          localStorage.setItem('REACT_APP_ENV_FILE', '.env.development');
+        } else {
+          localStorage.setItem('REACT_APP_ENV_FILE', '.env.development.prod');
+        }
+        
+        window.location.reload();
+      }
+      
       // Ctrl+Shift+L: Clear localStorage
       if (e.ctrlKey && e.shiftKey && e.key === 'L') {
         if (confirm('Clear localStorage?')) {
@@ -819,83 +1124,115 @@ export function setupDevShortcuts() {
           window.location.reload();
         }
       }
+      
+      // Ctrl+Shift+H: Check backend health
+      if (e.ctrlKey && e.shiftKey && e.key === 'H') {
+        debug.checkBackend();
+      }
     });
+    
+    console.log(`
+      Dev Shortcuts:
+      Ctrl+Shift+D: Toggle debug mode
+      Ctrl+Shift+M: Toggle mock data
+      Ctrl+Shift+B: Switch backend (local/production)
+      Ctrl+Shift+L: Clear localStorage
+      Ctrl+Shift+H: Check backend health
+    `);
   }
 }
 ```
 
-### 2. Component Inspector
+### 2. Environment Indicator
 
 ```javascript
-// src/components/DevTools/ComponentInspector.jsx
-import { useState } from 'react';
+// src/components/DevTools/EnvironmentIndicator.jsx
+import { useState, useEffect } from 'react';
 
-export function ComponentInspector({ children, name }) {
-  const [showInfo, setShowInfo] = useState(false);
-  const [renderCount, setRenderCount] = useState(0);
+export function EnvironmentIndicator() {
+  const [backendStatus, setBackendStatus] = useState('checking');
   
   useEffect(() => {
-    setRenderCount(prev => prev + 1);
-  });
+    checkBackendStatus();
+    const interval = setInterval(checkBackendStatus, 30000); // Check every 30s
+    return () => clearInterval(interval);
+  }, []);
+  
+  const checkBackendStatus = async () => {
+    try {
+      const url = process.env.REACT_APP_GRAPHQL_URL.replace('/graphql', '/health');
+      const response = await fetch(url);
+      if (response.ok) {
+        setBackendStatus('healthy');
+      } else {
+        setBackendStatus('unhealthy');
+      }
+    } catch (error) {
+      setBackendStatus('offline');
+    }
+  };
   
   if (process.env.NODE_ENV !== 'development') {
-    return children;
+    return null;
   }
   
+  const backend = process.env.REACT_APP_GRAPHQL_URL;
+  const isProduction = backend.includes('asam-backend-jtpswzdxuq-ew.a.run.app');
+  
+  const statusColor = {
+    healthy: '#28a745',
+    unhealthy: '#ffc107',
+    offline: '#dc3545',
+    checking: '#6c757d'
+  }[backendStatus];
+  
   return (
-    <div className="component-inspector" data-component={name}>
-      <button 
-        className="inspector-toggle"
-        onClick={() => setShowInfo(!showInfo)}
-      >
-        🔍
-      </button>
+    <div className="environment-indicator">
+      <div className="status" style={{ backgroundColor: statusColor }} />
+      <span className="backend-type">
+        {isProduction ? 'PROD' : 'LOCAL'}
+      </span>
+      <span className="backend-url">
+        {backend.replace('http://', '').replace('https://', '').split('/')[0]}
+      </span>
       
-      {showInfo && (
-        <div className="inspector-info">
-          <h4>{name}</h4>
-          <p>Renders: {renderCount}</p>
-          <p>Props: {Object.keys(children.props).length}</p>
-        </div>
-      )}
-      
-      {children}
+      <style jsx>{`
+        .environment-indicator {
+          position: fixed;
+          top: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          background: #1a1a1a;
+          color: white;
+          padding: 4px 12px;
+          font-size: 11px;
+          border-bottom-left-radius: 4px;
+          border-bottom-right-radius: 4px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          z-index: 10000;
+          font-family: monospace;
+        }
+        
+        .status {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+        }
+        
+        .backend-type {
+          font-weight: bold;
+          color: ${isProduction ? '#dc3545' : '#28a745'};
+        }
+        
+        .backend-url {
+          opacity: 0.7;
+          font-size: 10px;
+        }
+      `}</style>
     </div>
   );
-}
-```
-
-### 3. Network Request Logger
-
-```javascript
-// src/utils/networkLogger.js
-export function setupNetworkLogger() {
-  if (process.env.NODE_ENV === 'development') {
-    const originalFetch = window.fetch;
-    
-    window.fetch = async (...args) => {
-      const [url, options] = args;
-      console.group(`🌐 Fetch: ${options?.method || 'GET'} ${url}`);
-      console.log('Options:', options);
-      
-      const startTime = performance.now();
-      
-      try {
-        const response = await originalFetch(...args);
-        const duration = performance.now() - startTime;
-        
-        console.log(`✅ Status: ${response.status} (${duration.toFixed(2)}ms)`);
-        console.groupEnd();
-        
-        return response;
-      } catch (error) {
-        const duration = performance.now() - startTime;
-        console.error(`❌ Error (${duration.toFixed(2)}ms):`, error);
-        console.groupEnd();
-        throw error;
-      }
-    };
-  }
 }
 ```
 
@@ -905,8 +1242,14 @@ export function setupNetworkLogger() {
 # Instalar dependencias
 npm install
 
-# Desarrollo
-npm start                    # Iniciar servidor de desarrollo
+# Desarrollo con backend local
+npm start                    # Iniciar con backend local
+npm run start:local         # Explícitamente con backend local
+
+# Desarrollo con backend de producción
+npm run start:prod          # Iniciar con backend de producción
+
+# Mock y Storybook
 npm run start:mock          # Iniciar con datos mock
 npm run storybook           # Iniciar Storybook
 
@@ -922,6 +1265,7 @@ npm run format             # Formatear código
 
 # Build y Análisis
 npm run build              # Build de producción
+npm run build:staging      # Build para staging
 npm run analyze            # Analizar bundle size
 npm run build:stats        # Generar stats para webpack-bundle-analyzer
 
@@ -929,6 +1273,10 @@ npm run build:stats        # Generar stats para webpack-bundle-analyzer
 npm run clean              # Limpiar cache y node_modules
 npm run update:deps        # Actualizar dependencias
 npm run check:security     # Verificar vulnerabilidades
+
+# Desarrollo específico
+npm run dev:check-backend  # Verificar estado del backend
+npm run dev:switch-backend # Cambiar entre local/producción
 ```
 
-Esta guía proporciona todo lo necesario para configurar y optimizar el entorno de desarrollo local para trabajar con el backend de ASAM.
+Esta guía proporciona todo lo necesario para configurar y optimizar el entorno de desarrollo local para trabajar con el backend de ASAM, tanto en modo local como conectándose al backend de producción.

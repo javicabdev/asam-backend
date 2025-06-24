@@ -31,14 +31,23 @@ import { getMainDefinition } from '@apollo/client/utilities';
 import { WebSocketLink } from '@apollo/client/link/ws';
 import { useAuthStore } from '@/stores/auth';
 
+// Endpoints
+const GRAPHQL_ENDPOINT = import.meta.env.PROD
+  ? 'https://asam-backend-jtpswzdxuq-ew.a.run.app/graphql'
+  : 'http://localhost:8080/graphql';
+
+const WS_ENDPOINT = import.meta.env.PROD
+  ? 'wss://asam-backend-jtpswzdxuq-ew.a.run.app/graphql'
+  : 'ws://localhost:8080/graphql';
+
 // HTTP Link
 const httpLink = createHttpLink({
-  uri: import.meta.env.VITE_GRAPHQL_URL || 'http://localhost:8080/graphql',
+  uri: GRAPHQL_ENDPOINT,
 });
 
 // WebSocket Link (para futuras subscriptions)
 const wsLink = new WebSocketLink({
-  uri: import.meta.env.VITE_WS_URL || 'ws://localhost:8080/graphql',
+  uri: WS_ENDPOINT,
   options: {
     reconnect: true,
     connectionParams: () => {
@@ -116,6 +125,12 @@ export const apolloClient = new ApolloClient({
             merge(existing = { nodes: [] }, incoming) {
               return incoming;
             }
+          },
+          listUsers: {
+            keyArgs: ["page", "pageSize"],
+            merge(existing = [], incoming) {
+              return incoming;
+            }
           }
         }
       },
@@ -123,6 +138,9 @@ export const apolloClient = new ApolloClient({
         keyFields: ["miembro_id"]
       },
       Family: {
+        keyFields: ["id"]
+      },
+      User: {
         keyFields: ["id"]
       }
     }
@@ -185,12 +203,15 @@ src/
 │   ├── common/           # Componentes reutilizables
 │   ├── members/          # Componentes de miembros
 │   ├── families/         # Componentes de familias
-│   └── payments/         # Componentes de pagos
+│   ├── payments/         # Componentes de pagos
+│   ├── users/            # Componentes de usuarios (Admin)
+│   └── auth/             # Componentes de autenticación
 ├── composables/
 │   ├── useAuth.js        # Composable de autenticación
 │   ├── usePagination.js  # Composable de paginación
 │   ├── useDebounce.js    # Composable de debounce
-│   └── useNotification.js # Composable de notificaciones
+│   ├── useNotification.js # Composable de notificaciones
+│   └── useUser.js        # Composable de gestión de usuarios
 ├── graphql/
 │   ├── mutations/        # Archivos .graphql con mutations
 │   ├── queries/          # Archivos .graphql con queries
@@ -201,9 +222,19 @@ src/
 ├── pages/
 │   ├── Login.vue
 │   ├── Dashboard.vue
+│   ├── Profile.vue
+│   ├── ForgotPassword.vue
+│   ├── ResetPassword.vue
+│   ├── VerifyEmail.vue
 │   ├── members/
 │   ├── families/
-│   └── payments/
+│   ├── payments/
+│   └── admin/
+│       ├── users/
+│       │   ├── index.vue
+│       │   ├── [id].vue
+│       │   └── create.vue
+│       └── dashboard.vue
 ├── plugins/
 │   └── apollo.js
 ├── router/
@@ -211,6 +242,7 @@ src/
 ├── stores/
 │   ├── auth.js           # Store de autenticación
 │   ├── members.js        # Store de miembros
+│   ├── users.js          # Store de usuarios
 │   └── notifications.js  # Store de notificaciones
 ├── utils/
 │   ├── validators.js
@@ -221,7 +253,7 @@ src/
 
 ## Composables
 
-### Composable de Autenticación
+### Composable de Autenticación (Actualizado)
 
 ```javascript
 // src/composables/useAuth.js
@@ -229,7 +261,14 @@ import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
 import { useAuthStore } from '@/stores/auth';
-import { LOGIN_MUTATION, LOGOUT_MUTATION, REFRESH_TOKEN_MUTATION } from '@/graphql/mutations/auth';
+import { 
+  LOGIN_MUTATION, 
+  LOGOUT_MUTATION, 
+  REFRESH_TOKEN_MUTATION,
+  CHANGE_PASSWORD_MUTATION,
+  REQUEST_PASSWORD_RESET_MUTATION,
+  SEND_VERIFICATION_EMAIL_MUTATION
+} from '@/graphql/mutations/auth';
 
 export function useAuth() {
   const router = useRouter();
@@ -238,13 +277,17 @@ export function useAuth() {
   // Computed
   const user = computed(() => authStore.user);
   const isAuthenticated = computed(() => authStore.isAuthenticated);
-  const isAdmin = computed(() => authStore.user?.role === 'ADMIN');
-  const isUser = computed(() => authStore.user?.role === 'USER');
+  const isAdmin = computed(() => authStore.user?.role === 'admin');
+  const isUser = computed(() => authStore.user?.role === 'user');
+  const isEmailVerified = computed(() => authStore.user?.emailVerified || false);
   
   // Mutations
   const { mutate: loginMutation, loading: loginLoading } = useMutation(LOGIN_MUTATION);
   const { mutate: logoutMutation } = useMutation(LOGOUT_MUTATION);
   const { mutate: refreshMutation } = useMutation(REFRESH_TOKEN_MUTATION);
+  const { mutate: changePasswordMutation, loading: changePasswordLoading } = useMutation(CHANGE_PASSWORD_MUTATION);
+  const { mutate: requestResetMutation, loading: resetLoading } = useMutation(REQUEST_PASSWORD_RESET_MUTATION);
+  const { mutate: sendVerificationMutation, loading: verificationLoading } = useMutation(SEND_VERIFICATION_EMAIL_MUTATION);
   
   // Methods
   const login = async (username, password) => {
@@ -263,14 +306,20 @@ export function useAuth() {
         expiresAt
       });
       
+      // Verificar si el email está verificado
+      if (!user.emailVerified) {
+        await router.push('/verify-email-notice');
+        return { success: true, emailVerified: false };
+      }
+      
       // Navegar según rol
-      if (user.role === 'ADMIN') {
+      if (user.role === 'admin') {
         await router.push('/admin/dashboard');
       } else {
         await router.push('/dashboard');
       }
       
-      return { success: true };
+      return { success: true, emailVerified: true };
     } catch (error) {
       console.error('Login error:', error);
       return { 
@@ -318,18 +367,210 @@ export function useAuth() {
     }
   };
   
+  const changePassword = async (currentPassword, newPassword) => {
+    try {
+      const { data } = await changePasswordMutation({
+        variables: { input: { currentPassword, newPassword } }
+      });
+      
+      return {
+        success: data.changePassword.success,
+        message: data.changePassword.message,
+        error: data.changePassword.error
+      };
+    } catch (error) {
+      console.error('Change password error:', error);
+      return {
+        success: false,
+        error: error.graphQLErrors?.[0]?.message || 'Error al cambiar la contraseña'
+      };
+    }
+  };
+  
+  const requestPasswordReset = async (email) => {
+    try {
+      const { data } = await requestResetMutation({
+        variables: { email }
+      });
+      
+      return {
+        success: data.requestPasswordReset.success,
+        message: data.requestPasswordReset.message
+      };
+    } catch (error) {
+      console.error('Request password reset error:', error);
+      return {
+        success: false,
+        error: error.graphQLErrors?.[0]?.message || 'Error al solicitar reseteo'
+      };
+    }
+  };
+  
+  const sendVerificationEmail = async () => {
+    try {
+      const { data } = await sendVerificationMutation();
+      
+      return {
+        success: data.sendVerificationEmail.success,
+        message: data.sendVerificationEmail.message
+      };
+    } catch (error) {
+      console.error('Send verification email error:', error);
+      return {
+        success: false,
+        error: error.graphQLErrors?.[0]?.message || 'Error al enviar email'
+      };
+    }
+  };
+  
   return {
     // State
     user,
     isAuthenticated,
     isAdmin,
     isUser,
+    isEmailVerified,
     loginLoading,
+    changePasswordLoading,
+    resetLoading,
+    verificationLoading,
     
     // Methods
     login,
     logout,
-    refreshToken
+    refreshToken,
+    changePassword,
+    requestPasswordReset,
+    sendVerificationEmail
+  };
+}
+```
+
+### Composable de Gestión de Usuarios (Admin)
+
+```javascript
+// src/composables/useUser.js
+import { useMutation, useQuery } from '@vue/apollo-composable';
+import {
+  CREATE_USER_MUTATION,
+  UPDATE_USER_MUTATION,
+  DELETE_USER_MUTATION,
+  RESET_USER_PASSWORD_MUTATION
+} from '@/graphql/mutations/users';
+import {
+  GET_USER_QUERY,
+  LIST_USERS_QUERY
+} from '@/graphql/queries/users';
+
+export function useUser() {
+  const { mutate: createUserMutation, loading: createLoading } = useMutation(CREATE_USER_MUTATION);
+  const { mutate: updateUserMutation, loading: updateLoading } = useMutation(UPDATE_USER_MUTATION);
+  const { mutate: deleteUserMutation, loading: deleteLoading } = useMutation(DELETE_USER_MUTATION);
+  const { mutate: resetPasswordMutation, loading: resetLoading } = useMutation(RESET_USER_PASSWORD_MUTATION);
+  
+  const createUser = async (input) => {
+    try {
+      const { data } = await createUserMutation({
+        variables: { input },
+        refetchQueries: [{ query: LIST_USERS_QUERY }]
+      });
+      
+      return {
+        success: true,
+        user: data.createUser
+      };
+    } catch (error) {
+      console.error('Create user error:', error);
+      return {
+        success: false,
+        error: error.graphQLErrors?.[0]?.message || 'Error al crear usuario'
+      };
+    }
+  };
+  
+  const updateUser = async (input) => {
+    try {
+      const { data } = await updateUserMutation({
+        variables: { input },
+        refetchQueries: [{ query: LIST_USERS_QUERY }]
+      });
+      
+      return {
+        success: true,
+        user: data.updateUser
+      };
+    } catch (error) {
+      console.error('Update user error:', error);
+      return {
+        success: false,
+        error: error.graphQLErrors?.[0]?.message || 'Error al actualizar usuario'
+      };
+    }
+  };
+  
+  const deleteUser = async (id) => {
+    try {
+      const { data } = await deleteUserMutation({
+        variables: { id },
+        refetchQueries: [{ query: LIST_USERS_QUERY }]
+      });
+      
+      return {
+        success: data.deleteUser.success,
+        message: data.deleteUser.message
+      };
+    } catch (error) {
+      console.error('Delete user error:', error);
+      return {
+        success: false,
+        error: error.graphQLErrors?.[0]?.message || 'Error al eliminar usuario'
+      };
+    }
+  };
+  
+  const resetUserPassword = async (userId, newPassword) => {
+    try {
+      const { data } = await resetPasswordMutation({
+        variables: { userId, newPassword }
+      });
+      
+      return {
+        success: data.resetUserPassword.success,
+        message: data.resetUserPassword.message
+      };
+    } catch (error) {
+      console.error('Reset password error:', error);
+      return {
+        success: false,
+        error: error.graphQLErrors?.[0]?.message || 'Error al resetear contraseña'
+      };
+    }
+  };
+  
+  const useUsersList = (page = 1, pageSize = 10) => {
+    return useQuery(LIST_USERS_QUERY, { page, pageSize }, {
+      fetchPolicy: 'network-only'
+    });
+  };
+  
+  const useUserDetail = (id) => {
+    return useQuery(GET_USER_QUERY, { id }, {
+      skip: !id,
+      fetchPolicy: 'network-only'
+    });
+  };
+  
+  return {
+    createUser,
+    updateUser,
+    deleteUser,
+    resetUserPassword,
+    useUsersList,
+    useUserDetail,
+    createLoading,
+    updateLoading,
+    deleteLoading,
+    resetLoading
   };
 }
 ```
@@ -805,385 +1046,349 @@ const exportToCSV = async () => {
 </style>
 ```
 
-### Componente de Formulario de Miembro
+### Componente de Gestión de Usuarios (Admin)
 
 ```vue
-<!-- src/pages/members/MemberForm.vue -->
+<!-- src/pages/admin/users/index.vue -->
 <template>
-  <div class="member-form">
+  <div class="users-management">
     <div class="header">
-      <h1 class="title">
-        {{ isEdit ? 'Editar Miembro' : 'Nuevo Miembro' }}
-      </h1>
+      <h1 class="title">Gestión de Usuarios</h1>
+      <router-link to="/admin/users/create" class="btn-primary">
+        Nuevo Usuario
+      </router-link>
     </div>
     
-    <form @submit.prevent="handleSubmit" class="form-container">
-      <!-- Información Básica -->
-      <fieldset class="fieldset">
-        <legend class="legend">Información Básica</legend>
+    <!-- Lista de usuarios -->
+    <div class="users-table">
+      <DataTable
+        :columns="columns"
+        :data="users"
+        :loading="loading"
+        :pagination="paginationVariables"
+        :page-info="pageInfo"
+        @page-change="goToPage"
+      >
+        <template #role="{ row }">
+          <span 
+            class="role-badge"
+            :class="row.role === 'admin' ? 'role-admin' : 'role-user'"
+          >
+            {{ row.role === 'admin' ? 'Administrador' : 'Usuario' }}
+          </span>
+        </template>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormField
-            v-model="form.numero_socio"
-            label="Número de Socio"
-            name="numero_socio"
-            :error="errors.numero_socio"
-            required
-            placeholder="2024-001"
-          />
-          
-          <FormField
-            v-model="form.tipo_membresia"
-            label="Tipo de Membresía"
-            name="tipo_membresia"
-            type="select"
-            :options="membershipTypes"
-            :error="errors.tipo_membresia"
-            required
-          />
-          
-          <FormField
-            v-model="form.nombre"
-            label="Nombre"
-            name="nombre"
-            :error="errors.nombre"
-            required
-          />
-          
-          <FormField
-            v-model="form.apellidos"
-            label="Apellidos"
-            name="apellidos"
-            :error="errors.apellidos"
-            required
-          />
-          
-          <FormField
-            v-model="form.documento_identidad"
-            label="DNI/NIE"
-            name="documento_identidad"
-            :error="errors.documento_identidad"
-            placeholder="12345678X"
-            @input="form.documento_identidad = $event.toUpperCase()"
-          />
-          
-          <FormField
-            v-model="form.fecha_nacimiento"
-            label="Fecha de Nacimiento"
-            name="fecha_nacimiento"
-            type="date"
-            :error="errors.fecha_nacimiento"
-            :max="maxDate"
-          />
-          
-          <FormField
-            v-model="form.correo_electronico"
-            label="Email"
-            name="correo_electronico"
-            type="email"
-            :error="errors.correo_electronico"
-            placeholder="ejemplo@email.com"
-          />
-          
-          <FormField
-            v-model="form.profesion"
-            label="Profesión"
-            name="profesion"
-            :error="errors.profesion"
-          />
-        </div>
-      </fieldset>
-      
-      <!-- Dirección -->
-      <fieldset class="fieldset">
-        <legend class="legend">Dirección</legend>
+        <template #status="{ row }">
+          <span 
+            class="status-badge"
+            :class="row.isActive ? 'status-active' : 'status-inactive'"
+          >
+            {{ row.isActive ? 'Activo' : 'Inactivo' }}
+          </span>
+        </template>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="md:col-span-2">
-            <FormField
-              v-model="form.calle_numero_piso"
-              label="Calle, Número, Piso"
-              name="calle_numero_piso"
-              :error="errors.calle_numero_piso"
-              required
-              placeholder="Calle Principal 123, 2º A"
-            />
+        <template #verified="{ row }">
+          <span v-if="row.emailVerified" class="text-green-600">
+            ✓ Verificado
+          </span>
+          <span v-else class="text-gray-500">
+            No verificado
+          </span>
+        </template>
+        
+        <template #actions="{ row }">
+          <div class="actions">
+            <router-link 
+              :to="`/admin/users/${row.id}`"
+              class="action-link"
+            >
+              Ver
+            </router-link>
+            <button
+              @click="handleResetPassword(row)"
+              class="action-link"
+            >
+              Resetear Contraseña
+            </button>
+            <button
+              @click="handleToggleStatus(row)"
+              class="action-button"
+              :class="row.isActive ? 'text-red-600' : 'text-green-600'"
+            >
+              {{ row.isActive ? 'Desactivar' : 'Activar' }}
+            </button>
+            <button
+              v-if="row.id !== user?.id"
+              @click="handleDelete(row)"
+              class="action-button text-red-600"
+            >
+              Eliminar
+            </button>
           </div>
-          
-          <FormField
-            v-model="form.codigo_postal"
-            label="Código Postal"
-            name="codigo_postal"
-            :error="errors.codigo_postal"
-            required
-            placeholder="07001"
-            maxlength="5"
-          />
-          
-          <FormField
-            v-model="form.poblacion"
-            label="Población"
-            name="poblacion"
-            :error="errors.poblacion"
-            required
-          />
-          
-          <FormField
-            v-model="form.provincia"
-            label="Provincia"
-            name="provincia"
-            :error="errors.provincia"
-          />
-          
-          <FormField
-            v-model="form.pais"
-            label="País"
-            name="pais"
-            :error="errors.pais"
-          />
-        </div>
-      </fieldset>
-      
-      <!-- Información Adicional -->
-      <fieldset class="fieldset">
-        <legend class="legend">Información Adicional</legend>
-        
-        <div class="space-y-6">
-          <FormField
-            v-model="form.nacionalidad"
-            label="Nacionalidad"
-            name="nacionalidad"
-            :error="errors.nacionalidad"
-          />
-          
-          <FormField
-            v-model="form.observaciones"
-            label="Observaciones"
-            name="observaciones"
-            type="textarea"
-            :error="errors.observaciones"
-            rows="4"
-            placeholder="Notas adicionales sobre el miembro..."
-          />
-        </div>
-      </fieldset>
-      
-      <!-- Botones -->
-      <div class="form-actions">
-        <button
-          type="button"
-          @click="handleCancel"
-          class="btn-secondary"
-          :disabled="loading"
-        >
-          Cancelar
-        </button>
-        
-        <button
-          type="submit"
-          class="btn-primary"
-          :disabled="loading || !isValid"
-        >
-          {{ loading ? 'Guardando...' : (isEdit ? 'Actualizar' : 'Crear') }}
-        </button>
-      </div>
-    </form>
+        </template>
+      </DataTable>
+    </div>
+    
+    <!-- Modal de reset de contraseña -->
+    <PasswordResetModal
+      v-if="resetModalUser"
+      :user="resetModalUser"
+      @close="resetModalUser = null"
+      @confirm="confirmResetPassword"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { useQuery, useMutation } from '@vue/apollo-composable';
+import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuth } from '@/composables/useAuth';
+import { useUser } from '@/composables/useUser';
+import { usePagination } from '@/composables/usePagination';
 import { useNotification } from '@/composables/useNotification';
-import { 
-  GET_MEMBER_QUERY, 
-  CREATE_MEMBER_MUTATION, 
-  UPDATE_MEMBER_MUTATION 
-} from '@/graphql/members';
-import { memberValidationSchema } from '@/utils/validators';
-import FormField from '@/components/common/FormField.vue';
+import DataTable from '@/components/common/DataTable.vue';
+import PasswordResetModal from '@/components/admin/PasswordResetModal.vue';
 
-// Props & Setup
-const route = useRoute();
+// Composables
 const router = useRouter();
+const { user } = useAuth();
 const { showSuccess, showError } = useNotification();
+const { 
+  useUsersList, 
+  updateUser, 
+  deleteUser, 
+  resetUserPassword,
+  updateLoading,
+  deleteLoading,
+  resetLoading
+} = useUser();
 
-// State
-const isEdit = computed(() => !!route.params.id);
-const memberId = computed(() => route.params.id);
-const loading = ref(false);
-const errors = reactive({});
+const { 
+  page, 
+  pageSize, 
+  paginationVariables, 
+  goToPage 
+} = usePagination(10);
 
-// Form data
-const form = reactive({
-  numero_socio: '',
-  tipo_membresia: 'INDIVIDUAL',
-  nombre: '',
-  apellidos: '',
-  calle_numero_piso: '',
-  codigo_postal: '',
-  poblacion: '',
-  provincia: '',
-  pais: 'España',
-  fecha_nacimiento: null,
-  documento_identidad: '',
-  correo_electronico: '',
-  profesion: '',
-  nacionalidad: 'Española',
-  observaciones: ''
-});
+// Data
+const resetModalUser = ref(null);
 
-// Constants
-const membershipTypes = [
-  { value: 'INDIVIDUAL', label: 'Individual' },
-  { value: 'FAMILY', label: 'Familiar' }
+// Query
+const { result, loading, refetch } = useUsersList(page.value, pageSize.value);
+
+// Computed
+const users = computed(() => result.value?.listUsers || []);
+const pageInfo = computed(() => ({
+  totalCount: users.value.length,
+  hasNextPage: users.value.length === pageSize.value,
+  hasPreviousPage: page.value > 1
+}));
+
+// Columns
+const columns = [
+  { field: 'username', label: 'Usuario' },
+  { field: 'role', label: 'Rol', slot: 'role' },
+  { field: 'status', label: 'Estado', slot: 'status' },
+  { field: 'verified', label: 'Email', slot: 'verified' },
+  { field: 'lastLogin', label: 'Último acceso', render: (row) => 
+    row.lastLogin ? new Date(row.lastLogin).toLocaleString('es-ES') : 'Nunca'
+  },
+  { field: 'actions', label: 'Acciones', slot: 'actions' }
 ];
 
-const maxDate = new Date().toISOString().split('T')[0];
-
-// Load member data if editing
-if (isEdit.value) {
-  const { onResult, onError } = useQuery(
-    GET_MEMBER_QUERY,
-    { id: memberId.value },
-    { fetchPolicy: 'network-only' }
-  );
-  
-  onResult(({ data }) => {
-    if (data?.getMember) {
-      Object.assign(form, {
-        ...data.getMember,
-        fecha_nacimiento: data.getMember.fecha_nacimiento?.split('T')[0] || null
-      });
-    }
-  });
-  
-  onError(() => {
-    showError('Error al cargar los datos del miembro');
-    router.push('/members');
-  });
-}
-
-// Mutations
-const { mutate: createMember } = useMutation(CREATE_MEMBER_MUTATION);
-const { mutate: updateMember } = useMutation(UPDATE_MEMBER_MUTATION);
-
-// Validation
-const isValid = computed(() => {
-  // Simple validation check
-  return form.numero_socio && 
-         form.nombre && 
-         form.apellidos && 
-         form.calle_numero_piso && 
-         form.codigo_postal && 
-         form.poblacion;
-});
-
-const validate = async () => {
-  try {
-    await memberValidationSchema.validate(form, { abortEarly: false });
-    Object.keys(errors).forEach(key => delete errors[key]);
-    return true;
-  } catch (error) {
-    error.inner.forEach(err => {
-      errors[err.path] = err.message;
-    });
-    return false;
-  }
-};
-
 // Methods
-const handleSubmit = async () => {
-  if (!await validate()) return;
+const handleToggleStatus = async (targetUser) => {
+  const newStatus = !targetUser.isActive;
+  const action = newStatus ? 'activar' : 'desactivar';
   
-  loading.value = true;
+  if (!confirm(`¿Estás seguro de ${action} al usuario ${targetUser.username}?`)) {
+    return;
+  }
   
-  try {
-    const input = {
-      ...form,
-      fecha_nacimiento: form.fecha_nacimiento 
-        ? new Date(form.fecha_nacimiento).toISOString() 
-        : null
-    };
-    
-    if (isEdit.value) {
-      await updateMember({
-        variables: {
-          input: {
-            miembro_id: memberId.value,
-            ...input
-          }
-        }
-      });
-      showSuccess('Miembro actualizado correctamente');
-    } else {
-      await createMember({
-        variables: { input }
-      });
-      showSuccess('Miembro creado correctamente');
-    }
-    
-    router.push('/members');
-  } catch (error) {
-    const message = error.graphQLErrors?.[0]?.message || 'Error al guardar';
-    showError(message);
-    
-    // Manejar errores de validación del servidor
-    if (error.graphQLErrors?.[0]?.extensions?.code === 'VALIDATION_ERROR') {
-      const serverErrors = error.graphQLErrors[0].extensions.details;
-      Object.assign(errors, serverErrors);
-    }
-  } finally {
-    loading.value = false;
+  const result = await updateUser({
+    id: targetUser.id,
+    isActive: newStatus
+  });
+  
+  if (result.success) {
+    showSuccess(`Usuario ${action === 'activar' ? 'activado' : 'desactivado'} correctamente`);
+    refetch();
+  } else {
+    showError(result.error);
   }
 };
 
-const handleCancel = () => {
-  router.push('/members');
+const handleResetPassword = (targetUser) => {
+  resetModalUser.value = targetUser;
+};
+
+const confirmResetPassword = async (newPassword) => {
+  if (!resetModalUser.value) return;
+  
+  const result = await resetUserPassword(resetModalUser.value.id, newPassword);
+  
+  if (result.success) {
+    showSuccess('Contraseña reseteada correctamente');
+    resetModalUser.value = null;
+  } else {
+    showError(result.error);
+  }
+};
+
+const handleDelete = async (targetUser) => {
+  if (!confirm(`¿Estás seguro de eliminar al usuario ${targetUser.username}? Esta acción no se puede deshacer.`)) {
+    return;
+  }
+  
+  const result = await deleteUser(targetUser.id);
+  
+  if (result.success) {
+    showSuccess('Usuario eliminado correctamente');
+    refetch();
+  } else {
+    showError(result.error);
+  }
 };
 </script>
 
 <style scoped>
-.member-form {
-  @apply max-w-4xl mx-auto space-y-6;
+.users-management {
+  @apply space-y-6;
 }
 
 .header {
-  @apply mb-8;
+  @apply flex justify-between items-center;
 }
 
 .title {
   @apply text-3xl font-bold text-gray-900;
 }
 
-.form-container {
-  @apply bg-white shadow rounded-lg p-6 space-y-8;
+.users-table {
+  @apply bg-white shadow rounded-lg overflow-hidden;
 }
 
-.fieldset {
-  @apply space-y-6;
+.role-badge {
+  @apply px-2 py-1 text-xs font-medium rounded-full;
 }
 
-.legend {
-  @apply text-lg font-medium text-gray-900 mb-4;
+.role-admin {
+  @apply bg-purple-100 text-purple-800;
 }
 
-.form-actions {
-  @apply flex justify-end space-x-4 pt-6 border-t;
+.role-user {
+  @apply bg-gray-100 text-gray-800;
+}
+
+.status-badge {
+  @apply px-2 py-1 text-xs font-medium rounded-full;
+}
+
+.status-active {
+  @apply bg-green-100 text-green-800;
+}
+
+.status-inactive {
+  @apply bg-red-100 text-red-800;
+}
+
+.actions {
+  @apply flex items-center space-x-2;
+}
+
+.action-link {
+  @apply text-indigo-600 hover:text-indigo-900 cursor-pointer;
+}
+
+.action-button {
+  @apply font-medium hover:underline cursor-pointer;
+}
+</style>
+```
+
+### Componente de Verificación de Email
+
+```vue
+<!-- src/components/auth/EmailVerificationNotice.vue -->
+<template>
+  <div v-if="!isEmailVerified" class="email-verification-notice">
+    <div class="notice-icon">
+      <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+      </svg>
+    </div>
+    <div class="notice-content">
+      <p class="notice-text">
+        Tu email aún no ha sido verificado. Por favor, revisa tu bandeja de entrada y haz click en el enlace de verificación.
+      </p>
+      <p class="notice-action">
+        <button
+          @click="handleResendEmail"
+          :disabled="verificationLoading"
+          class="resend-button"
+        >
+          {{ verificationLoading ? 'Enviando...' : 'Reenviar email de verificación' }}
+        </button>
+      </p>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { useAuth } from '@/composables/useAuth';
+import { useNotification } from '@/composables/useNotification';
+
+const { isEmailVerified, sendVerificationEmail, verificationLoading } = useAuth();
+const { showSuccess, showError } = useNotification();
+
+const handleResendEmail = async () => {
+  const result = await sendVerificationEmail();
+  
+  if (result.success) {
+    showSuccess(result.message || 'Email de verificación enviado');
+  } else {
+    showError(result.error || 'Error al enviar el email');
+  }
+};
+</script>
+
+<style scoped>
+.email-verification-notice {
+  @apply bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 flex;
+}
+
+.notice-icon {
+  @apply flex-shrink-0;
+}
+
+.notice-content {
+  @apply ml-3;
+}
+
+.notice-text {
+  @apply text-sm text-yellow-700;
+}
+
+.notice-action {
+  @apply mt-3 text-sm;
+}
+
+.resend-button {
+  @apply font-medium text-yellow-700 underline hover:text-yellow-600 disabled:opacity-50 cursor-pointer;
 }
 </style>
 ```
 
 ## Gestión de Estado con Pinia
 
-### Store de Autenticación
+### Store de Autenticación (Actualizado)
 
 ```javascript
 // src/stores/auth.js
 import { defineStore } from 'pinia';
 import { apolloClient } from '@/apollo/client';
 import { GET_CURRENT_USER } from '@/graphql/queries/auth';
+import { REFRESH_TOKEN_MUTATION } from '@/graphql/mutations/auth';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -1195,8 +1400,9 @@ export const useAuthStore = defineStore('auth', {
   }),
   
   getters: {
-    isAdmin: (state) => state.user?.role === 'ADMIN',
-    isUser: (state) => state.user?.role === 'USER',
+    isAdmin: (state) => state.user?.role === 'admin',
+    isUser: (state) => state.user?.role === 'user',
+    isEmailVerified: (state) => state.user?.emailVerified || false,
     tokenExpired: (state) => {
       if (!state.tokenExpiresAt) return true;
       return new Date() > new Date(state.tokenExpiresAt);
@@ -1276,6 +1482,19 @@ export const useAuthStore = defineStore('auth', {
       } catch (error) {
         this.clearAuth();
         throw error;
+      }
+    },
+    
+    async checkTokenExpiry() {
+      if (!this.tokenExpiresAt) return;
+      
+      const expiryTime = new Date(this.tokenExpiresAt).getTime();
+      const currentTime = new Date().getTime();
+      const timeUntilExpiry = expiryTime - currentTime;
+      
+      // Renovar 1 minuto antes de expirar
+      if (timeUntilExpiry < 60000) {
+        await this.refreshToken();
       }
     }
   }
@@ -1398,7 +1617,7 @@ describe('MembersList', () => {
           createTestingPinia({
             initialState: {
               auth: {
-                user: { role: 'ADMIN' },
+                user: { role: 'admin' },
                 isAuthenticated: true
               }
             }

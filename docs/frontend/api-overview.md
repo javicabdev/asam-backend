@@ -50,7 +50,7 @@ El proyecto está organizado siguiendo los principios de Clean Architecture, sep
 
 ## API GraphQL
 
-La API está diseñada siguiendo el patrón GraphQL, lo que permite a los clientes solicitar exactamente los datos que necesitan. Los principales tipos de datos y operaciones disponibles se describen detalladamente en el documento [guia-frontend.md](./guia-frontend.md).
+La API está diseñada siguiendo el patrón GraphQL, lo que permite a los clientes solicitar exactamente los datos que necesitan. Los principales tipos de datos y operaciones disponibles se describen detalladamente en el documento [guia-frontend.md](guia-frontend.md).
 
 ### Endpoints
 
@@ -73,7 +73,7 @@ La API está diseñada siguiendo el patrón GraphQL, lo que permite a los client
 - Verifica permisos basados en roles (ADMIN, USER)
 - Enriquece el contexto con información del usuario autenticado
 
-Para más detalles sobre la implementación de autenticación, consulta [auth.md](./auth.md) y [auth_implementation.md](./auth_implementation.md).
+Para más detalles sobre la implementación de autenticación, consulta [auth.md](../auth.md) y [auth_implementation.md](../auth_implementation.md).
 
 ## Modelos de Dominio
 
@@ -86,11 +86,11 @@ Los principales modelos de dominio son:
 5. **CashFlow**: Transacciones financieras de la asociación
 6. **User**: Usuarios del sistema con diferentes roles
 
-Para más información sobre la base de datos y el modelado, consulta [database.md](./database.md).
+Para más información sobre la base de datos y el modelado, consulta [database.md](../database.md).
 
 ## Integración con Frontend
 
-Si eres un desarrollador de frontend que necesita interactuar con esta API, consulta la [Guía para Desarrolladores Frontend](./guia-frontend.md) que incluye:
+Si eres un desarrollador de frontend que necesita interactuar con esta API, consulta la [Guía para Desarrolladores Frontend](guia-frontend.md) que incluye:
 
 - Ejemplos detallados de consultas GraphQL
 - Información sobre autenticación
@@ -100,9 +100,9 @@ Si eres un desarrollador de frontend que necesita interactuar con esta API, cons
 ## Despliegue y CI/CD
 
 El proyecto utiliza GitHub Actions para CI/CD. Para más información sobre:
-- Configuración del proyecto en GCP: [gcp-project-setup.md](./gcp-project-setup.md)
-- Configuración de secretos en GitHub: [github-secrets-setup.md](./github-secrets-setup.md)
+- Configuración del proyecto en GCP: [gcp-project-setup.md](../gcp-project-setup.md)
+- Configuración de secretos en GitHub: [github-secrets-setup.md](../github-secrets-setup.md)
 
 ## Manejo de Errores
 
-El sistema implementa un manejo de errores estructurado. Para más detalles sobre los tipos de errores y cómo se manejan, consulta [errors.md](./errors.md).
+El sistema implementa un manejo de errores estructurado. Para más detalles sobre los tipos de errores y cómo se manejan, consulta [errors.md](../errors.md).

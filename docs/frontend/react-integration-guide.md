@@ -29,14 +29,23 @@ import { onError } from '@apollo/client/link/error';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { WebSocketLink } from '@apollo/client/link/ws';
 
+// Endpoints
+const GRAPHQL_ENDPOINT = process.env.NODE_ENV === 'production'
+  ? 'https://asam-backend-jtpswzdxuq-ew.a.run.app/graphql'
+  : 'http://localhost:8080/graphql';
+
+const WS_ENDPOINT = process.env.NODE_ENV === 'production'
+  ? 'wss://asam-backend-jtpswzdxuq-ew.a.run.app/graphql'
+  : 'ws://localhost:8080/graphql';
+
 // HTTP Link
 const httpLink = createHttpLink({
-  uri: process.env.REACT_APP_GRAPHQL_URL || 'http://localhost:8080/graphql',
+  uri: GRAPHQL_ENDPOINT,
 });
 
 // WebSocket Link para subscriptions (si las implementas en el futuro)
 const wsLink = new WebSocketLink({
-  uri: process.env.REACT_APP_WS_URL || 'ws://localhost:8080/graphql',
+  uri: WS_ENDPOINT,
   options: {
     reconnect: true,
     connectionParams: () => ({
@@ -116,6 +125,12 @@ export const apolloClient = new ApolloClient({
             merge(existing = { nodes: [] }, incoming) {
               return incoming;
             }
+          },
+          listUsers: {
+            keyArgs: ["page", "pageSize"],
+            merge(existing = [], incoming) {
+              return incoming;
+            }
           }
         }
       },
@@ -126,6 +141,9 @@ export const apolloClient = new ApolloClient({
         keyFields: ["id"]
       },
       Payment: {
+        keyFields: ["id"]
+      },
+      User: {
         keyFields: ["id"]
       }
     }
@@ -212,6 +230,7 @@ src/
 │   ├── members/          # Componentes de miembros
 │   ├── families/         # Componentes de familias
 │   ├── payments/         # Componentes de pagos
+│   ├── users/            # Componentes de usuarios (Admin)
 │   └── layout/           # Componentes de layout
 ├── contexts/
 │   ├── AuthContext.js    # Context de autenticación
@@ -223,17 +242,26 @@ src/
 ├── hooks/
 │   ├── useAuth.js        # Hook de autenticación
 │   ├── usePagination.js  # Hook de paginación
-│   └── useDebounce.js    # Hook de debounce
+│   ├── useDebounce.js    # Hook de debounce
+│   └── useUser.js        # Hook de gestión de usuarios
 ├── pages/
 │   ├── Login.js
 │   ├── Dashboard.js
+│   ├── Profile.js
+│   ├── ForgotPassword.js
+│   ├── ResetPassword.js
+│   ├── VerifyEmail.js
 │   ├── Members/
 │   ├── Families/
-│   └── Payments/
+│   ├── Payments/
+│   └── Admin/
+│       ├── Users.js
+│       └── UserDetail.js
 ├── services/
 │   ├── auth.service.js
 │   ├── members.service.js
-│   └── payments.service.js
+│   ├── payments.service.js
+│   └── users.service.js
 ├── utils/
 │   ├── validators.js
 │   ├── formatters.js
@@ -244,7 +272,7 @@ src/
 
 ## Hooks Personalizados
 
-### Hook de Autenticación
+### Hook de Autenticación (Actualizado)
 
 ```javascript
 // src/hooks/useAuth.js
@@ -252,7 +280,14 @@ import { useContext, useCallback, useEffect } from 'react';
 import { useMutation } from '@apollo/client';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
-import { LOGIN_MUTATION, LOGOUT_MUTATION, REFRESH_TOKEN_MUTATION } from '../graphql/mutations/auth';
+import { 
+  LOGIN_MUTATION, 
+  LOGOUT_MUTATION, 
+  REFRESH_TOKEN_MUTATION,
+  CHANGE_PASSWORD_MUTATION,
+  REQUEST_PASSWORD_RESET_MUTATION,
+  SEND_VERIFICATION_EMAIL_MUTATION
+} from '../graphql/mutations/auth';
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -267,6 +302,9 @@ export const useAuth = () => {
   const [loginMutation, { loading: loginLoading }] = useMutation(LOGIN_MUTATION);
   const [logoutMutation] = useMutation(LOGOUT_MUTATION);
   const [refreshMutation] = useMutation(REFRESH_TOKEN_MUTATION);
+  const [changePasswordMutation, { loading: changePasswordLoading }] = useMutation(CHANGE_PASSWORD_MUTATION);
+  const [requestPasswordResetMutation, { loading: resetLoading }] = useMutation(REQUEST_PASSWORD_RESET_MUTATION);
+  const [sendVerificationMutation, { loading: verificationLoading }] = useMutation(SEND_VERIFICATION_EMAIL_MUTATION);
   
   const login = useCallback(async (username, password) => {
     try {
@@ -285,14 +323,20 @@ export const useAuth = () => {
       setUser(user);
       setIsAuthenticated(true);
       
+      // Verificar si el email está verificado
+      if (!user.emailVerified) {
+        navigate('/verify-email-notice');
+        return { success: true, emailVerified: false };
+      }
+      
       // Navegar según rol
-      if (user.role === 'ADMIN') {
+      if (user.role === 'admin') {
         navigate('/admin/dashboard');
       } else {
         navigate('/dashboard');
       }
       
-      return { success: true };
+      return { success: true, emailVerified: true };
     } catch (error) {
       console.error('Login error:', error);
       return { 
@@ -341,6 +385,62 @@ export const useAuth = () => {
     }
   }, [refreshMutation, logout]);
   
+  const changePassword = useCallback(async (currentPassword, newPassword) => {
+    try {
+      const { data } = await changePasswordMutation({
+        variables: { input: { currentPassword, newPassword } }
+      });
+      
+      return {
+        success: data.changePassword.success,
+        message: data.changePassword.message,
+        error: data.changePassword.error
+      };
+    } catch (error) {
+      console.error('Change password error:', error);
+      return {
+        success: false,
+        error: error.graphQLErrors?.[0]?.message || 'Error al cambiar la contraseña'
+      };
+    }
+  }, [changePasswordMutation]);
+  
+  const requestPasswordReset = useCallback(async (email) => {
+    try {
+      const { data } = await requestPasswordResetMutation({
+        variables: { email }
+      });
+      
+      return {
+        success: data.requestPasswordReset.success,
+        message: data.requestPasswordReset.message
+      };
+    } catch (error) {
+      console.error('Request password reset error:', error);
+      return {
+        success: false,
+        error: error.graphQLErrors?.[0]?.message || 'Error al solicitar reseteo'
+      };
+    }
+  }, [requestPasswordResetMutation]);
+  
+  const sendVerificationEmail = useCallback(async () => {
+    try {
+      const { data } = await sendVerificationMutation();
+      
+      return {
+        success: data.sendVerificationEmail.success,
+        message: data.sendVerificationEmail.message
+      };
+    } catch (error) {
+      console.error('Send verification email error:', error);
+      return {
+        success: false,
+        error: error.graphQLErrors?.[0]?.message || 'Error al enviar email'
+      };
+    }
+  }, [sendVerificationMutation]);
+  
   // Auto-refresh token
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -374,9 +474,147 @@ export const useAuth = () => {
     login,
     logout,
     refreshToken,
+    changePassword,
+    requestPasswordReset,
+    sendVerificationEmail,
     loginLoading,
-    isAdmin: user?.role === 'ADMIN',
-    isUser: user?.role === 'USER',
+    changePasswordLoading,
+    resetLoading,
+    verificationLoading,
+    isAdmin: user?.role === 'admin',
+    isUser: user?.role === 'user',
+    isEmailVerified: user?.emailVerified || false,
+  };
+};
+```
+
+### Hook de Gestión de Usuarios (Admin)
+
+```javascript
+// src/hooks/useUser.js
+import { useMutation, useQuery } from '@apollo/client';
+import { useCallback } from 'react';
+import {
+  CREATE_USER_MUTATION,
+  UPDATE_USER_MUTATION,
+  DELETE_USER_MUTATION,
+  RESET_USER_PASSWORD_MUTATION
+} from '../graphql/mutations/users';
+import {
+  GET_USER_QUERY,
+  LIST_USERS_QUERY
+} from '../graphql/queries/users';
+
+export const useUser = () => {
+  const [createUserMutation, { loading: createLoading }] = useMutation(CREATE_USER_MUTATION);
+  const [updateUserMutation, { loading: updateLoading }] = useMutation(UPDATE_USER_MUTATION);
+  const [deleteUserMutation, { loading: deleteLoading }] = useMutation(DELETE_USER_MUTATION);
+  const [resetPasswordMutation, { loading: resetLoading }] = useMutation(RESET_USER_PASSWORD_MUTATION);
+  
+  const createUser = useCallback(async (input) => {
+    try {
+      const { data } = await createUserMutation({
+        variables: { input },
+        refetchQueries: [{ query: LIST_USERS_QUERY }]
+      });
+      
+      return {
+        success: true,
+        user: data.createUser
+      };
+    } catch (error) {
+      console.error('Create user error:', error);
+      return {
+        success: false,
+        error: error.graphQLErrors?.[0]?.message || 'Error al crear usuario'
+      };
+    }
+  }, [createUserMutation]);
+  
+  const updateUser = useCallback(async (input) => {
+    try {
+      const { data } = await updateUserMutation({
+        variables: { input },
+        refetchQueries: [{ query: LIST_USERS_QUERY }]
+      });
+      
+      return {
+        success: true,
+        user: data.updateUser
+      };
+    } catch (error) {
+      console.error('Update user error:', error);
+      return {
+        success: false,
+        error: error.graphQLErrors?.[0]?.message || 'Error al actualizar usuario'
+      };
+    }
+  }, [updateUserMutation]);
+  
+  const deleteUser = useCallback(async (id) => {
+    try {
+      const { data } = await deleteUserMutation({
+        variables: { id },
+        refetchQueries: [{ query: LIST_USERS_QUERY }]
+      });
+      
+      return {
+        success: data.deleteUser.success,
+        message: data.deleteUser.message
+      };
+    } catch (error) {
+      console.error('Delete user error:', error);
+      return {
+        success: false,
+        error: error.graphQLErrors?.[0]?.message || 'Error al eliminar usuario'
+      };
+    }
+  }, [deleteUserMutation]);
+  
+  const resetUserPassword = useCallback(async (userId, newPassword) => {
+    try {
+      const { data } = await resetPasswordMutation({
+        variables: { userId, newPassword }
+      });
+      
+      return {
+        success: data.resetUserPassword.success,
+        message: data.resetUserPassword.message
+      };
+    } catch (error) {
+      console.error('Reset password error:', error);
+      return {
+        success: false,
+        error: error.graphQLErrors?.[0]?.message || 'Error al resetear contraseña'
+      };
+    }
+  }, [resetPasswordMutation]);
+  
+  const useUsersList = (page = 1, pageSize = 10) => {
+    return useQuery(LIST_USERS_QUERY, {
+      variables: { page, pageSize },
+      fetchPolicy: 'network-only'
+    });
+  };
+  
+  const useUserDetail = (id) => {
+    return useQuery(GET_USER_QUERY, {
+      variables: { id },
+      skip: !id
+    });
+  };
+  
+  return {
+    createUser,
+    updateUser,
+    deleteUser,
+    resetUserPassword,
+    useUsersList,
+    useUserDetail,
+    createLoading,
+    updateLoading,
+    deleteLoading,
+    resetLoading
   };
 };
 ```
@@ -919,6 +1157,62 @@ SmartForm.propTypes = {
 export default SmartForm;
 ```
 
+### Componente de Verificación de Email
+
+```javascript
+// src/components/auth/EmailVerificationNotice.js
+import React from 'react';
+import { useAuth } from '../../hooks/useAuth';
+import { useNotification } from '../../hooks/useNotification';
+
+const EmailVerificationNotice = () => {
+  const { user, sendVerificationEmail, verificationLoading } = useAuth();
+  const { showSuccess, showError } = useNotification();
+  
+  const handleResendEmail = async () => {
+    const result = await sendVerificationEmail();
+    
+    if (result.success) {
+      showSuccess(result.message || 'Email de verificación enviado');
+    } else {
+      showError(result.error || 'Error al enviar el email');
+    }
+  };
+  
+  if (!user || user.emailVerified) {
+    return null;
+  }
+  
+  return (
+    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+      <div className="flex">
+        <div className="flex-shrink-0">
+          <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+        </div>
+        <div className="ml-3">
+          <p className="text-sm text-yellow-700">
+            Tu email aún no ha sido verificado. Por favor, revisa tu bandeja de entrada y haz click en el enlace de verificación.
+          </p>
+          <p className="mt-3 text-sm">
+            <button
+              onClick={handleResendEmail}
+              disabled={verificationLoading}
+              className="font-medium text-yellow-700 underline hover:text-yellow-600 disabled:opacity-50"
+            >
+              {verificationLoading ? 'Enviando...' : 'Reenviar email de verificación'}
+            </button>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default EmailVerificationNotice;
+```
+
 ## Manejo de Estado Global
 
 ### Context de Autenticación
@@ -1223,9 +1517,11 @@ describe('useAuth', () => {
               user: {
                 id: '1',
                 username: 'test@ejemplo.com',
-                role: 'USER',
+                role: 'user',
                 isActive: true,
-                lastLogin: null
+                lastLogin: null,
+                emailVerified: true,
+                emailVerifiedAt: new Date().toISOString()
               },
               accessToken: 'fake-access-token',
               refreshToken: 'fake-refresh-token',
@@ -1249,10 +1545,60 @@ describe('useAuth', () => {
     await act(async () => {
       const response = await result.current.login('test@ejemplo.com', 'password123');
       expect(response.success).toBe(true);
+      expect(response.emailVerified).toBe(true);
     });
     
     expect(localStorage.getItem('accessToken')).toBe('fake-access-token');
     expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
+  });
+  
+  it('login with unverified email', async () => {
+    const mocks = [
+      {
+        request: {
+          query: LOGIN_MUTATION,
+          variables: {
+            input: { username: 'test@ejemplo.com', password: 'password123' }
+          }
+        },
+        result: {
+          data: {
+            login: {
+              user: {
+                id: '1',
+                username: 'test@ejemplo.com',
+                role: 'user',
+                isActive: true,
+                lastLogin: null,
+                emailVerified: false,
+                emailVerifiedAt: null
+              },
+              accessToken: 'fake-access-token',
+              refreshToken: 'fake-refresh-token',
+              expiresAt: new Date(Date.now() + 900000).toISOString()
+            }
+          }
+        }
+      }
+    ];
+    
+    const { result } = renderHook(() => useAuth(), { 
+      wrapper: ({ children }) => (
+        <MockedProvider mocks={mocks}>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </MockedProvider>
+      )
+    });
+    
+    await act(async () => {
+      const response = await result.current.login('test@ejemplo.com', 'password123');
+      expect(response.success).toBe(true);
+      expect(response.emailVerified).toBe(false);
+    });
+    
+    expect(mockNavigate).toHaveBeenCalledWith('/verify-email-notice');
   });
 });
 ```

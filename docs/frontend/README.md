@@ -2,6 +2,22 @@
 
 Bienvenido a la documentación completa del backend de ASAM para desarrolladores frontend. Esta documentación está organizada para proporcionar toda la información necesaria para integrar exitosamente tu aplicación frontend con nuestro backend GraphQL.
 
+## 🌐 Endpoints de la API
+
+- **Producción**: `https://asam-backend-jtpswzdxuq-ew.a.run.app/graphql`
+- **Desarrollo**: `http://localhost:8080/graphql`
+- **GraphQL Playground**: `http://localhost:8080/playground` (solo desarrollo)
+
+## 🎉 Novedades
+
+### [Actualizaciones de Junio 2025](./updates-june-2025.md) 🆕
+Resumen de todas las nuevas funcionalidades añadidas al backend:
+- Sistema completo de gestión de usuarios
+- Verificación de email
+- Recuperación de contraseña
+- Backend desplegado en producción
+- Y mucho más...
+
 ## 📚 Documentación Disponible
 
 ### 1. [Referencia Rápida](./quick-reference.md)
@@ -25,6 +41,8 @@ La documentación exhaustiva del sistema que incluye:
 ### 3. [Colección de Queries y Mutations](./graphql-queries.md)
 Todas las queries y mutations del sistema listas para usar:
 - Queries y mutations organizadas por dominio
+- Gestión de usuarios y autenticación
+- Verificación de email y recuperación de contraseña
 - Ejemplos de variables
 - Respuestas esperadas
 - Casos de uso comunes
@@ -67,7 +85,9 @@ import { ApolloClient, InMemoryCache, createHttpLink } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 
 const httpLink = createHttpLink({
-  uri: 'http://localhost:8080/graphql'
+  uri: process.env.NODE_ENV === 'production' 
+    ? 'https://asam-backend-jtpswzdxuq-ew.a.run.app/graphql'
+    : 'http://localhost:8080/graphql'
 });
 
 const authLink = setContext((_, { headers }) => ({
@@ -132,10 +152,12 @@ function MembersList() {
 - Access token: 15 minutos
 - Refresh token: 7 días
 - Renovación automática
+- Verificación de email
+- Recuperación de contraseña
 
 ### Permisos
-- **ADMIN**: Acceso completo
-- **USER**: Solo lectura
+- **ADMIN**: Acceso completo (gestión de usuarios, miembros, pagos)
+- **USER**: Solo lectura y cambio de su propia contraseña
 
 ### Rate Limiting
 - 10 requests/segundo por IP
@@ -164,7 +186,15 @@ function MembersList() {
 2. Recibir tokens y datos de usuario
 3. Guardar tokens de forma segura
 4. Configurar Apollo Client con token
-5. Redirigir según rol
+5. Verificar si el email está verificado
+6. Redirigir según rol
+
+### Gestión de Usuarios (Admin)
+1. **Listar usuarios**: `listUsers` query
+2. **Crear usuario**: `createUser` mutation
+3. **Actualizar usuario**: `updateUser` mutation
+4. **Resetear contraseña**: `resetUserPassword` mutation
+5. **Eliminar usuario**: `deleteUser` mutation
 
 ### CRUD de Miembros
 1. **Listar**: `listMembers` query con filtros
@@ -178,6 +208,19 @@ function MembersList() {
 2. **Ver pagos**: `getMemberPayments` query
 3. **Ver balance**: `getBalance` query
 4. **Registrar cuotas masivas**: `registerFee` mutation
+
+### Flujo de Verificación de Email
+1. Usuario se registra o hace login
+2. Verificar campo `emailVerified`
+3. Si no está verificado, mostrar aviso
+4. Enviar email → `sendVerificationEmail` mutation
+5. Usuario hace click en link con token
+6. Verificar → `verifyEmail` mutation
+
+### Flujo de Recuperación de Contraseña
+1. Usuario solicita recuperación → `requestPasswordReset` mutation
+2. Usuario recibe email con token
+3. Usuario ingresa nueva contraseña → `resetPasswordWithToken` mutation
 
 ## 🔍 Depuración
 
@@ -200,6 +243,7 @@ const client = new ApolloClient({
 2. **CORS**: Verificar configuración del servidor
 3. **Rate limit**: Implementar debounce y cache
 4. **Permisos**: Verificar rol del usuario
+5. **Email no verificado**: Mostrar botón para reenviar verificación
 
 ## 📞 Soporte
 
@@ -216,4 +260,4 @@ const client = new ApolloClient({
 
 ---
 
-*Esta documentación se mantiene actualizada con cada release del backend. Última actualización: Diciembre 2024*
+*Esta documentación se mantiene actualizada con cada release del backend. Última actualización: Junio 2025*

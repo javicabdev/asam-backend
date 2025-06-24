@@ -2,8 +2,8 @@
 
 ## Documentación
 
-- [Descripción General de la API](docs/api-overview.md) - Visión general de la arquitectura y API del backend
-- [Guía para Frontend](docs/guia-frontend.md) - Documentación detallada para desarrolladores frontend
+- [Descripción General de la API](docs/frontend/api-overview.md) - Visión general de la arquitectura y API del backend
+- [Guía para Frontend](docs/frontend/guia-frontend.md) - Documentación detallada para desarrolladores frontend
 - [Autenticación](docs/auth.md) - Información sobre el sistema de autenticación
 - [Base de Datos](docs/database.md) - Detalles sobre el modelado de datos y migraciones
 - [Manejo de Errores](docs/errs.md) - Sistema de manejo de errores

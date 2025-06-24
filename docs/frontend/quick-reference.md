@@ -5,7 +5,7 @@
 ### Endpoint Principal
 ```
 Desarrollo: http://localhost:8080/graphql
-Producción: https://api.asam.org/graphql
+Producción: https://asam-backend-jtpswzdxuq-ew.a.run.app/graphql
 Playground: http://localhost:8080/playground (solo dev)
 ```
 
@@ -21,7 +21,12 @@ Authorization: Bearer <access_token>
 ```graphql
 mutation Login($input: LoginInput!) {
   login(input: $input) {
-    user { id username role }
+    user { 
+      id 
+      username 
+      role 
+      emailVerified 
+    }
     accessToken
     refreshToken
     expiresAt
@@ -43,9 +48,72 @@ mutation RefreshToken($input: RefreshTokenInput!) {
 }
 ```
 
+### Cambiar Contraseña
+```graphql
+mutation ChangePassword($input: ChangePasswordInput!) {
+  changePassword(input: $input) {
+    success
+    message
+  }
+}
+
+# Variables
+{ 
+  "input": { 
+    "currentPassword": "actual123", 
+    "newPassword": "nueva456!" 
+  } 
+}
+```
+
+### Recuperar Contraseña
+```graphql
+mutation RequestPasswordReset($email: String!) {
+  requestPasswordReset(email: $email) {
+    success
+    message
+  }
+}
+```
+
 ### Tokens
 - **Access Token**: 15 minutos
 - **Refresh Token**: 7 días
+
+## 👤 Gestión de Usuarios
+
+### Obtener Usuario Actual
+```graphql
+query GetCurrentUser {
+  getCurrentUser {
+    id
+    username
+    role
+    emailVerified
+    emailVerifiedAt
+  }
+}
+```
+
+### Crear Usuario (Admin)
+```graphql
+mutation CreateUser($input: CreateUserInput!) {
+  createUser(input: $input) {
+    id
+    username
+    role
+  }
+}
+
+# Variables
+{
+  "input": {
+    "username": "nuevo@ejemplo.com",
+    "password": "ContraseñaSegura123!",
+    "role": "user"
+  }
+}
+```
 
 ## 📊 Queries Principales
 
@@ -130,8 +198,8 @@ enum PaymentStatus {
 }
 
 enum UserRole {
-  ADMIN
-  USER
+  admin
+  user
 }
 
 enum OperationType {
@@ -168,10 +236,12 @@ enum OperationType {
 | Acción | ADMIN | USER |
 |--------|-------|------|
 | Ver datos | ✅ | ✅ |
-| Crear/Editar | ✅ | ❌ |
+| Crear/Editar miembros | ✅ | ❌ |
 | Eliminar | ✅ | ❌ |
 | Gestionar pagos | ✅ | ❌ |
 | Ver reportes | ✅ | ✅ |
+| Gestionar usuarios | ✅ | ❌ |
+| Cambiar su contraseña | ✅ | ✅ |
 
 ## 📝 Formato de Fechas
 
@@ -187,7 +257,7 @@ import { ApolloClient, InMemoryCache, createHttpLink } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 
 const httpLink = createHttpLink({
-  uri: process.env.REACT_APP_GRAPHQL_URL
+  uri: 'https://asam-backend-jtpswzdxuq-ew.a.run.app/graphql'
 });
 
 const authLink = setContext((_, { headers }) => ({
@@ -203,6 +273,53 @@ const client = new ApolloClient({
   link: authLink.concat(httpLink),
   cache: new InMemoryCache()
 });
+```
+
+## 🔐 Ejemplo de Manejo de Auth con React
+
+```javascript
+// hooks/useAuth.js
+import { useState, useEffect } from 'react';
+import { useMutation } from '@apollo/client';
+import { LOGIN_MUTATION, REFRESH_TOKEN_MUTATION } from './queries';
+
+export const useAuth = () => {
+  const [login] = useMutation(LOGIN_MUTATION);
+  const [refreshToken] = useMutation(REFRESH_TOKEN_MUTATION);
+  
+  const signIn = async (username, password) => {
+    const { data } = await login({ 
+      variables: { input: { username, password } } 
+    });
+    
+    localStorage.setItem('accessToken', data.login.accessToken);
+    localStorage.setItem('refreshToken', data.login.refreshToken);
+    localStorage.setItem('expiresAt', data.login.expiresAt);
+    
+    return data.login;
+  };
+  
+  const refresh = async () => {
+    const storedRefreshToken = localStorage.getItem('refreshToken');
+    const { data } = await refreshToken({
+      variables: { input: { refreshToken: storedRefreshToken } }
+    });
+    
+    localStorage.setItem('accessToken', data.refreshToken.accessToken);
+    localStorage.setItem('refreshToken', data.refreshToken.refreshToken);
+    localStorage.setItem('expiresAt', data.refreshToken.expiresAt);
+    
+    return data.refreshToken;
+  };
+  
+  const signOut = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('expiresAt');
+  };
+  
+  return { signIn, refresh, signOut };
+};
 ```
 
 ## 📞 Soporte

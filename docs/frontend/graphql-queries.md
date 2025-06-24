@@ -2,6 +2,16 @@
 
 Este archivo contiene todas las queries y mutations del sistema listas para copiar y usar.
 
+## Índice
+- [Autenticación](#autenticación)
+- [Gestión de Usuarios](#gestión-de-usuarios)
+- [Verificación de Email](#verificación-de-email)
+- [Recuperación de Contraseña](#recuperación-de-contraseña)
+- [Miembros](#queries-de-miembros)
+- [Familias](#queries-de-familias)
+- [Pagos](#queries-de-pagos)
+- [Flujo de Caja](#queries-de-flujo-de-caja)
+
 ## Autenticación
 
 ### Login
@@ -14,6 +24,8 @@ mutation Login($input: LoginInput!) {
       role
       isActive
       lastLogin
+      emailVerified
+      emailVerifiedAt
     }
     accessToken
     refreshToken
@@ -41,6 +53,185 @@ mutation RefreshToken($input: RefreshTokenInput!) {
     refreshToken
     expiresAt
   }
+}
+```
+
+## Gestión de Usuarios
+
+### Obtener Usuario Actual
+```graphql
+query GetCurrentUser {
+  getCurrentUser {
+    id
+    username
+    role
+    isActive
+    lastLogin
+    emailVerified
+    emailVerifiedAt
+  }
+}
+```
+
+### Obtener un Usuario (Admin)
+```graphql
+query GetUser($id: ID!) {
+  getUser(id: $id) {
+    id
+    username
+    role
+    isActive
+    lastLogin
+    emailVerified
+    emailVerifiedAt
+  }
+}
+```
+
+### Listar Usuarios (Admin)
+```graphql
+query ListUsers($page: Int, $pageSize: Int) {
+  listUsers(page: $page, pageSize: $pageSize) {
+    id
+    username
+    role
+    isActive
+    lastLogin
+    emailVerified
+    emailVerifiedAt
+  }
+}
+```
+
+### Crear Usuario (Admin)
+```graphql
+mutation CreateUser($input: CreateUserInput!) {
+  createUser(input: $input) {
+    id
+    username
+    role
+    isActive
+  }
+}
+```
+
+### Actualizar Usuario (Admin)
+```graphql
+mutation UpdateUser($input: UpdateUserInput!) {
+  updateUser(input: $input) {
+    id
+    username
+    role
+    isActive
+  }
+}
+```
+
+### Eliminar Usuario (Admin)
+```graphql
+mutation DeleteUser($id: ID!) {
+  deleteUser(id: $id) {
+    success
+    message
+    error
+  }
+}
+```
+
+### Cambiar Contraseña
+```graphql
+mutation ChangePassword($input: ChangePasswordInput!) {
+  changePassword(input: $input) {
+    success
+    message
+    error
+  }
+}
+```
+
+### Resetear Contraseña de Usuario (Admin)
+```graphql
+mutation ResetUserPassword($userId: ID!, $newPassword: String!) {
+  resetUserPassword(userId: $userId, newPassword: $newPassword) {
+    success
+    message
+    error
+  }
+}
+```
+
+## Verificación de Email
+
+### Enviar Email de Verificación
+```graphql
+mutation SendVerificationEmail {
+  sendVerificationEmail {
+    success
+    message
+    error
+  }
+}
+```
+
+### Verificar Email
+```graphql
+mutation VerifyEmail($token: String!) {
+  verifyEmail(token: $token) {
+    success
+    message
+    error
+  }
+}
+```
+
+### Reenviar Email de Verificación
+```graphql
+mutation ResendVerificationEmail($email: String!) {
+  resendVerificationEmail(email: $email) {
+    success
+    message
+    error
+  }
+}
+```
+
+## Recuperación de Contraseña
+
+### Solicitar Reseteo de Contraseña
+```graphql
+mutation RequestPasswordReset($email: String!) {
+  requestPasswordReset(email: $email) {
+    success
+    message
+    error
+  }
+}
+```
+
+### Resetear Contraseña con Token
+```graphql
+mutation ResetPasswordWithToken($token: String!, $newPassword: String!) {
+  resetPasswordWithToken(token: $token, newPassword: $newPassword) {
+    success
+    message
+    error
+  }
+}
+```
+
+## Health Check
+
+### Verificar Estado del Sistema
+```graphql
+query Health {
+  health
+}
+```
+
+### Ping
+```graphql
+query Ping {
+  ping
 }
 ```
 
@@ -542,6 +733,39 @@ mutation AdjustBalance($amount: Float!, $reason: String!) {
 }
 ```
 
+### Crear Usuario (Admin)
+```json
+{
+  "input": {
+    "username": "nuevo.usuario@ejemplo.com",
+    "password": "ContraseñaSegura123!",
+    "role": "user"
+  }
+}
+```
+
+### Actualizar Usuario (Admin)
+```json
+{
+  "input": {
+    "id": "1",
+    "username": "usuario.actualizado@ejemplo.com",
+    "role": "admin",
+    "isActive": true
+  }
+}
+```
+
+### Cambiar Contraseña
+```json
+{
+  "input": {
+    "currentPassword": "contraseñaActual123",
+    "newPassword": "nuevaContraseñaSegura456!"
+  }
+}
+```
+
 ### Crear Miembro
 ```json
 {
@@ -591,7 +815,7 @@ mutation AdjustBalance($amount: Float!, $reason: String!) {
     "member_id": "1",
     "amount": 50.00,
     "payment_method": "TRANSFERENCIA",
-    "notes": "Cuota mensual enero 2024"
+    "notes": "Cuota mensual enero 2025"
   }
 }
 ```
@@ -600,8 +824,8 @@ mutation AdjustBalance($amount: Float!, $reason: String!) {
 ```json
 {
   "filter": {
-    "start_date": "2024-01-01T00:00:00Z",
-    "end_date": "2024-12-31T23:59:59Z",
+    "start_date": "2025-01-01T00:00:00Z",
+    "end_date": "2025-12-31T23:59:59Z",
     "operation_type": "MEMBERSHIP_FEE",
     "pagination": {
       "page": 1,
@@ -619,7 +843,7 @@ mutation AdjustBalance($amount: Float!, $reason: String!) {
 ```json
 {
   "input": {
-    "numero_socio": "2024-F001",
+    "numero_socio": "2025-F001",
     "miembro_origen_id": "1",
     "esposo_nombre": "Juan",
     "esposo_apellidos": "García López",
@@ -647,5 +871,28 @@ mutation AdjustBalance($amount: Float!, $reason: String!) {
     "correo_electronico": "ana.garcia@ejemplo.com",
     "parentesco": "Hija"
   }
+}
+```
+
+### Solicitar Reseteo de Contraseña
+```json
+{
+  "email": "usuario@ejemplo.com"
+}
+```
+
+### Resetear Contraseña con Token
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "newPassword": "NuevaContraseñaSegura789!"
+}
+```
+
+## Paginación de Usuarios
+```json
+{
+  "page": 1,
+  "pageSize": 10
 }
 ```
