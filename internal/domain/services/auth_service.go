@@ -19,10 +19,12 @@ import (
 )
 
 type authService struct {
-	userRepo  output.UserRepository
-	jwtUtil   *auth.JWTUtil
-	tokenRepo output.TokenRepository // Para gestionar tokens de refresh
-	logger    logger.Logger
+	userRepo              output.UserRepository
+	jwtUtil               *auth.JWTUtil
+	tokenRepo             output.TokenRepository // Para gestionar tokens de refresh
+	verificationTokenRepo output.VerificationTokenRepository
+	emailVerificationSvc  input.EmailVerificationService
+	logger                logger.Logger
 }
 
 // NewAuthService crea una nueva instancia del servicio de autenticación
@@ -31,13 +33,17 @@ func NewAuthService(
 	userRepo output.UserRepository,
 	jwtUtil *auth.JWTUtil,
 	tokenRepo output.TokenRepository,
+	verificationTokenRepo output.VerificationTokenRepository,
+	emailVerificationSvc input.EmailVerificationService,
 	logger logger.Logger,
 ) input.AuthService {
 	return &authService{
-		userRepo:  userRepo,
-		jwtUtil:   jwtUtil,
-		tokenRepo: tokenRepo,
-		logger:    logger,
+		userRepo:              userRepo,
+		jwtUtil:               jwtUtil,
+		tokenRepo:             tokenRepo,
+		verificationTokenRepo: verificationTokenRepo,
+		emailVerificationSvc:  emailVerificationSvc,
+		logger:                logger,
 	}
 }
 
@@ -296,4 +302,47 @@ func (s *authService) ValidateToken(ctx context.Context, tokenString string) (*m
 	}
 
 	return user, nil
+}
+
+// ResetPasswordWithToken resets a user's password using a valid reset token
+func (s *authService) ResetPasswordWithToken(ctx context.Context, token string, newPassword string) error {
+	// Verify the reset token
+	verificationToken, err := s.emailVerificationSvc.VerifyPasswordResetToken(ctx, token)
+	if err != nil {
+		return err
+	}
+
+	// Get the user
+	user, err := s.userRepo.FindByID(ctx, verificationToken.UserID)
+	if err != nil {
+		return errors.DB(err, "error obteniendo usuario")
+	}
+	if user == nil {
+		return errors.NewBusinessError(errors.ErrNotFound, "usuario no encontrado")
+	}
+
+	// Update the password
+	if err := user.SetPassword(newPassword); err != nil {
+		return errors.Wrap(err, errors.ErrInternalError, "error estableciendo nueva contraseña")
+	}
+
+	// Save the updated user
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return errors.Wrap(err, errors.ErrDatabaseError, "error actualizando usuario")
+	}
+
+	// Mark the token as used
+	verificationToken.Use()
+	if err := s.verificationTokenRepo.Update(ctx, verificationToken); err != nil {
+		s.logger.Warn("Failed to mark reset token as used", zap.Uint("tokenID", verificationToken.ID), zap.Error(err))
+	}
+
+	// Log the password reset
+	s.logger.Info("Password reset successful",
+		zap.Uint("user_id", user.ID),
+		zap.String("username", user.Username),
+		zap.String("ip", getIPFromContext(ctx)),
+	)
+
+	return nil
 }

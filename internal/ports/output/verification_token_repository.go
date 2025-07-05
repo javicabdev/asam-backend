@@ -2,26 +2,33 @@ package output
 
 import (
 	"context"
+
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 )
 
-// VerificationTokenRepository define las operaciones de persistencia para tokens de verificación
+// VerificationTokenRepository defines the interface for verification token persistence
 type VerificationTokenRepository interface {
-	// Create crea un nuevo token de verificación
+	// Create creates a new verification token
 	Create(ctx context.Context, token *models.VerificationToken) error
 
-	// FindByToken busca un token por su valor
-	FindByToken(ctx context.Context, token string) (*models.VerificationToken, error)
+	// GetByToken retrieves a token by its value
+	GetByToken(ctx context.Context, token string) (*models.VerificationToken, error)
 
-	// Update actualiza un token existente
+	// GetByUserIDAndType retrieves tokens by user ID and type
+	GetByUserIDAndType(ctx context.Context, userID uint, tokenType string) ([]*models.VerificationToken, error)
+
+	// Update updates a verification token
 	Update(ctx context.Context, token *models.VerificationToken) error
 
-	// DeleteExpiredTokens elimina tokens expirados
-	DeleteExpiredTokens(ctx context.Context) error
+	// Delete deletes a verification token
+	Delete(ctx context.Context, tokenID uint) error
 
-	// DeleteUserTokensByType elimina todos los tokens de un usuario de un tipo específico
-	DeleteUserTokensByType(ctx context.Context, userID uint, tokenType models.TokenType) error
+	// DeleteExpired deletes all expired tokens
+	DeleteExpired(ctx context.Context) error
 
-	// CountActiveTokensByUser cuenta los tokens activos de un usuario
-	CountActiveTokensByUser(ctx context.Context, userID uint, tokenType models.TokenType) (int64, error)
+	// InvalidateUserTokens invalidates all tokens of a specific type for a user
+	InvalidateUserTokens(ctx context.Context, userID uint, tokenType string) error
+
+	// CountActiveTokensByUser counts the number of active (non-expired, non-used) tokens for a user and type
+	CountActiveTokensByUser(ctx context.Context, userID uint, tokenType string) (int64, error)
 }

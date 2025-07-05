@@ -20,6 +20,9 @@ type UserService interface {
 	// GetUser retrieves a user by ID
 	GetUser(ctx context.Context, id uint) (*models.User, error)
 
+	// GetUserByEmail retrieves a user by email address
+	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
+
 	// ListUsers retrieves a paginated list of users
 	ListUsers(ctx context.Context, page, pageSize int) ([]*models.User, error)
 

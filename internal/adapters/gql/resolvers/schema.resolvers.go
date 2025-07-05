@@ -526,27 +526,27 @@ func (r *mutationResolver) ResetUserPassword(ctx context.Context, userID string,
 
 // SendVerificationEmail is the resolver for the sendVerificationEmail field.
 func (r *mutationResolver) SendVerificationEmail(ctx context.Context) (*model.MutationResponse, error) {
-	panic(fmt.Errorf("not implemented: SendVerificationEmail - sendVerificationEmail"))
+	return r.Resolver.SendVerificationEmail(ctx)
 }
 
 // VerifyEmail is the resolver for the verifyEmail field.
 func (r *mutationResolver) VerifyEmail(ctx context.Context, token string) (*model.MutationResponse, error) {
-	panic(fmt.Errorf("not implemented: VerifyEmail - verifyEmail"))
+	return r.Resolver.VerifyEmail(ctx, token)
 }
 
 // ResendVerificationEmail is the resolver for the resendVerificationEmail field.
 func (r *mutationResolver) ResendVerificationEmail(ctx context.Context, email string) (*model.MutationResponse, error) {
-	panic(fmt.Errorf("not implemented: ResendVerificationEmail - resendVerificationEmail"))
+	return r.Resolver.ResendVerificationEmail(ctx, email)
 }
 
 // RequestPasswordReset is the resolver for the requestPasswordReset field.
 func (r *mutationResolver) RequestPasswordReset(ctx context.Context, email string) (*model.MutationResponse, error) {
-	panic(fmt.Errorf("not implemented: RequestPasswordReset - requestPasswordReset"))
+	return r.Resolver.RequestPasswordReset(ctx, email)
 }
 
 // ResetPasswordWithToken is the resolver for the resetPasswordWithToken field.
 func (r *mutationResolver) ResetPasswordWithToken(ctx context.Context, token string, newPassword string) (*model.MutationResponse, error) {
-	panic(fmt.Errorf("not implemented: ResetPasswordWithToken - resetPasswordWithToken"))
+	return r.Resolver.ResetPasswordWithToken(ctx, token, newPassword)
 }
 
 // ID is the resolver for the id field.

@@ -26,15 +26,15 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/javicabdev/asam-backend/internal/adapters/db"
+	"github.com/javicabdev/asam-backend/internal/adapters/email"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/middleware"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
 	"github.com/javicabdev/asam-backend/internal/config"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/domain/services"
-	infrastructure "github.com/javicabdev/asam-backend/internal/infrastructure/email"
+
 	"github.com/javicabdev/asam-backend/internal/ports/input"
-	"github.com/javicabdev/asam-backend/internal/ports/output"
 	"github.com/javicabdev/asam-backend/pkg/auth"
 	"github.com/javicabdev/asam-backend/pkg/constants"
 	"github.com/javicabdev/asam-backend/pkg/logger"
@@ -112,13 +112,15 @@ type ServiceStatus struct {
 
 // appDependencies holds all major dependencies for the application.
 type appDependencies struct {
-	memberService       input.MemberService
-	familyService       input.FamilyService
-	paymentService      input.PaymentService
-	cashFlowService     input.CashFlowService
-	authService         input.AuthService
-	userService         input.UserService
-	notificationService input.NotificationService
+	memberService            input.MemberService
+	familyService            input.FamilyService
+	paymentService           input.PaymentService
+	cashFlowService          input.CashFlowService
+	authService              input.AuthService
+	userService              input.UserService
+	notificationService      input.NotificationService
+	emailVerificationService input.EmailVerificationService
+	emailNotificationService input.EmailNotificationService
 	// Monitoring components
 	queryMonitor    *monitoring.QueryMonitor
 	gqlTracer       *middleware.GraphQLTracer
@@ -502,30 +504,49 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 	// Initialize JWT utility
 	jwtUtil := auth.NewJWTUtil(cfg.JWTAccessSecret, cfg.JWTRefreshSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 
-	// Initialize email service
-	var emailService output.EmailService
+	// Initialize email notification service
+	var emailNotificationService input.EmailNotificationService
 	if cfg.SMTPUser != "" && cfg.SMTPPassword != "" {
-		smtpConfig := infrastructure.SMTPConfig{
+		smtpConfig := email.SMTPConfig{
 			Host:     cfg.SMTPServer,
-			Port:     fmt.Sprintf("%d", cfg.SMTPPort),
+			Port:     cfg.SMTPPort,
 			Username: cfg.SMTPUser,
 			Password: cfg.SMTPPassword,
 			From:     cfg.SMTPFromEmail,
-			UseTLS:   cfg.SMTPUseTLS,
 		}
-		emailService = infrastructure.NewSMTPEmailService(smtpConfig, appLogger)
-		appLogger.Info("Email service configured with SMTP")
+		emailNotificationService = email.NewSMTPAdapter(smtpConfig, appLogger)
+		appLogger.Info("Email service configured with SMTP",
+			zap.String("host", cfg.SMTPServer),
+			zap.Int("port", cfg.SMTPPort),
+			zap.String("from", cfg.SMTPFromEmail),
+		)
 	} else {
-		// In development or when SMTP is not configured, use mock email service
-		emailService = infrastructure.NewMockEmailService(appLogger)
-		appLogger.Warn("Using mock email service - emails will not be sent")
+		// Use mock email service when SMTP is not configured
+		emailNotificationService = email.NewMockNotificationAdapter(appLogger)
+		if cfg.Environment == constants.EnvDevelopment {
+			appLogger.Info("Using mock email service for development - emails will be logged")
+		} else {
+			appLogger.Warn("SMTP not configured in production - using mock email service")
+		}
 	}
 
 	// Initialize domain services
 	memberService := services.NewMemberService(memberRepo, appLogger, auditLogger)
 	familyService := services.NewFamilyService(familyRepo, memberRepo)
 
+	// Initialize email verification service (always available now)
+	emailVerificationService := services.NewEmailVerificationService(
+		appLogger,
+		emailNotificationService,
+		verificationTokenRepo,
+		userRepo,
+		cfg.BaseURL+"/verify-email",
+		cfg.BaseURL+"/reset-password",
+	)
+
 	// Initialize user service with all required dependencies
+	// Create adapter to satisfy the output.EmailService interface
+	emailService := &emailServiceAdapter{emailNotificationService}
 	userService := services.NewUserService(
 		userRepo,
 		verificationTokenRepo,
@@ -546,7 +567,7 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 	feeCalculator := services.NewFeeCalculator(30.0, 10.0, 1.0, 1.0)
 	paymentService := services.NewPaymentService(paymentRepo, membershipFeeRepo, memberRepo, notificationService, feeCalculator)
 	cashFlowService := services.NewCashFlowService(cashFlowRepo)
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, appLogger)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, appLogger)
 	serviceStatus.Auth.Store(true)
 
 	// Initialize monitoring components
@@ -588,18 +609,20 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 	}
 
 	return &appDependencies{
-		memberService:       memberService,
-		familyService:       familyService,
-		paymentService:      paymentService,
-		cashFlowService:     cashFlowService,
-		authService:         authService,
-		userService:         userService,
-		notificationService: notificationService,
-		queryMonitor:        queryMonitor,
-		gqlTracer:           gqlTracer,
-		memoryMonitor:       memoryMonitor,
-		profilingServer:     profilingServer,
-		serviceStatus:       serviceStatus,
+		memberService:            memberService,
+		familyService:            familyService,
+		paymentService:           paymentService,
+		cashFlowService:          cashFlowService,
+		authService:              authService,
+		userService:              userService,
+		notificationService:      notificationService,
+		emailVerificationService: emailVerificationService,
+		emailNotificationService: emailNotificationService,
+		queryMonitor:             queryMonitor,
+		gqlTracer:                gqlTracer,
+		memoryMonitor:            memoryMonitor,
+		profilingServer:          profilingServer,
+		serviceStatus:            serviceStatus,
 	}
 }
 
@@ -892,7 +915,10 @@ func setupApplicationComponents(state *appState, cfg *config.Config, database *g
 		deps.cashFlowService,
 		deps.authService,
 		deps.userService,
+		deps.emailVerificationService,
+		deps.emailNotificationService,
 		loginRateLimiter,
+		appLogger,
 	)
 
 	// Initialize GraphQL handler
@@ -1032,7 +1058,10 @@ func retryDatabaseConnection(ctx context.Context, state *appState, cfg *config.C
 				deps.cashFlowService,
 				deps.authService,
 				deps.userService,
+				deps.emailVerificationService,
+				deps.emailNotificationService,
 				loginRateLimiter,
+				appLogger,
 			)
 
 			// Initialize GraphQL handler
@@ -1191,4 +1220,53 @@ func main() {
 		return
 	}
 	fmt.Println("Application exited successfully.")
+}
+
+// emailServiceAdapter adapts EmailNotificationService to output.EmailService interface
+type emailServiceAdapter struct {
+	notificationService input.EmailNotificationService
+}
+
+// SendEmail implements output.EmailService
+func (a *emailServiceAdapter) SendEmail(ctx context.Context, to, subject, body string) error {
+	// Since the EmailNotificationService doesn't have a generic SendEmail method,
+	// we'll return an error indicating this should use specific methods
+	return fmt.Errorf("please use specific email methods (SendVerificationEmail, SendPasswordResetEmail, etc.)")
+}
+
+// SendHTMLEmail implements output.EmailService
+func (a *emailServiceAdapter) SendHTMLEmail(ctx context.Context, to, subject, htmlBody string) error {
+	// Since the EmailNotificationService doesn't have a generic SendHTMLEmail method,
+	// we'll return an error indicating this should use specific methods
+	return fmt.Errorf("please use specific email methods (SendVerificationEmail, SendPasswordResetEmail, etc.)")
+}
+
+// SendVerificationEmail implements output.EmailService
+func (a *emailServiceAdapter) SendVerificationEmail(ctx context.Context, to, userName, verificationURL string) error {
+	// Create a temporary user object with the necessary fields
+	user := &models.User{
+		Username: userName,
+		Email:    &to,
+	}
+	return a.notificationService.SendVerificationEmail(ctx, user, verificationURL)
+}
+
+// SendPasswordResetEmail implements output.EmailService
+func (a *emailServiceAdapter) SendPasswordResetEmail(ctx context.Context, to, userName, resetURL string) error {
+	// Create a temporary user object with the necessary fields
+	user := &models.User{
+		Username: userName,
+		Email:    &to,
+	}
+	return a.notificationService.SendPasswordResetEmail(ctx, user, resetURL)
+}
+
+// SendPasswordChangedEmail implements output.EmailService
+func (a *emailServiceAdapter) SendPasswordChangedEmail(ctx context.Context, to, userName string) error {
+	// Create a temporary user object with the necessary fields
+	user := &models.User{
+		Username: userName,
+		Email:    &to,
+	}
+	return a.notificationService.SendPasswordChangedEmail(ctx, user)
 }

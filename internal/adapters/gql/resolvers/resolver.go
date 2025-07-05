@@ -8,17 +8,21 @@ import (
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/pkg/auth"
 	"github.com/javicabdev/asam-backend/pkg/errors"
+	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
 // Resolver contiene las dependencias necesarias para los resolvers
 type Resolver struct {
-	memberService    input.MemberService
-	familyService    input.FamilyService
-	paymentService   input.PaymentService
-	cashFlowService  input.CashFlowService
-	authService      input.AuthService      // Añadimos authService
-	userService      input.UserService      // Añadimos userService
-	loginRateLimiter *auth.LoginRateLimiter // Añadimos rate limiter para login
+	memberService            input.MemberService
+	familyService            input.FamilyService
+	paymentService           input.PaymentService
+	cashFlowService          input.CashFlowService
+	authService              input.AuthService              // Añadimos authService
+	userService              input.UserService              // Añadimos userService
+	emailVerificationService input.EmailVerificationService // Añadimos email verification service
+	emailNotificationService input.EmailNotificationService // Añadimos email notification service
+	loginRateLimiter         *auth.LoginRateLimiter         // Añadimos rate limiter para login
+	logger                   logger.Logger                  // Añadimos logger
 }
 
 // NewResolver crea una nueva instancia del Resolver principal para GraphQL
@@ -30,16 +34,22 @@ func NewResolver(
 	cashFlowService input.CashFlowService,
 	authService input.AuthService, // Añadimos el parámetro
 	userService input.UserService, // Añadimos el servicio de usuarios
+	emailVerificationService input.EmailVerificationService, // Añadimos email verification
+	emailNotificationService input.EmailNotificationService, // Añadimos email notification
 	loginRateLimiter *auth.LoginRateLimiter, // Añadimos el rate limiter
+	logger logger.Logger, // Añadimos logger
 ) *Resolver {
 	return &Resolver{
-		memberService:    memberService,
-		familyService:    familyService,
-		paymentService:   paymentService,
-		cashFlowService:  cashFlowService,
-		authService:      authService,      // Asignamos el servicio
-		userService:      userService,      // Asignamos el servicio de usuarios
-		loginRateLimiter: loginRateLimiter, // Asignamos el rate limiter
+		memberService:            memberService,
+		familyService:            familyService,
+		paymentService:           paymentService,
+		cashFlowService:          cashFlowService,
+		authService:              authService,              // Asignamos el servicio
+		userService:              userService,              // Asignamos el servicio de usuarios
+		emailVerificationService: emailVerificationService, // Asignamos email verification
+		emailNotificationService: emailNotificationService, // Asignamos email notification
+		loginRateLimiter:         loginRateLimiter,         // Asignamos el rate limiter
+		logger:                   logger,                   // Asignamos logger
 	}
 }
 
@@ -153,4 +163,31 @@ func (r *Resolver) ChangePassword(ctx context.Context, input model.ChangePasswor
 // ResetUserPassword resets a user's password
 func (r *Resolver) ResetUserPassword(ctx context.Context, userID string, newPassword string) (*model.MutationResponse, error) {
 	return (&userResolver{r}).ResetUserPassword(ctx, userID, newPassword)
+}
+
+// Email methods (delegate to email_resolver.go)
+
+// SendVerificationEmail sends an email verification link to the current user
+func (r *Resolver) SendVerificationEmail(ctx context.Context) (*model.MutationResponse, error) {
+	return (&emailResolver{r}).SendVerificationEmail(ctx)
+}
+
+// VerifyEmail verifies a user's email address using a token
+func (r *Resolver) VerifyEmail(ctx context.Context, token string) (*model.MutationResponse, error) {
+	return (&emailResolver{r}).VerifyEmail(ctx, token)
+}
+
+// ResendVerificationEmail resends the verification email to a specific email address
+func (r *Resolver) ResendVerificationEmail(ctx context.Context, email string) (*model.MutationResponse, error) {
+	return (&emailResolver{r}).ResendVerificationEmail(ctx, email)
+}
+
+// RequestPasswordReset sends a password reset email
+func (r *Resolver) RequestPasswordReset(ctx context.Context, email string) (*model.MutationResponse, error) {
+	return (&emailResolver{r}).RequestPasswordReset(ctx, email)
+}
+
+// ResetPasswordWithToken resets a user's password using a valid reset token
+func (r *Resolver) ResetPasswordWithToken(ctx context.Context, token string, newPassword string) (*model.MutationResponse, error) {
+	return (&emailResolver{r}).ResetPasswordWithToken(ctx, token, newPassword)
 }
