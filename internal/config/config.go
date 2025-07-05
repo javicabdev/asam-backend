@@ -80,7 +80,7 @@ type Config struct {
 	TokenCleanupInterval time.Duration `env:"TOKEN_CLEANUP_INTERVAL,default=24h"`
 
 	// URL base de la aplicación
-	BaseURL string `env:"BASE_URL,default=http://localhost:8080"`
+	BaseURL string `env:"BASE_URL,default=http://localhost:5173"`
 }
 
 // LoadConfig carga las variables de entorno y las mapea a la estructura Config.

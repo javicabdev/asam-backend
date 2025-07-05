@@ -7,14 +7,9 @@ import (
 
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/pkg/constants"
 	"github.com/javicabdev/asam-backend/pkg/errors"
 )
-
-// Define un tipo personalizado para claves del contexto
-type contextKey string
-
-// Definir la clave para el token de autorización en el contexto
-const authorizationKey contextKey = "authorization"
 
 // authResolver contains auth-related resolvers
 type authResolver struct {
@@ -152,7 +147,7 @@ func getAccessTokenFromContext(ctx context.Context) (string, error) {
 	// Intentar obtener el token de las posibles ubicaciones en el contexto
 	var token string
 
-	if tokenVal, ok := ctx.Value(authorizationKey).(string); ok && tokenVal != "" {
+	if tokenVal, ok := ctx.Value(constants.AuthTokenContextKey).(string); ok && tokenVal != "" {
 		token = tokenVal
 	}
 

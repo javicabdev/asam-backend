@@ -20,11 +20,7 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
-// Tipo para las claves de contexto personalizadas
-type contextKey string
-
-// Clave personalizada para token de autorización
-const authTokenKey contextKey = "authorization"
+// Las claves del contexto se importan desde el paquete constants
 
 // publicOperations contiene las operaciones GraphQL que no requieren autenticación
 var publicOperations = map[string]bool{
@@ -34,6 +30,12 @@ var publicOperations = map[string]bool{
 	"IntrospectionQuery": true,
 	"health":             true,
 	"ping":               true,
+	// Email verification operations (no auth required)
+	"verifyEmail":             true,
+	"resendVerificationEmail": true,
+	// Password recovery operations (no auth required)
+	"requestPasswordReset":   true,
+	"resetPasswordWithToken": true,
 }
 
 // Regex patterns for detecting public operations (case-insensitive)
@@ -42,6 +44,14 @@ var (
 	authOperationsRegex = regexp.MustCompile(`(?i)mutation\s+(login|refreshtoken)\s*[({]`)
 	// Pattern for anonymous mutations with login/refreshToken
 	anonymousAuthRegex = regexp.MustCompile(`(?i)mutation\s*\{\s*(login|refreshtoken)\s*\(`)
+	// Pattern for email verification mutations
+	emailVerificationRegex = regexp.MustCompile(`(?i)mutation\s+(verifyemail|resendverificationemail)\s*[({]`)
+	// Pattern for anonymous email verification mutations
+	anonymousEmailVerificationRegex = regexp.MustCompile(`(?i)mutation\s*\{\s*(verifyemail|resendverificationemail)\s*\(`)
+	// Pattern for password reset mutations
+	passwordResetRegex = regexp.MustCompile(`(?i)mutation\s+(requestpasswordreset|resetpasswordwithtoken)\s*[({]`)
+	// Pattern for anonymous password reset mutations
+	anonymousPasswordResetRegex = regexp.MustCompile(`(?i)mutation\s*\{\s*(requestpasswordreset|resetpasswordwithtoken)\s*\(`)
 	// Pattern for introspection queries
 	introspectionRegex = regexp.MustCompile(`(?i)(query\s+introspectionquery|__schema|__type)`)
 	// Pattern for health check queries
@@ -78,7 +88,7 @@ func enrichContextWithUserInfo(ctx context.Context, user *models.User, token str
 	// Añadir información básica al contexto
 	ctx = context.WithValue(ctx, constants.UserContextKey, user)
 	ctx = context.WithValue(ctx, constants.AuthorizedContextKey, true)
-	ctx = context.WithValue(ctx, authTokenKey, token) // Para la función getAccessTokenFromContext
+	ctx = context.WithValue(ctx, constants.AuthTokenContextKey, token) // Para la función getAccessTokenFromContext
 
 	// Guardar información para auditoría
 	ctx = context.WithValue(ctx, constants.UserIDContextKey, user.ID)
@@ -136,7 +146,19 @@ func AuthMiddleware(authService input.AuthService, logger logger.Logger) func(ht
 			}
 
 			// Obtener y validar el token del header authorization
-			token, err := validateAuthHeader(r.Header.Get("authorization"))
+			authHeader := r.Header.Get("authorization")
+			logger.Debug("Auth header check",
+				zap.String("operation", operationName),
+				zap.Bool("hasAuthHeader", authHeader != ""),
+				zap.String("authHeaderPreview", func() string {
+					if len(authHeader) > 20 {
+						return authHeader[:20] + "..."
+					}
+					return authHeader
+				}()),
+			)
+
+			token, err := validateAuthHeader(authHeader)
 			if err != nil {
 				handleAuthFailure(w, err.Error(), logger, operationName, getClientIP(r), nil)
 				return
@@ -321,6 +343,10 @@ func checkByQueryContent(query string) (isPublic bool, operationName string) {
 	}{
 		{authOperationsRegex, "auth", 1},
 		{anonymousAuthRegex, "auth", 1},
+		{emailVerificationRegex, "emailVerification", 1},
+		{anonymousEmailVerificationRegex, "emailVerification", 1},
+		{passwordResetRegex, "passwordReset", 1},
+		{anonymousPasswordResetRegex, "passwordReset", 1},
 		{introspectionRegex, "introspection", 0},
 		{healthCheckRegex, "health", 1},
 	}

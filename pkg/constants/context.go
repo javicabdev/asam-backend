@@ -23,4 +23,6 @@ const (
 	IPAddressContextKey contextKey = "ip_address"
 	// RequestIDContextKey clave para el ID de la solicitud en el contexto
 	RequestIDContextKey contextKey = "request_id"
+	// AuthTokenContextKey clave para el token de autorización en el contexto
+	AuthTokenContextKey contextKey = "auth_token"
 )
