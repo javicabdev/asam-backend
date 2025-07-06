@@ -504,31 +504,22 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 	// Initialize JWT utility
 	jwtUtil := auth.NewJWTUtil(cfg.JWTAccessSecret, cfg.JWTRefreshSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 
-	// Initialize email notification service
-	var emailNotificationService input.EmailNotificationService
-	if cfg.SMTPUser != "" && cfg.SMTPPassword != "" {
-		smtpConfig := email.SMTPConfig{
-			Host:     cfg.SMTPServer,
-			Port:     cfg.SMTPPort,
-			Username: cfg.SMTPUser,
-			Password: cfg.SMTPPassword,
-			From:     cfg.SMTPFromEmail,
-		}
-		emailNotificationService = email.NewSMTPAdapter(smtpConfig, appLogger)
-		appLogger.Info("Email service configured with SMTP",
-			zap.String("host", cfg.SMTPServer),
-			zap.Int("port", cfg.SMTPPort),
-			zap.String("from", cfg.SMTPFromEmail),
-		)
-	} else {
-		// Use mock email service when SMTP is not configured
-		emailNotificationService = email.NewMockNotificationAdapter(appLogger)
-		if cfg.Environment == constants.EnvDevelopment {
-			appLogger.Info("Using mock email service for development - emails will be logged")
-		} else {
-			appLogger.Warn("SMTP not configured in production - using mock email service")
-		}
+	// Initialize email notification service.
+	// The check in run() guarantees that SMTP credentials are set, so we can initialize directly
+	// and have removed the previous 'if/else' block with the mock adapter.
+	smtpConfig := email.SMTPConfig{
+		Host:     cfg.SMTPServer,
+		Port:     cfg.SMTPPort,
+		Username: cfg.SMTPUser,
+		Password: cfg.SMTPPassword,
+		From:     cfg.SMTPFromEmail,
 	}
+	emailNotificationService := email.NewSMTPAdapter(smtpConfig, appLogger)
+	appLogger.Info("Email service configured with SMTP",
+		zap.String("host", cfg.SMTPServer),
+		zap.Int("port", cfg.SMTPPort),
+		zap.String("from", cfg.SMTPFromEmail),
+	)
 
 	// Initialize domain services
 	memberService := services.NewMemberService(memberRepo, appLogger, auditLogger)
@@ -1103,6 +1094,13 @@ func run(ctx context.Context) error {
 	appLogger.Info("Environment configuration",
 		zap.String("PORT", cfg.Port),
 		zap.String("ENVIRONMENT", cfg.Environment))
+
+	appLogger.Info("Validating critical configurations...")
+	if cfg.SMTPUser == "" || cfg.SMTPPassword == "" {
+		// Este error detendrá la ejecución de la aplicación si el SMTP no está configurado,
+		// independientemente del entorno.
+		return fmt.Errorf("FATAL: SMTP_USER and SMTP_PASSWORD must be configured. The application cannot start without them")
+	}
 
 	// Step 2: Setup and register Prometheus metrics early.
 	setupAndRegisterMetrics(appLogger)
