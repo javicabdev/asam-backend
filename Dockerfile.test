@@ -1,5 +1,5 @@
 # Dockerfile.test
-FROM golang:1.23-alpine
+FROM golang:1.24-alpine
 
 # Configurar repositorios Alpine para usar HTTP
 RUN echo 'http://dl-cdn.alpinelinux.org/alpine/v3.15/main' > /etc/apk/repositories && \
