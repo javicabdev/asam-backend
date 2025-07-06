@@ -139,14 +139,38 @@ func AuthMiddleware(authService input.AuthService, logger logger.Logger) func(ht
 
 			// Verificar si es una operación pública (login, refresh token, etc.)
 			isPublicOp, operationName := isPublicOperation(r)
+
+			// Obtener el header de autorización para logging
+			authHeader := r.Header.Get("authorization")
+
+			// Log detallado para sendVerificationEmail
+			if strings.Contains(strings.ToLower(operationName), "sendverification") {
+				logger.Info("AuthMiddleware: Processing sendVerificationEmail request",
+					zap.String("operation", operationName),
+					zap.Bool("isPublicOp", isPublicOp),
+					zap.String("authHeader", func() string {
+						if authHeader != "" {
+							if len(authHeader) > 20 {
+								return authHeader[:20] + "..."
+							}
+							return authHeader
+						}
+						return "NO AUTH HEADER"
+					}()),
+				)
+			}
+
 			if isPublicOp {
+				logger.Debug("Public operation detected",
+					zap.String("operation", operationName),
+				)
 				// Pasar el contexto con la información del cliente a las operaciones públicas
 				next.ServeHTTP(w, r)
 				return
 			}
 
 			// Obtener y validar el token del header authorization
-			authHeader := r.Header.Get("authorization")
+			// authHeader ya fue obtenido arriba para logging
 			logger.Debug("Auth header check",
 				zap.String("operation", operationName),
 				zap.Bool("hasAuthHeader", authHeader != ""),
@@ -204,6 +228,16 @@ func AuthMiddleware(authService input.AuthService, logger logger.Logger) func(ht
 				zap.String("ip", getClientIP(r)),
 			)
 
+			// Log específico para sendVerificationEmail
+			if strings.ToLower(operationName) == "sendverificationemail" {
+				logger.Info("Processing sendVerificationEmail with authenticated user",
+					zap.Uint("user_id", user.ID),
+					zap.String("username", user.Username),
+					zap.Bool("emailVerified", user.EmailVerified),
+					zap.Bool("hasEmail", user.Email != ""),
+				)
+			}
+
 			// Continuar con la solicitud
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -243,6 +277,15 @@ func isPublicOperation(r *http.Request) (isPublic bool, operationName string) {
 	request, err := parseGraphQLRequest(r)
 	if err != nil {
 		return false, err.Error()
+	}
+
+	// Log para debugging
+	if request != nil && request.OperationName == "SendVerificationEmail" {
+		log := zap.NewExample()
+		log.Debug("Processing SendVerificationEmail",
+			zap.String("operationName", request.OperationName),
+			zap.Bool("isInPublicOperations", publicOperations[strings.ToLower(request.OperationName)]),
+		)
 	}
 
 	// Verificar si es una operación pública

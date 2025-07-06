@@ -1246,7 +1246,7 @@ func (a *emailServiceAdapter) SendVerificationEmail(ctx context.Context, to, use
 	// Create a temporary user object with the necessary fields
 	user := &models.User{
 		Username: userName,
-		Email:    &to,
+		Email:    to,
 	}
 	return a.notificationService.SendVerificationEmail(ctx, user, verificationURL)
 }
@@ -1256,7 +1256,7 @@ func (a *emailServiceAdapter) SendPasswordResetEmail(ctx context.Context, to, us
 	// Create a temporary user object with the necessary fields
 	user := &models.User{
 		Username: userName,
-		Email:    &to,
+		Email:    to,
 	}
 	return a.notificationService.SendPasswordResetEmail(ctx, user, resetURL)
 }
@@ -1266,7 +1266,7 @@ func (a *emailServiceAdapter) SendPasswordChangedEmail(ctx context.Context, to, 
 	// Create a temporary user object with the necessary fields
 	user := &models.User{
 		Username: userName,
-		Email:    &to,
+		Email:    to,
 	}
 	return a.notificationService.SendPasswordChangedEmail(ctx, user)
 }

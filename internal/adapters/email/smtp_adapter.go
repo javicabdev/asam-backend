@@ -82,7 +82,7 @@ func (a *smtpAdapter) sendEmail(to, subject, body string) error {
 
 // SendVerificationEmail sends an email verification link to the user
 func (a *smtpAdapter) SendVerificationEmail(ctx context.Context, user *models.User, verificationURL string) error {
-	if user.Email == nil || *user.Email == "" {
+	if user.Email == "" {
 		return errors.NewValidationError("user email is empty", nil)
 	}
 
@@ -135,12 +135,12 @@ func (a *smtpAdapter) SendVerificationEmail(ctx context.Context, user *models.Us
 		return errors.Wrap(err, errors.ErrInternalError, "failed to generate email template")
 	}
 
-	return a.sendEmail(*user.Email, subject, buf.String())
+	return a.sendEmail(user.Email, subject, buf.String())
 }
 
 // SendPasswordResetEmail sends a password reset link to the user
 func (a *smtpAdapter) SendPasswordResetEmail(ctx context.Context, user *models.User, resetURL string) error {
-	if user.Email == nil || *user.Email == "" {
+	if user.Email == "" {
 		return errors.NewValidationError("user email is empty", nil)
 	}
 
@@ -197,12 +197,12 @@ func (a *smtpAdapter) SendPasswordResetEmail(ctx context.Context, user *models.U
 		return errors.Wrap(err, errors.ErrInternalError, "failed to generate email template")
 	}
 
-	return a.sendEmail(*user.Email, subject, buf.String())
+	return a.sendEmail(user.Email, subject, buf.String())
 }
 
 // SendWelcomeEmail sends a welcome email to a new user
 func (a *smtpAdapter) SendWelcomeEmail(ctx context.Context, user *models.User) error {
-	if user.Email == nil || *user.Email == "" {
+	if user.Email == "" {
 		return errors.NewValidationError("user email is empty", nil)
 	}
 
@@ -255,12 +255,12 @@ func (a *smtpAdapter) SendWelcomeEmail(ctx context.Context, user *models.User) e
 		return errors.Wrap(err, errors.ErrInternalError, "failed to generate email template")
 	}
 
-	return a.sendEmail(*user.Email, subject, buf.String())
+	return a.sendEmail(user.Email, subject, buf.String())
 }
 
 // SendPasswordChangedEmail sends a notification that password was changed
 func (a *smtpAdapter) SendPasswordChangedEmail(ctx context.Context, user *models.User) error {
-	if user.Email == nil || *user.Email == "" {
+	if user.Email == "" {
 		return errors.NewValidationError("user email is empty", nil)
 	}
 
@@ -315,5 +315,5 @@ func (a *smtpAdapter) SendPasswordChangedEmail(ctx context.Context, user *models
 		return errors.Wrap(err, errors.ErrInternalError, "failed to generate email template")
 	}
 
-	return a.sendEmail(*user.Email, subject, buf.String())
+	return a.sendEmail(user.Email, subject, buf.String())
 }

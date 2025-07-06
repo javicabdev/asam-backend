@@ -25,13 +25,8 @@ func NewMockNotificationAdapter(logger logger.Logger) input.EmailNotificationSer
 
 // SendVerificationEmail logs the verification email details
 func (m *mockNotificationAdapter) SendVerificationEmail(ctx context.Context, user *models.User, verificationURL string) error {
-	email := ""
-	if user.Email != nil {
-		email = *user.Email
-	}
-
 	m.logger.Info("MOCK EMAIL: Verification email",
-		zap.String("to", email),
+		zap.String("to", user.Email),
 		zap.String("username", user.Username),
 		zap.String("verification_url", verificationURL),
 	)
@@ -49,20 +44,15 @@ Por favor verifica tu correo electrónico visitando:
 
 Este enlace expirará en 24 horas.
 =========================
-`, email, user.Username, verificationURL))
+`, user.Email, user.Username, verificationURL))
 
 	return nil
 }
 
 // SendPasswordResetEmail logs the password reset email details
 func (m *mockNotificationAdapter) SendPasswordResetEmail(ctx context.Context, user *models.User, resetURL string) error {
-	email := ""
-	if user.Email != nil {
-		email = *user.Email
-	}
-
 	m.logger.Info("MOCK EMAIL: Password reset email",
-		zap.String("to", email),
+		zap.String("to", user.Email),
 		zap.String("username", user.Username),
 		zap.String("reset_url", resetURL),
 	)
@@ -81,20 +71,15 @@ Visita el siguiente enlace:
 
 Este enlace expirará en 1 hora.
 =========================
-`, email, user.Username, resetURL))
+`, user.Email, user.Username, resetURL))
 
 	return nil
 }
 
 // SendWelcomeEmail logs the welcome email details
 func (m *mockNotificationAdapter) SendWelcomeEmail(ctx context.Context, user *models.User) error {
-	email := ""
-	if user.Email != nil {
-		email = *user.Email
-	}
-
 	m.logger.Info("MOCK EMAIL: Welcome email",
-		zap.String("to", email),
+		zap.String("to", user.Email),
 		zap.String("username", user.Username),
 	)
 
@@ -115,20 +100,15 @@ Con tu cuenta puedes:
 - Acceder a los beneficios de la asociación
 - Mantenerte informado sobre las actividades
 =========================
-`, email, user.Username))
+`, user.Email, user.Username))
 
 	return nil
 }
 
 // SendPasswordChangedEmail logs the password changed notification
 func (m *mockNotificationAdapter) SendPasswordChangedEmail(ctx context.Context, user *models.User) error {
-	email := ""
-	if user.Email != nil {
-		email = *user.Email
-	}
-
 	m.logger.Info("MOCK EMAIL: Password changed notification",
-		zap.String("to", email),
+		zap.String("to", user.Email),
 		zap.String("username", user.Username),
 	)
 
@@ -146,7 +126,7 @@ ha sido actualizada exitosamente.
 Si no has realizado este cambio, por favor contacta 
 inmediatamente con el administrador del sistema.
 =========================
-`, email, user.Username))
+`, user.Email, user.Username))
 
 	return nil
 }

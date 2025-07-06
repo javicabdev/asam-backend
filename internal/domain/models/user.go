@@ -21,10 +21,10 @@ const (
 // User representa un usuario del sistema con autenticación
 type User struct {
 	gorm.Model
-	Username           string  `gorm:"uniqueIndex:uni_users_username;not null;size:100"`
-	Email              *string `gorm:"uniqueIndex:uni_users_email;size:255"`
-	Password           string  `gorm:"not null"`
-	Role               Role    `gorm:"type:varchar(20);not null;default:'user'"`
+	Username           string `gorm:"uniqueIndex:uni_users_username;not null;size:100"`
+	Email              string `gorm:"uniqueIndex:uni_users_email;not null;size:255"`
+	Password           string `gorm:"not null"`
+	Role               Role   `gorm:"type:varchar(20);not null;default:'user'"`
 	LastLogin          time.Time
 	IsActive           bool `gorm:"not null;default:true"`
 	EmailVerified      bool `gorm:"not null;default:false"`

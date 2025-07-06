@@ -22,8 +22,10 @@ import (
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/middleware"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
 	"github.com/javicabdev/asam-backend/internal/config"
+	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/pkg/auth"
+	"github.com/javicabdev/asam-backend/pkg/constants"
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/pkg/logger"
 	"github.com/javicabdev/asam-backend/pkg/metrics"
@@ -81,8 +83,49 @@ func NewHandler(
 		KeepAlivePingInterval: 10 * time.Second,
 	})
 
-	// Enable introspection
-	srv.Use(extension.Introspection{})
+	// Add a middleware to preserve HTTP context values
+	// This is critical for authentication to work properly
+	srv.Use(extension.FixedComplexityLimit(cfg.GQLComplexityLimit))
+
+	// Add field middleware to log context at field level
+	srv.AroundFields(middleware.FieldContextMiddleware(appLogger))
+
+	// Add middleware to clean __typename from inputs (for Apollo Client compatibility)
+	srv.AroundFields(middleware.TypenameCleanerMiddleware(appLogger))
+
+	// Use AroundOperations to ensure context is properly propagated
+	srv.AroundOperations(func(ctx context.Context, next graphql.OperationHandler) graphql.ResponseHandler {
+		// Extract operation name for logging
+		opCtx := graphql.GetOperationContext(ctx)
+		opName := "unknown"
+		if opCtx != nil {
+			opName = opCtx.OperationName
+		}
+
+		// Extract user from context if it exists
+		user, userOk := ctx.Value(constants.UserContextKey).(*models.User)
+		token, _ := ctx.Value(constants.AuthTokenContextKey).(string)
+		authorized, _ := ctx.Value(constants.AuthorizedContextKey).(bool)
+
+		// Log what we found
+		appLogger.Info("GraphQL AroundOperations: Context check",
+			zap.String("operation", opName),
+			zap.Bool("hasUser", userOk && user != nil),
+			zap.Bool("hasToken", token != ""),
+			zap.Bool("authorized", authorized),
+		)
+
+		if user != nil {
+			appLogger.Info("GraphQL AroundOperations: User found",
+				zap.Uint("userID", user.ID),
+				zap.String("username", user.Username),
+				zap.String("role", string(user.Role)),
+			)
+		}
+
+		// Continue with the operation
+		return next(ctx)
+	})
 
 	// Configurar error presenter que usa el mismo errorHandler
 	srv.SetErrorPresenter(func(ctx context.Context, err error) *gqlerror.Error {
@@ -131,18 +174,19 @@ func NewHandler(
 	var handlerChain http.Handler = srv
 
 	// Orden de middleware revisado para manejo de errores coherente:
-	handlerChain = transactionMiddleware.Handler(handlerChain) // Transacciones (más interno)
-	handlerChain = metricsMiddleware(handlerChain)             // Métricas después de las transacciones
+	// IMPORTANTE: El orden es crítico para la propagación del contexto
 
-	// El middleware de errores debe ir ANTES de middlewares que pueden generar errores
-	// pero después de middlewares que modifican el flujo (como transacciones)
-	handlerChain = errorHandler.Handler(handlerChain) // *** Error handling aquí ***
+	// Primero aplicamos el middleware de autenticación para que el contexto tenga el usuario
+	handlerChain = authMiddleware(handlerChain) // Autenticación JWT - establece el usuario en el contexto
 
-	handlerChain = authMiddleware(handlerChain)               // Autenticación JWT - errores manejados por errorHandler
-	handlerChain = validationMiddleware.Handler(handlerChain) // Validación
-	handlerChain = rateLimiter.Middleware(handlerChain)       // Rate limiting
-	handlerChain = recoveryMiddleware.Handler(handlerChain)   // Recuperación de pánicos - alimenta a errorHandler
-	handlerChain = securityHeaders.Middleware(handlerChain)   // Headers de seguridad
+	// Luego aplicamos los demás middlewares
+	handlerChain = transactionMiddleware.Handler(handlerChain) // Transacciones
+	handlerChain = metricsMiddleware(handlerChain)             // Métricas
+	handlerChain = errorHandler.Handler(handlerChain)          // Error handling
+	handlerChain = validationMiddleware.Handler(handlerChain)  // Validación
+	handlerChain = rateLimiter.Middleware(handlerChain)        // Rate limiting
+	handlerChain = recoveryMiddleware.Handler(handlerChain)    // Recuperación de pánicos
+	handlerChain = securityHeaders.Middleware(handlerChain)    // Headers de seguridad
 
 	// Crear handler de validación de función
 	methodHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

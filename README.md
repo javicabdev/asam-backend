@@ -9,6 +9,7 @@
 - [Manejo de Errores](docs/errs.md) - Sistema de manejo de errores
 - [Configuración de GCP](docs/gcp-project-setup.md) - Guía para configurar el proyecto en Google Cloud
 - [Configuración de GitHub Secrets](docs/github-secrets-setup.md) - Guía para configurar los secretos en GitHub
+- [Compatibilidad con Apollo Client](docs/apollo-client-compatibility.md) - Manejo del campo __typename para Apollo Client
 
 ## Pipeline de CI/CD
 

@@ -1313,3 +1313,9 @@ Para una documentación más detallada y específica para el desarrollo frontend
 ```
 https://asam-backend-jtpswzdxuq-ew.a.run.app/graphql
 ```
+
+## Compatibilidad con Apollo Client
+
+El backend maneja automáticamente el campo `__typename` que Apollo Client añade a todas las consultas y mutaciones. No es necesario realizar ninguna configuración especial en el frontend ni desactivar `__typename` en Apollo Client.
+
+Para más detalles, consulta la [documentación de compatibilidad con Apollo Client](../apollo-client-compatibility.md).
