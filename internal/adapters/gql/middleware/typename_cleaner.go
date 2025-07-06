@@ -27,7 +27,7 @@ func TypenameCleanerMiddleware(logger logger.Logger) graphql.FieldMiddleware {
 					logger.Debug("Cleaned __typename from argument",
 						zap.String("field", fc.Field.Name),
 						zap.String("argument", argName),
-						zap.String("operation", string(fc.Object)),
+						zap.String("operation", fc.Object),
 					)
 				}
 			}
