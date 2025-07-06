@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/smtp"
+	"strings"
 
 	"go.uber.org/zap"
 
@@ -40,6 +41,17 @@ func NewSMTPAdapter(config SMTPConfig, logger logger.Logger) input.EmailNotifica
 
 // sendEmail sends an email using SMTP
 func (a *smtpAdapter) sendEmail(to, subject, body string) error {
+	// Validate inputs to prevent SMTP injection
+	if strings.ContainsAny(to, "\r\n") {
+		return errors.NewValidationError("recipient email contains invalid characters", nil)
+	}
+	if strings.ContainsAny(subject, "\r\n") {
+		return errors.NewValidationError("subject contains invalid characters", nil)
+	}
+	if strings.ContainsAny(a.config.From, "\r\n") {
+		return errors.NewValidationError("sender email contains invalid characters", nil)
+	}
+
 	auth := smtp.PlainAuth("", a.config.Username, a.config.Password, a.config.Host)
 
 	// Compose the email
@@ -50,7 +62,7 @@ func (a *smtpAdapter) sendEmail(to, subject, body string) error {
 			"MIME-Version: 1.0\r\n"+
 			"Content-Type: text/html; charset=\"UTF-8\"\r\n"+
 			"\r\n"+
-			"%s\r\n",
+			"%s",
 		a.config.From,
 		to,
 		subject,
