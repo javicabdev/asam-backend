@@ -75,6 +75,12 @@ func NewHandler(
 	// Configurar el servidor GraphQL
 	srv := handler.New(schema)
 
+	// Habilitar introspección solo en desarrollo
+	if cfg.Environment == "development" {
+		srv.Use(extension.Introspection{})
+		appLogger.Info("GraphQL introspection enabled for development")
+	}
+
 	// Configure transport options to ensure all transports are properly enabled
 	srv.AddTransport(&transport.Options{})
 	srv.AddTransport(&transport.GET{})

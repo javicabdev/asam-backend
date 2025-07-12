@@ -51,14 +51,14 @@ func main() {
 		role     models.Role
 	}{
 		{
-			username: "admin@asam.org",
-			email:    "javierfernandezc+admin@gmail.com", // Using + addressing for unique emails
+			username: "admin",
+			email:    "javierfernandezc@gmail.com", // Using + addressing for unique emails
 			password: "admin123",
 			role:     models.RoleAdmin,
 		},
 		{
-			username: "user@asam.org",
-			email:    "javierfernandezc+user@gmail.com", // Using + addressing for unique emails
+			username: "user",
+			email:    "javicabanas@icloud.com", // Using + addressing for unique emails
 			password: "admin123",
 			role:     models.RoleUser,
 		},
@@ -75,8 +75,8 @@ func main() {
 
 	fmt.Println("\n✅ Test users created successfully!")
 	fmt.Println("You can login with:")
-	fmt.Println("  Admin: admin@asam.org / admin123 (email: javierfernandezc+admin@gmail.com)")
-	fmt.Println("  User:  user@asam.org / admin123 (email: javierfernandezc+user@gmail.com)")
+	fmt.Println("  Admin: admin / admin123 (email: javierfernandezc@gmail.com)")
+	fmt.Println("  User:  user/ admin123 (email: javicabanas@icloud.com)")
 }
 
 func createOrUpdateUser(db *gorm.DB, username, email, password string, role models.Role) error {

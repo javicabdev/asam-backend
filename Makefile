@@ -38,9 +38,22 @@ help:
 .PHONY: dev
 dev:
 	@echo "🚀 Starting development environment..."
-	@$(DOCKER_COMPOSE) up -d
-	@echo "✅ Development environment started"
-	@echo "📝 GraphQL Playground: http://localhost:8080/playground"
+	@if grep -qi microsoft /proc/version 2>/dev/null && command -v docker 2>&1 | grep -q "wincred" ; then \
+		echo "🔧 Detected WSL with Docker credential issues, using alternative method..."; \
+		chmod +x start-docker-wsl.sh; \
+		./start-docker-wsl.sh; \
+	else \
+		$(DOCKER_COMPOSE) up -d; \
+		echo "✅ Development environment started"; \
+		echo "📝 GraphQL Playground: http://localhost:8080/playground"; \
+	fi
+
+## dev-wsl: Start development environment using direct Docker commands (for WSL issues)
+.PHONY: dev-wsl
+dev-wsl:
+	@echo "🚀 Starting development environment with WSL workaround..."
+	@chmod +x start-docker-wsl.sh
+	@./start-docker-wsl.sh
 
 ## dev-setup: Complete setup (start, migrate, seed)
 .PHONY: dev-setup
@@ -62,8 +75,20 @@ dev-logs:
 .PHONY: dev-stop
 dev-stop:
 	@echo "🛑 Stopping development environment..."
-	@$(DOCKER_COMPOSE) down
-	@echo "✅ Development environment stopped"
+	@if grep -qi microsoft /proc/version 2>/dev/null && [ -f stop-docker-wsl.sh ]; then \
+		chmod +x stop-docker-wsl.sh; \
+		./stop-docker-wsl.sh; \
+	else \
+		$(DOCKER_COMPOSE) down; \
+		echo "✅ Development environment stopped"; \
+	fi
+
+## dev-stop-wsl: Stop development environment using direct Docker commands (for WSL issues)
+.PHONY: dev-stop-wsl
+dev-stop-wsl:
+	@echo "🛑 Stopping development environment with WSL workaround..."
+	@chmod +x stop-docker-wsl.sh
+	@./stop-docker-wsl.sh
 
 ## dev-restart: Restart development environment
 .PHONY: dev-restart
