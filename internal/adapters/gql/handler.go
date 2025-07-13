@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"time"
 
+	"fmt"
+
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
@@ -113,19 +115,35 @@ func NewHandler(
 		token, _ := ctx.Value(constants.AuthTokenContextKey).(string)
 		authorized, _ := ctx.Value(constants.AuthorizedContextKey).(bool)
 
-		// Log what we found
-		appLogger.Info("GraphQL AroundOperations: Context check",
-			zap.String("operation", opName),
-			zap.Bool("hasUser", userOk && user != nil),
-			zap.Bool("hasToken", token != ""),
-			zap.Bool("authorized", authorized),
-		)
+		// Enhanced logging for sendVerificationEmail
+		if opName == "SendVerificationEmail" || opName == "sendVerificationEmail" {
+			appLogger.Info("[GRAPHQL-DEBUG] SendVerificationEmail operation context",
+				zap.String("operation", opName),
+				zap.Bool("hasUser", userOk && user != nil),
+				zap.Bool("hasToken", token != ""),
+				zap.Bool("authorized", authorized),
+				zap.Bool("userContextKeyExists", ctx.Value(constants.UserContextKey) != nil),
+				zap.String("userContextType", fmt.Sprintf("%T", ctx.Value(constants.UserContextKey))),
+			)
 
-		if user != nil {
-			appLogger.Info("GraphQL AroundOperations: User found",
-				zap.Uint("userID", user.ID),
-				zap.String("username", user.Username),
-				zap.String("role", string(user.Role)),
+			if user != nil {
+				appLogger.Info("[GRAPHQL-DEBUG] User details in context",
+					zap.Uint("userID", user.ID),
+					zap.String("username", user.Username),
+					zap.String("email", user.Email),
+					zap.Bool("emailVerified", user.EmailVerified),
+					zap.String("role", string(user.Role)),
+				)
+			} else {
+				appLogger.Error("[GRAPHQL-DEBUG] User is nil in context for SendVerificationEmail")
+			}
+		} else {
+			// Log normal operations
+			appLogger.Debug("GraphQL AroundOperations: Context check",
+				zap.String("operation", opName),
+				zap.Bool("hasUser", userOk && user != nil),
+				zap.Bool("hasToken", token != ""),
+				zap.Bool("authorized", authorized),
 			)
 		}
 

@@ -86,8 +86,15 @@ func (j *JWTUtil) GenerateTokenPair(userID uint, role string) (*TokenDetails, er
 // ValidateToken valida un token JWT
 func (j *JWTUtil) ValidateToken(tokenString string, isRefreshToken bool) (*jwt.Token, error) {
 	secret := j.accessSecret
+	tokenType := "access"
 	if isRefreshToken {
 		secret = j.refreshSecret
+		tokenType = "refresh"
+	}
+
+	// Log token validation attempt (only in development)
+	if tokenString != "" && len(tokenString) > 20 {
+		fmt.Printf("[JWT-DEBUG] Validating %s token: %s...%s\n", tokenType, tokenString[:10], tokenString[len(tokenString)-4:])
 	}
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
@@ -98,7 +105,32 @@ func (j *JWTUtil) ValidateToken(tokenString string, isRefreshToken bool) (*jwt.T
 	})
 
 	if err != nil {
+		// Enhanced error logging
+		if ve, ok := err.(*jwt.ValidationError); ok {
+			if ve.Errors&jwt.ValidationErrorMalformed != 0 {
+				fmt.Printf("[JWT-DEBUG] Token is malformed\n")
+			} else if ve.Errors&jwt.ValidationErrorExpired != 0 {
+				// Try to extract expiration time
+				if token != nil {
+					if claims, ok := token.Claims.(jwt.MapClaims); ok {
+						if exp, ok := claims["exp"].(float64); ok {
+							expTime := time.Unix(int64(exp), 0)
+							fmt.Printf("[JWT-DEBUG] Token expired at: %v (current time: %v)\n", expTime, time.Now())
+						}
+					}
+				}
+			} else if ve.Errors&jwt.ValidationErrorNotValidYet != 0 {
+				fmt.Printf("[JWT-DEBUG] Token is not valid yet\n")
+			} else {
+				fmt.Printf("[JWT-DEBUG] Token validation error: %v\n", ve.Inner)
+			}
+		}
 		return nil, err
+	}
+
+	// Log successful validation
+	if token != nil && token.Valid {
+		fmt.Printf("[JWT-DEBUG] Token validated successfully\n")
 	}
 
 	return token, nil

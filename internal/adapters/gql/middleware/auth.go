@@ -3,9 +3,12 @@
 package middleware
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"regexp"
 	"strings"
@@ -16,40 +19,32 @@ import (
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/pkg/constants"
-	"github.com/javicabdev/asam-backend/pkg/errors"
+	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
-// publicOperations contiene las operaciones GraphQL que no requieren autenticación
+// publicOperations contiene las operaciones GraphQL que no requieren autenticación.
+// CORRECCIÓN: Todas las claves están ahora en minúsculas para que coincidan con la comprobación `strings.ToLower`.
 var publicOperations = map[string]bool{
 	"login":                   true,
-	"refreshToken":            true,
+	"refreshtoken":            true,
 	"introspection":           true,
-	"IntrospectionQuery":      true,
+	"introspectionquery":      true,
 	"health":                  true,
 	"ping":                    true,
-	"verifyEmail":             true,
-	"resendVerificationEmail": true,
-	"requestPasswordReset":    true,
-	"resetPasswordWithToken":  true,
+	"verifyemail":             true,
+	"resendverificationemail": true,
+	"requestpasswordreset":    true,
+	"resetpasswordwithtoken":  true,
 }
 
-// Regex patterns for detecting public operations (case-insensitive)
-var (
-	authOperationsRegex             = regexp.MustCompile(`(?i)mutation\s+(login|refreshtoken)\s*[({]`)
-	anonymousAuthRegex              = regexp.MustCompile(`(?i)mutation\s*\{\s*(login|refreshtoken)\s*\(`)
-	emailVerificationRegex          = regexp.MustCompile(`(?i)mutation\s+(verifyemail|resendverificationemail)\s*[({]`)
-	anonymousEmailVerificationRegex = regexp.MustCompile(`(?i)mutation\s*\{\s*(verifyemail|resendverificationemail)\s*\(`)
-	passwordResetRegex              = regexp.MustCompile(`(?i)mutation\s+(requestpasswordreset|resetpasswordwithtoken)\s*[({]`)
-	anonymousPasswordResetRegex     = regexp.MustCompile(`(?i)mutation\s*\{\s*(requestpasswordreset|resetpasswordwithtoken)\s*\(`)
-	introspectionRegex              = regexp.MustCompile(`(?i)(query\s+introspectionquery|__schema|__type)`)
-	healthCheckRegex                = regexp.MustCompile(`(?i)query\s+(health|ping)\s*[({]|\{\s*(health|ping)\s*}`)
-	operationNameRegex              = regexp.MustCompile(`(?i)^\s*(query|mutation|subscription)\s+(\w+)`)
-)
+// gqlRequestBody is used to decode the operation name and query from the request body.
+type gqlRequestBody struct {
+	OperationName string `json:"operationName"`
+	Query         string `json:"query"`
+}
 
 // AuthMiddleware es el punto de entrada del middleware de autenticación.
-// Su única responsabilidad es delegar el manejo de la petición a una función de lógica dedicada.
-// Esto mantiene el código limpio y reduce la complejidad ciclomática.
 func AuthMiddleware(authService input.AuthService, logger logger.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -59,29 +54,41 @@ func AuthMiddleware(authService input.AuthService, logger logger.Logger) func(ht
 }
 
 // handleAuthRequest es el orquestador principal de la lógica de autenticación.
-// Decide si una petición debe pasar directamente, si es pública, o si necesita validación de token.
 func handleAuthRequest(w http.ResponseWriter, r *http.Request, next http.Handler, authService input.AuthService, logger logger.Logger) {
-	// 1. Peticiones exentas (OPTIONS, playground) no necesitan más procesamiento.
 	if isExemptRequest(r) {
+
 		next.ServeHTTP(w, r)
 		return
 	}
 
-	// 2. Determinar si la operación es pública (login, etc.).
-	isPublic, operationName := isPublicOperation(r)
-	if isPublic {
-		logger.Debug("Public operation detected, skipping token validation", zap.String("operation", operationName))
+	operationName, err := getOperationName(r)
+	if err != nil {
+		logger.Error("[AUTH] Could not parse GraphQL request", zap.Error(err))
+		respondWithBadRequest(w, "Invalid GraphQL request body")
+		return
+	}
+
+	if operationName == "" {
+		logger.Warn("[AUTH] Could not determine operation name. Rejecting as Bad Request.",
+			zap.String("path", r.URL.Path),
+			zap.String("method", r.Method),
+			zap.String("ip", getClientIP(r)),
+		)
+		respondWithBadRequest(w, "Bad Request: Could not determine GraphQL operation.")
+		return
+	}
+
+	if publicOperations[strings.ToLower(operationName)] {
+
 		next.ServeHTTP(w, r)
 		return
 	}
 
-	// 3. Si no es exenta ni pública, es una operación privada que requiere autenticación.
 	handlePrivateOperation(w, r, next, authService, logger, operationName)
 }
 
 // handlePrivateOperation gestiona la lógica para operaciones que requieren un token válido.
 func handlePrivateOperation(w http.ResponseWriter, r *http.Request, next http.Handler, authService input.AuthService, logger logger.Logger, operationName string) {
-	// a. Validar el encabezado de autorización y extraer el token.
 	authHeader := r.Header.Get("authorization")
 	token, err := validateAuthHeader(authHeader)
 	if err != nil {
@@ -89,77 +96,93 @@ func handlePrivateOperation(w http.ResponseWriter, r *http.Request, next http.Ha
 		return
 	}
 
-	// b. Validar el token con el servicio de autenticación.
 	user, err := authService.ValidateToken(r.Context(), token)
 	if err != nil {
 		msg := "Token inválido o expirado"
-		if appErr, ok := errors.AsAppError(err); ok {
+		if appErr, ok := appErrors.AsAppError(err); ok {
 			msg = appErr.Message
 		}
 		handleAuthFailure(w, msg, logger, operationName, getClientIP(r), err)
 		return
 	}
 
-	// c. Éxito: Enriquecer el contexto con la información del usuario y continuar.
-	ctx := enrichContextWithUserInfo(r.Context(), user, token, getClientIP(r), r.UserAgent())
+	if user == nil {
+		handleAuthFailure(w, "Token válido pero no se encontró el usuario", logger, operationName, getClientIP(r), nil)
+		return
+	}
 
-	logger.Debug("Authenticated access successful",
-		zap.Uint("user_id", user.ID),
-		zap.String("username", user.Username),
-		zap.String("role", string(user.Role)),
-		zap.String("operation", operationName),
-		zap.String("ip", getClientIP(r)),
-	)
+	ctx := enrichContextWithUserInfo(r.Context(), user, token, getClientIP(r), r.UserAgent())
 
 	next.ServeHTTP(w, r.WithContext(ctx))
 }
 
-// --- FUNCIONES AUXILIARES (Sin cambios respecto al original) ---
+// --- Package-Shared Helper Functions ---
 
-// isExemptRequest verifica si la petición está exenta de autenticación por su naturaleza.
-func isExemptRequest(r *http.Request) bool {
-	return r.Method == http.MethodOptions ||
-		r.URL.Path == "/playground" ||
-		r.URL.Path == "/graphql/playground" ||
-		strings.HasSuffix(r.URL.Path, "/playground")
+var operationNameRegex = regexp.MustCompile(`(?i)(?:mutation|query)\s+(\w+)`)
+
+func getOperationName(r *http.Request) (string, error) {
+	if r.Method != http.MethodPost || r.Body == nil {
+		return "", nil
+	}
+
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading request body: %w", err)
+	}
+	r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	if len(bodyBytes) == 0 {
+		return "", nil
+	}
+
+	var reqBody gqlRequestBody
+	if err := json.Unmarshal(bodyBytes, &reqBody); err != nil {
+		return "", fmt.Errorf("error unmarshaling gql request body: %w", err)
+	}
+
+	if reqBody.OperationName != "" {
+		return reqBody.OperationName, nil
+	}
+
+	if reqBody.Query != "" {
+		matches := operationNameRegex.FindStringSubmatch(reqBody.Query)
+		if len(matches) > 1 {
+			return matches[1], nil
+		}
+	}
+
+	return "", nil
 }
 
-// validateAuthHeader valida el encabezado de autorización y extrae el token.
-func validateAuthHeader(authHeader string) (token string, err error) {
-	if authHeader == "" {
-		return "", errors.NewUnauthorizedError()
-	}
+func isExemptRequest(r *http.Request) bool {
+	return r.Method == http.MethodOptions ||
+		strings.Contains(r.URL.Path, "playground")
+}
 
+func validateAuthHeader(authHeader string) (string, error) {
+	if authHeader == "" {
+		return "", appErrors.NewUnauthorizedError()
+	}
 	parts := strings.Split(authHeader, " ")
 	if len(parts) != 2 || !strings.EqualFold(parts[0], "bearer") || parts[1] == "" {
-		return "", errors.NewUnauthorizedError()
+		return "", appErrors.NewUnauthorizedError()
 	}
-
 	return parts[1], nil
 }
 
-// enrichContextWithUserInfo enriquece el contexto con información del usuario.
-func enrichContextWithUserInfo(ctx context.Context, user *models.User, token string, clientIP string, userAgent string) context.Context {
+func enrichContextWithUserInfo(ctx context.Context, user *models.User, token, clientIP, userAgent string) context.Context {
 	ctx = context.WithValue(ctx, constants.UserContextKey, user)
 	ctx = context.WithValue(ctx, constants.AuthorizedContextKey, true)
 	ctx = context.WithValue(ctx, constants.AuthTokenContextKey, token)
 	ctx = context.WithValue(ctx, constants.UserIDContextKey, user.ID)
 	ctx = context.WithValue(ctx, constants.UserRoleContextKey, user.Role)
-	if ip := ctx.Value(constants.IPContextKey); ip == nil && clientIP != "" {
-		ctx = context.WithValue(ctx, constants.IPContextKey, clientIP)
-	}
-	if ua := ctx.Value(constants.UserAgentContextKey); ua == nil && userAgent != "" {
-		ctx = context.WithValue(ctx, constants.UserAgentContextKey, userAgent)
-	}
+	ctx = context.WithValue(ctx, constants.IPContextKey, clientIP)
+	ctx = context.WithValue(ctx, constants.UserAgentContextKey, userAgent)
 	return ctx
 }
 
-// handleAuthFailure maneja fallos de autenticación registrando el error y respondiendo al cliente.
-func handleAuthFailure(w http.ResponseWriter, msg string, logger logger.Logger, operation string, clientIP string, err error) {
-	logFields := []zap.Field{
-		zap.String("operation", operation),
-		zap.String("ip", clientIP),
-	}
+func handleAuthFailure(w http.ResponseWriter, msg string, logger logger.Logger, operation, clientIP string, err error) {
+	logFields := []zap.Field{zap.String("operation", operation), zap.String("ip", clientIP)}
 	if err != nil {
 		logFields = append(logFields, zap.Error(err))
 	}
@@ -167,122 +190,48 @@ func handleAuthFailure(w http.ResponseWriter, msg string, logger logger.Logger, 
 	respondWithAuthError(w, msg)
 }
 
-// getClientIP obtiene la dirección IP real del cliente.
 func getClientIP(r *http.Request) string {
 	if xForwardedFor := r.Header.Get("X-Forwarded-For"); xForwardedFor != "" {
-		ips := strings.Split(xForwardedFor, ",")
-		if len(ips) > 0 {
-			return strings.TrimSpace(ips[0])
-		}
-	}
-	return strings.Split(r.RemoteAddr, ":")[0]
-}
-
-type gqlRequest struct {
-	OperationName string `json:"operationName"`
-	Query         string `json:"query"`
-}
-
-// isPublicOperation determina si la operación GraphQL es pública leyendo el cuerpo de la petición.
-func isPublicOperation(r *http.Request) (isPublic bool, operationName string) {
-	if r.Method != http.MethodPost {
-		return true, "non-graphql-request"
+		return strings.TrimSpace(strings.Split(xForwardedFor, ",")[0])
 	}
 
-	bodyBytes, err := io.ReadAll(r.Body)
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return false, "read-error"
+		return strings.TrimSpace(r.RemoteAddr)
 	}
-	r.Body = io.NopCloser(strings.NewReader(string(bodyBytes))) // Restore body
-
-	if len(bodyBytes) == 0 {
-		return false, "empty-body"
-	}
-
-	var req gqlRequest
-	if err := json.Unmarshal(bodyBytes, &req); err != nil {
-		// If unmarshal fails, it might be a query without variables. Check with regex.
-		isPublic, opName := checkByQueryContent(string(bodyBytes))
-		return isPublic, opName
-	}
-
-	if isPublic, opName := checkByOperationName(req.OperationName); isPublic {
-		return true, opName
-	}
-
-	if req.Query != "" {
-		return checkByQueryContent(req.Query)
-	}
-
-	return false, req.OperationName
+	return ip
 }
 
-// checkByOperationName verifica si el nombre de la operación es público.
-func checkByOperationName(name string) (isPublic bool, operationName string) {
-	if name == "" {
-		return false, ""
-	}
-	if publicOperations[strings.ToLower(name)] {
-		return true, name
-	}
-	return false, name
-}
-
-// checkByQueryContent verifica el contenido de la query usando regex.
-func checkByQueryContent(query string) (isPublic bool, operationName string) {
-	patterns := []struct {
-		regex       *regexp.Regexp
-		defaultName string
-	}{
-		{authOperationsRegex, "login"},
-		{anonymousAuthRegex, "login"},
-		{emailVerificationRegex, "emailVerification"},
-		{anonymousEmailVerificationRegex, "emailVerification"},
-		{passwordResetRegex, "passwordReset"},
-		{anonymousPasswordResetRegex, "passwordReset"},
-		{introspectionRegex, "introspection"},
-		{healthCheckRegex, "health"},
-	}
-
-	for _, p := range patterns {
-		if p.regex.MatchString(query) {
-			matches := p.regex.FindStringSubmatch(query)
-			opName := p.defaultName
-			if len(matches) > 1 {
-				opName = strings.ToLower(matches[1])
-			}
-			return true, opName
-		}
-	}
-
-	matches := operationNameRegex.FindStringSubmatch(query)
-	if len(matches) > 2 {
-		extractedName := strings.ToLower(matches[2])
-		if publicOperations[extractedName] {
-			return true, extractedName
-		}
-		return false, extractedName
-	}
-
-	return false, ""
-}
-
-// respondWithAuthError envía una respuesta de error de autenticación en formato GraphQL.
 func respondWithAuthError(w http.ResponseWriter, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusUnauthorized)
-
 	response := map[string]any{
 		"errors": []gqlerror.Error{
 			{
 				Message: message,
 				Extensions: map[string]any{
-					"code": errors.ErrUnauthorized,
+					"code": appErrors.ErrUnauthorized,
 				},
 			},
 		},
 		"data": nil,
 	}
+	_ = json.NewEncoder(w).Encode(response)
+}
 
+func respondWithBadRequest(w http.ResponseWriter, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	response := map[string]any{
+		"errors": []gqlerror.Error{
+			{
+				Message: message,
+				Extensions: map[string]any{
+					"code": "BAD_REQUEST",
+				},
+			},
+		},
+		"data": nil,
+	}
 	_ = json.NewEncoder(w).Encode(response)
 }

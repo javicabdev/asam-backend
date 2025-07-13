@@ -64,6 +64,18 @@ func (r *userRepository) FindByUsername(ctx context.Context, username string) (*
 	return &user, nil
 }
 
+func (r *userRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
+	var user models.User
+	result := r.db.WithContext(ctx).Where("email = ?", email).First(&user)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil // Consistent pattern: nil, nil for "not found"
+		}
+		return nil, appErrors.DB(result.Error, "Error finding user by email")
+	}
+	return &user, nil
+}
+
 func (r *userRepository) Update(ctx context.Context, user *models.User) error {
 	result := r.db.WithContext(ctx).Save(user)
 	if result.Error != nil {

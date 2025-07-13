@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -197,9 +198,22 @@ func (s *emailVerificationService) SendVerificationEmailToUser(ctx context.Conte
 
 // SendPasswordResetEmailToUser generates a token and sends reset email
 func (s *emailVerificationService) SendPasswordResetEmailToUser(ctx context.Context, user *models.User) error {
+
+	// Determine which email to use
+	// If username is an email, use that; otherwise use the email field
+	emailToUse := user.Email
+	if strings.Contains(user.Username, "@") {
+		emailToUse = user.Username
+
+	} else if emailToUse == "" {
+		s.logger.Error("User has no email address", zap.Uint("userID", user.ID))
+		return errors.NewBusinessError(errors.ErrInvalidRequest, "user has no email address")
+	}
+
 	// Generate reset token
 	token, err := s.GeneratePasswordResetToken(ctx, user.ID)
 	if err != nil {
+		s.logger.Error("Failed to generate reset token", zap.Uint("userID", user.ID), zap.Error(err))
 		return err
 	}
 
@@ -207,7 +221,12 @@ func (s *emailVerificationService) SendPasswordResetEmailToUser(ctx context.Cont
 	resetURL := fmt.Sprintf("%s?token=%s", s.resetBaseURL, token)
 
 	// Send email
-	if err := s.emailNotifier.SendPasswordResetEmail(ctx, user, resetURL); err != nil {
+
+	// Create a copy of the user with the correct email
+	userCopy := *user
+	userCopy.Email = emailToUse // Use the determined email
+
+	if err := s.emailNotifier.SendPasswordResetEmail(ctx, &userCopy, resetURL); err != nil {
 		s.logger.Error("Failed to send password reset email", zap.Uint("userID", user.ID), zap.Error(err))
 		return errors.Wrap(err, errors.ErrInternalError, "failed to send password reset email")
 	}

@@ -318,12 +318,28 @@ func (s *userService) GetUserByEmail(ctx context.Context, email string) (*models
 		return nil, err
 	}
 
-	// Find user by email (username)
+	// First, try to find user by username (in case username is the email)
 	user, err := s.userRepo.FindByUsername(ctx, email)
+	if err != nil {
+		return nil, errors.DB(err, "error finding user by username")
+	}
+
+	// If found by username, return it
+	if user != nil {
+
+		// Clear password before returning
+		user.Password = ""
+		return user, nil
+	}
+
+	// If not found by username, try to find by email field
+	user, err = s.userRepo.FindByEmail(ctx, email)
 	if err != nil {
 		return nil, errors.DB(err, "error finding user by email")
 	}
+
 	if user == nil {
+
 		return nil, errors.NewNotFoundError("user")
 	}
 
@@ -897,9 +913,7 @@ func (s *userService) validatePassword(password string) error {
 
 	// Log recommendation if no special characters
 	if !complexity.hasSpecial {
-		s.logger.Debug("Password does not contain special characters",
-			zap.String("recommendation", "Consider adding special characters for better security"),
-		)
+
 	}
 
 	return nil

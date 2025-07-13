@@ -41,14 +41,18 @@ func NewSMTPAdapter(config SMTPConfig, logger logger.Logger) input.EmailNotifica
 
 // sendEmail sends an email using SMTP
 func (a *smtpAdapter) sendEmail(to, subject, body string) error {
+
 	// Validate inputs to prevent SMTP injection
 	if strings.ContainsAny(to, "\r\n") {
+		a.logger.Error("Invalid recipient email", zap.String("to", to))
 		return errors.NewValidationError("recipient email contains invalid characters", nil)
 	}
 	if strings.ContainsAny(subject, "\r\n") {
+		a.logger.Error("Invalid subject", zap.String("subject", subject))
 		return errors.NewValidationError("subject contains invalid characters", nil)
 	}
 	if strings.ContainsAny(a.config.From, "\r\n") {
+		a.logger.Error("Invalid sender email", zap.String("from", a.config.From))
 		return errors.NewValidationError("sender email contains invalid characters", nil)
 	}
 
@@ -71,12 +75,12 @@ func (a *smtpAdapter) sendEmail(to, subject, body string) error {
 
 	// Send the email
 	addr := fmt.Sprintf("%s:%d", a.config.Host, a.config.Port)
+
 	if err := smtp.SendMail(addr, auth, a.config.From, []string{to}, msg); err != nil {
-		a.logger.Error("Failed to send email", zap.String("to", to), zap.String("subject", subject), zap.Error(err))
+		a.logger.Error("Failed to send email via SMTP", zap.String("to", to), zap.Error(err))
 		return errors.Wrap(err, errors.ErrNetworkError, "failed to send email")
 	}
 
-	a.logger.Info("Email sent successfully", zap.String("to", to), zap.String("subject", subject))
 	return nil
 }
 
@@ -140,7 +144,9 @@ func (a *smtpAdapter) SendVerificationEmail(ctx context.Context, user *models.Us
 
 // SendPasswordResetEmail sends a password reset link to the user
 func (a *smtpAdapter) SendPasswordResetEmail(ctx context.Context, user *models.User, resetURL string) error {
+
 	if user.Email == "" {
+		a.logger.Error("User email is empty", zap.Uint("userID", user.ID))
 		return errors.NewValidationError("user email is empty", nil)
 	}
 
@@ -194,6 +200,7 @@ func (a *smtpAdapter) SendPasswordResetEmail(ctx context.Context, user *models.U
 		"ResetURL": resetURL,
 	})
 	if err != nil {
+		a.logger.Error("Failed to generate email template", zap.Error(err))
 		return errors.Wrap(err, errors.ErrInternalError, "failed to generate email template")
 	}
 

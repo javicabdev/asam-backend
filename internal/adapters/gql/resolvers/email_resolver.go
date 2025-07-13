@@ -19,34 +19,6 @@ type emailResolver struct {
 
 // SendVerificationEmail sends an email verification link to the current user
 func (r *emailResolver) SendVerificationEmail(ctx context.Context) (*model.MutationResponse, error) {
-	// Log all context values at the very beginning
-	r.logger.Info("SendVerificationEmail: START - Checking all context values",
-		zap.Bool("hasUserContext", ctx.Value(constants.UserContextKey) != nil),
-		zap.Bool("isAuthorized", ctx.Value(constants.AuthorizedContextKey) != nil),
-		zap.Bool("hasAuthToken", ctx.Value(constants.AuthTokenContextKey) != nil),
-		zap.Bool("hasUserID", ctx.Value(constants.UserIDContextKey) != nil),
-		zap.Bool("hasUserRole", ctx.Value(constants.UserRoleContextKey) != nil),
-		zap.Bool("hasClientIP", ctx.Value(constants.IPContextKey) != nil),
-	)
-
-	// Try to extract and log user details if present
-	if userVal := ctx.Value(constants.UserContextKey); userVal != nil {
-		if user, ok := userVal.(*models.User); ok && user != nil {
-			r.logger.Info("SendVerificationEmail: User found in context!",
-				zap.Uint("userID", user.ID),
-				zap.String("username", user.Username),
-				zap.String("role", string(user.Role)),
-				zap.Bool("emailVerified", user.EmailVerified),
-				zap.Bool("hasEmail", user.Email != ""),
-			)
-		} else {
-			r.logger.Error("SendVerificationEmail: User context exists but wrong type",
-				zap.String("actualType", fmt.Sprintf("%T", userVal)),
-			)
-		}
-	} else {
-		r.logger.Error("SendVerificationEmail: User context is completely nil")
-	}
 
 	// Get current user from context
 	user, ok := ctx.Value(constants.UserContextKey).(*models.User)
@@ -178,9 +150,21 @@ func (r *emailResolver) ResendVerificationEmail(ctx context.Context, email strin
 
 // RequestPasswordReset sends a password reset email
 func (r *emailResolver) RequestPasswordReset(ctx context.Context, email string) (*model.MutationResponse, error) {
-	// Find user by email
+	// Log the start of password reset request
+	r.logger.Info("[PASSWORD-RESET] RequestPasswordReset called",
+		zap.String("email", email),
+		zap.String("clientIP", fmt.Sprintf("%v", ctx.Value(constants.IPContextKey))),
+	)
+
+	// Find user by email (now with cascade search: username first, then email field)
+	r.logger.Debug("[PASSWORD-RESET] Looking up user by email", zap.String("email", email))
 	user, err := r.userService.GetUserByEmail(ctx, email)
 	if err != nil {
+		r.logger.Warn("[PASSWORD-RESET] User not found or error occurred",
+			zap.String("email", email),
+			zap.Error(err),
+			zap.String("errorType", fmt.Sprintf("%T", err)),
+		)
 		// Don't reveal if email exists or not for security
 		msg := "If an account exists with this email, a password reset link will be sent"
 		//nolint:nilerr // Intentionally returning nil error for security reasons
@@ -190,10 +174,30 @@ func (r *emailResolver) RequestPasswordReset(ctx context.Context, email string) 
 		}, nil
 	}
 
+	// Log user found
+	r.logger.Info("[PASSWORD-RESET] User found, preparing to send reset email",
+		zap.Uint("userID", user.ID),
+		zap.String("username", user.Username),
+		zap.String("email", user.Email),
+		zap.Bool("emailVerified", user.EmailVerified),
+		zap.Bool("isActive", user.IsActive),
+	)
+
 	// Send password reset email
+	r.logger.Debug("[PASSWORD-RESET] Calling SendPasswordResetEmailToUser")
 	if err := r.emailVerificationService.SendPasswordResetEmailToUser(ctx, user); err != nil {
 		// Log error but return success for security
-		r.logger.Error("Failed to send password reset email", zap.String("email", email), zap.Error(err))
+		r.logger.Error("[PASSWORD-RESET] Failed to send password reset email",
+			zap.String("email", email),
+			zap.Uint("userID", user.ID),
+			zap.Error(err),
+			zap.String("errorType", fmt.Sprintf("%T", err)),
+		)
+	} else {
+		r.logger.Info("[PASSWORD-RESET] SendPasswordResetEmailToUser completed successfully",
+			zap.String("email", email),
+			zap.Uint("userID", user.ID),
+		)
 	}
 
 	msg := "If an account exists with this email, a password reset link will be sent"

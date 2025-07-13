@@ -768,12 +768,10 @@ func setupHTTPHandler(cfg *config.Config, state *appState) http.Handler {
 	registerRoutes(mux, cfg, state)
 
 	// Apply global middlewares
-	return clientInfoMiddleware( // Capture client info first
-		requestIDMiddleware(
-			securityHeadersMiddleware(
-				rateLimitMiddleware(cfg.RateLimitRPS)(
-					prometheusMiddleware(mux),
-				),
+	return requestIDMiddleware(
+		securityHeadersMiddleware(
+			rateLimitMiddleware(cfg.RateLimitRPS)(
+				prometheusMiddleware(mux),
 			),
 		),
 	)
@@ -1091,6 +1089,18 @@ func run(ctx context.Context) error {
 		zap.String("commit", Commit),
 		zap.String("build_time", BuildTime),
 	)
+
+	// Log current log level for debugging
+	logLevel := "INFO"
+	if cfg.Environment == constants.EnvDevelopment {
+		logLevel = "DEBUG"
+	}
+	appLogger.Info("[PASSWORD-RESET] Logger initialized",
+		zap.String("logLevel", logLevel),
+		zap.String("environment", cfg.Environment),
+		zap.String("GO_ENV", os.Getenv("GO_ENV")),
+	)
+
 	appLogger.Info("Environment configuration",
 		zap.String("PORT", cfg.Port),
 		zap.String("ENVIRONMENT", cfg.Environment))

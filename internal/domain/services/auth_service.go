@@ -4,6 +4,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -274,34 +275,65 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*i
 }
 
 func (s *authService) ValidateToken(ctx context.Context, tokenString string) (*models.User, error) {
+
 	// 1. Validar token
 	token, err := s.jwtUtil.ValidateToken(tokenString, false)
 	if err != nil {
+
 		return nil, errors.Wrap(err, errors.ErrUnauthorized, "token inválido")
 	}
 
 	// 2. Extraer claims
 	claims, err := s.jwtUtil.ExtractClaims(token)
 	if err != nil {
+
 		return nil, errors.Wrap(err, errors.ErrInternalError, "error extrayendo claims")
 	}
 
 	// 3. Obtener user_id
 	userID, ok := claims["user_id"].(float64)
 	if !ok {
-		return nil, errors.NewBusinessError(errors.ErrUnauthorized, "user_id no encontrado en token")
+		// Try to get user_id as other types
+		var userIDInt uint
+		switch v := claims["user_id"].(type) {
+		case int:
+			userIDInt = uint(v)
+		case int64:
+			userIDInt = uint(v)
+		case uint:
+			userIDInt = v
+		case uint64:
+			userIDInt = uint(v)
+		default:
+
+			return nil, errors.NewBusinessError(errors.ErrUnauthorized, "user_id no encontrado en token")
+		}
+		userID = float64(userIDInt)
 	}
 
 	// 4. Buscar usuario
 	user, err := s.userRepo.FindByID(ctx, uint(userID))
 	if err != nil {
+
 		return nil, errors.DB(err, "error obteniendo usuario")
 	}
 	if user == nil {
+
 		return nil, errors.NewBusinessError(errors.ErrNotFound, "usuario no encontrado")
 	}
 
 	return user, nil
+}
+
+// maskTokenForLog masks a token for safe logging
+func maskTokenForLog(token string) string {
+	if token == "" {
+		return "<empty>"
+	}
+	if len(token) < 20 {
+		return "<short-token>"
+	}
+	return fmt.Sprintf("%s...%s", token[:10], token[len(token)-4:])
 }
 
 // ResetPasswordWithToken resets a user's password using a valid reset token
