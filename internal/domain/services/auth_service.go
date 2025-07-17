@@ -4,7 +4,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -219,6 +218,11 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*i
 		return nil, errors.NewBusinessError(errors.ErrUnauthorized, "user_id no encontrado en token")
 	}
 
+	// Validate that userID is not negative before conversion to uint
+	if userID < 0 {
+		return nil, errors.NewBusinessError(errors.ErrUnauthorized, "invalid user_id: negative value")
+	}
+
 	// 4. Verificar token en BD
 	err = s.tokenRepo.ValidateRefreshToken(ctx, refreshUUID, uint(userID))
 	if err != nil {
@@ -297,8 +301,16 @@ func (s *authService) ValidateToken(ctx context.Context, tokenString string) (*m
 		var userIDInt uint
 		switch v := claims["user_id"].(type) {
 		case int:
+			// Validate that the value is not negative before conversion
+			if v < 0 {
+				return nil, errors.NewBusinessError(errors.ErrUnauthorized, "invalid user_id: negative value")
+			}
 			userIDInt = uint(v)
 		case int64:
+			// Validate that the value is not negative before conversion
+			if v < 0 {
+				return nil, errors.NewBusinessError(errors.ErrUnauthorized, "invalid user_id: negative value")
+			}
 			userIDInt = uint(v)
 		case uint:
 			userIDInt = v
@@ -309,6 +321,11 @@ func (s *authService) ValidateToken(ctx context.Context, tokenString string) (*m
 			return nil, errors.NewBusinessError(errors.ErrUnauthorized, "user_id no encontrado en token")
 		}
 		userID = float64(userIDInt)
+	}
+
+	// Validate that userID is not negative before conversion to uint
+	if userID < 0 {
+		return nil, errors.NewBusinessError(errors.ErrUnauthorized, "invalid user_id: negative value")
 	}
 
 	// 4. Buscar usuario
@@ -323,17 +340,6 @@ func (s *authService) ValidateToken(ctx context.Context, tokenString string) (*m
 	}
 
 	return user, nil
-}
-
-// maskTokenForLog masks a token for safe logging
-func maskTokenForLog(token string) string {
-	if token == "" {
-		return "<empty>"
-	}
-	if len(token) < 20 {
-		return "<short-token>"
-	}
-	return fmt.Sprintf("%s...%s", token[:10], token[len(token)-4:])
 }
 
 // ResetPasswordWithToken resets a user's password using a valid reset token
