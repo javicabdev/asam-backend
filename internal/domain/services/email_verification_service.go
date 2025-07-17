@@ -198,13 +198,11 @@ func (s *emailVerificationService) SendVerificationEmailToUser(ctx context.Conte
 
 // SendPasswordResetEmailToUser generates a token and sends reset email
 func (s *emailVerificationService) SendPasswordResetEmailToUser(ctx context.Context, user *models.User) error {
-
 	// Determine which email to use
 	// If username is an email, use that; otherwise use the email field
 	emailToUse := user.Email
 	if strings.Contains(user.Username, "@") {
 		emailToUse = user.Username
-
 	} else if emailToUse == "" {
 		s.logger.Error("User has no email address", zap.Uint("userID", user.ID))
 		return errors.NewBusinessError(errors.ErrInvalidRequest, "user has no email address")

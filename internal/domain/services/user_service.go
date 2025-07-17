@@ -326,7 +326,6 @@ func (s *userService) GetUserByEmail(ctx context.Context, email string) (*models
 
 	// If found by username, return it
 	if user != nil {
-
 		// Clear password before returning
 		user.Password = ""
 		return user, nil
@@ -339,7 +338,6 @@ func (s *userService) GetUserByEmail(ctx context.Context, email string) (*models
 	}
 
 	if user == nil {
-
 		return nil, errors.NewNotFoundError("user")
 	}
 
@@ -909,11 +907,6 @@ func (s *userService) validatePassword(password string) error {
 	// Validate complexity requirements
 	if err := s.validatePasswordComplexity(complexity); err != nil {
 		return err
-	}
-
-	// Log recommendation if no special characters
-	if !complexity.hasSpecial {
-
 	}
 
 	return nil

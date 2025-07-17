@@ -56,7 +56,6 @@ func AuthMiddleware(authService input.AuthService, logger logger.Logger) func(ht
 // handleAuthRequest es el orquestador principal de la lógica de autenticación.
 func handleAuthRequest(w http.ResponseWriter, r *http.Request, next http.Handler, authService input.AuthService, logger logger.Logger) {
 	if isExemptRequest(r) {
-
 		next.ServeHTTP(w, r)
 		return
 	}
@@ -79,7 +78,6 @@ func handleAuthRequest(w http.ResponseWriter, r *http.Request, next http.Handler
 	}
 
 	if publicOperations[strings.ToLower(operationName)] {
-
 		next.ServeHTTP(w, r)
 		return
 	}

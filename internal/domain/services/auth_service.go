@@ -279,18 +279,15 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*i
 }
 
 func (s *authService) ValidateToken(ctx context.Context, tokenString string) (*models.User, error) {
-
 	// 1. Validar token
 	token, err := s.jwtUtil.ValidateToken(tokenString, false)
 	if err != nil {
-
 		return nil, errors.Wrap(err, errors.ErrUnauthorized, "token inválido")
 	}
 
 	// 2. Extraer claims
 	claims, err := s.jwtUtil.ExtractClaims(token)
 	if err != nil {
-
 		return nil, errors.Wrap(err, errors.ErrInternalError, "error extrayendo claims")
 	}
 
@@ -331,11 +328,9 @@ func (s *authService) ValidateToken(ctx context.Context, tokenString string) (*m
 	// 4. Buscar usuario
 	user, err := s.userRepo.FindByID(ctx, uint(userID))
 	if err != nil {
-
 		return nil, errors.DB(err, "error obteniendo usuario")
 	}
 	if user == nil {
-
 		return nil, errors.NewBusinessError(errors.ErrNotFound, "usuario no encontrado")
 	}
 

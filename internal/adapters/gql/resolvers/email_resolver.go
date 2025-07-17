@@ -19,7 +19,6 @@ type emailResolver struct {
 
 // SendVerificationEmail sends an email verification link to the current user
 func (r *emailResolver) SendVerificationEmail(ctx context.Context) (*model.MutationResponse, error) {
-
 	// Get current user from context
 	user, ok := ctx.Value(constants.UserContextKey).(*models.User)
 	if !ok || user == nil {

@@ -41,7 +41,6 @@ func NewSMTPAdapter(config SMTPConfig, logger logger.Logger) input.EmailNotifica
 
 // sendEmail sends an email using SMTP
 func (a *smtpAdapter) sendEmail(to, subject, body string) error {
-
 	// Validate inputs to prevent SMTP injection
 	if strings.ContainsAny(to, "\r\n") {
 		a.logger.Error("Invalid recipient email", zap.String("to", to))
@@ -144,7 +143,6 @@ func (a *smtpAdapter) SendVerificationEmail(ctx context.Context, user *models.Us
 
 // SendPasswordResetEmail sends a password reset link to the user
 func (a *smtpAdapter) SendPasswordResetEmail(ctx context.Context, user *models.User, resetURL string) error {
-
 	if user.Email == "" {
 		a.logger.Error("User email is empty", zap.Uint("userID", user.ID))
 		return errors.NewValidationError("user email is empty", nil)
