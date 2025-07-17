@@ -107,9 +107,10 @@ func (j *JWTUtil) ValidateToken(tokenString string, isRefreshToken bool) (*jwt.T
 	if err != nil {
 		// Enhanced error logging
 		if ve, ok := err.(*jwt.ValidationError); ok {
-			if ve.Errors&jwt.ValidationErrorMalformed != 0 {
+			switch {
+			case ve.Errors&jwt.ValidationErrorMalformed != 0:
 				fmt.Printf("[JWT-DEBUG] Token is malformed\n")
-			} else if ve.Errors&jwt.ValidationErrorExpired != 0 {
+			case ve.Errors&jwt.ValidationErrorExpired != 0:
 				// Try to extract expiration time
 				if token != nil {
 					if claims, ok := token.Claims.(jwt.MapClaims); ok {
@@ -119,9 +120,9 @@ func (j *JWTUtil) ValidateToken(tokenString string, isRefreshToken bool) (*jwt.T
 						}
 					}
 				}
-			} else if ve.Errors&jwt.ValidationErrorNotValidYet != 0 {
+			case ve.Errors&jwt.ValidationErrorNotValidYet != 0:
 				fmt.Printf("[JWT-DEBUG] Token is not valid yet\n")
-			} else {
+			default:
 				fmt.Printf("[JWT-DEBUG] Token validation error: %v\n", ve.Inner)
 			}
 		}
