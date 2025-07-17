@@ -167,7 +167,6 @@ func (r *emailResolver) RequestPasswordReset(ctx context.Context, email string) 
 		)
 		// Don't reveal if email exists or not for security
 		msg := "If an account exists with this email, a password reset link will be sent"
-		//nolint:nilerr // Intentionally returning nil error for security reasons
 		return &model.MutationResponse{
 			Success: true,
 			Message: &msg,
