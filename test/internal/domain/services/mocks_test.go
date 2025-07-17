@@ -41,6 +41,14 @@ func (m *MockUserRepository) Update(ctx context.Context, user *models.User) erro
 	return args.Error(0)
 }
 
+func (m *MockUserRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
+	args := m.Called(ctx, email)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.User), args.Error(1)
+}
+
 // MockVerificationTokenRepository es un mock del repositorio de tokens de verificación
 type MockVerificationTokenRepository struct {
 	mock.Mock
@@ -51,7 +59,7 @@ func (m *MockVerificationTokenRepository) Create(ctx context.Context, token *mod
 	return args.Error(0)
 }
 
-func (m *MockVerificationTokenRepository) FindByToken(ctx context.Context, token string) (*models.VerificationToken, error) {
+func (m *MockVerificationTokenRepository) GetByToken(ctx context.Context, token string) (*models.VerificationToken, error) {
 	args := m.Called(ctx, token)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -64,19 +72,32 @@ func (m *MockVerificationTokenRepository) Update(ctx context.Context, token *mod
 	return args.Error(0)
 }
 
-func (m *MockVerificationTokenRepository) DeleteExpiredTokens(ctx context.Context) error {
+func (m *MockVerificationTokenRepository) DeleteExpired(ctx context.Context) error {
 	args := m.Called(ctx)
 	return args.Error(0)
 }
 
-func (m *MockVerificationTokenRepository) DeleteUserTokensByType(ctx context.Context, userID uint, tokenType models.TokenType) error {
+func (m *MockVerificationTokenRepository) InvalidateUserTokens(ctx context.Context, userID uint, tokenType string) error {
 	args := m.Called(ctx, userID, tokenType)
 	return args.Error(0)
 }
 
-func (m *MockVerificationTokenRepository) CountActiveTokensByUser(ctx context.Context, userID uint, tokenType models.TokenType) (int64, error) {
+func (m *MockVerificationTokenRepository) CountActiveTokensByUser(ctx context.Context, userID uint, tokenType string) (int64, error) {
 	args := m.Called(ctx, userID, tokenType)
 	return args.Get(0).(int64), args.Error(1)
+}
+
+func (m *MockVerificationTokenRepository) Delete(ctx context.Context, id uint) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *MockVerificationTokenRepository) GetByUserIDAndType(ctx context.Context, userID uint, tokenType string) ([]*models.VerificationToken, error) {
+	args := m.Called(ctx, userID, tokenType)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*models.VerificationToken), args.Error(1)
 }
 
 // MockEmailService es un mock del servicio de email

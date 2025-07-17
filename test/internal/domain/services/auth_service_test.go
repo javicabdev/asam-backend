@@ -76,10 +76,12 @@ func TestAuthService_Login_Success(t *testing.T) {
 	// Arrange
 	userRepo := new(MockUserRepository)
 	tokenRepo := new(MockTokenRepository)
+	verificationTokenRepo := new(test.MockVerificationTokenRepository)
+	emailVerificationService := new(test.MockEmailVerificationService)
 	jwtUtil := createTestJWTUtil()
 	logger := &test.MockLogger{}
 
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, logger)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, logger)
 
 	ctx := context.Background()
 	username := "testuser"
@@ -114,10 +116,12 @@ func TestAuthService_Login_UserNotFound(t *testing.T) {
 	// Arrange
 	userRepo := new(MockUserRepository)
 	tokenRepo := new(MockTokenRepository)
+	verificationTokenRepo := new(test.MockVerificationTokenRepository)
+	emailVerificationService := new(test.MockEmailVerificationService)
 	jwtUtil := createTestJWTUtil()
 	logger := &test.MockLogger{}
 
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, logger)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, logger)
 
 	ctx := context.Background()
 	username := "nonexistent"
@@ -145,10 +149,12 @@ func TestAuthService_Login_InvalidPassword(t *testing.T) {
 	// Arrange
 	userRepo := new(MockUserRepository)
 	tokenRepo := new(MockTokenRepository)
+	verificationTokenRepo := new(test.MockVerificationTokenRepository)
+	emailVerificationService := new(test.MockEmailVerificationService)
 	jwtUtil := createTestJWTUtil()
 	logger := &test.MockLogger{}
 
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, logger)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, logger)
 
 	ctx := context.Background()
 	username := "testuser"
@@ -177,10 +183,12 @@ func TestAuthService_Login_InactiveUser(t *testing.T) {
 	// Arrange
 	userRepo := new(MockUserRepository)
 	tokenRepo := new(MockTokenRepository)
+	verificationTokenRepo := new(test.MockVerificationTokenRepository)
+	emailVerificationService := new(test.MockEmailVerificationService)
 	jwtUtil := createTestJWTUtil()
 	logger := &test.MockLogger{}
 
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, logger)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, logger)
 
 	ctx := context.Background()
 	username := "testuser"
@@ -209,10 +217,12 @@ func TestAuthService_Login_DatabaseError(t *testing.T) {
 	// Arrange
 	userRepo := new(MockUserRepository)
 	tokenRepo := new(MockTokenRepository)
+	verificationTokenRepo := new(test.MockVerificationTokenRepository)
+	emailVerificationService := new(test.MockEmailVerificationService)
 	jwtUtil := createTestJWTUtil()
 	logger := &test.MockLogger{}
 
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, logger)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, logger)
 
 	ctx := context.Background()
 	username := "testuser"
@@ -241,10 +251,12 @@ func TestAuthService_Login_SaveRefreshTokenError(t *testing.T) {
 	// Arrange
 	userRepo := new(MockUserRepository)
 	tokenRepo := new(MockTokenRepository)
+	verificationTokenRepo := new(test.MockVerificationTokenRepository)
+	emailVerificationService := new(test.MockEmailVerificationService)
 	jwtUtil := createTestJWTUtil()
 	logger := &test.MockLogger{}
 
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, logger)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, logger)
 
 	ctx := context.Background()
 	username := "testuser"
@@ -276,10 +288,12 @@ func TestAuthService_Login_WithContextInfo(t *testing.T) {
 	// Arrange
 	userRepo := new(MockUserRepository)
 	tokenRepo := new(MockTokenRepository)
+	verificationTokenRepo := new(test.MockVerificationTokenRepository)
+	emailVerificationService := new(test.MockEmailVerificationService)
 	jwtUtil := createTestJWTUtil()
 	logger := &test.MockLogger{}
 
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, logger)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, logger)
 
 	// Context with additional info
 	ctx := context.Background()
@@ -313,10 +327,12 @@ func TestAuthService_Logout_Success(t *testing.T) {
 	// Arrange
 	userRepo := new(MockUserRepository)
 	tokenRepo := new(MockTokenRepository)
+	verificationTokenRepo := new(test.MockVerificationTokenRepository)
+	emailVerificationService := new(test.MockEmailVerificationService)
 	jwtUtil := createTestJWTUtil()
 	logger := &test.MockLogger{}
 
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, logger)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, logger)
 
 	ctx := context.Background()
 	// Generar un token válido para el test
@@ -339,10 +355,12 @@ func TestAuthService_Logout_InvalidToken(t *testing.T) {
 	// Arrange
 	userRepo := new(MockUserRepository)
 	tokenRepo := new(MockTokenRepository)
+	verificationTokenRepo := new(test.MockVerificationTokenRepository)
+	emailVerificationService := new(test.MockEmailVerificationService)
 	jwtUtil := createTestJWTUtil()
 	logger := &test.MockLogger{}
 
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, logger)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, logger)
 
 	ctx := context.Background()
 	accessToken := "invalid-access-token"
@@ -363,10 +381,12 @@ func TestAuthService_Logout_DeleteRefreshTokenError(t *testing.T) {
 	// Arrange
 	userRepo := new(MockUserRepository)
 	tokenRepo := new(MockTokenRepository)
+	verificationTokenRepo := new(test.MockVerificationTokenRepository)
+	emailVerificationService := new(test.MockEmailVerificationService)
 	jwtUtil := createTestJWTUtil()
 	logger := &test.MockLogger{}
 
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, logger)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, logger)
 
 	ctx := context.Background()
 	// Generar un token válido para el test
@@ -396,10 +416,12 @@ func TestAuthService_RefreshToken_Success(t *testing.T) {
 	// Arrange
 	userRepo := new(MockUserRepository)
 	tokenRepo := new(MockTokenRepository)
+	verificationTokenRepo := new(test.MockVerificationTokenRepository)
+	emailVerificationService := new(test.MockEmailVerificationService)
 	jwtUtil := createTestJWTUtil()
 	logger := &test.MockLogger{}
 
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, logger)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, logger)
 
 	ctx := context.Background()
 	userID := uint(1)
@@ -436,10 +458,12 @@ func TestAuthService_RefreshToken_InvalidToken(t *testing.T) {
 	// Arrange
 	userRepo := new(MockUserRepository)
 	tokenRepo := new(MockTokenRepository)
+	verificationTokenRepo := new(test.MockVerificationTokenRepository)
+	emailVerificationService := new(test.MockEmailVerificationService)
 	jwtUtil := createTestJWTUtil()
 	logger := &test.MockLogger{}
 
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, logger)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, logger)
 
 	ctx := context.Background()
 	refreshToken := "invalid-refresh-token"
@@ -461,10 +485,12 @@ func TestAuthService_RefreshToken_TokenNotInDB(t *testing.T) {
 	// Arrange
 	userRepo := new(MockUserRepository)
 	tokenRepo := new(MockTokenRepository)
+	verificationTokenRepo := new(test.MockVerificationTokenRepository)
+	emailVerificationService := new(test.MockEmailVerificationService)
 	jwtUtil := createTestJWTUtil()
 	logger := &test.MockLogger{}
 
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, logger)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, logger)
 
 	ctx := context.Background()
 	userID := uint(1)
@@ -496,10 +522,12 @@ func TestAuthService_RefreshToken_UserNotFound(t *testing.T) {
 	// Arrange
 	userRepo := new(MockUserRepository)
 	tokenRepo := new(MockTokenRepository)
+	verificationTokenRepo := new(test.MockVerificationTokenRepository)
+	emailVerificationService := new(test.MockEmailVerificationService)
 	jwtUtil := createTestJWTUtil()
 	logger := &test.MockLogger{}
 
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, logger)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, logger)
 
 	ctx := context.Background()
 	userID := uint(1)
@@ -533,10 +561,12 @@ func TestAuthService_ValidateToken_Success(t *testing.T) {
 	// Arrange
 	userRepo := new(MockUserRepository)
 	tokenRepo := new(MockTokenRepository)
+	verificationTokenRepo := new(test.MockVerificationTokenRepository)
+	emailVerificationService := new(test.MockEmailVerificationService)
 	jwtUtil := createTestJWTUtil()
 	logger := &test.MockLogger{}
 
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, logger)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, logger)
 
 	ctx := context.Background()
 	userID := uint(1)
@@ -566,10 +596,12 @@ func TestAuthService_ValidateToken_InvalidToken(t *testing.T) {
 	// Arrange
 	userRepo := new(MockUserRepository)
 	tokenRepo := new(MockTokenRepository)
+	verificationTokenRepo := new(test.MockVerificationTokenRepository)
+	emailVerificationService := new(test.MockEmailVerificationService)
 	jwtUtil := createTestJWTUtil()
 	logger := &test.MockLogger{}
 
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, logger)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, logger)
 
 	ctx := context.Background()
 	tokenString := "invalid-access-token"
@@ -591,10 +623,12 @@ func TestAuthService_ValidateToken_UserNotFound(t *testing.T) {
 	// Arrange
 	userRepo := new(MockUserRepository)
 	tokenRepo := new(MockTokenRepository)
+	verificationTokenRepo := new(test.MockVerificationTokenRepository)
+	emailVerificationService := new(test.MockEmailVerificationService)
 	jwtUtil := createTestJWTUtil()
 	logger := &test.MockLogger{}
 
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, logger)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, logger)
 
 	ctx := context.Background()
 	userID := uint(1)
@@ -626,6 +660,8 @@ func TestAuthService_ValidateToken_ExpiredToken(t *testing.T) {
 	// Arrange
 	userRepo := new(MockUserRepository)
 	tokenRepo := new(MockTokenRepository)
+	verificationTokenRepo := new(test.MockVerificationTokenRepository)
+	emailVerificationService := new(test.MockEmailVerificationService)
 	// Crear JWTUtil con TTL muy corto para que expire inmediatamente
 	jwtUtil := auth.NewJWTUtil(
 		"test-access-secret",
@@ -635,7 +671,7 @@ func TestAuthService_ValidateToken_ExpiredToken(t *testing.T) {
 	)
 	logger := &test.MockLogger{}
 
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, logger)
+	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, logger)
 
 	ctx := context.Background()
 	userID := uint(1)

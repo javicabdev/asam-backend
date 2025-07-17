@@ -33,14 +33,16 @@ func createAuthContext() context.Context {
 
 var _ = ginkgo.Describe("Member", func() {
 	var (
-		resolver        *resolvers.Resolver
-		memberService   *test.MockMemberService
-		familyService   *test.MockFamilyService
-		paymentService  *test.MockPaymentService
-		cashFlowService *test.MockCashFlowService
-		authService     *test.MockAuthService
-		userService     *test.MockUserService
-		ctx             context.Context // Contexto autenticado para todas las pruebas
+		resolver                 *resolvers.Resolver
+		memberService            *test.MockMemberService
+		familyService            *test.MockFamilyService
+		paymentService           *test.MockPaymentService
+		cashFlowService          *test.MockCashFlowService
+		authService              *test.MockAuthService
+		userService              *test.MockUserService
+		emailVerificationService *test.MockEmailVerificationService
+		emailNotificationService *test.MockEmailNotificationService
+		ctx                      context.Context // Contexto autenticado para todas las pruebas
 	)
 
 	ginkgo.BeforeEach(func() {
@@ -50,6 +52,8 @@ var _ = ginkgo.Describe("Member", func() {
 		cashFlowService = new(test.MockCashFlowService)
 		authService = new(test.MockAuthService)
 		userService = new(test.MockUserService)
+		emailVerificationService = new(test.MockEmailVerificationService)
+		emailNotificationService = new(test.MockEmailNotificationService)
 
 		// Crear un mock logger para el rate limiter
 		mockLogger := &test.MockLogger{}
@@ -62,7 +66,10 @@ var _ = ginkgo.Describe("Member", func() {
 			cashFlowService,
 			authService,
 			userService,
+			emailVerificationService,
+			emailNotificationService,
 			loginRateLimiter,
+			mockLogger,
 		)
 
 		// Crear contexto autenticado para todas las pruebas

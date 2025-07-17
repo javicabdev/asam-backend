@@ -1149,6 +1149,23 @@ func (m *MockUserService) GetUser(ctx context.Context, id uint) (*models.User, e
 	return user, err
 }
 
+// GetUserByEmail retrieves a user by email address.
+// Returns the user or an error if not found or other issues occur.
+func (m *MockUserService) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
+	args := m.Called(ctx, email)
+	err := args.Error(1)
+	var user *models.User
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		user, ok = ret0.(*models.User)
+		if !ok {
+			return nil, err
+		}
+	}
+	return user, err
+}
+
 // ListUsers retrieves a paginated list of users.
 // Returns the list of users or an error if the retrieval fails.
 func (m *MockUserService) ListUsers(ctx context.Context, page, pageSize int) ([]*models.User, error) {
@@ -1276,4 +1293,265 @@ func (m *MockAuthService) ValidateToken(ctx context.Context, token string) (*mod
 		}
 	}
 	return user, err
+}
+
+// ResetPasswordWithToken restablece la contraseña de un usuario usando un token de restablecimiento válido.
+// Retorna un error si la operación falla.
+func (m *MockAuthService) ResetPasswordWithToken(ctx context.Context, token string, newPassword string) error {
+	args := m.Called(ctx, token, newPassword)
+	return args.Error(0)
+}
+
+// MockEmailVerificationService es un mock de input.EmailVerificationService
+type MockEmailVerificationService struct {
+	mock.Mock
+}
+
+// GenerateVerificationToken genera un token de verificación de email
+func (m *MockEmailVerificationService) GenerateVerificationToken(ctx context.Context, userID uint) (string, error) {
+	args := m.Called(ctx, userID)
+	return args.String(0), args.Error(1)
+}
+
+// GeneratePasswordResetToken genera un token de restablecimiento de contraseña
+func (m *MockEmailVerificationService) GeneratePasswordResetToken(ctx context.Context, userID uint) (string, error) {
+	args := m.Called(ctx, userID)
+	return args.String(0), args.Error(1)
+}
+
+// VerifyEmailToken verifica un token de email
+func (m *MockEmailVerificationService) VerifyEmailToken(ctx context.Context, token string) (*models.User, error) {
+	args := m.Called(ctx, token)
+	err := args.Error(1)
+	var user *models.User
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		user, ok = ret0.(*models.User)
+		if !ok {
+			return nil, err
+		}
+	}
+	return user, err
+}
+
+// VerifyPasswordResetToken verifica un token de restablecimiento de contraseña
+func (m *MockEmailVerificationService) VerifyPasswordResetToken(ctx context.Context, token string) (*models.VerificationToken, error) {
+	args := m.Called(ctx, token)
+	err := args.Error(1)
+	var verToken *models.VerificationToken
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		verToken, ok = ret0.(*models.VerificationToken)
+		if !ok {
+			return nil, err
+		}
+	}
+	return verToken, err
+}
+
+// SendVerificationEmailToUser envía un email de verificación a un usuario
+func (m *MockEmailVerificationService) SendVerificationEmailToUser(ctx context.Context, user *models.User) error {
+	args := m.Called(ctx, user)
+	return args.Error(0)
+}
+
+// SendPasswordResetEmailToUser envía un email de restablecimiento de contraseña a un usuario
+func (m *MockEmailVerificationService) SendPasswordResetEmailToUser(ctx context.Context, user *models.User) error {
+	args := m.Called(ctx, user)
+	return args.Error(0)
+}
+
+// CleanupExpiredTokens limpia los tokens expirados
+func (m *MockEmailVerificationService) CleanupExpiredTokens(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
+// MockEmailNotificationService es un mock de input.EmailNotificationService
+type MockEmailNotificationService struct {
+	mock.Mock
+}
+
+// SendVerificationEmail envía un email de verificación
+func (m *MockEmailNotificationService) SendVerificationEmail(ctx context.Context, user *models.User, verificationURL string) error {
+	args := m.Called(ctx, user, verificationURL)
+	return args.Error(0)
+}
+
+// SendPasswordResetEmail envía un email de restablecimiento de contraseña
+func (m *MockEmailNotificationService) SendPasswordResetEmail(ctx context.Context, user *models.User, resetURL string) error {
+	args := m.Called(ctx, user, resetURL)
+	return args.Error(0)
+}
+
+// SendWelcomeEmail envía un email de bienvenida
+func (m *MockEmailNotificationService) SendWelcomeEmail(ctx context.Context, user *models.User) error {
+	args := m.Called(ctx, user)
+	return args.Error(0)
+}
+
+// SendPasswordChangedEmail envía un email de notificación de cambio de contraseña
+func (m *MockEmailNotificationService) SendPasswordChangedEmail(ctx context.Context, user *models.User) error {
+	args := m.Called(ctx, user)
+	return args.Error(0)
+}
+
+// MockVerificationTokenRepository es un mock de output.VerificationTokenRepository
+type MockVerificationTokenRepository struct {
+	mock.Mock
+}
+
+// Create crea un nuevo token de verificación
+func (m *MockVerificationTokenRepository) Create(ctx context.Context, token *models.VerificationToken) error {
+	args := m.Called(ctx, token)
+	return args.Error(0)
+}
+
+// GetByToken obtiene un token por su valor
+func (m *MockVerificationTokenRepository) GetByToken(ctx context.Context, token string) (*models.VerificationToken, error) {
+	args := m.Called(ctx, token)
+	err := args.Error(1)
+	var verToken *models.VerificationToken
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		verToken, ok = ret0.(*models.VerificationToken)
+		if !ok {
+			return nil, err
+		}
+	}
+	return verToken, err
+}
+
+// Update actualiza un token existente
+func (m *MockVerificationTokenRepository) Update(ctx context.Context, token *models.VerificationToken) error {
+	args := m.Called(ctx, token)
+	return args.Error(0)
+}
+
+// DeleteExpired elimina todos los tokens expirados
+func (m *MockVerificationTokenRepository) DeleteExpired(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
+// InvalidateUserTokens invalida todos los tokens de un usuario de un tipo específico
+func (m *MockVerificationTokenRepository) InvalidateUserTokens(ctx context.Context, userID uint, tokenType string) error {
+	args := m.Called(ctx, userID, tokenType)
+	return args.Error(0)
+}
+
+// CountActiveTokensByUser cuenta los tokens activos de un usuario
+func (m *MockVerificationTokenRepository) CountActiveTokensByUser(ctx context.Context, userID uint, tokenType string) (int64, error) {
+	args := m.Called(ctx, userID, tokenType)
+	err := args.Error(1)
+
+	// Get the count safely
+	ret0 := args.Get(0)
+	if ret0 == nil {
+		return 0, err
+	}
+
+	count, ok := ret0.(int64)
+	if !ok {
+		// If type assertion fails, return 0 and the error
+		return 0, err
+	}
+
+	return count, err
+}
+
+// Delete elimina un token por su ID
+func (m *MockVerificationTokenRepository) Delete(ctx context.Context, id uint) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+// GetByUserIDAndType obtiene tokens por ID de usuario y tipo
+func (m *MockVerificationTokenRepository) GetByUserIDAndType(ctx context.Context, userID uint, tokenType string) ([]*models.VerificationToken, error) {
+	args := m.Called(ctx, userID, tokenType)
+	err := args.Error(1)
+	var tokens []*models.VerificationToken
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		tokens, ok = ret0.([]*models.VerificationToken)
+		if !ok {
+			return nil, err
+		}
+	}
+	return tokens, err
+}
+
+// MockUserRepository es un mock de output.UserRepository
+type MockUserRepository struct {
+	mock.Mock
+}
+
+// Create crea un nuevo usuario
+func (m *MockUserRepository) Create(ctx context.Context, user *models.User) error {
+	args := m.Called(ctx, user)
+	return args.Error(0)
+}
+
+// Update actualiza un usuario existente
+func (m *MockUserRepository) Update(ctx context.Context, user *models.User) error {
+	args := m.Called(ctx, user)
+	return args.Error(0)
+}
+
+// Delete elimina un usuario por su ID
+func (m *MockUserRepository) Delete(ctx context.Context, id uint) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+// FindByID busca un usuario por su ID
+func (m *MockUserRepository) FindByID(ctx context.Context, id uint) (*models.User, error) {
+	args := m.Called(ctx, id)
+	err := args.Error(1)
+	var user *models.User
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		user, ok = ret0.(*models.User)
+		if !ok {
+			return nil, err
+		}
+	}
+	return user, err
+}
+
+// FindByEmail busca un usuario por su email
+func (m *MockUserRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
+	args := m.Called(ctx, email)
+	err := args.Error(1)
+	var user *models.User
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		user, ok = ret0.(*models.User)
+		if !ok {
+			return nil, err
+		}
+	}
+	return user, err
+}
+
+// List lista usuarios con paginación
+func (m *MockUserRepository) List(ctx context.Context, offset, limit int) ([]*models.User, error) {
+	args := m.Called(ctx, offset, limit)
+	err := args.Error(1)
+	var users []*models.User
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		users, ok = ret0.([]*models.User)
+		if !ok {
+			return nil, err
+		}
+	}
+	return users, err
 }

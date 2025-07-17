@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,9 +24,18 @@ func TestMain(m *testing.M) {
 	// Cargar archivo .env si existe (para desarrollo local)
 	// En CI, las variables se establecen directamente en el pipeline.
 	if os.Getenv("CI") != "true" {
-		err := godotenv.Load("../../.env") // Asume que los tests están en test/integration/
+		// Intentar cargar .env.test primero, si no existe, cargar .env
+		err := godotenv.Load("../../.env.test")
 		if err != nil {
-			log.Println("No .env file found at ../../.env or error loading, continuing with existing environment variables...")
+			// Si .env.test no existe, intentar con .env
+			err = godotenv.Load("../../.env")
+			if err != nil {
+				log.Println("No .env.test or .env file found, continuing with existing environment variables...")
+			} else {
+				log.Println("Loaded environment variables from .env file")
+			}
+		} else {
+			log.Println("Loaded environment variables from .env.test file")
 		}
 	} else {
 		log.Println("CI environment detected. Skipping .env load, relying on pipeline environment variables.")
@@ -52,6 +62,26 @@ func TestInitDB(t *testing.T) {
 	if isCI {
 		log.Printf("CI Mode in TestInitDB: Expecting DB_HOST=%s, DB_USER=%s, DB_NAME=%s, DB_PORT=%s from pipeline env",
 			os.Getenv("DB_HOST"), os.Getenv("DB_USER"), os.Getenv("DB_NAME"), os.Getenv("DB_PORT"))
+	}
+
+	// En entorno local, verificar si PostgreSQL está disponible antes de ejecutar los tests
+	if !isCI {
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			t.Fatalf("LoadConfig() failed: %v", err)
+		}
+
+		// Intentar una conexión rápida para verificar si PostgreSQL está disponible
+		_, errDB := db.InitDB(cfg)
+		if errDB != nil {
+			var appError *customErrors.AppError
+			if stdErrors.As(errDB, &appError) && appError.Code == customErrors.ErrDatabaseError {
+				// Si es un error de conexión, probablemente PostgreSQL no está corriendo
+				if appError.Cause != nil && strings.Contains(appError.Cause.Error(), "connection refused") {
+					t.Skip("Skipping PostgreSQL tests: PostgreSQL is not available (connection refused). Please ensure PostgreSQL is running locally on port 5432.")
+				}
+			}
+		}
 	}
 
 	tests := []struct {
@@ -155,6 +185,24 @@ func TestInitDB(t *testing.T) {
 func TestInitDB_ConnectionRetry(t *testing.T) {
 	if os.Getenv("CI") == "true" {
 		t.Skip("Skipping TestInitDB_ConnectionRetry in CI environment due to potential flakiness with os.Setenv and goroutines timing.")
+	}
+
+	// En entorno local, verificar si PostgreSQL está disponible antes de ejecutar este test
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		t.Fatalf("LoadConfig() failed: %v", err)
+	}
+
+	// Intentar una conexión rápida para verificar si PostgreSQL está disponible
+	_, errDB := db.InitDB(cfg)
+	if errDB != nil {
+		var appError *customErrors.AppError
+		if stdErrors.As(errDB, &appError) && appError.Code == customErrors.ErrDatabaseError {
+			// Si es un error de conexión, probablemente PostgreSQL no está corriendo
+			if appError.Cause != nil && strings.Contains(appError.Cause.Error(), "connection refused") {
+				t.Skip("Skipping TestInitDB_ConnectionRetry: PostgreSQL is not available (connection refused). Please ensure PostgreSQL is running locally on port 5432.")
+			}
+		}
 	}
 
 	t.Run("Should succeed after credentials are corrected (local only)", func(t *testing.T) {

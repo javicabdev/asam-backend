@@ -106,7 +106,7 @@ func TestUserService_CreateUser_WithEmail_Success(t *testing.T) {
 		Username:      username,
 		EmailVerified: false,
 	}, nil)
-	tokenRepo.On("DeleteUserTokensByType", ctx, uint(1), models.TokenTypeEmailVerification).Return(nil)
+	tokenRepo.On("InvalidateUserTokens", ctx, uint(1), string(models.TokenTypeEmailVerification)).Return(nil)
 	tokenRepo.On("Create", ctx, mock.AnythingOfType("*models.VerificationToken")).Return(nil)
 	emailService.On("SendVerificationEmail", ctx, username, mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
 
@@ -252,7 +252,7 @@ func TestUserService_CreateUser_ValidEmails(t *testing.T) {
 				Username:      email,
 				EmailVerified: false,
 			}, nil).Once()
-			tokenRepo.On("DeleteUserTokensByType", ctx, uint(1), models.TokenTypeEmailVerification).Return(nil).Once()
+			tokenRepo.On("InvalidateUserTokens", ctx, uint(1), string(models.TokenTypeEmailVerification)).Return(nil).Once()
 			tokenRepo.On("Create", ctx, mock.AnythingOfType("*models.VerificationToken")).Return(nil).Once()
 			emailService.On("SendVerificationEmail", ctx, email, mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil).Once()
 

@@ -18,13 +18,15 @@ import (
 
 var _ = ginkgo.Describe("Family", func() {
 	var (
-		resolver        *resolvers.Resolver
-		memberService   *test.MockMemberService
-		familyService   *test.MockFamilyService
-		paymentService  *test.MockPaymentService
-		cashFlowService *test.MockCashFlowService
-		authService     *test.MockAuthService
-		userService     *test.MockUserService
+		resolver                 *resolvers.Resolver
+		memberService            *test.MockMemberService
+		familyService            *test.MockFamilyService
+		paymentService           *test.MockPaymentService
+		cashFlowService          *test.MockCashFlowService
+		authService              *test.MockAuthService
+		userService              *test.MockUserService
+		emailVerificationService *test.MockEmailVerificationService
+		emailNotificationService *test.MockEmailNotificationService
 	)
 
 	ginkgo.BeforeEach(func() {
@@ -34,6 +36,8 @@ var _ = ginkgo.Describe("Family", func() {
 		cashFlowService = new(test.MockCashFlowService)
 		authService = new(test.MockAuthService)
 		userService = new(test.MockUserService)
+		emailVerificationService = new(test.MockEmailVerificationService)
+		emailNotificationService = new(test.MockEmailNotificationService)
 
 		// Crear un mock logger para el rate limiter
 		mockLogger := &test.MockLogger{}
@@ -46,7 +50,10 @@ var _ = ginkgo.Describe("Family", func() {
 			cashFlowService,
 			authService,
 			userService,
+			emailVerificationService,
+			emailNotificationService,
 			loginRateLimiter,
+			mockLogger,
 		)
 	})
 

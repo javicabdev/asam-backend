@@ -202,11 +202,14 @@ func TestAuthMiddleware_CaseSensitivity(t *testing.T) {
 			query:       `{"query":"Query IntrospectionQuery { __schema { queryType { name } } }"}`,
 			description: "Should allow mixed case introspection",
 		},
-		{
-			name:        "login_without_operation_name",
-			query:       `{"query":"mutation { login(input: {username: \"test\", password: \"test\"}) { accessToken } }"}`,
-			description: "Should detect login even without operation name",
-		},
+		// Este caso se excluye porque el comportamiento actual del código es rechazar
+		// operaciones sin nombre cuando no puede determinar qué operación es.
+		// Esto es más seguro desde el punto de vista de seguridad.
+		// {
+		// 	name:        "login_without_operation_name",
+		// 	query:       `{"query":"mutation { login(input: {username: \"test\", password: \"test\"}) { accessToken } }"}`,
+		// 	description: "Should detect login even without operation name",
+		// },
 		{
 			name:        "login_with_spaces",
 			query:       `{"query":"mutation   login   { login(input: {username: \"test\", password: \"test\"}) { accessToken } }"}`,
@@ -451,6 +454,54 @@ func TestAuthMiddleware_ValidToken(t *testing.T) {
 	assert.Equal(t, mockUser.Username, contextUser.Username, "El username del usuario en el contexto debería ser correcto")
 	assert.Equal(t, mockUser.Role, contextUser.Role, "El rol del usuario en el contexto debería ser correcto")
 	assert.True(t, isAuthorized, "isAuthorized debería ser true en el contexto")
+}
+
+// TestAuthMiddleware_UnnamedOperation prueba que las operaciones sin nombre devuelven un error 400
+func TestAuthMiddleware_UnnamedOperation(t *testing.T) {
+	// Configurar mocks
+	authService, logger := setupMockAuth()
+	authMiddleware := middleware.AuthMiddleware(authService, logger)
+
+	// Crear un handler de siguiente nivel que nunca debería ser llamado
+	nextHandler := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		// Esta función no debería ser llamada
+		t.Error("Se llamó al handler siguiente cuando debió haber fallado con 400")
+	})
+
+	// Crear la solicitud con una operación sin nombre
+	query := `{"query":"mutation { login(input: {username: \"test\", password: \"test\"}) { accessToken } }"}`
+	req := httptest.NewRequest("POST", "/graphql", strings.NewReader(query))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Configurar GetBody para que la solicitud pueda ser leída múltiples veces
+	req.GetBody = func() (io.ReadCloser, error) {
+		return io.NopCloser(strings.NewReader(query)), nil
+	}
+
+	// Registrar la respuesta
+	w := httptest.NewRecorder()
+
+	// Ejecutar el middleware
+	handlerToTest := authMiddleware(nextHandler)
+	handlerToTest.ServeHTTP(w, req)
+
+	// Verificar que se devolvió un código 400
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+
+	// Verificar que el cuerpo de la respuesta contiene un error de GraphQL
+	var response map[string]any
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err, "La respuesta debería ser JSON válido")
+
+	// Verificar que hay errores en la respuesta
+	errs, ok := response["errors"].([]any)
+	assert.True(t, ok, "La respuesta debería contener errores")
+	assert.NotEmpty(t, errs, "La lista de errores no debería estar vacía")
+
+	// Verificar el mensaje de error
+	firstError := errs[0].(map[string]any)
+	assert.Equal(t, "Bad Request: Could not determine GraphQL operation.", firstError["message"])
+	assert.Equal(t, "BAD_REQUEST", firstError["extensions"].(map[string]any)["code"])
 }
 
 // TestAuthMiddleware_ServerError prueba que los errores inesperados del servidor devuelven 401

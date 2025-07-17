@@ -156,7 +156,11 @@ func TestCreateMember(t *testing.T) {
 
 			tt.setupMock(memberService)
 
-			// Crear mock logger para el rate limiter
+			// Crear mocks de servicios de email
+			emailVerificationService := new(test.MockEmailVerificationService)
+			emailNotificationService := new(test.MockEmailNotificationService)
+
+			// Crear mock logger para el rate limiter y el resolver
 			mockLogger := &test.MockLogger{}
 			loginRateLimiter := auth.NewLoginRateLimiter(mockLogger)
 
@@ -167,7 +171,10 @@ func TestCreateMember(t *testing.T) {
 				cashFlowService,
 				authService,
 				userService,
+				emailVerificationService,
+				emailNotificationService,
 				loginRateLimiter,
+				mockLogger,
 			)
 
 			got, err := resolver.Mutation().CreateMember(ctx, tt.input)
