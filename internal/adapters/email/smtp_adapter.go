@@ -101,8 +101,24 @@ func (a *smtpAdapter) SendVerificationEmail(ctx context.Context, user *models.Us
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background-color: #007bff; color: white; padding: 20px; text-align: center; }
         .content { padding: 20px; background-color: #f9f9f9; }
-        .button { display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }
-        .footer { text-align: center; padding: 20px; font-size: 0.9em; color: #666; }
+        .button { 
+			display: inline-block; 
+			padding: 12px 24px; 
+			background-color: #007bff; 
+			color: #ffffff !important; 
+			text-decoration: none !important; 
+			border-radius: 4px; 
+			margin: 20px 0; 
+			font-weight: bold;
+			border: 2px solid #0056b3;
+			text-align: center;
+		}
+        a.button:hover {
+			background-color: #0056b3;
+			color: #ffffff !important;
+			text-decoration: none !important;
+		}
+		.footer { text-align: center; padding: 20px; font-size: 0.9em; color: #666; }
     </style>
 </head>
 <body>
@@ -114,8 +130,14 @@ func (a *smtpAdapter) SendVerificationEmail(ctx context.Context, user *models.Us
             <h2>Hola {{.Username}},</h2>
             <p>Gracias por registrarte en ASAM. Para completar tu registro, por favor verifica tu dirección de correo electrónico haciendo clic en el siguiente enlace:</p>
             <center>
-                <a href="{{.VerificationURL}}" class="button">Verificar mi correo</a>
-            </center>
+            <table cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0;">
+             <tr>
+					<td style="background-color: #007bff; border-radius: 4px; padding: 0;">
+						<a href="{{.VerificationURL}}" style="background-color: #007bff; color: #ffffff !important; text-decoration: none; padding: 12px 24px; display: inline-block; border-radius: 4px; font-weight: bold; font-size: 16px; line-height: 1.5;">Verificar mi correo</a>
+					</td>
+				</tr>
+			</table>
+			</center>
             <p>O copia y pega este enlace en tu navegador:</p>
             <p style="word-break: break-all;">{{.VerificationURL}}</p>
             <p>Este enlace expirará en 24 horas.</p>
@@ -160,8 +182,24 @@ func (a *smtpAdapter) SendPasswordResetEmail(ctx context.Context, user *models.U
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background-color: #dc3545; color: white; padding: 20px; text-align: center; }
         .content { padding: 20px; background-color: #f9f9f9; }
-        .button { display: inline-block; padding: 12px 24px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }
+        .button { 
+			display: inline-block; 
+			padding: 12px 24px; 
+			background-color: #dc3545; 
+			color: #ffffff !important; 
+			text-decoration: none !important; 
+			border-radius: 4px; 
+			margin: 20px 0; 
+			font-weight: bold;
+			border: 2px solid #bd2130;
+			text-align: center;
+		}
         .footer { text-align: center; padding: 20px; font-size: 0.9em; color: #666; }
+		a.button:hover {
+			background-color: #bd2130;
+			color: #ffffff !important;
+			text-decoration: none !important;
+		}
         .warning { background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 12px; margin: 20px 0; border-radius: 4px; }
     </style>
 </head>
@@ -175,8 +213,14 @@ func (a *smtpAdapter) SendPasswordResetEmail(ctx context.Context, user *models.U
             <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta.</p>
             <p>Si has solicitado este cambio, haz clic en el siguiente enlace para crear una nueva contraseña:</p>
             <center>
-                <a href="{{.ResetURL}}" class="button">Restablecer mi contraseña</a>
-            </center>
+            <table cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0;">
+             <tr>
+					<td style="background-color: #dc3545; border-radius: 4px; padding: 0;">
+						<a href="{{.ResetURL}}" style="background-color: #dc3545; color: #ffffff !important; text-decoration: none; padding: 12px 24px; display: inline-block; border-radius: 4px; font-weight: bold; font-size: 16px; line-height: 1.5;">Restablecer mi contraseña</a>
+					</td>
+				</tr>
+			</table>
+			</center>
             <p>O copia y pega este enlace en tu navegador:</p>
             <p style="word-break: break-all;">{{.ResetURL}}</p>
             <div class="warning">
