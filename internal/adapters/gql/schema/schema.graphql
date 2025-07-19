@@ -231,6 +231,10 @@ type Query {
     getCashFlow(id: ID!): CashFlow
     getBalance: Float!
     getTransactions(filter: TransactionFilter): TransactionConnection!
+    
+    # Member Number Queries
+    getNextMemberNumber(isFamily: Boolean!): String!
+    checkMemberNumberExists(memberNumber: String!): Boolean!
 }
 
 # Input Types para mutations

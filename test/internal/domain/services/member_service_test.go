@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.uber.org/zap"
 
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
@@ -18,6 +19,7 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/auth"
 	"github.com/javicabdev/asam-backend/pkg/constants"
 	"github.com/javicabdev/asam-backend/pkg/errors"
+	"github.com/javicabdev/asam-backend/pkg/logger/audit"
 	"github.com/javicabdev/asam-backend/test"
 )
 
@@ -60,6 +62,11 @@ func (m *mockMemberRepository) Update(ctx context.Context, member *models.Member
 func (m *mockMemberRepository) List(ctx context.Context, filters output.MemberFilters) ([]models.Member, error) {
 	args := m.Called(ctx, filters)
 	return args.Get(0).([]models.Member), args.Error(1)
+}
+
+func (m *mockMemberRepository) GetLastMemberNumberByPrefix(ctx context.Context, prefix string) (string, error) {
+	args := m.Called(ctx, prefix)
+	return args.String(0), args.Error(1)
 }
 
 // Tests
@@ -268,6 +275,227 @@ func TestDeactivateMember(t *testing.T) {
 			err := service.DeactivateMember(context.Background(), tt.memberID, tt.fechaBaja)
 
 			tt.checkErr(t, err)
+			repo.AssertExpectations(t)
+		})
+	}
+}
+
+func TestGetNextMemberNumber(t *testing.T) {
+	// Logger de prueba
+	logger, _ := zap.NewDevelopment()
+
+	tests := []struct {
+		name      string
+		isFamily  bool
+		setupRepo func(repo *mockMemberRepository)
+		want      string
+		wantErr   bool
+		checkErr  func(t *testing.T, err error)
+	}{
+		{
+			name:     "first individual member",
+			isFamily: false,
+			setupRepo: func(repo *mockMemberRepository) {
+				// No hay miembros con prefijo B
+				repo.On("GetLastMemberNumberByPrefix", mock.Anything, "B").
+					Return("", nil)
+			},
+			want:    "B00001",
+			wantErr: false,
+			checkErr: func(t *testing.T, err error) {
+				assert.NoError(t, err)
+			},
+		},
+		{
+			name:     "first family member",
+			isFamily: true,
+			setupRepo: func(repo *mockMemberRepository) {
+				// No hay miembros con prefijo A
+				repo.On("GetLastMemberNumberByPrefix", mock.Anything, "A").
+					Return("", nil)
+			},
+			want:    "A00001",
+			wantErr: false,
+			checkErr: func(t *testing.T, err error) {
+				assert.NoError(t, err)
+			},
+		},
+		{
+			name:     "next individual member",
+			isFamily: false,
+			setupRepo: func(repo *mockMemberRepository) {
+				repo.On("GetLastMemberNumberByPrefix", mock.Anything, "B").
+					Return("B00023", nil)
+			},
+			want:    "B00024",
+			wantErr: false,
+			checkErr: func(t *testing.T, err error) {
+				assert.NoError(t, err)
+			},
+		},
+		{
+			name:     "next family member near limit",
+			isFamily: true,
+			setupRepo: func(repo *mockMemberRepository) {
+				repo.On("GetLastMemberNumberByPrefix", mock.Anything, "A").
+					Return("A99999", nil)
+			},
+			want:    "A100000",
+			wantErr: false,
+			checkErr: func(t *testing.T, err error) {
+				assert.NoError(t, err)
+			},
+		},
+		{
+			name:     "repository error",
+			isFamily: false,
+			setupRepo: func(repo *mockMemberRepository) {
+				repo.On("GetLastMemberNumberByPrefix", mock.Anything, "B").
+					Return("", errors.NewDatabaseError("database failure", nil))
+			},
+			want:    "",
+			wantErr: true,
+			checkErr: func(t *testing.T, err error) {
+				assert.Error(t, err)
+				assert.True(t, errors.IsDatabaseError(err), "debería ser un error de base de datos")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := new(mockMemberRepository)
+			tt.setupRepo(repo)
+
+			service := services.NewMemberService(repo, logger, audit.NewInMemoryAuditLogger())
+			result, err := service.GetNextMemberNumber(context.Background(), tt.isFamily)
+
+			tt.checkErr(t, err)
+			if !tt.wantErr {
+				assert.Equal(t, tt.want, result)
+			}
+			repo.AssertExpectations(t)
+		})
+	}
+}
+
+func TestCheckMemberNumberExists(t *testing.T) {
+	// Logger de prueba
+	logger, _ := zap.NewDevelopment()
+
+	tests := []struct {
+		name         string
+		memberNumber string
+		setupRepo    func(repo *mockMemberRepository)
+		want         bool
+		wantErr      bool
+		checkErr     func(t *testing.T, err error)
+	}{
+		{
+			name:         "existing individual member",
+			memberNumber: "B00001",
+			setupRepo: func(repo *mockMemberRepository) {
+				member := test.CreateValidMember()
+				member.MembershipNumber = "B00001"
+				repo.On("GetByNumeroSocio", mock.Anything, "B00001").
+					Return(member, nil)
+			},
+			want:    true,
+			wantErr: false,
+			checkErr: func(t *testing.T, err error) {
+				assert.NoError(t, err)
+			},
+		},
+		{
+			name:         "existing family member",
+			memberNumber: "A00123",
+			setupRepo: func(repo *mockMemberRepository) {
+				member := test.CreateValidMember()
+				member.MembershipNumber = "A00123"
+				member.MembershipType = models.TipoMembresiaPFamiliar
+				repo.On("GetByNumeroSocio", mock.Anything, "A00123").
+					Return(member, nil)
+			},
+			want:    true,
+			wantErr: false,
+			checkErr: func(t *testing.T, err error) {
+				assert.NoError(t, err)
+			},
+		},
+		{
+			name:         "non-existing member",
+			memberNumber: "B99999",
+			setupRepo: func(repo *mockMemberRepository) {
+				repo.On("GetByNumeroSocio", mock.Anything, "B99999").
+					Return(nil, nil)
+			},
+			want:    false,
+			wantErr: false,
+			checkErr: func(t *testing.T, err error) {
+				assert.NoError(t, err)
+			},
+		},
+		{
+			name:         "invalid format - missing prefix",
+			memberNumber: "12345",
+			setupRepo:    func(repo *mockMemberRepository) {},
+			want:         false,
+			wantErr:      true,
+			checkErr: func(t *testing.T, err error) {
+				assert.Error(t, err)
+				assert.True(t, errors.IsValidationError(err), "debería ser un error de validación")
+			},
+		},
+		{
+			name:         "invalid format - wrong prefix",
+			memberNumber: "C00001",
+			setupRepo:    func(repo *mockMemberRepository) {},
+			want:         false,
+			wantErr:      true,
+			checkErr: func(t *testing.T, err error) {
+				assert.Error(t, err)
+				assert.True(t, errors.IsValidationError(err), "debería ser un error de validación")
+			},
+		},
+		{
+			name:         "invalid format - too short",
+			memberNumber: "A123",
+			setupRepo:    func(repo *mockMemberRepository) {},
+			want:         false,
+			wantErr:      true,
+			checkErr: func(t *testing.T, err error) {
+				assert.Error(t, err)
+				assert.True(t, errors.IsValidationError(err), "debería ser un error de validación")
+			},
+		},
+		{
+			name:         "repository error",
+			memberNumber: "B00001",
+			setupRepo: func(repo *mockMemberRepository) {
+				repo.On("GetByNumeroSocio", mock.Anything, "B00001").
+					Return(nil, errors.NewDatabaseError("database failure", nil))
+			},
+			want:    false,
+			wantErr: true,
+			checkErr: func(t *testing.T, err error) {
+				assert.Error(t, err)
+				assert.True(t, errors.IsDatabaseError(err), "debería ser un error de base de datos")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := new(mockMemberRepository)
+			tt.setupRepo(repo)
+
+			service := services.NewMemberService(repo, logger, audit.NewInMemoryAuditLogger())
+			result, err := service.CheckMemberNumberExists(context.Background(), tt.memberNumber)
+
+			tt.checkErr(t, err)
+			if !tt.wantErr {
+				assert.Equal(t, tt.want, result)
+			}
 			repo.AssertExpectations(t)
 		})
 	}

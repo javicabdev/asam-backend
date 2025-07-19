@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -347,4 +348,107 @@ func (s *memberService) ListMembers(ctx context.Context, filters input.MemberFil
 // numToStr es una función auxiliar para convertir un número a string para los logs
 func numToStr(num uint) string {
 	return strconv.FormatUint(uint64(num), 10)
+}
+
+// GetNextMemberNumber obtiene el siguiente número de socio disponible según el tipo
+func (s *memberService) GetNextMemberNumber(ctx context.Context, isFamily bool) (string, error) {
+	// Determinar el prefijo según el tipo
+	prefix := "B" // Individual por defecto
+	if isFamily {
+		prefix = "A" // Familiar
+	}
+
+	// Obtener el último número con ese prefijo
+	lastNumber, err := s.repository.GetLastMemberNumberByPrefix(ctx, prefix)
+	if err != nil {
+		s.appLogger.Error("Error getting last member number",
+			zap.String("prefix", prefix),
+			zap.Error(err))
+		return "", errors.DB(err, "error al obtener el último número de socio")
+	}
+
+	var nextNum int
+	if lastNumber == "" {
+		// No hay ningún socio con ese prefijo, empezar desde 1
+		nextNum = 1
+		s.appLogger.Info("No members found with prefix, starting from 1",
+			zap.String("prefix", prefix))
+	} else {
+		// Extraer la parte numérica y incrementar
+		numPart := lastNumber[1:] // Quitar el prefijo
+		currentNum, parseErr := strconv.Atoi(numPart)
+		if parseErr != nil {
+			s.appLogger.Error("Error parsing member number",
+				zap.String("lastNumber", lastNumber),
+				zap.Error(parseErr))
+			return "", errors.NewInternalError("error al procesar el número de socio")
+		}
+		nextNum = currentNum + 1
+	}
+
+	// Formatear con padding de al menos 5 dígitos, pero soportar más si es necesario
+	var formattedNumber string
+	if nextNum < 100000 {
+		// Usar padding de 5 dígitos para números menores a 100000
+		formattedNumber = fmt.Sprintf("%s%05d", prefix, nextNum)
+	} else {
+		// Para números mayores, no aplicar padding adicional
+		formattedNumber = fmt.Sprintf("%s%d", prefix, nextNum)
+	}
+
+	s.appLogger.Info("Generated next member number",
+		zap.String("prefix", prefix),
+		zap.String("nextNumber", formattedNumber))
+
+	return formattedNumber, nil
+}
+
+// CheckMemberNumberExists verifica si un número de socio ya existe
+func (s *memberService) CheckMemberNumberExists(ctx context.Context, memberNumber string) (bool, error) {
+	// Validar el formato del número de socio
+	if !isValidMemberNumber(memberNumber) {
+		return false, errors.NewValidationError(
+			"Formato de número de socio inválido",
+			map[string]string{"memberNumber": "Debe seguir el formato [A|B] seguido de al menos 5 dígitos"},
+		)
+	}
+
+	member, err := s.repository.GetByNumeroSocio(ctx, memberNumber)
+	if err != nil {
+		s.appLogger.Error("Error checking member number existence",
+			zap.String("memberNumber", memberNumber),
+			zap.Error(err))
+		return false, errors.DB(err, "error al verificar el número de socio")
+	}
+
+	// Si member es nil, el número no existe
+	exists := member != nil
+
+	s.appLogger.Debug("Checked member number existence",
+		zap.String("memberNumber", memberNumber),
+		zap.Bool("exists", exists))
+
+	return exists, nil
+}
+
+// isValidMemberNumber valida el formato del número de socio
+func isValidMemberNumber(memberNumber string) bool {
+	// El número debe empezar con A o B seguido de al menos 5 dígitos
+	if len(memberNumber) < 6 {
+		return false
+	}
+
+	prefix := memberNumber[0]
+	if prefix != 'A' && prefix != 'B' {
+		return false
+	}
+
+	// Verificar que el resto sean dígitos
+	for i := 1; i < len(memberNumber); i++ {
+		if memberNumber[i] < '0' || memberNumber[i] > '9' {
+			return false
+		}
+	}
+
+	return true
 }

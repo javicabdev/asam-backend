@@ -988,6 +988,18 @@ func (r *queryResolver) GetTransactions(ctx context.Context, filter *model.Trans
 	}, nil
 }
 
+// GetNextMemberNumber is the resolver for the getNextMemberNumber field.
+func (r *queryResolver) GetNextMemberNumber(ctx context.Context, isFamily bool) (string, error) {
+	// Llamar directamente al servicio de miembros
+	return r.memberService.GetNextMemberNumber(ctx, isFamily)
+}
+
+// CheckMemberNumberExists is the resolver for the checkMemberNumberExists field.
+func (r *queryResolver) CheckMemberNumberExists(ctx context.Context, memberNumber string) (bool, error) {
+	// Llamar directamente al servicio de miembros
+	return r.memberService.CheckMemberNumberExists(ctx, memberNumber)
+}
+
 // ID is the resolver for the id field.
 func (r *userResolver) ID(ctx context.Context, obj *models.User) (string, error) {
 	return fmt.Sprintf("%d", obj.ID), nil

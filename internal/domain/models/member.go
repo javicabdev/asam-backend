@@ -84,6 +84,8 @@ func (m *Member) validateBasicFields() error {
 	// Validamos todos los campos requeridos primero
 	if m.MembershipNumber == "" {
 		errDetails["membershipNumber"] = "Member number is required"
+	} else if !isValidMemberNumber(m.MembershipNumber) {
+		errDetails["membershipNumber"] = "Member number must follow the format [A|B] followed by at least 5 digits"
 	}
 
 	if m.MembershipType != TipoMembresiaPIndividual && m.MembershipType != TipoMembresiaPFamiliar {
@@ -168,4 +170,26 @@ func (m *Member) BeforeCreate(*gorm.DB) error {
 // BeforeUpdate hook de GORM que se ejecuta antes de actualizar un miembro
 func (m *Member) BeforeUpdate(*gorm.DB) error {
 	return m.Validate()
+}
+
+// isValidMemberNumber valida el formato del número de socio
+func isValidMemberNumber(memberNumber string) bool {
+	// El número debe empezar con A o B seguido de al menos 5 dígitos
+	if len(memberNumber) < 6 {
+		return false
+	}
+
+	prefix := memberNumber[0]
+	if prefix != 'A' && prefix != 'B' {
+		return false
+	}
+
+	// Verificar que el resto sean dígitos
+	for i := 1; i < len(memberNumber); i++ {
+		if memberNumber[i] < '0' || memberNumber[i] > '9' {
+			return false
+		}
+	}
+
+	return true
 }

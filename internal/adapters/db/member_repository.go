@@ -140,3 +140,34 @@ func (r *memberRepository) List(ctx context.Context, filters output.MemberFilter
 
 	return members, nil
 }
+
+// GetLastMemberNumberByPrefix obtiene el último número de socio con un prefijo específico
+func (r *memberRepository) GetLastMemberNumberByPrefix(ctx context.Context, prefix string) (string, error) {
+	var lastNumber string
+
+	// Query que busca el último número con el prefijo dado y ordena por la parte numérica
+	// PostgreSQL query: SELECT membership_number FROM members WHERE membership_number LIKE 'A%'
+	// ORDER BY CAST(SUBSTRING(membership_number FROM 2) AS INTEGER) DESC LIMIT 1
+	result := r.db.WithContext(ctx).
+		Model(&models.Member{}).
+		Where("membership_number LIKE ?", prefix+"%").
+		Select("membership_number").
+		Order("CAST(SUBSTRING(membership_number FROM 2) AS INTEGER) DESC").
+		Limit(1).
+		Scan(&lastNumber)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			// Si no hay registros, devolver string vacío
+			return "", nil
+		}
+		return "", appErrors.DB(result.Error, "error getting last member number")
+	}
+
+	// Si no se encontró ningún registro
+	if lastNumber == "" {
+		return "", nil
+	}
+
+	return lastNumber, nil
+}
