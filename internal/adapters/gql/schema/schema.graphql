@@ -60,7 +60,9 @@ enum UserRole {
 type User {
     id: ID!
     username: String!
+    email: String!
     role: UserRole!
+    member: Member  # Asociación con socio (null para admin, requerido para user)
     isActive: Boolean!
     lastLogin: Time
     emailVerified: Boolean!
@@ -345,16 +347,20 @@ input RefreshTokenInput {
 # Input Types para User Management
 input CreateUserInput {
     username: String!
+    email: String!
     password: String!
     role: UserRole!
+    memberId: ID  # Requerido si role es USER, prohibido si role es ADMIN
 }
 
 input UpdateUserInput {
     id: ID!
     username: String
+    email: String
     password: String
     role: UserRole
     isActive: Boolean
+    memberId: ID  # Solo puede cambiar si también cambia el rol
 }
 
 input ChangePasswordInput {
