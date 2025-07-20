@@ -98,6 +98,7 @@ var _ = ginkgo.Describe("Member", func() {
 			ginkgo.It("succeeds with valid input", func() {
 				input := createValidMemberInput()
 				input.TipoMembresia = model.MembershipTypeFamily
+				input.NumeroSocio = "A00001" // Usar prefijo A para familias
 
 				memberService.On("CreateMember", mock.Anything, mock.MatchedBy(func(m *models.Member) bool {
 					return m.MembershipType == models.TipoMembresiaPFamiliar
@@ -220,7 +221,7 @@ var _ = ginkgo.Describe("Member", func() {
 
 func createValidMemberInput() model.CreateMemberInput {
 	return model.CreateMemberInput{
-		NumeroSocio:     "001",
+		NumeroSocio:     "B00001",
 		TipoMembresia:   model.MembershipTypeIndividual,
 		Nombre:          "Juan",
 		Apellidos:       "García",

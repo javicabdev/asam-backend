@@ -62,7 +62,7 @@ var _ = ginkgo.Describe("Family", func() {
 			ginkgo.It("returns the family", func() {
 				expectedFamily := &models.Family{
 					ID:              1,
-					NumeroSocio:     "A0001",
+					NumeroSocio:     "A00001",
 					EsposoNombre:    "Juan",
 					EsposoApellidos: "García",
 				}
@@ -146,7 +146,7 @@ var _ = ginkgo.Describe("Family", func() {
 
 				familyService.On("GetByID", mock.Anything, uint(1)).Return(&models.Family{
 					ID:          1,
-					NumeroSocio: "A0001",
+					NumeroSocio: "A00001",
 				}, nil)
 				familyService.On("AddFamiliar", mock.Anything, uint(1), mock.AnythingOfType("*models.Familiar")).Return(nil)
 
@@ -182,16 +182,16 @@ func createValidFamilyInput() model.CreateFamilyInput {
 	esposoFecha := time.Now().AddDate(-30, 0, 0)
 	esposaFecha := time.Now().AddDate(-28, 0, 0)
 	return model.CreateFamilyInput{
-		NumeroSocio:              "A0001",
+		NumeroSocio:              "A00001",
 		EsposoNombre:             "Juan",
 		EsposoApellidos:          "García",
 		EsposaNombre:             "María",
 		EsposaApellidos:          "López",
 		EsposoFechaNacimiento:    &esposoFecha,
 		EsposaFechaNacimiento:    &esposaFecha,
-		EsposoDocumentoIdentidad: test.StringPtr("12345678A"),
+		EsposoDocumentoIdentidad: test.StringPtr("12345678Z"),
 		EsposoCorreoElectronico:  test.StringPtr("juan@example.com"),
-		EsposaDocumentoIdentidad: test.StringPtr("87654321B"),
+		EsposaDocumentoIdentidad: test.StringPtr("87654321X"),
 		EsposaCorreoElectronico:  test.StringPtr("maria@example.com"),
 	}
 }

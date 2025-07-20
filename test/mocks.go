@@ -1,9 +1,8 @@
-// Package test proporciona utilidades y mocks para las pruebas unitarias y de integración
-// del sistema, facilitando la simulación de servicios y repositorios.
 package test
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go.uber.org/zap"
@@ -14,6 +13,7 @@ import (
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/internal/ports/output"
 	"github.com/javicabdev/asam-backend/pkg/logger/audit"
+	"github.com/javicabdev/asam-backend/test/helpers"
 )
 
 // UintPtr devuelve un puntero a un uint
@@ -29,6 +29,50 @@ func StringPtr(s string) *string {
 // TimePtr convierte un "time.Time" en un puntero a "time.Time"
 func TimePtr(t time.Time) *time.Time {
 	return &t
+}
+
+// GenerateValidNumeroSocio genera un número de socio válido para tests
+func GenerateValidNumeroSocio(n int) string {
+	return fmt.Sprintf("B%05d", n)
+}
+
+// CreateValidMember crea un miembro válido para tests
+func CreateValidMember() *models.Member {
+	return &models.Member{
+		ID:               1,
+		MembershipNumber: "B00001",
+		MembershipType:   models.TipoMembresiaPIndividual,
+		Name:             "Juan",
+		Surnames:         "García López",
+		Address:          "Calle Test 123",
+		Postcode:         "08001",
+		City:             "Barcelona",
+		Province:         "Barcelona",
+		Country:          "España",
+		State:            models.EstadoActivo,
+		IdentityCard:     StringPtr(helpers.GenerateValidDNI(12345678)),
+		Email:            StringPtr("juan.garcia@example.com"),
+		Profession:       StringPtr("Ingeniero"),
+		Nationality:      "Española",
+		RegistrationDate: time.Now(),
+	}
+}
+
+// CreateValidFamily Helper para crear una familia válida
+func CreateValidFamily() *models.Family {
+	return &models.Family{
+		NumeroSocio:              "A00001", // Cumple con la validación de formato
+		EsposoNombre:             "Pedro",
+		EsposoApellidos:          "López",
+		EsposaNombre:             "María",
+		EsposaApellidos:          "García",
+		EsposoFechaNacimiento:    TimePtr(time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)),
+		EsposaFechaNacimiento:    TimePtr(time.Date(1985, 1, 1, 0, 0, 0, 0, time.UTC)),
+		EsposoDocumentoIdentidad: helpers.GenerateValidDNI(12345678), // DNI válido: 12345678Z
+		EsposaDocumentoIdentidad: helpers.GenerateValidDNI(87654321), // DNI válido: 87654321X
+		EsposoCorreoElectronico:  "pedro@example.com",                // Correo válido
+		EsposaCorreoElectronico:  "maria@example.com",                // Correo válido
+	}
 }
 
 // MockMemberRepository es un mock de MemberRepository
@@ -102,6 +146,24 @@ func (m *MockMemberRepository) GetByNumeroSocio(ctx context.Context, numeroSocio
 		}
 	}
 	return member, err
+}
+
+// GetLastMemberNumberByPrefix obtiene el último número de socio con el prefijo especificado.
+// Permite simular la obtención del último número para generar nuevos números secuenciales.
+func (m *MockMemberRepository) GetLastMemberNumberByPrefix(ctx context.Context, prefix string) (string, error) {
+	args := m.Called(ctx, prefix)
+	err := args.Error(1)
+
+	var lastNumber string
+	ret0 := args.Get(0)
+	if ret0 != nil {
+		var ok bool
+		lastNumber, ok = ret0.(string)
+		if !ok {
+			return "", err
+		}
+	}
+	return lastNumber, err
 }
 
 // Delete elimina un miembro del repositorio por su ID.
@@ -615,6 +677,20 @@ func (m *MockMemberService) ListMembers(ctx context.Context, filters input.Membe
 		}
 	}
 	return members, err
+}
+
+// GetNextMemberNumber obtains the next available member number according to the type.
+// Returns the next member number or an error if the operation fails.
+func (m *MockMemberService) GetNextMemberNumber(ctx context.Context, isFamily bool) (string, error) {
+	args := m.Called(ctx, isFamily)
+	return args.String(0), args.Error(1)
+}
+
+// CheckMemberNumberExists verifies if a member number already exists.
+// Returns true if the member number exists, false otherwise, or an error if the check fails.
+func (m *MockMemberService) CheckMemberNumberExists(ctx context.Context, memberNumber string) (bool, error) {
+	args := m.Called(ctx, memberNumber)
+	return args.Bool(0), args.Error(1)
 }
 
 // MockFamilyService es un mock de FamilyService

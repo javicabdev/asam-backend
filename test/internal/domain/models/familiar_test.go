@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/javicabdev/asam-backend/test"
+	"github.com/javicabdev/asam-backend/test/helpers"
 
 	"github.com/stretchr/testify/assert"
 
@@ -18,7 +19,7 @@ func createValidFamiliar() *models.Familiar {
 		Nombre:            "Juan",
 		Apellidos:         "Pérez",
 		FechaNacimiento:   test.TimePtr(time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC)),
-		DNINIE:            "12345678A",
+		DNINIE:            helpers.GenerateValidDNI(12345678), // DNI válido: 12345678Z
 		CorreoElectronico: "juan.perez@example.com",
 		Parentesco:        "Hijo",
 	}

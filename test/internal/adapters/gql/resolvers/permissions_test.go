@@ -77,7 +77,7 @@ var _ = ginkgo.Describe("Permissions", func() {
 			ginkgo.It("can create member", func() {
 				ctx := context.WithValue(context.Background(), constants.UserContextKey, adminUser)
 				input := model.CreateMemberInput{
-					NumeroSocio:     "001",
+					NumeroSocio:     "B00001",
 					TipoMembresia:   model.MembershipTypeIndividual,
 					Nombre:          "Test",
 					Apellidos:       "User",
@@ -104,7 +104,7 @@ var _ = ginkgo.Describe("Permissions", func() {
 			ginkgo.It("cannot create member", func() {
 				ctx := context.WithValue(context.Background(), constants.UserContextKey, regularUser)
 				input := model.CreateMemberInput{
-					NumeroSocio:     "001",
+					NumeroSocio:     "B00002",
 					TipoMembresia:   model.MembershipTypeIndividual,
 					Nombre:          "Test",
 					Apellidos:       "User",

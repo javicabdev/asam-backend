@@ -7,6 +7,7 @@ import (
 
 	"github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/test"
+	"github.com/javicabdev/asam-backend/test/helpers"
 
 	"github.com/stretchr/testify/assert"
 
@@ -22,13 +23,13 @@ func TestFamilyValidation_BasicFields(t *testing.T) {
 		{
 			name: "valid family",
 			family: &models.Family{
-				NumeroSocio:              "F1234",
+				NumeroSocio:              "A12345",
 				EsposoNombre:             "Juan",
 				EsposoApellidos:          "García",
 				EsposaNombre:             "María",
 				EsposaApellidos:          "López",
-				EsposoDocumentoIdentidad: "12345678A",
-				EsposaDocumentoIdentidad: "87654321B",
+				EsposoDocumentoIdentidad: helpers.GenerateValidDNI(12345678),
+				EsposaDocumentoIdentidad: helpers.GenerateValidDNI(87654321),
 			},
 			wantErr: false,
 		},
@@ -69,8 +70,8 @@ func TestFamilyValidation_Conyuges(t *testing.T) {
 				EsposoApellidos:          "García",
 				EsposaNombre:             "María",
 				EsposaApellidos:          "López",
-				EsposoDocumentoIdentidad: "12345678A",
-				EsposaDocumentoIdentidad: "87654321B",
+				EsposoDocumentoIdentidad: helpers.GenerateValidDNI(12345678),
+				EsposaDocumentoIdentidad: helpers.GenerateValidDNI(87654321),
 			},
 			wantErr: false,
 		},
@@ -78,8 +79,8 @@ func TestFamilyValidation_Conyuges(t *testing.T) {
 			name: "missing spouse names",
 			family: &models.Family{
 				NumeroSocio:              test.GenerateValidNumeroSocio(2),
-				EsposoDocumentoIdentidad: "12345678A",
-				EsposaDocumentoIdentidad: "87654321B",
+				EsposoDocumentoIdentidad: helpers.GenerateValidDNI(12345678),
+				EsposaDocumentoIdentidad: helpers.GenerateValidDNI(87654321),
 			},
 			wantErr: true,
 			errMsg:  "se requiere información de al menos un cónyuge",
@@ -90,8 +91,8 @@ func TestFamilyValidation_Conyuges(t *testing.T) {
 				NumeroSocio:              test.GenerateValidNumeroSocio(3),
 				EsposoNombre:             "Juan",
 				EsposoApellidos:          "García",
-				EsposoDocumentoIdentidad: "12345678A",
-				EsposaDocumentoIdentidad: "87654321B",
+				EsposoDocumentoIdentidad: helpers.GenerateValidDNI(12345678),
+				EsposaDocumentoIdentidad: helpers.GenerateValidDNI(87654321),
 			},
 			wantErr: true,
 			errMsg:  "se requiere información de al menos un cónyuge",
@@ -132,7 +133,7 @@ func TestFamilyValidation_DocumentIDs(t *testing.T) {
 	assert.Contains(t, fields, "esposoDocumentoIdentidad", "Debería tener error en el documento del esposo")
 
 	// Restaurar documento válido
-	family.EsposoDocumentoIdentidad = "12345678A"
+	family.EsposoDocumentoIdentidad = helpers.GenerateValidDNI(12345678)
 
 	// Caso: Documento de identidad de la esposa inválido
 	family.EsposaDocumentoIdentidad = "INVALID_DOC"
@@ -229,7 +230,7 @@ func TestFamily_BeforeCreate(t *testing.T) {
 	assert.Error(t, family.BeforeCreate(nil))
 
 	// Restauramos numero socio y probamos documento identidad vacío
-	family.NumeroSocio = "A1234"
+	family.NumeroSocio = "A12345"
 	family.EsposoDocumentoIdentidad = ""
 	err := family.BeforeCreate(nil)
 	assert.Error(t, err)
@@ -249,8 +250,8 @@ func TestFamily_BeforeUpdate(t *testing.T) {
 		EsposoApellidos:          "García",
 		EsposaNombre:             "María",
 		EsposaApellidos:          "López",
-		EsposoDocumentoIdentidad: "12345678A",
-		EsposaDocumentoIdentidad: "87654321B",
+		EsposoDocumentoIdentidad: helpers.GenerateValidDNI(12345678),
+		EsposaDocumentoIdentidad: helpers.GenerateValidDNI(87654321),
 	}
 	assert.NoError(t, family.BeforeUpdate(nil))
 
@@ -268,8 +269,8 @@ func TestFamily_BeforeUpdate(t *testing.T) {
 	// Caso 3: Sin cónyuges (debe generar error)
 	family = &models.Family{
 		NumeroSocio:              test.GenerateValidNumeroSocio(2),
-		EsposoDocumentoIdentidad: "12345678A",
-		EsposaDocumentoIdentidad: "87654321B",
+		EsposoDocumentoIdentidad: helpers.GenerateValidDNI(12345678),
+		EsposaDocumentoIdentidad: helpers.GenerateValidDNI(87654321),
 	}
 	err = family.BeforeUpdate(nil)
 	assert.Error(t, err)

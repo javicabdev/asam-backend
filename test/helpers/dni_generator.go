@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/rand"
 	"strconv"
-	"time"
 )
 
 // letrasControl contains the control letters for Spanish DNI/NIE validation
@@ -72,23 +71,18 @@ func GenerateValidNIE(prefix rune, number int) string {
 
 // GenerateRandomValidDNI generates a random valid Spanish DNI
 func GenerateRandomValidDNI() string {
-	source := rand.NewSource(time.Now().UnixNano())
-	random := rand.New(source)
-	number := random.Intn(100000000) // 0 to 99999999
+	number := rand.Intn(100000000) // #nosec G404
 	return GenerateValidDNI(number)
 }
 
 // GenerateRandomValidNIE generates a random valid Spanish NIE
 func GenerateRandomValidNIE() string {
-	source := rand.NewSource(time.Now().UnixNano())
-	random := rand.New(source)
-
 	// Random prefix
 	prefixes := []rune{'X', 'Y', 'Z'}
-	prefix := prefixes[random.Intn(3)]
+	prefix := prefixes[rand.Intn(3)] // #nosec G404
 
 	// Random number
-	number := random.Intn(10000000) // 0 to 9999999
+	number := rand.Intn(10000000) // #nosec G404
 
 	return GenerateValidNIE(prefix, number)
 }
