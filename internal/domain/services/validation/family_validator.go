@@ -37,12 +37,12 @@ func (v *DefaultFamilyValidator) ValidateNumeroSocio(numeroSocio string) error {
 	}
 
 	numeroSocio = strings.TrimSpace(strings.ToUpper(numeroSocio))
-	socioRegex := regexp.MustCompile(`^[A-Z]\d{4}$`)
+	socioRegex := regexp.MustCompile(`^[A-Z]\d{5}$`)
 
 	if !socioRegex.MatchString(numeroSocio) {
 		return appErrors.NewValidationError(
 			"Formato de número de socio inválido",
-			map[string]string{"numeroSocio": "El formato debe ser una letra mayúscula seguida de 4 dígitos"},
+			map[string]string{"numeroSocio": "El formato debe ser una letra mayúscula seguida de 5 dígitos"},
 		)
 	}
 
