@@ -21,6 +21,7 @@ import (
 // userService implements user management operations
 type userService struct {
 	userRepo     output.UserRepository
+	memberRepo   output.MemberRepository
 	tokenRepo    output.VerificationTokenRepository
 	emailService output.EmailService
 	logger       logger.Logger
@@ -30,6 +31,7 @@ type userService struct {
 // NewUserService creates a new user management service
 func NewUserService(
 	userRepo output.UserRepository,
+	memberRepo output.MemberRepository,
 	tokenRepo output.VerificationTokenRepository,
 	emailService output.EmailService,
 	logger logger.Logger,
@@ -37,6 +39,7 @@ func NewUserService(
 ) input.UserService {
 	return &userService{
 		userRepo:     userRepo,
+		memberRepo:   memberRepo,
 		tokenRepo:    tokenRepo,
 		emailService: emailService,
 		logger:       logger,
@@ -45,7 +48,7 @@ func NewUserService(
 }
 
 // CreateUser creates a new user with the given details
-func (s *userService) CreateUser(ctx context.Context, username, password string, role models.Role) (*models.User, error) {
+func (s *userService) CreateUser(ctx context.Context, username, email, password string, role models.Role, memberID *uint) (*models.User, error) {
 	// Normalize username first (especially important for emails)
 	username = strings.TrimSpace(username)
 	if strings.Contains(username, "@") {
@@ -79,14 +82,54 @@ func (s *userService) CreateUser(ctx context.Context, username, password string,
 		return nil, errors.Wrap(err, errors.ErrInternalError, "error hashing password")
 	}
 
+	// Validate member association based on role
+	if role == models.RoleUser {
+		if memberID == nil {
+			return nil, errors.NewValidationError(
+				"Usuario con rol USER requiere un socio asociado",
+				map[string]string{"memberID": "Campo requerido para usuarios no administradores"},
+			)
+		}
+
+		// Verify member exists
+		member, err := s.memberRepo.GetByID(ctx, *memberID)
+		if err != nil {
+			return nil, errors.DB(err, "error verificando socio")
+		}
+		if member == nil {
+			return nil, errors.NewValidationError(
+				"Socio no encontrado",
+				map[string]string{"memberID": "El socio especificado no existe"},
+			)
+		}
+
+		// Verify member doesn't already have a user
+		existingUser, err := s.userRepo.FindByMemberID(ctx, *memberID)
+		if err != nil && !errors.IsNotFoundError(err) {
+			return nil, errors.DB(err, "error verificando usuario existente")
+		}
+		if existingUser != nil {
+			return nil, errors.NewValidationError(
+				"El socio ya tiene un usuario asociado",
+				map[string]string{"memberID": "Cada socio solo puede tener un usuario"},
+			)
+		}
+	} else if role == models.RoleAdmin && memberID != nil {
+		return nil, errors.NewValidationError(
+			"Usuario administrador no puede tener socio asociado",
+			map[string]string{"memberID": "Los administradores no deben estar asociados a un socio"},
+		)
+	}
+
 	// Create user
 	user := &models.User{
-		Username: username,
-		Password: string(hashedPassword),
-		Role:     role,
-		IsActive: true,
-		// Por defecto, si el username es un email, no está verificado
-		EmailVerified: !strings.Contains(username, "@"),
+		Username:      username,
+		Email:         email,
+		Password:      string(hashedPassword),
+		Role:          role,
+		MemberID:      memberID,
+		IsActive:      true,
+		EmailVerified: false, // Always start as unverified
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
@@ -153,13 +196,20 @@ func (s *userService) applyUserUpdates(ctx context.Context, user *models.User, u
 		return err
 	}
 
+	// Update email if provided
+	if email, ok := updates["email"].(string); ok {
+		user.Email = strings.TrimSpace(email)
+	}
+
 	// Update password if provided
 	if err := s.updatePassword(user, updates); err != nil {
 		return err
 	}
 
-	// Update role if provided
-	s.updateRole(user, updates)
+	// Update role and memberID together (they must be consistent)
+	if err := s.updateRoleAndMember(ctx, user, updates); err != nil {
+		return err
+	}
 
 	// Update isActive if provided
 	s.updateIsActive(user, updates)
@@ -244,11 +294,73 @@ func (s *userService) updatePassword(user *models.User, updates map[string]inter
 	return nil
 }
 
-// updateRole handles role update
-func (s *userService) updateRole(user *models.User, updates map[string]interface{}) {
-	if role, ok := updates["role"].(models.Role); ok {
-		user.Role = role
+// updateRoleAndMember handles role and member association update
+func (s *userService) updateRoleAndMember(ctx context.Context, user *models.User, updates map[string]interface{}) error {
+	newRole, hasRole := updates["role"].(models.Role)
+	newMemberID, hasMemberID := updates["memberID"].(*uint)
+
+	// If neither role nor memberID is being updated, nothing to do
+	if !hasRole && !hasMemberID {
+		return nil
 	}
+
+	// Determine the final role and memberID
+	finalRole := user.Role
+	if hasRole {
+		finalRole = newRole
+	}
+
+	finalMemberID := user.MemberID
+	if hasMemberID {
+		finalMemberID = newMemberID
+	}
+
+	// Validate the combination
+	if finalRole == models.RoleUser {
+		if finalMemberID == nil {
+			return errors.NewValidationError(
+				"Usuario con rol USER requiere un socio asociado",
+				map[string]string{"memberID": "Campo requerido para usuarios no administradores"},
+			)
+		}
+
+		// Verify member exists
+		member, err := s.memberRepo.GetByID(ctx, *finalMemberID)
+		if err != nil {
+			return errors.DB(err, "error verificando socio")
+		}
+		if member == nil {
+			return errors.NewValidationError(
+				"Socio no encontrado",
+				map[string]string{"memberID": "El socio especificado no existe"},
+			)
+		}
+
+		// If memberID is changing, verify new member doesn't already have a user
+		if user.MemberID == nil || *user.MemberID != *finalMemberID {
+			existingUser, err := s.userRepo.FindByMemberID(ctx, *finalMemberID)
+			if err != nil && !errors.IsNotFoundError(err) {
+				return errors.DB(err, "error verificando usuario existente")
+			}
+			if existingUser != nil && existingUser.ID != user.ID {
+				return errors.NewValidationError(
+					"El socio ya tiene un usuario asociado",
+					map[string]string{"memberID": "Cada socio solo puede tener un usuario"},
+				)
+			}
+		}
+	} else if finalRole == models.RoleAdmin && finalMemberID != nil {
+		return errors.NewValidationError(
+			"Usuario administrador no puede tener socio asociado",
+			map[string]string{"memberID": "Los administradores no deben estar asociados a un socio"},
+		)
+	}
+
+	// Apply the updates
+	user.Role = finalRole
+	user.MemberID = finalMemberID
+
+	return nil
 }
 
 // updateIsActive handles active status update

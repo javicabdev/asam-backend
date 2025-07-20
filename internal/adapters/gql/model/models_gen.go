@@ -59,8 +59,10 @@ type CreateMemberInput struct {
 
 type CreateUserInput struct {
 	Username string   `json:"username"`
+	Email    string   `json:"email"`
 	Password string   `json:"password"`
 	Role     UserRole `json:"role"`
+	MemberID *string  `json:"memberId,omitempty"`
 }
 
 type DocumentValidationResult struct {
@@ -203,9 +205,11 @@ type UpdateMemberInput struct {
 type UpdateUserInput struct {
 	ID       string    `json:"id"`
 	Username *string   `json:"username,omitempty"`
+	Email    *string   `json:"email,omitempty"`
 	Password *string   `json:"password,omitempty"`
 	Role     *UserRole `json:"role,omitempty"`
 	IsActive *bool     `json:"isActive,omitempty"`
+	MemberID *string   `json:"memberId,omitempty"`
 }
 
 type FamilySortField string

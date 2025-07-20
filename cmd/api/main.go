@@ -540,6 +540,7 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 	emailService := &emailServiceAdapter{emailNotificationService}
 	userService := services.NewUserService(
 		userRepo,
+		memberRepo,
 		verificationTokenRepo,
 		emailService,
 		appLogger,
@@ -558,7 +559,7 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 	feeCalculator := services.NewFeeCalculator(30.0, 10.0, 1.0, 1.0)
 	paymentService := services.NewPaymentService(paymentRepo, membershipFeeRepo, memberRepo, notificationService, feeCalculator)
 	cashFlowService := services.NewCashFlowService(cashFlowRepo)
-	authService := services.NewAuthService(userRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, appLogger)
+	authService := services.NewAuthService(userRepo, memberRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, appLogger)
 	serviceStatus.Auth.Store(true)
 
 	// Initialize monitoring components

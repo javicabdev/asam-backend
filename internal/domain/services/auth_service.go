@@ -20,6 +20,7 @@ import (
 
 type authService struct {
 	userRepo              output.UserRepository
+	memberRepo            output.MemberRepository
 	jwtUtil               *auth.JWTUtil
 	tokenRepo             output.TokenRepository // Para gestionar tokens de refresh
 	verificationTokenRepo output.VerificationTokenRepository
@@ -31,6 +32,7 @@ type authService struct {
 // que implementa la interfaz input.AuthService.
 func NewAuthService(
 	userRepo output.UserRepository,
+	memberRepo output.MemberRepository,
 	jwtUtil *auth.JWTUtil,
 	tokenRepo output.TokenRepository,
 	verificationTokenRepo output.VerificationTokenRepository,
@@ -39,6 +41,7 @@ func NewAuthService(
 ) input.AuthService {
 	return &authService{
 		userRepo:              userRepo,
+		memberRepo:            memberRepo,
 		jwtUtil:               jwtUtil,
 		tokenRepo:             tokenRepo,
 		verificationTokenRepo: verificationTokenRepo,
@@ -109,6 +112,50 @@ func (s *authService) Login(ctx context.Context, username, password string) (*in
 		return nil, errors.NewBusinessError(errors.ErrInvalidStatus, "usuario inactivo")
 	}
 
+	// Para usuarios con rol USER, validar asociación con socio
+	if user.Role == models.RoleUser {
+		if user.MemberID == nil {
+			s.logger.Warn("Login failed: user without associated member",
+				zap.String("username", username),
+				zap.Uint("user_id", user.ID),
+			)
+			return nil, errors.NewBusinessError(errors.ErrForbidden,
+				"Tu usuario no está asociado a ningún socio. Contacta al administrador.")
+		}
+
+		// Verificar que el socio existe y está activo
+		member, err := s.memberRepo.GetByID(ctx, *user.MemberID)
+		if err != nil {
+			s.logger.Error("Error fetching associated member",
+				zap.Uint("member_id", *user.MemberID),
+				zap.Error(err),
+			)
+			return nil, errors.NewBusinessError(errors.ErrInternalError,
+				"Error al verificar datos del socio")
+		}
+
+		if member == nil {
+			s.logger.Error("Associated member not found",
+				zap.Uint("member_id", *user.MemberID),
+			)
+			return nil, errors.NewBusinessError(errors.ErrForbidden,
+				"El socio asociado no existe. Contacta al administrador.")
+		}
+
+		if !member.IsActive() {
+			s.logger.Warn("Login failed: inactive member",
+				zap.String("username", username),
+				zap.Uint("user_id", user.ID),
+				zap.Uint("member_id", member.ID),
+			)
+			return nil, errors.NewBusinessError(errors.ErrForbidden,
+				"El socio asociado está inactivo.")
+		}
+
+		// Precargar datos del socio para incluir en contexto
+		user.Member = member
+	}
+
 	// Generar tokens
 	td, err := s.jwtUtil.GenerateTokenPair(user.ID, string(user.Role))
 	if err != nil {
@@ -150,11 +197,15 @@ func (s *authService) Login(ctx context.Context, username, password string) (*in
 	}
 
 	// Al final del login exitoso:
-	s.logger.Info("Login successful",
+	logFields := []zap.Field{
 		zap.String("username", username),
 		zap.Uint("user_id", user.ID),
 		zap.String("role", string(user.Role)),
-	)
+	}
+	if user.MemberID != nil {
+		logFields = append(logFields, zap.Uint("member_id", *user.MemberID))
+	}
+	s.logger.Info("Login successful", logFields...)
 
 	// Convertir auth.TokenDetails a input.TokenDetails
 	return &input.TokenDetails{

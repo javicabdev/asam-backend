@@ -220,11 +220,13 @@ type ComplexityRoot struct {
 	}
 
 	User struct {
+		Email           func(childComplexity int) int
 		EmailVerified   func(childComplexity int) int
 		EmailVerifiedAt func(childComplexity int) int
 		ID              func(childComplexity int) int
 		IsActive        func(childComplexity int) int
 		LastLogin       func(childComplexity int) int
+		Member          func(childComplexity int) int
 		Role            func(childComplexity int) int
 		Username        func(childComplexity int) int
 	}
@@ -1396,6 +1398,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.TransactionConnection.PageInfo(childComplexity), true
 
+	case "User.email":
+		if e.complexity.User.Email == nil {
+			break
+		}
+
+		return e.complexity.User.Email(childComplexity), true
+
 	case "User.emailVerified":
 		if e.complexity.User.EmailVerified == nil {
 			break
@@ -1430,6 +1439,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.User.LastLogin(childComplexity), true
+
+	case "User.member":
+		if e.complexity.User.Member == nil {
+			break
+		}
+
+		return e.complexity.User.Member(childComplexity), true
 
 	case "User.role":
 		if e.complexity.User.Role == nil {
@@ -1629,7 +1645,9 @@ enum UserRole {
 type User {
     id: ID!
     username: String!
+    email: String!
     role: UserRole!
+    member: Member  # Asociación con socio (null para admin, requerido para user)
     isActive: Boolean!
     lastLogin: Time
     emailVerified: Boolean!
@@ -1914,16 +1932,20 @@ input RefreshTokenInput {
 # Input Types para User Management
 input CreateUserInput {
     username: String!
+    email: String!
     password: String!
     role: UserRole!
+    memberId: ID  # Requerido si role es USER, prohibido si role es ADMIN
 }
 
 input UpdateUserInput {
     id: ID!
     username: String
+    email: String
     password: String
     role: UserRole
     isActive: Boolean
+    memberId: ID  # Solo puede cambiar si también cambia el rol
 }
 
 input ChangePasswordInput {
@@ -3638,8 +3660,12 @@ func (ec *executionContext) fieldContext_AuthResponse_user(_ context.Context, fi
 				return ec.fieldContext_User_id(ctx, field)
 			case "username":
 				return ec.fieldContext_User_username(ctx, field)
+			case "email":
+				return ec.fieldContext_User_email(ctx, field)
 			case "role":
 				return ec.fieldContext_User_role(ctx, field)
+			case "member":
+				return ec.fieldContext_User_member(ctx, field)
 			case "isActive":
 				return ec.fieldContext_User_isActive(ctx, field)
 			case "lastLogin":
@@ -7386,8 +7412,12 @@ func (ec *executionContext) fieldContext_Mutation_createUser(ctx context.Context
 				return ec.fieldContext_User_id(ctx, field)
 			case "username":
 				return ec.fieldContext_User_username(ctx, field)
+			case "email":
+				return ec.fieldContext_User_email(ctx, field)
 			case "role":
 				return ec.fieldContext_User_role(ctx, field)
+			case "member":
+				return ec.fieldContext_User_member(ctx, field)
 			case "isActive":
 				return ec.fieldContext_User_isActive(ctx, field)
 			case "lastLogin":
@@ -7457,8 +7487,12 @@ func (ec *executionContext) fieldContext_Mutation_updateUser(ctx context.Context
 				return ec.fieldContext_User_id(ctx, field)
 			case "username":
 				return ec.fieldContext_User_username(ctx, field)
+			case "email":
+				return ec.fieldContext_User_email(ctx, field)
 			case "role":
 				return ec.fieldContext_User_role(ctx, field)
+			case "member":
+				return ec.fieldContext_User_member(ctx, field)
 			case "isActive":
 				return ec.fieldContext_User_isActive(ctx, field)
 			case "lastLogin":
@@ -8765,8 +8799,12 @@ func (ec *executionContext) fieldContext_Query_getUser(ctx context.Context, fiel
 				return ec.fieldContext_User_id(ctx, field)
 			case "username":
 				return ec.fieldContext_User_username(ctx, field)
+			case "email":
+				return ec.fieldContext_User_email(ctx, field)
 			case "role":
 				return ec.fieldContext_User_role(ctx, field)
+			case "member":
+				return ec.fieldContext_User_member(ctx, field)
 			case "isActive":
 				return ec.fieldContext_User_isActive(ctx, field)
 			case "lastLogin":
@@ -8836,8 +8874,12 @@ func (ec *executionContext) fieldContext_Query_listUsers(ctx context.Context, fi
 				return ec.fieldContext_User_id(ctx, field)
 			case "username":
 				return ec.fieldContext_User_username(ctx, field)
+			case "email":
+				return ec.fieldContext_User_email(ctx, field)
 			case "role":
 				return ec.fieldContext_User_role(ctx, field)
+			case "member":
+				return ec.fieldContext_User_member(ctx, field)
 			case "isActive":
 				return ec.fieldContext_User_isActive(ctx, field)
 			case "lastLogin":
@@ -8907,8 +8949,12 @@ func (ec *executionContext) fieldContext_Query_getCurrentUser(_ context.Context,
 				return ec.fieldContext_User_id(ctx, field)
 			case "username":
 				return ec.fieldContext_User_username(ctx, field)
+			case "email":
+				return ec.fieldContext_User_email(ctx, field)
 			case "role":
 				return ec.fieldContext_User_role(ctx, field)
+			case "member":
+				return ec.fieldContext_User_member(ctx, field)
 			case "isActive":
 				return ec.fieldContext_User_isActive(ctx, field)
 			case "lastLogin":
@@ -10456,6 +10502,50 @@ func (ec *executionContext) fieldContext_User_username(_ context.Context, field 
 	return fc, nil
 }
 
+func (ec *executionContext) _User_email(ctx context.Context, field graphql.CollectedField, obj *models.User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_email(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Email, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_User_email(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _User_role(ctx context.Context, field graphql.CollectedField, obj *models.User) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_User_role(ctx, field)
 	if err != nil {
@@ -10495,6 +10585,87 @@ func (ec *executionContext) fieldContext_User_role(_ context.Context, field grap
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type UserRole does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_member(ctx context.Context, field graphql.CollectedField, obj *models.User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_member(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Member, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*models.Member)
+	fc.Result = res
+	return ec.marshalOMember2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐMember(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_User_member(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "miembro_id":
+				return ec.fieldContext_Member_miembro_id(ctx, field)
+			case "numero_socio":
+				return ec.fieldContext_Member_numero_socio(ctx, field)
+			case "tipo_membresia":
+				return ec.fieldContext_Member_tipo_membresia(ctx, field)
+			case "nombre":
+				return ec.fieldContext_Member_nombre(ctx, field)
+			case "apellidos":
+				return ec.fieldContext_Member_apellidos(ctx, field)
+			case "calle_numero_piso":
+				return ec.fieldContext_Member_calle_numero_piso(ctx, field)
+			case "codigo_postal":
+				return ec.fieldContext_Member_codigo_postal(ctx, field)
+			case "poblacion":
+				return ec.fieldContext_Member_poblacion(ctx, field)
+			case "provincia":
+				return ec.fieldContext_Member_provincia(ctx, field)
+			case "pais":
+				return ec.fieldContext_Member_pais(ctx, field)
+			case "estado":
+				return ec.fieldContext_Member_estado(ctx, field)
+			case "fecha_alta":
+				return ec.fieldContext_Member_fecha_alta(ctx, field)
+			case "fecha_baja":
+				return ec.fieldContext_Member_fecha_baja(ctx, field)
+			case "fecha_nacimiento":
+				return ec.fieldContext_Member_fecha_nacimiento(ctx, field)
+			case "documento_identidad":
+				return ec.fieldContext_Member_documento_identidad(ctx, field)
+			case "correo_electronico":
+				return ec.fieldContext_Member_correo_electronico(ctx, field)
+			case "profesion":
+				return ec.fieldContext_Member_profesion(ctx, field)
+			case "nacionalidad":
+				return ec.fieldContext_Member_nacionalidad(ctx, field)
+			case "observaciones":
+				return ec.fieldContext_Member_observaciones(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Member", field.Name)
 		},
 	}
 	return fc, nil
@@ -12891,7 +13062,7 @@ func (ec *executionContext) unmarshalInputCreateUserInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"username", "password", "role"}
+	fieldsInOrder := [...]string{"username", "email", "password", "role", "memberId"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -12905,6 +13076,13 @@ func (ec *executionContext) unmarshalInputCreateUserInput(ctx context.Context, o
 				return it, err
 			}
 			it.Username = data
+		case "email":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("email"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Email = data
 		case "password":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -12919,6 +13097,13 @@ func (ec *executionContext) unmarshalInputCreateUserInput(ctx context.Context, o
 				return it, err
 			}
 			it.Role = data
+		case "memberId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memberId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MemberID = data
 		}
 	}
 
@@ -13571,7 +13756,7 @@ func (ec *executionContext) unmarshalInputUpdateUserInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"id", "username", "password", "role", "isActive"}
+	fieldsInOrder := [...]string{"id", "username", "email", "password", "role", "isActive", "memberId"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13592,6 +13777,13 @@ func (ec *executionContext) unmarshalInputUpdateUserInput(ctx context.Context, o
 				return it, err
 			}
 			it.Username = data
+		case "email":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("email"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Email = data
 		case "password":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -13613,6 +13805,13 @@ func (ec *executionContext) unmarshalInputUpdateUserInput(ctx context.Context, o
 				return it, err
 			}
 			it.IsActive = data
+		case "memberId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memberId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MemberID = data
 		}
 	}
 
@@ -15858,6 +16057,11 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "email":
+			out.Values[i] = ec._User_email(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "role":
 			field := field
 
@@ -15894,6 +16098,8 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "member":
+			out.Values[i] = ec._User_member(ctx, field, obj)
 		case "isActive":
 			out.Values[i] = ec._User_isActive(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
