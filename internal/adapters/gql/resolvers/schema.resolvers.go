@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/generated"
+	"github.com/javicabdev/asam-backend/internal/adapters/gql/middleware"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/domain/services/validation"
@@ -152,16 +153,29 @@ func (r *memberResolver) Observaciones(ctx context.Context, obj *models.Member) 
 
 // CreateMember is the resolver for the createMember field.
 func (r *mutationResolver) CreateMember(ctx context.Context, input model.CreateMemberInput) (*models.Member, error) {
+	// Solo ADMIN puede crear miembros
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
 	return r.Resolver.CreateMember(ctx, input)
 }
 
 // UpdateMember is the resolver for the updateMember field.
 func (r *mutationResolver) UpdateMember(ctx context.Context, input model.UpdateMemberInput) (*models.Member, error) {
+	// Solo ADMIN puede actualizar miembros
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
 	return r.Resolver.UpdateMember(ctx, input)
 }
 
 // DeleteMember is the resolver for the deleteMember field.
 func (r *mutationResolver) DeleteMember(ctx context.Context, id string) (*model.MutationResponse, error) {
+	// Solo ADMIN puede eliminar miembros
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+
 	memberID, err := parseID(id)
 	if err != nil {
 		return nil, err
@@ -184,6 +198,11 @@ func (r *mutationResolver) DeleteMember(ctx context.Context, id string) (*model.
 
 // ChangeMemberStatus is the resolver for the changeMemberStatus field.
 func (r *mutationResolver) ChangeMemberStatus(ctx context.Context, id string, status model.MemberStatus) (*models.Member, error) {
+	// Solo ADMIN puede cambiar estado de miembros
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+
 	// 1) Parsear el ID a uint (o el tipo que uses internamente)
 	memberID, err := parseID(id)
 	if err != nil {
@@ -200,6 +219,11 @@ func (r *mutationResolver) ChangeMemberStatus(ctx context.Context, id string, st
 
 // CreateFamily is the resolver for the createFamily field.
 func (r *mutationResolver) CreateFamily(ctx context.Context, input model.CreateFamilyInput) (*models.Family, error) {
+	// Solo ADMIN puede crear familias
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+
 	// 1) Validar input (opcional, si tienes validateCreateFamilyInput)
 	if input.NumeroSocio == "" {
 		return nil, appErrors.NewValidationError(
@@ -226,6 +250,11 @@ func (r *mutationResolver) CreateFamily(ctx context.Context, input model.CreateF
 
 // UpdateFamily is the resolver for the updateFamily field.
 func (r *mutationResolver) UpdateFamily(ctx context.Context, input model.UpdateFamilyInput) (*models.Family, error) {
+	// Solo ADMIN puede actualizar familias
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+
 	// 1) Validación opcional
 	familyResolver, ok := r.Family().(*familyResolver)
 	if !ok {
@@ -260,6 +289,10 @@ func (r *mutationResolver) UpdateFamily(ctx context.Context, input model.UpdateF
 
 // AddFamilyMember is the resolver for the addFamilyMember field.
 func (r *mutationResolver) AddFamilyMember(ctx context.Context, familyID string, familiar model.FamiliarInput) (*models.Family, error) {
+	// Solo ADMIN puede agregar familiares
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
 	// 1) parseamos el ID
 	id, err := parseID(familyID)
 	if err != nil {
@@ -298,6 +331,10 @@ func (r *mutationResolver) AddFamilyMember(ctx context.Context, familyID string,
 
 // RemoveFamilyMember is the resolver for the removeFamilyMember field.
 func (r *mutationResolver) RemoveFamilyMember(ctx context.Context, familiarID string) (*model.MutationResponse, error) {
+	// Solo ADMIN puede remover familiares
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
 	// 1) parsear ID
 	famID, err := parseID(familiarID)
 	if err != nil {
@@ -324,6 +361,10 @@ func (r *mutationResolver) RemoveFamilyMember(ctx context.Context, familiarID st
 
 // RegisterPayment is the resolver for the registerPayment field.
 func (r *mutationResolver) RegisterPayment(ctx context.Context, input model.PaymentInput) (*models.Payment, error) {
+	// Solo ADMIN puede registrar pagos
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
 	// 1) mapear el input GraphQL al modelo de dominio
 	paymentResolver, ok := r.Payment().(*paymentResolver)
 	if !ok {
@@ -337,6 +378,10 @@ func (r *mutationResolver) RegisterPayment(ctx context.Context, input model.Paym
 
 // UpdatePayment is the resolver for the updatePayment field.
 func (r *mutationResolver) UpdatePayment(ctx context.Context, id string, input model.PaymentInput) (*models.Payment, error) {
+	// Solo ADMIN puede actualizar pagos
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
 	paymentID, err := parseID(id)
 	if err != nil {
 		return nil, err
@@ -366,6 +411,10 @@ func (r *mutationResolver) UpdatePayment(ctx context.Context, id string, input m
 
 // CancelPayment is the resolver for the cancelPayment field.
 func (r *mutationResolver) CancelPayment(ctx context.Context, id string, reason string) (*model.MutationResponse, error) {
+	// Solo ADMIN puede cancelar pagos
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
 	paymentID, err := parseID(id)
 	if err != nil {
 		return nil, err
@@ -401,6 +450,10 @@ func (r *mutationResolver) CancelPayment(ctx context.Context, id string, reason 
 
 // RegisterFee is the resolver for the registerFee field.
 func (r *mutationResolver) RegisterFee(ctx context.Context, year int, month int, baseAmount float64) (*model.MutationResponse, error) {
+	// Solo ADMIN puede registrar cuotas
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
 	// Validación básica de los parámetros
 	if month < 1 || month > 12 {
 		return nil, appErrors.NewValidationError(
@@ -433,6 +486,10 @@ func (r *mutationResolver) RegisterFee(ctx context.Context, year int, month int,
 // RegisterTransaction is the resolver for the registerTransaction field.
 // schema.resolvers.go
 func (r *mutationResolver) RegisterTransaction(ctx context.Context, input model.TransactionInput) (*models.CashFlow, error) {
+	// Solo ADMIN puede registrar transacciones
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
 	// 1) Mapear el input a tu entidad de dominio
 	cashFlowResolver, ok := r.CashFlow().(*cashFlowResolver)
 	if !ok {
@@ -446,6 +503,10 @@ func (r *mutationResolver) RegisterTransaction(ctx context.Context, input model.
 
 // UpdateTransaction is the resolver for the updateTransaction field.
 func (r *mutationResolver) UpdateTransaction(ctx context.Context, id string, input model.TransactionInput) (*models.CashFlow, error) {
+	// Solo ADMIN puede actualizar transacciones
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
 	transactionID, err := parseID(id)
 	if err != nil {
 		return nil, err
@@ -475,6 +536,10 @@ func (r *mutationResolver) UpdateTransaction(ctx context.Context, id string, inp
 
 // AdjustBalance is the resolver for the adjustBalance field.
 func (r *mutationResolver) AdjustBalance(ctx context.Context, amount float64, reason string) (*model.MutationResponse, error) {
+	// Solo ADMIN puede ajustar balance
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
 	cashFlowResolver, ok := r.CashFlow().(*cashFlowResolver)
 	if !ok {
 		return nil, appErrors.NewInternalError("invalid resolver type")
@@ -502,16 +567,28 @@ func (r *mutationResolver) RefreshToken(ctx context.Context, input model.Refresh
 
 // CreateUser is the resolver for the createUser field.
 func (r *mutationResolver) CreateUser(ctx context.Context, input model.CreateUserInput) (*models.User, error) {
+	// Solo ADMIN puede crear usuarios
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
 	return r.Resolver.CreateUser(ctx, input)
 }
 
 // UpdateUser is the resolver for the updateUser field.
 func (r *mutationResolver) UpdateUser(ctx context.Context, input model.UpdateUserInput) (*models.User, error) {
+	// Solo ADMIN puede actualizar usuarios
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
 	return r.Resolver.UpdateUser(ctx, input)
 }
 
 // DeleteUser is the resolver for the deleteUser field.
 func (r *mutationResolver) DeleteUser(ctx context.Context, id string) (*model.MutationResponse, error) {
+	// Solo ADMIN puede eliminar usuarios
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
 	return r.Resolver.DeleteUser(ctx, id)
 }
 
@@ -522,6 +599,10 @@ func (r *mutationResolver) ChangePassword(ctx context.Context, input model.Chang
 
 // ResetUserPassword is the resolver for the resetUserPassword field.
 func (r *mutationResolver) ResetUserPassword(ctx context.Context, userID string, newPassword string) (*model.MutationResponse, error) {
+	// Solo ADMIN puede resetear contraseñas de otros usuarios
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
 	return r.Resolver.ResetUserPassword(ctx, userID, newPassword)
 }
 
@@ -568,11 +649,19 @@ func (r *queryResolver) Ping(ctx context.Context) (string, error) {
 
 // GetUser is the resolver for the getUser field.
 func (r *queryResolver) GetUser(ctx context.Context, id string) (*models.User, error) {
+	// Solo ADMIN puede ver detalles de otros usuarios
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
 	return r.Resolver.GetUser(ctx, id)
 }
 
 // ListUsers is the resolver for the listUsers field.
 func (r *queryResolver) ListUsers(ctx context.Context, page *int, pageSize *int) ([]*models.User, error) {
+	// Solo ADMIN puede listar usuarios
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
 	return r.Resolver.ListUsers(ctx, page, pageSize)
 }
 
@@ -585,6 +674,11 @@ func (r *queryResolver) GetCurrentUser(ctx context.Context) (*models.User, error
 func (r *queryResolver) GetMember(ctx context.Context, id string) (*models.Member, error) {
 	memberID, err := parseID(id) // Convierte el string en uint
 	if err != nil {
+		return nil, err
+	}
+
+	// Verificar permisos de acceso
+	if err := middleware.CanAccessMember(ctx, memberID); err != nil {
 		return nil, err
 	}
 
@@ -601,117 +695,177 @@ func (r *queryResolver) GetMember(ctx context.Context, id string) (*models.Membe
 
 // ListMembers is the resolver for the listMembers field.
 func (r *queryResolver) ListMembers(ctx context.Context, filter *model.MemberFilter) (*model.MemberConnection, error) {
-	// 1) Definir valores por defecto
-	page := 1
-	pageSize := 10
-	var estado *string
-	var tipoMembresia *string
-	var searchTerm *string
-	var orderBy string
-
-	// 2) Extraer paginación si `filter` no es nil
-	if filter != nil {
-		if filter.Pagination != nil {
-			page = filter.Pagination.Page
-			pageSize = filter.Pagination.PageSize
-		}
-		// 3) State (ACTIVE / INACTIVE) → (activo / inactivo)
-		if filter.Estado != nil {
-			tmp := ""
-			switch *filter.Estado {
-			case model.MemberStatusActive:
-				tmp = models.EstadoActivo // "activo"
-			case model.MemberStatusInactive:
-				tmp = models.EstadoInactivo // "inactivo"
-			}
-			estado = &tmp
-		}
-		// 4) Tipo de membresía (INDIVIDUAL / FAMILY) → (individual / familiar)
-		if filter.TipoMembresia != nil {
-			tmp := ""
-			switch *filter.TipoMembresia {
-			case model.MembershipTypeIndividual:
-				tmp = models.TipoMembresiaPIndividual // "individual"
-			case model.MembershipTypeFamily:
-				tmp = models.TipoMembresiaPFamiliar // "familiar"
-			}
-			tipoMembresia = &tmp
-		}
-		// 5) searchTerm
-		if filter.SearchTerm != nil {
-			searchTerm = filter.SearchTerm
-		}
-		// 6) Sort (ejemplo: "NOMBRE ASC")
-		if filter.Sort != nil {
-			orderBy = fmt.Sprintf("%s %s", filter.Sort.Field, filter.Sort.Direction)
-		}
-	}
-
-	// 7) Crear el struct domain.MemberFilters
-	domainFilter := input.MemberFilters{
-		State:          estado,
-		MembershipType: tipoMembresia,
-		SearchTerm:     searchTerm,
-		Page:           page,
-		PageSize:       pageSize,
-		OrderBy:        orderBy,
-	}
-
-	// 8) Llamar al servicio
-	members, err := r.memberService.ListMembers(ctx, domainFilter)
+	// Obtener el MemberID del usuario actual
+	memberID, err := middleware.GetMemberIDFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// 9) Tu servicio, por ahora, retorna ([]models.Member, error).
-	//    No veo un 'totalCount' en la firma, así que no sabremos cuántas hay en total.
-	//    Si lo necesitas, deberías cambiar tu servicio para que devuelva también un total (p.ej. (members []models.Member, total int, err error)).
+	// Si memberID es nil, es admin - mostrar todo
+	if memberID == nil {
+		// Comportamiento original para ADMIN
+		// 1) Definir valores por defecto
+		page := 1
+		pageSize := 10
+		var estado *string
+		var tipoMembresia *string
+		var searchTerm *string
+		var orderBy string
 
-	// 10) Convertir []models.Member a []*models.Member
-	memberPtrs := make([]*models.Member, len(members))
-	for i, m := range members {
-		// crear un puntero a la variable local (cuidado con &m en range)
-		mm := m
-		memberPtrs[i] = mm
+		// 2) Extraer paginación si `filter` no es nil
+		if filter != nil {
+			if filter.Pagination != nil {
+				page = filter.Pagination.Page
+				pageSize = filter.Pagination.PageSize
+			}
+			// 3) State (ACTIVE / INACTIVE) → (activo / inactivo)
+			if filter.Estado != nil {
+				tmp := ""
+				switch *filter.Estado {
+				case model.MemberStatusActive:
+					tmp = models.EstadoActivo // "activo"
+				case model.MemberStatusInactive:
+					tmp = models.EstadoInactivo // "inactivo"
+				}
+				estado = &tmp
+			}
+			// 4) Tipo de membresía (INDIVIDUAL / FAMILY) → (individual / familiar)
+			if filter.TipoMembresia != nil {
+				tmp := ""
+				switch *filter.TipoMembresia {
+				case model.MembershipTypeIndividual:
+					tmp = models.TipoMembresiaPIndividual // "individual"
+				case model.MembershipTypeFamily:
+					tmp = models.TipoMembresiaPFamiliar // "familiar"
+				}
+				tipoMembresia = &tmp
+			}
+			// 5) searchTerm
+			if filter.SearchTerm != nil {
+				searchTerm = filter.SearchTerm
+			}
+			// 6) Sort (ejemplo: "NOMBRE ASC")
+			if filter.Sort != nil {
+				orderBy = fmt.Sprintf("%s %s", filter.Sort.Field, filter.Sort.Direction)
+			}
+		}
+
+		// 7) Crear el struct domain.MemberFilters
+		domainFilter := input.MemberFilters{
+			State:          estado,
+			MembershipType: tipoMembresia,
+			SearchTerm:     searchTerm,
+			Page:           page,
+			PageSize:       pageSize,
+			OrderBy:        orderBy,
+		}
+
+		// 8) Llamar al servicio
+		members, err := r.memberService.ListMembers(ctx, domainFilter)
+		if err != nil {
+			return nil, err
+		}
+
+		// 10) Convertir []models.Member a []*models.Member
+		memberPtrs := make([]*models.Member, len(members))
+		for i, m := range members {
+			// crear un puntero a la variable local (cuidado con &m en range)
+			mm := m
+			memberPtrs[i] = mm
+		}
+
+		// 11) Construir el PageInfo (sin total real, sólo un placeholder)
+		pageInfo := &model.PageInfo{
+			HasNextPage:     false, // sin totalCount, no podemos saberlo
+			HasPreviousPage: page > 1,
+			TotalCount:      len(members), // o 0, si no es representativo
+		}
+
+		// 12) Retornar MemberConnection
+		return &model.MemberConnection{
+			Nodes:    memberPtrs,
+			PageInfo: pageInfo,
+		}, nil
 	}
 
-	// 11) Construir el PageInfo (sin total real, sólo un placeholder)
-	pageInfo := &model.PageInfo{
-		HasNextPage:     false, // sin totalCount, no podemos saberlo
-		HasPreviousPage: page > 1,
-		TotalCount:      len(members), // o 0, si no es representativo
+	// USER: solo puede ver su propio registro
+	member, err := r.memberService.GetMemberByID(ctx, *memberID)
+	if err != nil {
+		return nil, err
 	}
 
-	// 12) Retornar MemberConnection
+	if member == nil {
+		return &model.MemberConnection{
+			Nodes: []*models.Member{},
+			PageInfo: &model.PageInfo{
+				TotalCount:      0,
+				HasNextPage:     false,
+				HasPreviousPage: false,
+			},
+		}, nil
+	}
+
 	return &model.MemberConnection{
-		Nodes:    memberPtrs,
-		PageInfo: pageInfo,
+		Nodes: []*models.Member{member},
+		PageInfo: &model.PageInfo{
+			TotalCount:      1,
+			HasNextPage:     false,
+			HasPreviousPage: false,
+		},
 	}, nil
 }
 
 // SearchMembers is the resolver for the searchMembers field.
 func (r *queryResolver) SearchMembers(ctx context.Context, criteria string) ([]*models.Member, error) {
-	// 1) Construir un MemberFilters con pageSize muy grande
-	domainFilter := input.MemberFilters{
-		SearchTerm: &criteria,
-		Page:       1,
-		PageSize:   999999, // suposición: "sin tope"
-	}
-
-	// 2) Llamar a r.memberService.ListMembers
-	members, err := r.memberService.ListMembers(ctx, domainFilter)
+	// Obtener el MemberID del usuario actual
+	memberID, err := middleware.GetMemberIDFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// 3) Convertir a []*models.Member
-	result := make([]*models.Member, len(members))
-	for i, m := range members {
-		mm := m
-		result[i] = mm
+	// Si memberID es nil, es admin - hacer búsqueda completa
+	if memberID == nil {
+		// 1) Construir un MemberFilters con pageSize muy grande
+		domainFilter := input.MemberFilters{
+			SearchTerm: &criteria,
+			Page:       1,
+			PageSize:   999999, // suposición: "sin tope"
+		}
+
+		// 2) Llamar a r.memberService.ListMembers
+		members, err := r.memberService.ListMembers(ctx, domainFilter)
+		if err != nil {
+			return nil, err
+		}
+
+		// 3) Convertir a []*models.Member
+		result := make([]*models.Member, len(members))
+		for i, m := range members {
+			mm := m
+			result[i] = mm
+		}
+
+		return result, nil
 	}
 
-	return result, nil
+	// USER: solo puede buscar su propio registro
+	member, err := r.memberService.GetMemberByID(ctx, *memberID)
+	if err != nil {
+		return nil, err
+	}
+
+	if member == nil {
+		return []*models.Member{}, nil
+	}
+
+	// Solo devolver el registro si coincide con el criterio de búsqueda
+	if containsIgnoreCase(member.Name, criteria) ||
+		containsIgnoreCase(member.Surnames, criteria) ||
+		containsIgnoreCase(member.MembershipNumber, criteria) {
+		return []*models.Member{member}, nil
+	}
+
+	return []*models.Member{}, nil
 }
 
 // GetFamily is the resolver for the getFamily field.
@@ -733,52 +887,91 @@ func (r *queryResolver) GetFamily(ctx context.Context, id string) (*models.Famil
 		return nil, appErrors.NewNotFoundError("Family")
 	}
 
+	// Verificar permisos de acceso
+	if err := middleware.CanAccessFamily(ctx, family.MiembroOrigenID); err != nil {
+		return nil, err
+	}
+
 	// 4) retornar la familia
 	return family, nil
 }
 
 // ListFamilies is the resolver for the listFamilies field.
 func (r *queryResolver) ListFamilies(ctx context.Context, filter *model.FamilyFilter) (*model.FamilyConnection, error) {
-	// 1) valores por defecto
-	page := 1
-	pageSize := 10
-	var searchTerm *string
-	var orderBy string
-
-	// 2) Extraer fields del filtro
-	if filter != nil {
-		// paginación
-		if filter.Pagination != nil {
-			page = filter.Pagination.Page
-			pageSize = filter.Pagination.PageSize
-		}
-		// searchTerm
-		if filter.SearchTerm != nil {
-			searchTerm = filter.SearchTerm
-		}
-		// sort (campo + dirección)
-		if filter.Sort != nil {
-			orderBy = fmt.Sprintf("%s %s", filter.Sort.Field, filter.Sort.Direction)
-		}
-	}
-
-	// 3) Llamar a tu servicio / repositorio para obtener la lista
-	families, totalCount, err := r.familyService.List(ctx, page, pageSize, searchTerm, orderBy)
+	// Obtener el MemberID del usuario actual
+	memberID, err := middleware.GetMemberIDFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// 4) Construir PageInfo
-	pageInfo := &model.PageInfo{
-		HasNextPage:     (page * pageSize) < totalCount,
-		HasPreviousPage: page > 1,
-		TotalCount:      totalCount,
+	// Si memberID es nil, es admin - mostrar todo
+	if memberID == nil {
+		// Comportamiento original para ADMIN
+		// 1) valores por defecto
+		page := 1
+		pageSize := 10
+		var searchTerm *string
+		var orderBy string
+
+		// 2) Extraer fields del filtro
+		if filter != nil {
+			// paginación
+			if filter.Pagination != nil {
+				page = filter.Pagination.Page
+				pageSize = filter.Pagination.PageSize
+			}
+			// searchTerm
+			if filter.SearchTerm != nil {
+				searchTerm = filter.SearchTerm
+			}
+			// sort (campo + dirección)
+			if filter.Sort != nil {
+				orderBy = fmt.Sprintf("%s %s", filter.Sort.Field, filter.Sort.Direction)
+			}
+		}
+
+		// 3) Llamar a tu servicio / repositorio para obtener la lista
+		families, totalCount, err := r.familyService.List(ctx, page, pageSize, searchTerm, orderBy)
+		if err != nil {
+			return nil, err
+		}
+
+		// 4) Construir PageInfo
+		pageInfo := &model.PageInfo{
+			HasNextPage:     (page * pageSize) < totalCount,
+			HasPreviousPage: page > 1,
+			TotalCount:      totalCount,
+		}
+
+		// 5) Retornar la conexión
+		return &model.FamilyConnection{
+			Nodes:    families, // []*models.Family
+			PageInfo: pageInfo,
+		}, nil
 	}
 
-	// 5) Retornar la conexión
+	// USER: solo puede ver familias donde es el miembro origen
+	// Obtener todas las familias y filtrar
+	families, _, err := r.familyService.List(ctx, 1, 1000, nil, "")
+	if err != nil {
+		return nil, err
+	}
+
+	// Filtrar solo las familias donde el usuario es miembro origen
+	var userFamilies []*models.Family
+	for _, family := range families {
+		if family.MiembroOrigenID != nil && *family.MiembroOrigenID == *memberID {
+			userFamilies = append(userFamilies, family)
+		}
+	}
+
 	return &model.FamilyConnection{
-		Nodes:    families, // []*models.Family
-		PageInfo: pageInfo,
+		Nodes: userFamilies,
+		PageInfo: &model.PageInfo{
+			TotalCount:      len(userFamilies),
+			HasNextPage:     false,
+			HasPreviousPage: false,
+		},
 	}, nil
 }
 
@@ -797,6 +990,11 @@ func (r *queryResolver) GetFamilyMembers(ctx context.Context, familyID string) (
 	}
 	if family == nil {
 		return nil, appErrors.NewNotFoundError("Family")
+	}
+
+	// Verificar permisos de acceso a la familia
+	if err := middleware.CanAccessFamily(ctx, family.MiembroOrigenID); err != nil {
+		return nil, err
 	}
 
 	// 3) Obtener la lista de familiares
@@ -828,6 +1026,11 @@ func (r *queryResolver) GetPayment(ctx context.Context, id string) (*models.Paym
 		return nil, appErrors.NewNotFoundError("Payment")
 	}
 
+	// Verificar permisos de acceso
+	if err := middleware.CanAccessPayment(ctx, payment.MemberID); err != nil {
+		return nil, err
+	}
+
 	// 4) retornar el payment
 	return payment, nil
 }
@@ -837,6 +1040,11 @@ func (r *queryResolver) GetMemberPayments(ctx context.Context, memberID string) 
 	// 1) parsear el string "memberID" a uint
 	mid, err := parseID(memberID)
 	if err != nil {
+		return nil, err
+	}
+
+	// Verificar permisos de acceso al miembro
+	if err := middleware.CanAccessMember(ctx, mid); err != nil {
 		return nil, err
 	}
 
@@ -867,6 +1075,11 @@ func (r *queryResolver) GetFamilyPayments(ctx context.Context, familyID string) 
 		return nil, appErrors.NewNotFoundError("Family")
 	}
 
+	// Verificar permisos de acceso a la familia
+	if err := middleware.CanAccessFamily(ctx, family.MiembroOrigenID); err != nil {
+		return nil, err
+	}
+
 	// 3) buscar los pagos de la familia
 	payments, err := r.paymentService.GetFamilyPayments(ctx, fid)
 	if err != nil {
@@ -894,12 +1107,23 @@ func (r *queryResolver) GetPaymentStatus(ctx context.Context, id string) (models
 		return "", appErrors.NewNotFoundError("Payment")
 	}
 
+	// Verificar permisos de acceso al pago
+	if err := middleware.CanAccessPayment(ctx, payment.MemberID); err != nil {
+		return "", err
+	}
+
 	// 3) retornar el status (ej. PaymentStatusPaid, PaymentStatusCancelled, etc.)
 	return payment.Status, nil
 }
 
 // GetCashFlow is the resolver for the getCashFlow field.
 func (r *queryResolver) GetCashFlow(ctx context.Context, id string) (*models.CashFlow, error) {
+	// Solo ADMIN puede ver transacciones individuales
+	// Los usuarios USER no deben acceder a transacciones directamente
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+
 	// 1) Parsear el string a uint
 	cfID, err := parseID(id)
 	if err != nil {
@@ -914,7 +1138,7 @@ func (r *queryResolver) GetCashFlow(ctx context.Context, id string) (*models.Cas
 
 	// 3) Verificar si no se encontró
 	if cashFlow == nil {
-		return nil, appErrors.NewNotFoundError("CashFlo")
+		return nil, appErrors.NewNotFoundError("CashFlow")
 	}
 
 	// 4) Retornar el objeto CashFlow
@@ -923,6 +1147,11 @@ func (r *queryResolver) GetCashFlow(ctx context.Context, id string) (*models.Cas
 
 // GetBalance is the resolver for the getBalance field.
 func (r *queryResolver) GetBalance(ctx context.Context) (float64, error) {
+	// Solo ADMIN puede ver el balance general
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return 0, err
+	}
+
 	// 1) Llamas a un método de tu servicio (p. ej. "GetCurrentBalance")
 	balance, err := r.cashFlowService.GetCurrentBalance(ctx)
 	if err != nil {
@@ -935,6 +1164,11 @@ func (r *queryResolver) GetBalance(ctx context.Context) (float64, error) {
 
 // GetTransactions is the resolver for the getTransactions field.
 func (r *queryResolver) GetTransactions(ctx context.Context, filter *model.TransactionFilter) (*model.TransactionConnection, error) {
+	// Solo ADMIN puede ver lista de transacciones
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+
 	page := 1
 	pageSize := 10
 	var orderBy string
@@ -1052,6 +1286,23 @@ func (r *userResolver) Role(ctx context.Context, obj *models.User) (model.UserRo
 		// Este caso no debería ocurrir si los datos están bien validados
 		return model.UserRoleUser, nil
 	}
+}
+
+// Member is the resolver for the member field.
+func (r *userResolver) Member(ctx context.Context, obj *models.User) (*models.Member, error) {
+	// Delegar al método ya implementado en user_resolver.go
+	// Si user no tiene memberID, retorna nil
+	if obj.MemberID == nil {
+		return nil, nil
+	}
+
+	// Verificar permisos
+	if err := middleware.CanAccessMember(ctx, *obj.MemberID); err != nil {
+		return nil, err
+	}
+
+	// Obtener datos del miembro
+	return r.memberService.GetMemberByID(ctx, *obj.MemberID)
 }
 
 // CashFlow returns generated.CashFlowResolver implementation.
