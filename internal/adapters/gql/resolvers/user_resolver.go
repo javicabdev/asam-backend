@@ -212,3 +212,17 @@ func (r *userResolver) ResetUserPassword(ctx context.Context, userID string, new
 		Message: &successMsg,
 	}, nil
 }
+
+// Helper functions
+
+// convertGraphQLRoleToDomain converts GraphQL UserRole enum to domain Role
+func convertGraphQLRoleToDomain(role model.UserRole) models.Role {
+	switch role {
+	case model.UserRoleAdmin:
+		return models.RoleAdmin
+	case model.UserRoleUser:
+		return models.RoleUser
+	default:
+		return models.RoleUser
+	}
+}
