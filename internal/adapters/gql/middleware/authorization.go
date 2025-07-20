@@ -141,3 +141,130 @@ func MustBeAuthenticated(ctx context.Context) error {
 	_, err := GetUserFromContext(ctx)
 	return err
 }
+
+// GetMemberIDFromContext obtiene el MemberID del usuario actual
+// Para ADMIN devuelve nil (acceso a todo)
+// Para USER devuelve su MemberID (garantizado por login)
+func GetMemberIDFromContext(ctx context.Context) (*uint, error) {
+	user, err := GetUserFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Admin no tiene restricciones
+	if user.Role == models.RoleAdmin {
+		return nil, nil
+	}
+
+	// USER siempre tiene MemberID (validado en login)
+	// Si llegamos aquí sin MemberID, hay un error de integridad
+	if user.MemberID == nil {
+		return nil, errors.NewBusinessError(
+			errors.ErrInternalError,
+			"Usuario sin socio asociado - error de integridad",
+		)
+	}
+
+	return user.MemberID, nil
+}
+
+// CanAccessMember verifica si el usuario puede acceder a un socio específico
+func CanAccessMember(ctx context.Context, memberID uint) error {
+	userMemberID, err := GetMemberIDFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	// nil significa admin (acceso total)
+	if userMemberID == nil {
+		return nil
+	}
+
+	// USER solo puede ver su propio registro
+	if *userMemberID != memberID {
+		return errors.NewBusinessError(
+			errors.ErrForbidden,
+			"No tienes permiso para acceder a este socio",
+		)
+	}
+
+	return nil
+}
+
+// CanAccessFamily verifica si el usuario puede acceder a una familia específica
+// Por ahora, solo permite acceso si el usuario es el miembro origen de la familia
+// TODO: Expandir para incluir cónyuges y familiares cuando se implemente GetMembersByFamilyID
+func CanAccessFamily(ctx context.Context, originMemberID *uint) error {
+	// Si no hay miembro origen, no hay restricciones específicas
+	if originMemberID == nil {
+		return nil
+	}
+
+	userMemberID, err := GetMemberIDFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Admin tiene acceso total
+	if userMemberID == nil {
+		return nil
+	}
+
+	// USER solo puede ver familias donde es el miembro origen
+	if *userMemberID != *originMemberID {
+		return errors.NewBusinessError(
+			errors.ErrForbidden,
+			"No tienes permiso para acceder a esta familia",
+		)
+	}
+
+	return nil
+}
+
+// CanAccessPayment verifica si el usuario puede acceder a un pago específico
+func CanAccessPayment(ctx context.Context, paymentMemberID uint) error {
+	userMemberID, err := GetMemberIDFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Admin tiene acceso total
+	if userMemberID == nil {
+		return nil
+	}
+
+	// USER solo puede ver sus propios pagos
+	if *userMemberID != paymentMemberID {
+		return errors.NewBusinessError(
+			errors.ErrForbidden,
+			"No tienes permiso para acceder a este pago",
+		)
+	}
+
+	return nil
+}
+
+// IsUserMember verifica si el usuario actual es un USER con socio asociado
+func IsUserMember(ctx context.Context) bool {
+	user, err := GetUserFromContext(ctx)
+	if err != nil {
+		return false
+	}
+
+	return user.Role == models.RoleUser && user.MemberID != nil
+}
+
+// GetCurrentUserMember obtiene el socio asociado al usuario actual si existe
+func GetCurrentUserMember(ctx context.Context) (*uint, error) {
+	user, err := GetUserFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Solo usuarios con rol USER tienen socio asociado
+	if user.Role != models.RoleUser {
+		return nil, nil
+	}
+
+	return user.MemberID, nil
+}

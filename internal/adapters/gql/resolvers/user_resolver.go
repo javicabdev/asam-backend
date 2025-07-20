@@ -72,7 +72,17 @@ func (r *userResolver) CreateUser(ctx context.Context, input model.CreateUserInp
 	// Convert role from GraphQL enum to domain model
 	role := convertGraphQLRoleToDomain(input.Role)
 
-	return r.userService.CreateUser(ctx, input.Username, input.Password, role)
+	// Parse memberID if provided
+	var memberID *uint
+	if input.MemberID != nil {
+		id, err := parseID(*input.MemberID)
+		if err != nil {
+			return nil, err
+		}
+		memberID = &id
+	}
+
+	return r.userService.CreateUser(ctx, input.Username, input.Email, input.Password, role, memberID)
 }
 
 // UpdateUser updates an existing user (Admin only)
@@ -92,6 +102,9 @@ func (r *userResolver) UpdateUser(ctx context.Context, input model.UpdateUserInp
 	if input.Username != nil {
 		updates["username"] = *input.Username
 	}
+	if input.Email != nil {
+		updates["email"] = *input.Email
+	}
 	if input.Password != nil {
 		updates["password"] = *input.Password
 	}
@@ -100,6 +113,14 @@ func (r *userResolver) UpdateUser(ctx context.Context, input model.UpdateUserInp
 	}
 	if input.IsActive != nil {
 		updates["isActive"] = *input.IsActive
+	}
+	if input.MemberID != nil {
+		// Parse memberID
+		id, err := parseID(*input.MemberID)
+		if err != nil {
+			return nil, err
+		}
+		updates["memberID"] = &id
 	}
 
 	return r.userService.UpdateUser(ctx, userID, updates)

@@ -459,15 +459,20 @@ func (s *userService) GetUserByEmail(ctx context.Context, email string) (*models
 }
 
 // ListUsers retrieves a paginated list of users
-func (s *userService) ListUsers(_ context.Context, _, _ int) ([]*models.User, error) {
-	// For now, we'll return all users and handle pagination in memory
-	// In a real implementation, this would be done at the repository level
+func (s *userService) ListUsers(ctx context.Context, page, pageSize int) ([]*models.User, error) {
+	// Validate pagination parameters
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 10 // Default page size
+	}
 
-	// This is a simplified implementation - you would need to add a ListUsers method to UserRepository
-	// for proper pagination support
-
-	// Placeholder implementation
-	users := make([]*models.User, 0)
+	// Get users from repository
+	users, _, err := s.userRepo.ListUsers(ctx, page, pageSize)
+	if err != nil {
+		return nil, errors.DB(err, "error listing users")
+	}
 
 	// Clear passwords before returning
 	for _, user := range users {

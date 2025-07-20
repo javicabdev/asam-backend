@@ -16,6 +16,13 @@ type UserRepository interface {
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
 	FindByMemberID(ctx context.Context, memberID uint) (*models.User, error)
 	Update(ctx context.Context, user *models.User) error
+
+	// Additional operations
+	IsUserActive(ctx context.Context, userID uint) (bool, error)
+	DeactivateUser(ctx context.Context, userID uint) error
+	ListUsers(ctx context.Context, page, pageSize int) ([]*models.User, int64, error)
+	GetUserWithMember(ctx context.Context, userID uint) (*models.User, error)
+	CountUsersByRole(ctx context.Context, role models.Role) (int64, error)
 }
 
 // TokenRepository handles refresh token operations
