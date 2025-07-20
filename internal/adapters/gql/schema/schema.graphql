@@ -235,6 +235,16 @@ type Query {
     # Member Number Queries
     getNextMemberNumber(isFamily: Boolean!): String!
     checkMemberNumberExists(memberNumber: String!): Boolean!
+    
+    # Document Validation Query
+    checkDocumentValidity(documentNumber: String!): DocumentValidationResult!
+}
+
+# Type for document validation result
+type DocumentValidationResult {
+    isValid: Boolean!
+    normalizedValue: String
+    errorMessage: String
 }
 
 # Input Types para mutations

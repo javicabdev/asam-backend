@@ -26,22 +26,14 @@ func (v *DefaultMemberValidator) ValidateDocumentID(documentID string) error {
 		)
 	}
 
-	// Limpiamos el documento de espacios
-	documentID = strings.TrimSpace(strings.ToUpper(documentID))
-
-	// Regex para DNI: 8 dígitos seguidos de una letra
-	dniRegex := regexp.MustCompile(`^[0-9]{8}[A-Z]$`)
-	// Regex para NIE: X, Y o Z seguido de 7 dígitos y una letra
-	nieRegex := regexp.MustCompile(`^[XYZ][0-9]{7}[A-Z]$`)
-
-	if !dniRegex.MatchString(documentID) && !nieRegex.MatchString(documentID) {
+	// Usar la función ValidarNIF que incluye validación del dígito de control
+	if !ValidarNIF(documentID) {
 		return appErrors.NewValidationError(
 			"invalid document ID format",
-			map[string]string{"document_id": "Formato inválido (DNI/NIE)"},
+			map[string]string{"document_id": "Formato inválido o letra de control incorrecta (DNI/NIE)"},
 		)
 	}
 
-	// Aquí podríamos añadir la validación del dígito de control
 	return nil
 }
 

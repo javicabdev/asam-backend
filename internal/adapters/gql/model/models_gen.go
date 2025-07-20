@@ -63,6 +63,12 @@ type CreateUserInput struct {
 	Role     UserRole `json:"role"`
 }
 
+type DocumentValidationResult struct {
+	IsValid         bool    `json:"isValid"`
+	NormalizedValue *string `json:"normalizedValue,omitempty"`
+	ErrorMessage    *string `json:"errorMessage,omitempty"`
+}
+
 type FamiliarInput struct {
 	Nombre            string     `json:"nombre"`
 	Apellidos         string     `json:"apellidos"`

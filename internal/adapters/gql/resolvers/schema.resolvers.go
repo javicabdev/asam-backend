@@ -12,6 +12,7 @@ import (
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/generated"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/internal/domain/services/validation"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 )
@@ -998,6 +999,40 @@ func (r *queryResolver) GetNextMemberNumber(ctx context.Context, isFamily bool) 
 func (r *queryResolver) CheckMemberNumberExists(ctx context.Context, memberNumber string) (bool, error) {
 	// Llamar directamente al servicio de miembros
 	return r.memberService.CheckMemberNumberExists(ctx, memberNumber)
+}
+
+// CheckDocumentValidity is the resolver for the checkDocumentValidity field.
+func (r *queryResolver) CheckDocumentValidity(ctx context.Context, documentNumber string) (*model.DocumentValidationResult, error) {
+	// Importar el paquete de validación
+	isValid := validation.ValidarNIF(documentNumber)
+
+	result := &model.DocumentValidationResult{
+		IsValid: isValid,
+	}
+
+	if isValid {
+		// Si es válido, devolver el valor normalizado
+		normalized := validation.NormalizarNIF(documentNumber)
+		result.NormalizedValue = &normalized
+	} else {
+		// Si no es válido, proporcionar un mensaje de error descriptivo
+		var errorMsg string
+
+		// Verificar casos específicos de error
+		normalized := validation.NormalizarNIF(documentNumber)
+		switch {
+		case len(normalized) != 9:
+			errorMsg = "El documento debe tener exactamente 9 caracteres (sin espacios ni guiones)"
+		case normalized[0] != 'X' && normalized[0] != 'Y' && normalized[0] != 'Z' && (normalized[0] < '0' || normalized[0] > '9'):
+			errorMsg = "El documento debe empezar con un número (DNI) o con X, Y o Z (NIE)"
+		default:
+			errorMsg = "La letra de control no es correcta"
+		}
+
+		result.ErrorMessage = &errorMsg
+	}
+
+	return result, nil
 }
 
 // ID is the resolver for the id field.

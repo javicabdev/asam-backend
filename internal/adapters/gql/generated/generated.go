@@ -72,6 +72,12 @@ type ComplexityRoot struct {
 		Payment       func(childComplexity int) int
 	}
 
+	DocumentValidationResult struct {
+		ErrorMessage    func(childComplexity int) int
+		IsValid         func(childComplexity int) int
+		NormalizedValue func(childComplexity int) int
+	}
+
 	Familiar struct {
 		Apellidos         func(childComplexity int) int
 		CorreoElectronico func(childComplexity int) int
@@ -179,6 +185,7 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
+		CheckDocumentValidity   func(childComplexity int, documentNumber string) int
 		CheckMemberNumberExists func(childComplexity int, memberNumber string) int
 		GetBalance              func(childComplexity int) int
 		GetCashFlow             func(childComplexity int, id string) int
@@ -307,6 +314,7 @@ type QueryResolver interface {
 	GetTransactions(ctx context.Context, filter *model.TransactionFilter) (*model.TransactionConnection, error)
 	GetNextMemberNumber(ctx context.Context, isFamily bool) (string, error)
 	CheckMemberNumberExists(ctx context.Context, memberNumber string) (bool, error)
+	CheckDocumentValidity(ctx context.Context, documentNumber string) (*model.DocumentValidationResult, error)
 }
 type UserResolver interface {
 	ID(ctx context.Context, obj *models.User) (string, error)
@@ -416,6 +424,27 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.CashFlow.Payment(childComplexity), true
+
+	case "DocumentValidationResult.errorMessage":
+		if e.complexity.DocumentValidationResult.ErrorMessage == nil {
+			break
+		}
+
+		return e.complexity.DocumentValidationResult.ErrorMessage(childComplexity), true
+
+	case "DocumentValidationResult.isValid":
+		if e.complexity.DocumentValidationResult.IsValid == nil {
+			break
+		}
+
+		return e.complexity.DocumentValidationResult.IsValid(childComplexity), true
+
+	case "DocumentValidationResult.normalizedValue":
+		if e.complexity.DocumentValidationResult.NormalizedValue == nil {
+			break
+		}
+
+		return e.complexity.DocumentValidationResult.NormalizedValue(childComplexity), true
 
 	case "Familiar.apellidos":
 		if e.complexity.Familiar.Apellidos == nil {
@@ -1100,6 +1129,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Payment.Status(childComplexity), true
 
+	case "Query.checkDocumentValidity":
+		if e.complexity.Query.CheckDocumentValidity == nil {
+			break
+		}
+
+		args, err := ec.field_Query_checkDocumentValidity_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.CheckDocumentValidity(childComplexity, args["documentNumber"].(string)), true
+
 	case "Query.checkMemberNumberExists":
 		if e.complexity.Query.CheckMemberNumberExists == nil {
 			break
@@ -1763,6 +1804,16 @@ type Query {
     # Member Number Queries
     getNextMemberNumber(isFamily: Boolean!): String!
     checkMemberNumberExists(memberNumber: String!): Boolean!
+    
+    # Document Validation Query
+    checkDocumentValidity(documentNumber: String!): DocumentValidationResult!
+}
+
+# Type for document validation result
+type DocumentValidationResult {
+    isValid: Boolean!
+    normalizedValue: String
+    errorMessage: String
 }
 
 # Input Types para mutations
@@ -2918,6 +2969,34 @@ func (ec *executionContext) field_Query___type_argsName(
 
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 	if tmp, ok := rawArgs["name"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_checkDocumentValidity_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_checkDocumentValidity_argsDocumentNumber(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["documentNumber"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_checkDocumentValidity_argsDocumentNumber(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["documentNumber"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("documentNumber"))
+	if tmp, ok := rawArgs["documentNumber"]; ok {
 		return ec.unmarshalNString2string(ctx, tmp)
 	}
 
@@ -4122,6 +4201,132 @@ func (ec *executionContext) fieldContext_CashFlow_payment(_ context.Context, fie
 				return ec.fieldContext_Payment_notes(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Payment", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DocumentValidationResult_isValid(ctx context.Context, field graphql.CollectedField, obj *model.DocumentValidationResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DocumentValidationResult_isValid(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.IsValid, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DocumentValidationResult_isValid(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DocumentValidationResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DocumentValidationResult_normalizedValue(ctx context.Context, field graphql.CollectedField, obj *model.DocumentValidationResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DocumentValidationResult_normalizedValue(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NormalizedValue, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DocumentValidationResult_normalizedValue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DocumentValidationResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DocumentValidationResult_errorMessage(ctx context.Context, field graphql.CollectedField, obj *model.DocumentValidationResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DocumentValidationResult_errorMessage(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ErrorMessage, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DocumentValidationResult_errorMessage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DocumentValidationResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -9723,6 +9928,69 @@ func (ec *executionContext) fieldContext_Query_checkMemberNumberExists(ctx conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_checkDocumentValidity(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_checkDocumentValidity(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().CheckDocumentValidity(rctx, fc.Args["documentNumber"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.DocumentValidationResult)
+	fc.Result = res
+	return ec.marshalNDocumentValidationResult2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDocumentValidationResult(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_checkDocumentValidity(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "isValid":
+				return ec.fieldContext_DocumentValidationResult_isValid(ctx, field)
+			case "normalizedValue":
+				return ec.fieldContext_DocumentValidationResult_normalizedValue(ctx, field)
+			case "errorMessage":
+				return ec.fieldContext_DocumentValidationResult_errorMessage(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DocumentValidationResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_checkDocumentValidity_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query___type(ctx, field)
 	if err != nil {
@@ -13509,6 +13777,49 @@ func (ec *executionContext) _CashFlow(ctx context.Context, sel ast.SelectionSet,
 	return out
 }
 
+var documentValidationResultImplementors = []string{"DocumentValidationResult"}
+
+func (ec *executionContext) _DocumentValidationResult(ctx context.Context, sel ast.SelectionSet, obj *model.DocumentValidationResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, documentValidationResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DocumentValidationResult")
+		case "isValid":
+			out.Values[i] = ec._DocumentValidationResult_isValid(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "normalizedValue":
+			out.Values[i] = ec._DocumentValidationResult_normalizedValue(ctx, field, obj)
+		case "errorMessage":
+			out.Values[i] = ec._DocumentValidationResult_errorMessage(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var familiarImplementors = []string{"Familiar"}
 
 func (ec *executionContext) _Familiar(ctx context.Context, sel ast.SelectionSet, obj *models.Familiar) graphql.Marshaler {
@@ -15349,6 +15660,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "checkDocumentValidity":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_checkDocumentValidity(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -16039,6 +16372,20 @@ func (ec *executionContext) unmarshalNCreateMemberInput2githubᚗcomᚋjavicabde
 func (ec *executionContext) unmarshalNCreateUserInput2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐCreateUserInput(ctx context.Context, v any) (model.CreateUserInput, error) {
 	res, err := ec.unmarshalInputCreateUserInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDocumentValidationResult2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDocumentValidationResult(ctx context.Context, sel ast.SelectionSet, v model.DocumentValidationResult) graphql.Marshaler {
+	return ec._DocumentValidationResult(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDocumentValidationResult2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDocumentValidationResult(ctx context.Context, sel ast.SelectionSet, v *model.DocumentValidationResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DocumentValidationResult(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNFamiliar2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐFamiliar(ctx context.Context, sel ast.SelectionSet, v models.Familiar) graphql.Marshaler {

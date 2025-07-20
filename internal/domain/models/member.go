@@ -5,6 +5,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/javicabdev/asam-backend/internal/domain/services/validation"
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 )
 
@@ -112,6 +113,13 @@ func (m *Member) validateBasicFields() error {
 		errDetails["city"] = "City is required"
 	}
 
+	// Validar DNI/NIE si se proporciona
+	if m.IdentityCard != nil && *m.IdentityCard != "" {
+		if !validation.ValidarNIF(*m.IdentityCard) {
+			errDetails["identityCard"] = "Invalid Spanish DNI/NIE format"
+		}
+	}
+
 	if len(errDetails) > 0 {
 		return appErrors.NewValidationError("Error de validación en campos del miembro", errDetails)
 	}
@@ -164,11 +172,21 @@ func (m *Member) BeforeCreate(*gorm.DB) error {
 	if m.State == "" {
 		m.State = EstadoActivo
 	}
+	// Normalizar DNI/NIE si se proporciona
+	if m.IdentityCard != nil && *m.IdentityCard != "" {
+		normalized := validation.NormalizarNIF(*m.IdentityCard)
+		m.IdentityCard = &normalized
+	}
 	return m.Validate()
 }
 
 // BeforeUpdate hook de GORM que se ejecuta antes de actualizar un miembro
 func (m *Member) BeforeUpdate(*gorm.DB) error {
+	// Normalizar DNI/NIE si se proporciona
+	if m.IdentityCard != nil && *m.IdentityCard != "" {
+		normalized := validation.NormalizarNIF(*m.IdentityCard)
+		m.IdentityCard = &normalized
+	}
 	return m.Validate()
 }
 
