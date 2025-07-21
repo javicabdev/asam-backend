@@ -55,107 +55,13 @@ func (s *userService) CreateUser(ctx context.Context, username, email, password 
 		username = strings.ToLower(username)
 	}
 
-	// Validate all inputs before any expensive operations
-	if err := s.validateUsername(username); err != nil {
+	// Validate all inputs
+	if err := s.validateCreateUserInput(ctx, username, password, role, memberID); err != nil {
 		return nil, err
 	}
 
-	if err := s.validatePassword(password); err != nil {
-		return nil, err
-	}
-
-	// Now check if username already exists (after all validations pass)
-	existingUser, err := s.userRepo.FindByUsername(ctx, username)
-	if err != nil && !errors.IsNotFoundError(err) {
-		return nil, errors.DB(err, "error checking existing username")
-	}
-	if existingUser != nil {
-		return nil, errors.NewValidationError(
-			"Username already exists",
-			map[string]string{"username": "This username is already taken"},
-		)
-	}
-
-	// Hash password after all validations pass
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, errors.Wrap(err, errors.ErrInternalError, "error hashing password")
-	}
-
-	// Validate member association based on role
-	if role == models.RoleUser {
-		if memberID == nil {
-			return nil, errors.NewValidationError(
-				"Usuario con rol USER requiere un socio asociado",
-				map[string]string{"memberID": "Campo requerido para usuarios no administradores"},
-			)
-		}
-
-		// Verify member exists
-		member, err := s.memberRepo.GetByID(ctx, *memberID)
-		if err != nil {
-			return nil, errors.DB(err, "error verificando socio")
-		}
-		if member == nil {
-			return nil, errors.NewValidationError(
-				"Socio no encontrado",
-				map[string]string{"memberID": "El socio especificado no existe"},
-			)
-		}
-
-		// Verify member doesn't already have a user
-		existingUser, err := s.userRepo.FindByMemberID(ctx, *memberID)
-		if err != nil && !errors.IsNotFoundError(err) {
-			return nil, errors.DB(err, "error verificando usuario existente")
-		}
-		if existingUser != nil {
-			return nil, errors.NewValidationError(
-				"El socio ya tiene un usuario asociado",
-				map[string]string{"memberID": "Cada socio solo puede tener un usuario"},
-			)
-		}
-	} else if role == models.RoleAdmin && memberID != nil {
-		return nil, errors.NewValidationError(
-			"Usuario administrador no puede tener socio asociado",
-			map[string]string{"memberID": "Los administradores no deben estar asociados a un socio"},
-		)
-	}
-
-	// Create user
-	user := &models.User{
-		Username:      username,
-		Email:         email,
-		Password:      string(hashedPassword),
-		Role:          role,
-		MemberID:      memberID,
-		IsActive:      true,
-		EmailVerified: false, // Always start as unverified
-	}
-
-	if err := s.userRepo.Create(ctx, user); err != nil {
-		return nil, errors.DB(err, "error creating user")
-	}
-
-	s.logger.Info("User created successfully",
-		zap.Uint("user_id", user.ID),
-		zap.String("username", user.Username),
-		zap.String("role", string(user.Role)),
-	)
-
-	// Si el username es un email, enviar email de verificación
-	if strings.Contains(username, "@") && !user.EmailVerified {
-		// Intentar enviar email de verificación, pero no fallar si hay error
-		if err := s.SendVerificationEmail(ctx, user.ID); err != nil {
-			s.logger.Error("Failed to send verification email",
-				zap.Error(err),
-				zap.Uint("user_id", user.ID),
-			)
-		}
-	}
-
-	// Clear password before returning
-	user.Password = ""
-	return user, nil
+	// Create user with validated data
+	return s.createUserWithValidatedData(ctx, username, email, password, role, memberID)
 }
 
 // UpdateUser updates an existing user's details
@@ -296,64 +202,17 @@ func (s *userService) updatePassword(user *models.User, updates map[string]inter
 
 // updateRoleAndMember handles role and member association update
 func (s *userService) updateRoleAndMember(ctx context.Context, user *models.User, updates map[string]interface{}) error {
-	newRole, hasRole := updates["role"].(models.Role)
-	newMemberID, hasMemberID := updates["memberID"].(*uint)
+	// Determine final values
+	finalRole, finalMemberID, hasRole, hasMemberID := s.determineFinalRoleAndMember(user, updates)
 
 	// If neither role nor memberID is being updated, nothing to do
 	if !hasRole && !hasMemberID {
 		return nil
 	}
 
-	// Determine the final role and memberID
-	finalRole := user.Role
-	if hasRole {
-		finalRole = newRole
-	}
-
-	finalMemberID := user.MemberID
-	if hasMemberID {
-		finalMemberID = newMemberID
-	}
-
 	// Validate the combination
-	if finalRole == models.RoleUser {
-		if finalMemberID == nil {
-			return errors.NewValidationError(
-				"Usuario con rol USER requiere un socio asociado",
-				map[string]string{"memberID": "Campo requerido para usuarios no administradores"},
-			)
-		}
-
-		// Verify member exists
-		member, err := s.memberRepo.GetByID(ctx, *finalMemberID)
-		if err != nil {
-			return errors.DB(err, "error verificando socio")
-		}
-		if member == nil {
-			return errors.NewValidationError(
-				"Socio no encontrado",
-				map[string]string{"memberID": "El socio especificado no existe"},
-			)
-		}
-
-		// If memberID is changing, verify new member doesn't already have a user
-		if user.MemberID == nil || *user.MemberID != *finalMemberID {
-			existingUser, err := s.userRepo.FindByMemberID(ctx, *finalMemberID)
-			if err != nil && !errors.IsNotFoundError(err) {
-				return errors.DB(err, "error verificando usuario existente")
-			}
-			if existingUser != nil && existingUser.ID != user.ID {
-				return errors.NewValidationError(
-					"El socio ya tiene un usuario asociado",
-					map[string]string{"memberID": "Cada socio solo puede tener un usuario"},
-				)
-			}
-		}
-	} else if finalRole == models.RoleAdmin && finalMemberID != nil {
-		return errors.NewValidationError(
-			"Usuario administrador no puede tener socio asociado",
-			map[string]string{"memberID": "Los administradores no deben estar asociados a un socio"},
-		)
+	if err := s.validateRoleMemberCombination(ctx, user, finalRole, finalMemberID); err != nil {
+		return err
 	}
 
 	// Apply the updates

@@ -69,15 +69,13 @@ func SeedUserWithMember(db *gorm.DB) error {
 		}
 
 		log.Printf("✓ Created user: %s (Role: %s, MemberID: %d)", user.Username, user.Role, *user.MemberID)
-	} else {
+	} else if existingUser.MemberID == nil {
 		// Actualizar el usuario existente para asociarlo al socio
-		if existingUser.MemberID == nil {
-			existingUser.MemberID = &existingMember.ID
-			if err := db.Save(&existingUser).Error; err != nil {
-				return fmt.Errorf("error updating user: %w", err)
-			}
-			log.Printf("✓ Updated user %s with MemberID: %d", existingUser.Username, *existingUser.MemberID)
+		existingUser.MemberID = &existingMember.ID
+		if err := db.Save(&existingUser).Error; err != nil {
+			return fmt.Errorf("error updating user: %w", err)
 		}
+		log.Printf("✓ Updated user %s with MemberID: %d", existingUser.Username, *existingUser.MemberID)
 	}
 
 	// 5. Crear un segundo ejemplo: socio sin usuario (para futura asociación)

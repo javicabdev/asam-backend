@@ -703,89 +703,17 @@ func (r *queryResolver) ListMembers(ctx context.Context, filter *model.MemberFil
 
 	// Si memberID es nil, es admin - mostrar todo
 	if memberID == nil {
-		// Comportamiento original para ADMIN
-		// 1) Definir valores por defecto
-		page := 1
-		pageSize := 10
-		var estado *string
-		var tipoMembresia *string
-		var searchTerm *string
-		var orderBy string
+		// Comportamiento para ADMIN: usar métodos helper
+		domainFilter := r.mapMemberFilterToDomain(filter)
 
-		// 2) Extraer paginación si `filter` no es nil
-		if filter != nil {
-			if filter.Pagination != nil {
-				page = filter.Pagination.Page
-				pageSize = filter.Pagination.PageSize
-			}
-			// 3) State (ACTIVE / INACTIVE) → (activo / inactivo)
-			if filter.Estado != nil {
-				tmp := ""
-				switch *filter.Estado {
-				case model.MemberStatusActive:
-					tmp = models.EstadoActivo // "activo"
-				case model.MemberStatusInactive:
-					tmp = models.EstadoInactivo // "inactivo"
-				}
-				estado = &tmp
-			}
-			// 4) Tipo de membresía (INDIVIDUAL / FAMILY) → (individual / familiar)
-			if filter.TipoMembresia != nil {
-				tmp := ""
-				switch *filter.TipoMembresia {
-				case model.MembershipTypeIndividual:
-					tmp = models.TipoMembresiaPIndividual // "individual"
-				case model.MembershipTypeFamily:
-					tmp = models.TipoMembresiaPFamiliar // "familiar"
-				}
-				tipoMembresia = &tmp
-			}
-			// 5) searchTerm
-			if filter.SearchTerm != nil {
-				searchTerm = filter.SearchTerm
-			}
-			// 6) Sort (ejemplo: "NOMBRE ASC")
-			if filter.Sort != nil {
-				orderBy = fmt.Sprintf("%s %s", filter.Sort.Field, filter.Sort.Direction)
-			}
-		}
-
-		// 7) Crear el struct domain.MemberFilters
-		domainFilter := input.MemberFilters{
-			State:          estado,
-			MembershipType: tipoMembresia,
-			SearchTerm:     searchTerm,
-			Page:           page,
-			PageSize:       pageSize,
-			OrderBy:        orderBy,
-		}
-
-		// 8) Llamar al servicio
+		// Llamar al servicio
 		members, err := r.memberService.ListMembers(ctx, domainFilter)
 		if err != nil {
 			return nil, err
 		}
 
-		// 10) Convertir []models.Member a []*models.Member
-		memberPtrs := make([]*models.Member, len(members))
-		for i, m := range members {
-			// crear un puntero a la variable local (cuidado con &m en range)
-			mm := m
-			memberPtrs[i] = mm
-		}
-
-		// 11) Construir el PageInfo (sin total real, sólo un placeholder)
-		pageInfo := &model.PageInfo{
-			HasNextPage:     false, // sin totalCount, no podemos saberlo
-			HasPreviousPage: page > 1,
-			TotalCount:      len(members), // o 0, si no es representativo
-		}
-
-		// 12) Retornar MemberConnection
-		return &model.MemberConnection{
-			Nodes:    memberPtrs,
-			PageInfo: pageInfo,
-		}, nil
+		// Construir y retornar la respuesta usando el método helper
+		return r.buildMemberConnection(members, domainFilter.Page), nil
 	}
 
 	// USER: solo puede ver su propio registro
@@ -1328,6 +1256,89 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
 // User returns generated.UserResolver implementation.
 func (r *Resolver) User() generated.UserResolver { return &userResolver{r} }
+
+// Helper methods for reducing cyclomatic complexity
+
+// mapMemberFilterToDomain maps GraphQL filter to domain filter
+func (r *queryResolver) mapMemberFilterToDomain(filter *model.MemberFilter) input.MemberFilters {
+	// Define default values
+	page := 1
+	pageSize := 10
+	var estado *string
+	var tipoMembresia *string
+	var searchTerm *string
+	var orderBy string
+
+	if filter != nil {
+		// Extract pagination
+		if filter.Pagination != nil {
+			page = filter.Pagination.Page
+			pageSize = filter.Pagination.PageSize
+		}
+		// Map State (ACTIVE / INACTIVE) → (activo / inactivo)
+		if filter.Estado != nil {
+			tmp := ""
+			switch *filter.Estado {
+			case model.MemberStatusActive:
+				tmp = models.EstadoActivo
+			case model.MemberStatusInactive:
+				tmp = models.EstadoInactivo
+			}
+			estado = &tmp
+		}
+		// Map membership type (INDIVIDUAL / FAMILY) → (individual / familiar)
+		if filter.TipoMembresia != nil {
+			tmp := ""
+			switch *filter.TipoMembresia {
+			case model.MembershipTypeIndividual:
+				tmp = models.TipoMembresiaPIndividual
+			case model.MembershipTypeFamily:
+				tmp = models.TipoMembresiaPFamiliar
+			}
+			tipoMembresia = &tmp
+		}
+		// Extract search term
+		if filter.SearchTerm != nil {
+			searchTerm = filter.SearchTerm
+		}
+		// Extract sort
+		if filter.Sort != nil {
+			orderBy = fmt.Sprintf("%s %s", filter.Sort.Field, filter.Sort.Direction)
+		}
+	}
+
+	return input.MemberFilters{
+		State:          estado,
+		MembershipType: tipoMembresia,
+		SearchTerm:     searchTerm,
+		Page:           page,
+		PageSize:       pageSize,
+		OrderBy:        orderBy,
+	}
+}
+
+// buildMemberConnection builds the GraphQL response from domain members
+func (r *queryResolver) buildMemberConnection(members []*models.Member, page int) *model.MemberConnection {
+	// Convert slice to pointer slice if needed
+	memberPtrs := make([]*models.Member, len(members))
+	for i, m := range members {
+		// Create a copy to avoid pointer issues
+		copy := *m
+		memberPtrs[i] = &copy
+	}
+
+	// Build PageInfo
+	pageInfo := &model.PageInfo{
+		HasNextPage:     false, // without totalCount, we can't know
+		HasPreviousPage: page > 1,
+		TotalCount:      len(members), // placeholder
+	}
+
+	return &model.MemberConnection{
+		Nodes:    memberPtrs,
+		PageInfo: pageInfo,
+	}
+}
 
 type cashFlowResolver struct{ *Resolver }
 type familiarResolver struct{ *Resolver }
