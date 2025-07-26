@@ -1169,8 +1169,8 @@ type MockUserService struct {
 
 // CreateUser creates a new user with the given details.
 // Returns the created user or an error if the creation fails.
-func (m *MockUserService) CreateUser(ctx context.Context, username, password string, role models.Role) (*models.User, error) {
-	args := m.Called(ctx, username, password, role)
+func (m *MockUserService) CreateUser(ctx context.Context, username, email, password string, role models.Role, memberID *uint) (*models.User, error) {
+	args := m.Called(ctx, username, email, password, role, memberID)
 	err := args.Error(1)
 	var user *models.User
 	ret0 := args.Get(0)

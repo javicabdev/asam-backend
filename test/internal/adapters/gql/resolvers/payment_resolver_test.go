@@ -11,9 +11,22 @@ import (
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/pkg/auth"
+	"github.com/javicabdev/asam-backend/pkg/constants"
 	"github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/test"
 )
+
+func createPaymentAuthContext() context.Context {
+	// Crear un usuario de prueba (admin para tener todos los permisos)
+	testUser := &models.User{
+		Username: "test_admin",
+		Role:     models.RoleAdmin,
+		IsActive: true,
+	}
+	testUser.ID = 1
+
+	return context.WithValue(context.Background(), constants.UserContextKey, testUser)
+}
 
 var _ = ginkgo.Describe("Payment", func() {
 	var (
@@ -68,7 +81,8 @@ var _ = ginkgo.Describe("Payment", func() {
 
 				paymentService.On("GetPayment", mock.Anything, uint(1)).Return(payment, nil)
 
-				result, err := resolver.Query().GetPayment(context.Background(), "1")
+				ctx := createPaymentAuthContext()
+				result, err := resolver.Query().GetPayment(ctx, "1")
 
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				gomega.Expect(result.MemberID).To(gomega.Equal(payment.MemberID))
@@ -83,7 +97,8 @@ var _ = ginkgo.Describe("Payment", func() {
 				paymentService.On("GetPayment", mock.Anything, uint(999)).Return(nil, errors.NewNotFoundError("payment"))
 
 				// Aquí está la corrección: usar Query().GetPayment en lugar de Mutation().CancelPayment
-				result, err := resolver.Query().GetPayment(context.Background(), "999")
+				ctx := createPaymentAuthContext()
+				result, err := resolver.Query().GetPayment(ctx, "999")
 
 				gomega.Expect(err).To(gomega.HaveOccurred())
 				gomega.Expect(result).To(gomega.BeNil())
@@ -103,7 +118,8 @@ var _ = ginkgo.Describe("Payment", func() {
 
 				paymentService.On("RegisterPayment", mock.Anything, mock.AnythingOfType("*models.Payment")).Return(nil)
 
-				result, err := resolver.Mutation().RegisterPayment(context.Background(), input)
+				ctx := createPaymentAuthContext()
+				result, err := resolver.Mutation().RegisterPayment(ctx, input)
 
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				gomega.Expect(result).NotTo(gomega.BeNil())
@@ -118,7 +134,8 @@ var _ = ginkgo.Describe("Payment", func() {
 					PaymentMethod: "efectivo",
 				}
 
-				result, err := resolver.Mutation().RegisterPayment(context.Background(), input)
+				ctx := createPaymentAuthContext()
+				result, err := resolver.Mutation().RegisterPayment(ctx, input)
 
 				gomega.Expect(err).To(gomega.HaveOccurred())
 				gomega.Expect(result).To(gomega.BeNil())
@@ -134,7 +151,8 @@ var _ = ginkgo.Describe("Payment", func() {
 					State: models.EstadoInactivo,
 				}, nil)
 
-				result, err := resolver.Mutation().RegisterPayment(context.Background(), input)
+				ctx := createPaymentAuthContext()
+				result, err := resolver.Mutation().RegisterPayment(ctx, input)
 
 				gomega.Expect(err).To(gomega.HaveOccurred())
 				gomega.Expect(result).To(gomega.BeNil())
@@ -151,7 +169,8 @@ var _ = ginkgo.Describe("Payment", func() {
 
 				paymentService.On("CancelPayment", mock.Anything, uint(1), "Pago duplicado").Return(nil)
 
-				result, err := resolver.Mutation().CancelPayment(context.Background(), "1", "Pago duplicado")
+				ctx := createPaymentAuthContext()
+				result, err := resolver.Mutation().CancelPayment(ctx, "1", "Pago duplicado")
 
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				gomega.Expect(result.Success).To(gomega.BeTrue())
@@ -165,7 +184,8 @@ var _ = ginkgo.Describe("Payment", func() {
 				// para un pago que no existe
 				paymentService.On("GetPayment", mock.Anything, uint(999)).Return(nil, errors.NewNotFoundError("payment"))
 
-				result, err := resolver.Mutation().CancelPayment(context.Background(), "999", "test")
+				ctx := createPaymentAuthContext()
+				result, err := resolver.Mutation().CancelPayment(ctx, "999", "test")
 
 				// Verificamos que hay un error y que es del tipo correcto
 				gomega.Expect(err).To(gomega.HaveOccurred())
@@ -182,7 +202,8 @@ var _ = ginkgo.Describe("Payment", func() {
 			ginkgo.It("generates fees successfully", func() {
 				paymentService.On("GenerateMonthlyFees", mock.Anything, 2025, 1, 30.0).Return(nil)
 
-				result, err := resolver.Mutation().RegisterFee(context.Background(), 2025, 1, 30.0)
+				ctx := createPaymentAuthContext()
+				result, err := resolver.Mutation().RegisterFee(ctx, 2025, 1, 30.0)
 
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				gomega.Expect(result.Success).To(gomega.BeTrue())
@@ -193,7 +214,8 @@ var _ = ginkgo.Describe("Payment", func() {
 		ginkgo.When("parameters are invalid", func() {
 			ginkgo.It("returns error for invalid month", func() {
 				// No necesitamos configurar el mock porque la validación ocurre antes de llamar al servicio
-				result, err := resolver.Mutation().RegisterFee(context.Background(), 2025, 13, 30.0)
+				ctx := createPaymentAuthContext()
+				result, err := resolver.Mutation().RegisterFee(ctx, 2025, 13, 30.0)
 
 				gomega.Expect(err).To(gomega.HaveOccurred())
 				gomega.Expect(errors.IsValidationError(err)).To(gomega.BeTrue())

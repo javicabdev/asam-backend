@@ -2,47 +2,89 @@
 
 ## Estructura de Directorios
 
-Para que la cobertura de código funcione correctamente, los tests deben reflejar la misma estructura de directorios que el código que están probando. Por eso, hemos reorganizado los tests siguiendo esta convención:
+Todos los tests están consolidados en la carpeta `test/` siguiendo la misma estructura del código fuente para mantener claridad y facilitar el mantenimiento.
 
 ```
 test/
   internal/               <- Refleja el paquete internal del código fuente
-    domain/               <- Refleja el paquete domain del código fuente
+    domain/               <- Tests para la capa de dominio
       services/           <- Tests para servicios
       models/             <- Tests para modelos
-    adapters/             <- Refleja el paquete adapters del código fuente
+    adapters/             <- Tests para adaptadores
       gql/                <- Tests para GraphQL
+        resolvers/        <- Tests de resolvers y control de acceso
       middleware/         <- Tests para middleware
 ```
 
-## Ejecutando Tests con Cobertura
+## Ejecutando Tests
 
-Para ejecutar los tests con cobertura, utiliza el siguiente comando:
+### Ejecutar todos los tests
+```bash
+go test ./test/... -v
+```
 
+### Ejecutar tests con cobertura
 ```bash
 go test ./test/... -coverprofile=coverage.out -coverpkg=./...
 ```
 
-Esto ejecutará todas las pruebas y generará un archivo de cobertura que incluye todos los paquetes del proyecto.
-
-Para generar un reporte HTML de cobertura:
-
+### Generar reporte HTML de cobertura
 ```bash
 go tool cover -html=coverage.out -o coverage.html
 ```
 
-También puedes usar el script `run_tests_with_coverage.sh` incluido en la raíz del proyecto.
+### Script automatizado
+Puedes usar el script incluido para ejecutar todos los tests con cobertura:
+```bash
+./run_consolidated_tests.sh
+```
 
-## Mantenimiento de los Tests
+## Estructura de Tests
 
-Al agregar nuevos tests:
+### Tests Unitarios vs Tests de Integración
 
-1. Asegúrate de colocarlos en el directorio correspondiente dentro de `test/` que refleje la estructura del código que estás probando
-2. Mantén el mismo nombre de paquete que el código original (o añade el sufijo `_test`)
-3. Asegúrate de que los mocks están configurados correctamente para ejecutar el código real
+- **Tests Unitarios**: Prueban componentes individuales en aislamiento
+- **Tests de Integración**: Prueban flujos completos y la interacción entre componentes
 
-Si los tests siguen reportando cobertura de 0%, verifica:
+### Framework de Testing
 
-1. Que el paquete corresponda correctamente con el código bajo prueba
-2. Que los mocks estén configurados para llamar a las implementaciones reales
-3. Que estés usando el flag `-coverpkg=./...` para incluir todos los paquetes
+Usamos **Ginkgo/Gomega** para tests BDD (Behavior-Driven Development):
+- Ginkgo: Framework de testing BDD para Go
+- Gomega: Librería de assertions que complementa Ginkgo
+
+### Tests de Control de Acceso
+
+Los tests de control de acceso verifican:
+1. **Autenticación**: Usuarios no autenticados no pueden acceder a recursos protegidos
+2. **Autorización por Rol**: 
+   - ADMIN: Acceso completo a todos los recursos
+   - USER: Acceso solo a sus propios recursos
+3. **Autorización por Recurso**:
+   - Members: Los usuarios solo pueden ver su propio registro
+   - Families: Los usuarios solo pueden ver familias donde son miembro origen
+   - Payments: Los usuarios solo pueden ver sus propios pagos
+
+## Mantenimiento de Tests
+
+### Al agregar nuevos tests:
+
+1. **Ubicación**: Coloca los tests en el directorio correspondiente dentro de `test/` que refleje la estructura del código
+2. **Nomenclatura**: Usa el sufijo `_test` para archivos de test
+3. **Suite**: Si es un nuevo paquete, crea un archivo `*_suite_test.go`
+4. **Mocks**: Usa los mocks definidos en `test/mocks/`
+
+### Buenas prácticas:
+
+1. **Aislamiento**: Cada test debe ser independiente
+2. **Claridad**: Los nombres de tests deben describir claramente qué se está probando
+3. **Cobertura**: Apunta a cubrir casos normales y casos límite
+4. **Mantenibilidad**: Evita duplicación usando helpers y setup compartido
+
+## Tests Consolidados
+
+Los siguientes tests han sido consolidados desde el código fuente:
+
+- `access_control_test.go`: Tests de control de acceso en resolvers GraphQL
+- `authorization_member_test.go`: Tests del middleware de autorización de miembros
+
+Estos tests ahora siguen el estilo BDD con Ginkgo/Gomega para mantener consistencia con el resto de la suite de tests.

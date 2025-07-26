@@ -7,7 +7,6 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
-	"gorm.io/gorm"
 
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
@@ -22,11 +21,11 @@ import (
 func createAuthContext() context.Context {
 	// Crear un usuario de prueba (admin para tener todos los permisos)
 	testUser := &models.User{
-		Model:    gorm.Model{ID: 1},
 		Username: "test_admin",
 		Role:     models.RoleAdmin,
 		IsActive: true,
 	}
+	testUser.ID = 1
 
 	return context.WithValue(context.Background(), constants.UserContextKey, testUser)
 }

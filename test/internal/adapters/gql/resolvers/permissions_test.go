@@ -6,7 +6,6 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
-	"gorm.io/gorm"
 
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
@@ -60,16 +59,16 @@ var _ = ginkgo.Describe("Permissions", func() {
 		)
 
 		adminUser = &models.User{
-			Model:    gorm.Model{ID: 1},
 			Username: "admin",
 			Role:     models.RoleAdmin,
 		}
+		adminUser.ID = 1
 
 		regularUser = &models.User{
-			Model:    gorm.Model{ID: 2},
 			Username: "user",
 			Role:     models.RoleUser,
 		}
+		regularUser.ID = 2
 	})
 
 	ginkgo.Describe("Member Operations", func() {
@@ -187,19 +186,31 @@ var _ = ginkgo.Describe("Permissions", func() {
 		})
 
 		ginkgo.When("user is not admin", func() {
-			ginkgo.It("cannot access management features", func() {
-				ctx := context.WithValue(context.Background(), constants.UserContextKey, regularUser)
+			ginkgo.It("sees only own member", func() {
+				memberID := uint(10)
+				userWithMember := &models.User{
+					Username: "user",
+					Role:     models.RoleUser,
+					MemberID: &memberID,
+				}
+				userWithMember.ID = 2
 
-				// Configuramos el mock para capturar cualquier llamada
-				members := make([]*models.Member, 0)
-				memberService.On("ListMembers", mock.Anything, mock.AnythingOfType("input.MemberFilters")).
-					Return(members, errors.NewBusinessError(errors.ErrForbidden, "Insufficient permissions"))
+				ctx := context.WithValue(context.Background(), constants.UserContextKey, userWithMember)
+
+				userMember := &models.Member{
+					ID:   10,
+					Name: "User's Member",
+				}
+
+				// Para usuarios regulares, el resolver debe buscar su propio miembro
+				memberService.On("GetMemberByID", mock.Anything, uint(10)).Return(userMember, nil)
 
 				result, err := resolver.Query().ListMembers(ctx, nil)
 
-				gomega.Expect(err).To(gomega.HaveOccurred(), "Debería haber error para un usuario no admin")
-				gomega.Expect(errors.Is(err, errors.ErrForbidden)).To(gomega.BeTrue(), "Debería ser un error de tipo 'acceso prohibido'")
-				gomega.Expect(result).To(gomega.BeNil())
+				gomega.Expect(err).NotTo(gomega.HaveOccurred())
+				gomega.Expect(result).NotTo(gomega.BeNil())
+				gomega.Expect(result.Nodes).To(gomega.HaveLen(1))
+				gomega.Expect(result.Nodes[0].ID).To(gomega.Equal(uint(10)))
 			})
 		})
 	})

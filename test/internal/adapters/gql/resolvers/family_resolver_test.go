@@ -12,9 +12,22 @@ import (
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/pkg/auth"
+	"github.com/javicabdev/asam-backend/pkg/constants"
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/test"
 )
+
+func createFamilyAuthContext() context.Context {
+	// Crear un usuario de prueba (admin para tener todos los permisos)
+	testUser := &models.User{
+		Username: "test_admin",
+		Role:     models.RoleAdmin,
+		IsActive: true,
+	}
+	testUser.ID = 1
+
+	return context.WithValue(context.Background(), constants.UserContextKey, testUser)
+}
 
 var _ = ginkgo.Describe("Family", func() {
 	var (
@@ -69,7 +82,8 @@ var _ = ginkgo.Describe("Family", func() {
 
 				familyService.On("GetByID", mock.Anything, uint(1)).Return(expectedFamily, nil)
 
-				family, err := resolver.Query().GetFamily(context.Background(), "1")
+				ctx := createFamilyAuthContext()
+				family, err := resolver.Query().GetFamily(ctx, "1")
 
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				gomega.Expect(family.ID).To(gomega.Equal(expectedFamily.ID))
@@ -83,7 +97,8 @@ var _ = ginkgo.Describe("Family", func() {
 			ginkgo.It("returns not found error", func() {
 				familyService.On("GetByID", mock.Anything, uint(999)).Return(nil, appErrors.NewNotFoundError("familia"))
 
-				family, err := resolver.Query().GetFamily(context.Background(), "999")
+				ctx := createFamilyAuthContext()
+				family, err := resolver.Query().GetFamily(ctx, "999")
 
 				gomega.Expect(err).To(gomega.HaveOccurred())
 				gomega.Expect(appErrors.IsNotFoundError(err)).To(gomega.BeTrue(), "Debería ser un error de tipo 'no encontrado'")
@@ -99,7 +114,8 @@ var _ = ginkgo.Describe("Family", func() {
 
 				familyService.On("Create", mock.Anything, mock.AnythingOfType("*models.Family")).Return(nil)
 
-				family, err := resolver.Mutation().CreateFamily(context.Background(), input)
+				ctx := createFamilyAuthContext()
+				family, err := resolver.Mutation().CreateFamily(ctx, input)
 
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				gomega.Expect(family).NotTo(gomega.BeNil())
@@ -118,7 +134,8 @@ var _ = ginkgo.Describe("Family", func() {
 
 				familyService.On("Create", mock.Anything, mock.AnythingOfType("*models.Family")).Return(expectedErr)
 
-				family, err := resolver.Mutation().CreateFamily(context.Background(), input)
+				ctx := createFamilyAuthContext()
+				family, err := resolver.Mutation().CreateFamily(ctx, input)
 
 				gomega.Expect(err).To(gomega.HaveOccurred())
 				gomega.Expect(appErrors.IsValidationError(err)).To(gomega.BeTrue(), "Debería ser un error de validación")
@@ -150,7 +167,8 @@ var _ = ginkgo.Describe("Family", func() {
 				}, nil)
 				familyService.On("AddFamiliar", mock.Anything, uint(1), mock.AnythingOfType("*models.Familiar")).Return(nil)
 
-				member, err := resolver.Mutation().AddFamilyMember(context.Background(), familyID, familiar)
+				ctx := createFamilyAuthContext()
+				member, err := resolver.Mutation().AddFamilyMember(ctx, familyID, familiar)
 
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				gomega.Expect(member).NotTo(gomega.BeNil())
@@ -168,7 +186,8 @@ var _ = ginkgo.Describe("Family", func() {
 
 				familyService.On("GetByID", mock.Anything, uint(999)).Return(nil, appErrors.NewNotFoundError("familia"))
 
-				member, err := resolver.Mutation().AddFamilyMember(context.Background(), familyID, familiar)
+				ctx := createFamilyAuthContext()
+				member, err := resolver.Mutation().AddFamilyMember(ctx, familyID, familiar)
 
 				gomega.Expect(err).To(gomega.HaveOccurred())
 				gomega.Expect(appErrors.IsNotFoundError(err)).To(gomega.BeTrue(), "Debería ser un error de tipo 'no encontrado'")
