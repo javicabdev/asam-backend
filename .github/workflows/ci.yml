@@ -48,7 +48,6 @@ jobs:
           name: workspace
           path: .
 
-  # Job 'lint' modificado para usar 'make lint' y la versión específica de golangci-lint.
   lint:
     name: Lint Code
     needs: setup
@@ -68,16 +67,9 @@ jobs:
           cache: true
 
       - name: Install golangci-lint v2.1.6
-        uses: golangci/golangci-lint-action@v6
-        with:
-          # Usando la versión específica que necesitas.
-          version: v2.1.6
-          # La opción 'install-only' asegura que solo se instale la herramienta.
-          # La ejecución se delega al Makefile.
-          install-only: true
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v2.1.6
 
       - name: Run linter via Makefile
-        # Ejecutando el comando 'make lint' como has solicitado.
         run: make lint
 
   test:
