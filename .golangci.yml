@@ -130,3 +130,14 @@ issues:
   max-same-issues: 0
   new: false
   fix: false
+  exclude-rules:
+    # Exclude G404 (weak random) in test files - it's intentional for reproducibility
+    - path: test/.*\.go
+      linters:
+        - gosec
+      text: "G404"
+    # Exclude G115 (integer overflow) in test files when properly controlled
+    - path: test/.*\.go
+      linters:
+        - gosec
+      text: "G115"

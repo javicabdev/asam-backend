@@ -213,6 +213,22 @@ func (r *userResolver) ResetUserPassword(ctx context.Context, userID string, new
 	}, nil
 }
 
+// Member resolver for User type - returns the associated member if any
+func (r *userResolver) Member(ctx context.Context, obj *models.User) (*models.Member, error) {
+	// Si user no tiene memberID, retorna nil
+	if obj.MemberID == nil {
+		return nil, nil
+	}
+
+	// Verificar permisos
+	if err := middleware.CanAccessMember(ctx, *obj.MemberID); err != nil {
+		return nil, err
+	}
+
+	// Obtener datos del miembro
+	return r.memberService.GetMemberByID(ctx, *obj.MemberID)
+}
+
 // Helper functions
 
 // convertGraphQLRoleToDomain converts GraphQL UserRole enum to domain Role

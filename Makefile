@@ -173,7 +173,7 @@ test:
 .PHONY: test-unit
 test-unit:
 	@echo "🧪 Running unit tests..."
-	@$(GOTEST) -v -race -short ./...
+	@$(GOTEST) -v -race ./test/unit/...
 
 ## test-integration: Run integration tests only
 .PHONY: test-integration
@@ -188,6 +188,14 @@ test-coverage:
 	@$(GOTEST) -v -race -coverprofile=coverage.out ./...
 	@$(GO) tool cover -html=coverage.out -o coverage.html
 	@echo "✅ Coverage report generated: coverage.html"
+
+## test-unit-coverage: Run unit tests with coverage report
+.PHONY: test-unit-coverage
+test-unit-coverage:
+	@echo "📊 Running unit tests with coverage..."
+	@$(GOTEST) -v -race -coverprofile=coverage-unit.out ./test/unit/...
+	@$(GO) tool cover -html=coverage-unit.out -o coverage-unit.html
+	@echo "✅ Unit test coverage report: coverage-unit.html"
 
 ## test-coverage-view: View coverage report in browser
 .PHONY: test-coverage-view
@@ -224,6 +232,12 @@ test-auth-view: test-auth-coverage
 lint:
 	@echo "🔍 Running linter..."
 	@$(GOLINT) run
+
+## lint-tests: Run linter on test files only
+.PHONY: lint-tests
+lint-tests:
+	@echo "🔍 Running linter on tests..."
+	@$(GOLINT) run ./test/...
 
 ## fmt: Format code
 .PHONY: fmt
