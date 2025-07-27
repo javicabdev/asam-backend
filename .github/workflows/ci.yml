@@ -9,24 +9,58 @@ on:
       - 'LICENSE'
   pull_request:
     branches: [ main ]
+  workflow_dispatch: # Permite ejecutar el workflow manualmente desde la UI de GitHub
 
 env:
-  GO_VERSION: '1.24'  # Última versión estable de Go
+  GO_VERSION: '1.24'
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: postgres
   POSTGRES_DB: asam_test
   POSTGRES_PORT: "5432"
 
 jobs:
-  lint:
-    name: Lint
+  # Job para configurar el entorno base, descargar dependencias y generar código.
+  # El resultado (el workspace) se pasa a los siguientes jobs como un artefacto.
+  setup:
+    name: Setup Environment & Generate Code
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          fetch-depth: 0  # Para obtener el historial para análisis
+          go-version: ${{ env.GO_VERSION }}
+          cache: true # Habilita el caché para dependencias y build
+
+      - name: Verify dependencies
+        run: |
+          go mod download
+          go mod verify
+
+      - name: Generate GraphQL code
+        # Unificamos la versión a la que tenías originalmente para mantener consistencia.
+        run: go run github.com/99designs/gqlgen@v0.17.73 generate
+
+      - name: Upload workspace artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace
+          path: .
+
+  lint:
+    name: Lint Code
+    needs: setup # Depende del job 'setup'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download workspace artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace
+          path: .
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -34,33 +68,20 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Verify dependencies
-        run: |
-          go mod download
-          go mod verify
-
-      - name: Install gqlgen
-        run: go install github.com/99designs/gqlgen@v0.17.73
-
-      - name: Generate GraphQL code
-        run: |
-          echo "Generating GraphQL code..."
-          gqlgen generate
-
-      - name: Install and run golangci-lint
-        uses: golangci/golangci-lint-action@v8
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
         with:
-          version: v2.1.6
+          version: v1.59.1
           args: --timeout=5m
 
   test:
-    name: Test
-    needs: lint
+    name: Run Tests
+    needs: setup # Depende del job 'setup'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     services:
       postgres:
-        image: postgres:16-alpine  # Usar alpine para imagen más ligera
+        image: postgres:16-alpine
         env:
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
@@ -72,9 +93,12 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Download workspace artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace
+          path: .
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -82,65 +106,34 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Get dependencies
-        run: |
-          go mod download
-          go mod verify
-
-      - name: Install gqlgen
-        run: go install github.com/99designs/gqlgen@v0.17.73
-
-      - name: Generate GraphQL code
-        run: |
-          echo "Generating GraphQL code..."
-          gqlgen generate
-
-      - name: Run unit tests with coverage
-        run: |
-          go test -v -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./internal/... ./test/internal/...
-          go tool cover -func=coverage.txt
-        env:
-          JWT_ACCESS_SECRET: "test-access-secret-for-unit-tests"
-          JWT_REFRESH_SECRET: "test-refresh-secret-for-unit-tests"
-          CGO_ENABLED: "1"
-
-
-          DB_PORT: "1234"
-          DB_USER: "testuser-unit"
-          DB_PASSWORD: "testpassword-unit"
-          DB_NAME: "testdb-unit"
-          DB_SSL_MODE: "disable"
-          ENVIRONMENT: "test_unit"
-
       - name: Run unit tests with coverage
         run: make test-unit-coverage
         env:
           JWT_ACCESS_SECRET: "test-access-secret-for-unit-tests"
           JWT_REFRESH_SECRET: "test-refresh-secret-for-unit-tests"
-          CGO_ENABLED: "1"
-          DB_HOST: "testhost-unit"
-          DB_PORT: "1234"
-          DB_USER: "testuser-unit"
-          DB_PASSWORD: "testpassword-unit"
-          DB_NAME: "testdb-unit"
-          DB_SSL_MODE: "disable"
           ENVIRONMENT: "test_unit"
 
-      - name: Upload coverage to Codecov (opcional)
-        uses: codecov/codecov-action@v3
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
         with:
           files: ./coverage-unit.out
+          # Añadido el token de Codecov para mayor fiabilidad, especialmente en repos privados.
+          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
 
-      - name: Setup test environment for integration tests
+      - name: Wait for PostgreSQL to be ready
+        # Añadido 'timeout' para evitar que el job se quede colgado indefinidamente.
         run: |
-          cp .env.test.example .env
-          echo "DB_SSL_MODE=disable" >> .env
-          echo "Waiting for PostgreSQL to be ready..."
-          sleep 10
-          go run cmd/migrate/main.go -cmd up
+          timeout 60 bash -c 'until pg_isready -h localhost -p ${{ env.POSTGRES_PORT }} -U ${{ env.POSTGRES_USER }}; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done'
         env:
-          CI: "true"
+          PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
+
+      - name: Run database migrations
+        run: go run cmd/migrate/main.go -cmd up
+        env:
           DB_HOST: localhost
           DB_PORT: ${{ env.POSTGRES_PORT }}
           DB_USER: ${{ env.POSTGRES_USER }}

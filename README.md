@@ -1,5 +1,10 @@
 # ASAM Backend
 
+[![Continuous Integration](https://github.com/javicabdev/asam-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/javicabdev/asam-backend/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/javicabdev/asam-backend/branch/main/graph/badge.svg)](https://codecov.io/gh/javicabdev/asam-backend)
+[![Go Version](https://img.shields.io/badge/go-1.24-blue.svg)](https://golang.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 ## Documentación
 
 - [Descripción General de la API](docs/frontend/api-overview.md) - Visión general de la arquitectura y API del backend
