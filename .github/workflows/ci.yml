@@ -69,8 +69,7 @@ jobs:
       - name: Install and run golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
-          # Versión v2.1.6, la última estable.
-          version: v2.1.6
+          version: v2.3.0
           args: --timeout=5m
 
   test:
