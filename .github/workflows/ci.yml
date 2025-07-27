@@ -9,7 +9,7 @@ on:
       - 'LICENSE'
   pull_request:
     branches: [ main ]
-  workflow_dispatch: # Permite ejecutar el workflow manualmente desde la UI de GitHub
+  workflow_dispatch:
 
 env:
   GO_VERSION: '1.24'
@@ -20,7 +20,6 @@ env:
 
 jobs:
   # Job para configurar el entorno base, descargar dependencias y generar código.
-  # El resultado (el workspace) se pasa a los siguientes jobs como un artefacto.
   setup:
     name: Setup Environment & Generate Code
     runs-on: ubuntu-latest
@@ -33,7 +32,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-          cache: true # Habilita el caché para dependencias y build
+          cache: true
 
       - name: Verify dependencies
         run: |
@@ -41,7 +40,6 @@ jobs:
           go mod verify
 
       - name: Generate GraphQL code
-        # Unificamos la versión a la que tenías originalmente para mantener consistencia.
         run: go run github.com/99designs/gqlgen@v0.17.73 generate
 
       - name: Upload workspace artifact
@@ -50,9 +48,10 @@ jobs:
           name: workspace
           path: .
 
+  # Job 'lint' modificado para usar 'make lint' y la versión específica de golangci-lint.
   lint:
     name: Lint Code
-    needs: setup # Depende del job 'setup'
+    needs: setup
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -68,15 +67,22 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Run golangci-lint
+      - name: Install golangci-lint v2.1.6
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.59.1
-          args: --timeout=5m
+          # Usando la versión específica que necesitas.
+          version: v2.1.6
+          # La opción 'install-only' asegura que solo se instale la herramienta.
+          # La ejecución se delega al Makefile.
+          install-only: true
+
+      - name: Run linter via Makefile
+        # Ejecutando el comando 'make lint' como has solicitado.
+        run: make lint
 
   test:
     name: Run Tests
-    needs: setup # Depende del job 'setup'
+    needs: setup
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -117,12 +123,10 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           files: ./coverage-unit.out
-          # Añadido el token de Codecov para mayor fiabilidad, especialmente en repos privados.
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
 
       - name: Wait for PostgreSQL to be ready
-        # Añadido 'timeout' para evitar que el job se quede colgado indefinidamente.
         run: |
           timeout 60 bash -c 'until pg_isready -h localhost -p ${{ env.POSTGRES_PORT }} -U ${{ env.POSTGRES_USER }}; do
             echo "Waiting for PostgreSQL..."
