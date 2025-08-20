@@ -52,7 +52,7 @@ func (r *memberRepository) GetByID(ctx context.Context, id uint) (*models.Member
 // GetByNumeroSocio busca un miembro por su número de socio
 func (r *memberRepository) GetByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Member, error) {
 	var member models.Member
-	result := r.db.WithContext(ctx).Where("numero_socio = ?", numeroSocio).First(&member)
+	result := r.db.WithContext(ctx).Where("membership_number = ?", numeroSocio).First(&member)
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -107,17 +107,17 @@ func (r *memberRepository) List(ctx context.Context, filters output.MemberFilter
 
 	// Aplicar filtros
 	if filters.Estado != nil {
-		query = query.Where("estado = ?", *filters.Estado)
+		query = query.Where("state = ?", *filters.Estado)
 	}
 
 	if filters.TipoMembresia != nil {
-		query = query.Where("tipo_membresia = ?", *filters.TipoMembresia)
+		query = query.Where("membership_type = ?", *filters.TipoMembresia)
 	}
 
 	if filters.SearchTerm != nil {
 		searchTerm := "%" + *filters.SearchTerm + "%"
 		query = query.Where(
-			"numero_socio ILIKE ? OR nombre ILIKE ? OR apellidos ILIKE ?",
+			"membership_number ILIKE ? OR name ILIKE ? OR surnames ILIKE ?",
 			searchTerm, searchTerm, searchTerm,
 		)
 	}
@@ -139,4 +139,35 @@ func (r *memberRepository) List(ctx context.Context, filters output.MemberFilter
 	}
 
 	return members, nil
+}
+
+// GetLastMemberNumberByPrefix obtiene el último número de socio con un prefijo específico
+func (r *memberRepository) GetLastMemberNumberByPrefix(ctx context.Context, prefix string) (string, error) {
+	var lastNumber string
+
+	// Query que busca el último número con el prefijo dado y ordena por la parte numérica
+	// PostgreSQL query: SELECT membership_number FROM members WHERE membership_number LIKE 'A%'
+	// ORDER BY CAST(SUBSTRING(membership_number FROM 2) AS INTEGER) DESC LIMIT 1
+	result := r.db.WithContext(ctx).
+		Model(&models.Member{}).
+		Where("membership_number LIKE ?", prefix+"%").
+		Select("membership_number").
+		Order("CAST(SUBSTRING(membership_number FROM 2) AS INTEGER) DESC").
+		Limit(1).
+		Scan(&lastNumber)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			// Si no hay registros, devolver string vacío
+			return "", nil
+		}
+		return "", appErrors.DB(result.Error, "error getting last member number")
+	}
+
+	// Si no se encontró ningún registro
+	if lastNumber == "" {
+		return "", nil
+	}
+
+	return lastNumber, nil
 }

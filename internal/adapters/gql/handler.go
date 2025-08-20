@@ -1,12 +1,19 @@
+// Package gql provides GraphQL server implementation for the ASAM backend.
+// It includes handlers, middleware configuration, and integration with the resolver layer.
 package gql
 
 import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
+
+	"fmt"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 	"go.uber.org/zap"
@@ -17,22 +24,31 @@ import (
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/middleware"
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/resolvers"
 	"github.com/javicabdev/asam-backend/internal/config"
+	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/pkg/auth"
+	"github.com/javicabdev/asam-backend/pkg/constants"
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/pkg/logger"
 	"github.com/javicabdev/asam-backend/pkg/metrics"
 )
 
-// corsMiddleware es un middleware simple para CORS
+// corsMiddleware is a more comprehensive CORS middleware that handles all necessary headers
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Configurar headers CORS
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, authorization")
+		// Configure CORS headers
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			origin = "*"
+		}
 
-		// Manejar preflighted requests
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Request-ID")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
+
+		// Handle preflight requests
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -60,6 +76,80 @@ func NewHandler(
 
 	// Configurar el servidor GraphQL
 	srv := handler.New(schema)
+
+	// Habilitar introspección solo en desarrollo
+	if cfg.Environment == "development" {
+		srv.Use(extension.Introspection{})
+		appLogger.Info("GraphQL introspection enabled for development")
+	}
+
+	// Configure transport options to ensure all transports are properly enabled
+	srv.AddTransport(&transport.Options{})
+	srv.AddTransport(&transport.GET{})
+	srv.AddTransport(&transport.POST{})
+	srv.AddTransport(&transport.Websocket{
+		KeepAlivePingInterval: 10 * time.Second,
+	})
+
+	// Add a middleware to preserve HTTP context values
+	// This is critical for authentication to work properly
+	srv.Use(extension.FixedComplexityLimit(cfg.GQLComplexityLimit))
+
+	// Add field middleware to log context at field level
+	srv.AroundFields(middleware.FieldContextMiddleware(appLogger))
+
+	// Add middleware to clean __typename from inputs (for Apollo Client compatibility)
+	srv.AroundFields(middleware.TypenameCleanerMiddleware(appLogger))
+
+	// Use AroundOperations to ensure context is properly propagated
+	srv.AroundOperations(func(ctx context.Context, next graphql.OperationHandler) graphql.ResponseHandler {
+		// Extract operation name for logging
+		opCtx := graphql.GetOperationContext(ctx)
+		opName := "unknown"
+		if opCtx != nil {
+			opName = opCtx.OperationName
+		}
+
+		// Extract user from context if it exists
+		user, userOk := ctx.Value(constants.UserContextKey).(*models.User)
+		token, _ := ctx.Value(constants.AuthTokenContextKey).(string)
+		authorized, _ := ctx.Value(constants.AuthorizedContextKey).(bool)
+
+		// Enhanced logging for sendVerificationEmail
+		if opName == "SendVerificationEmail" || opName == "sendVerificationEmail" {
+			appLogger.Info("[GRAPHQL-DEBUG] SendVerificationEmail operation context",
+				zap.String("operation", opName),
+				zap.Bool("hasUser", userOk && user != nil),
+				zap.Bool("hasToken", token != ""),
+				zap.Bool("authorized", authorized),
+				zap.Bool("userContextKeyExists", ctx.Value(constants.UserContextKey) != nil),
+				zap.String("userContextType", fmt.Sprintf("%T", ctx.Value(constants.UserContextKey))),
+			)
+
+			if user != nil {
+				appLogger.Info("[GRAPHQL-DEBUG] User details in context",
+					zap.Uint("userID", user.ID),
+					zap.String("username", user.Username),
+					zap.String("email", user.Email),
+					zap.Bool("emailVerified", user.EmailVerified),
+					zap.String("role", string(user.Role)),
+				)
+			} else {
+				appLogger.Error("[GRAPHQL-DEBUG] User is nil in context for SendVerificationEmail")
+			}
+		} else {
+			// Log normal operations
+			appLogger.Debug("GraphQL AroundOperations: Context check",
+				zap.String("operation", opName),
+				zap.Bool("hasUser", userOk && user != nil),
+				zap.Bool("hasToken", token != ""),
+				zap.Bool("authorized", authorized),
+			)
+		}
+
+		// Continue with the operation
+		return next(ctx)
+	})
 
 	// Configurar error presenter que usa el mismo errorHandler
 	srv.SetErrorPresenter(func(ctx context.Context, err error) *gqlerror.Error {
@@ -108,25 +198,26 @@ func NewHandler(
 	var handlerChain http.Handler = srv
 
 	// Orden de middleware revisado para manejo de errores coherente:
-	handlerChain = transactionMiddleware.Handler(handlerChain) // Transacciones (más interno)
-	handlerChain = metricsMiddleware(handlerChain)             // Métricas después de las transacciones
+	// IMPORTANTE: El orden es crítico para la propagación del contexto
 
-	// El middleware de errores debe ir ANTES de middlewares que pueden generar errores
-	// pero después de middlewares que modifican el flujo (como transacciones)
-	handlerChain = errorHandler.Handler(handlerChain) // *** Error handling aquí ***
+	// Primero aplicamos el middleware de autenticación para que el contexto tenga el usuario
+	handlerChain = authMiddleware(handlerChain) // Autenticación JWT - establece el usuario en el contexto
 
-	handlerChain = authMiddleware(handlerChain)               // Autenticación JWT - errores manejados por errorHandler
-	handlerChain = validationMiddleware.Handler(handlerChain) // Validación
-	handlerChain = rateLimiter.Middleware(handlerChain)       // Rate limiting
-	handlerChain = recoveryMiddleware.Handler(handlerChain)   // Recuperación de pánicos - alimenta a errorHandler
-	handlerChain = securityHeaders.Middleware(handlerChain)   // Headers de seguridad
+	// Luego aplicamos los demás middlewares
+	handlerChain = transactionMiddleware.Handler(handlerChain) // Transacciones
+	handlerChain = metricsMiddleware(handlerChain)             // Métricas
+	handlerChain = errorHandler.Handler(handlerChain)          // Error handling
+	handlerChain = validationMiddleware.Handler(handlerChain)  // Validación
+	handlerChain = rateLimiter.Middleware(handlerChain)        // Rate limiting
+	handlerChain = recoveryMiddleware.Handler(handlerChain)    // Recuperación de pánicos
+	handlerChain = securityHeaders.Middleware(handlerChain)    // Headers de seguridad
 
-	// Aplicar filtrado de métodos HTTP usando el sistema de errores
-	handlerChain = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// Crear handler de validación de función
+	methodHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Solo aceptar POST (OPTIONS es manejado por CORS)
 		if r.Method != http.MethodPost && r.Method != http.MethodOptions {
-			// Construir un error estructurado en lugar de simplemente retornar un código HTTP
 			ctx := context.WithValue(r.Context(), middleware.ErrorHandlerKey{}, errorHandler)
-			err := appErrors.New(appErrors.ErrInvalidOperation, "Method not allowed")
+			err := appErrors.New(appErrors.ErrInvalidOperation, "Method not allowed. GraphQL only accepts POST requests")
 			gqlErr := errorHandler.HandleError(ctx, err)
 
 			w.Header().Set("Content-Type", "application/json")
@@ -136,17 +227,16 @@ func NewHandler(
 			})
 			return
 		}
-		handlerChain.ServeHTTP(w, r)
-	})
 
-	// Aplicar CORS como la capa más externa
-	handlerChain = corsMiddleware(handlerChain)
-
-	// Establecer Content-Type
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Establecer Content-Type para respuestas válidas
 		w.Header().Set("Content-Type", "application/json")
+
+		// Pasar al handler chain
 		handlerChain.ServeHTTP(w, r)
 	})
+
+	// Aplicar CORS como capa más externa
+	return corsMiddleware(methodHandler)
 }
 
 // writeJSON es un helper para escribir JSON en la respuesta

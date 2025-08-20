@@ -14,6 +14,7 @@ type MemberRepository interface {
 	Update(ctx context.Context, member *models.Member) error
 	Delete(ctx context.Context, id uint) error
 	List(ctx context.Context, filters MemberFilters) ([]models.Member, error)
+	GetLastMemberNumberByPrefix(ctx context.Context, prefix string) (string, error)
 }
 
 // MemberFilters define los filtros disponibles para buscar miembros

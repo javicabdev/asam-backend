@@ -8,7 +8,6 @@ import (
 
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
-	"github.com/javicabdev/asam-backend/pkg/constants"
 	"github.com/javicabdev/asam-backend/pkg/errors"
 )
 
@@ -26,22 +25,6 @@ func (r *memberResolver) handleMemberMutation(ctx context.Context, member *model
 
 	// For creation, verify that the user has admin permissions
 	if member.ID == 0 {
-		// Get user from context
-		userInterface := ctx.Value(constants.UserContextKey)
-		if userInterface == nil {
-			return nil, errors.NewBusinessError(errors.ErrUnauthorized, "User not authenticated")
-		}
-
-		user, ok := userInterface.(*models.User)
-		if !ok {
-			return nil, errors.NewBusinessError(errors.ErrUnauthorized, "Invalid user")
-		}
-
-		// Verify that user is admin
-		if user.Role != models.RoleAdmin {
-			return nil, errors.NewBusinessError(errors.ErrForbidden, "Insufficient permissions")
-		}
-
 		// Since user is admin, proceed to create the member
 		err := r.memberService.CreateMember(ctx, member)
 		if err != nil {

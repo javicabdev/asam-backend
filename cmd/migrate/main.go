@@ -17,6 +17,8 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres" // PostgreSQL driver
 	_ "github.com/golang-migrate/migrate/v4/source/file"       // File source driver
 	"github.com/joho/godotenv"
+
+	"github.com/javicabdev/asam-backend/pkg/constants"
 )
 
 // Command line options
@@ -37,13 +39,11 @@ var envVarsToClear = []string{
 	"DATABASE_URL", "DB_MAX_IDLE_CONNS", "DB_MAX_OPEN_CONNS", "DB_CONN_MAX_LIFETIME",
 }
 
-func init() {
+func main() {
 	// Setup command line flags
 	flag.StringVar(&environment, "env", "local", "Environment to use (local, aiven, all). Ignored in CI mode.")
 	flag.StringVar(&command, "cmd", "up", "Migration command (up, down, force, version, goto, drop)")
-}
 
-func main() {
 	flag.Parse()
 	args := flag.Args() // Get remaining arguments (e.g., number for 'up'/'down', version for 'force'/'goto')
 
@@ -62,12 +62,12 @@ func main() {
 	} else {
 		// Validate environment flag for non-CI execution
 		environment = strings.ToLower(environment)
-		if environment != "local" && environment != "aiven" && environment != "all" {
+		if environment != constants.EnvLocal && environment != constants.EnvAiven && environment != constants.EnvAll {
 			log.Fatalf("Invalid environment '%s'. Must be 'local', 'aiven', or 'all'", environment)
 		}
 
 		// Execute migrations for the specified environment(s) in non-CI mode
-		if environment == "local" || environment == "all" {
+		if environment == constants.EnvLocal || environment == constants.EnvAll {
 			log.Println("==================================================")
 			log.Println("Running migrations on LOCAL database")
 			log.Println("==================================================")
@@ -75,13 +75,13 @@ func main() {
 			if err := executeMigrationsForEnv(LocalEnvFile, command, args); err != nil {
 				log.Printf("Error migrating local database: %v", err)
 				// If only running for 'local' and it fails, exit with error for scripting purposes.
-				if environment == "local" {
+				if environment == constants.EnvLocal {
 					os.Exit(1)
 				}
 			}
 		}
 
-		if environment == "aiven" || environment == "all" {
+		if environment == constants.EnvAiven || environment == constants.EnvAll {
 			log.Println("==================================================")
 			log.Println("Running migrations on AIVEN database")
 			log.Println("==================================================")
@@ -135,8 +135,16 @@ func executeMigrationsCI(cmd string, args []string) error {
 	}
 
 	if sslMode == "" {
-		sslMode = "disable" // Default SSL mode if not specified
+		sslMode = constants.SSLModeDisable // Default SSL mode if not specified
 		log.Printf("DB_SSL_MODE not set for CI, defaulting to '%s'", sslMode)
+	} else {
+		log.Printf("Using DB_SSL_MODE from environment: '%s'", sslMode)
+	}
+
+	// Always use disable for localhost connections in CI to avoid SSL issues
+	if dbHost == "localhost" || dbHost == "127.0.0.1" {
+		sslMode = constants.SSLModeDisable
+		log.Printf("Host is localhost, forcing SSL mode to 'disable' for CI environment")
 	}
 
 	log.Printf("CI Database configuration: Host=%s, Port=%s, User=%s, DB=%s, SSLMode=%s",
@@ -168,7 +176,7 @@ func executeMigrationsForEnv(envFile string, cmd string, args []string) error {
 		return fmt.Errorf("one or more database connection parameters (DB_HOST, DB_PORT, DB_USER, DB_NAME) not found in environment file %s", envFile)
 	}
 	if sslMode == "" {
-		sslMode = "disable" // Default SSL mode if not specified
+		sslMode = constants.SSLModeDisable // Default SSL mode if not specified
 		log.Printf("DB_SSL_MODE not set in %s, defaulting to '%s'", envFile, sslMode)
 	}
 

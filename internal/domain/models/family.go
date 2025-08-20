@@ -87,11 +87,25 @@ func (f *Family) Validate() error {
 
 // BeforeCreate hook de GORM para validaciones antes de crear
 func (f *Family) BeforeCreate(_ *gorm.DB) error {
+	// Normalizar DNI/NIE si se proporcionan
+	if f.EsposoDocumentoIdentidad != "" {
+		f.EsposoDocumentoIdentidad = validation.NormalizarNIF(f.EsposoDocumentoIdentidad)
+	}
+	if f.EsposaDocumentoIdentidad != "" {
+		f.EsposaDocumentoIdentidad = validation.NormalizarNIF(f.EsposaDocumentoIdentidad)
+	}
 	return f.Validate()
 }
 
 // BeforeUpdate hook de GORM para validaciones antes de actualizar
 func (f *Family) BeforeUpdate(_ *gorm.DB) error {
+	// Normalizar DNI/NIE si se proporcionan
+	if f.EsposoDocumentoIdentidad != "" {
+		f.EsposoDocumentoIdentidad = validation.NormalizarNIF(f.EsposoDocumentoIdentidad)
+	}
+	if f.EsposaDocumentoIdentidad != "" {
+		f.EsposaDocumentoIdentidad = validation.NormalizarNIF(f.EsposaDocumentoIdentidad)
+	}
 	return f.Validate()
 }
 

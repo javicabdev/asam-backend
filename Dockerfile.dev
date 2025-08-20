@@ -1,60 +1,85 @@
-# Etapa 1: Construcción
-FROM golang:1.24-alpine AS builder
+# Dockerfile para desarrollo con Go 1.24 - Solución completa SSL/Proxy
+FROM golang:1.24
 
-# Configurar repositorios Alpine para usar HTTP
-RUN echo 'http://dl-cdn.alpinelinux.org/alpine/v3.15/main' > /etc/apk/repositories && \
-    echo 'http://dl-cdn.alpinelinux.org/alpine/v3.15/community' >> /etc/apk/repositories
+# Instalar certificados y herramientas básicas
+RUN apt-get update && \
+    apt-get install -y \
+    ca-certificates \
+    openssl \
+    git \
+    make \
+    curl \
+    wget && \
+    update-ca-certificates && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Instalar git (necesario para go mod download)
-RUN apk add --no-cache git
-
-# Variables de entorno para evitar problemas de certificados
+# Configurar Go para manejar problemas de SSL/Proxy
 ENV GO111MODULE=on \
     CGO_ENABLED=0 \
     GOOS=linux \
     GOARCH=amd64 \
     GOPROXY=direct \
     GOSUMDB=off \
+    GOINSECURE=github.com,golang.org,goproxy.io,sum.golang.org \
     GIT_SSL_NO_VERIFY=true
 
-# Directorio de trabajo dentro del contenedor
+# Configurar git para ignorar SSL (temporal)
+RUN git config --global http.sslVerify false && \
+    git config --global https.sslVerify false
+
+# Directorio de trabajo
 WORKDIR /app
 
-# Copiar el go.mod y go.sum primero para aprovechar la caché de Docker
+# Copiar archivos de módulos primero
 COPY go.mod go.sum ./
 
-# Descargar las dependencias sin verificar certificados
-RUN go env -w GOINSECURE=* && \
-    git config --global http.sslVerify false && \
-    go mod download
+# Intentar descargar dependencias con múltiples estrategias
+RUN go mod download || \
+    (echo "Intento 2: usando GOPROXY directo" && \
+     GOPROXY=direct go mod download) || \
+    (echo "Intento 3: modo offline - continuando sin descargar" && \
+     echo "Las dependencias se descargarán durante el build")
 
-# Copiar el resto del código fuente
+# Instalar Air y gqlgen con múltiples intentos
+RUN go install -insecure github.com/air-verse/air@latest || \
+    (echo "Instalando Air con GOINSECURE..." && \
+     GOINSECURE=* go install github.com/air-verse/air@latest) || \
+    (echo "Air se instalará manualmente más tarde" && mkdir -p /go/bin)
+
+RUN go install -insecure github.com/99designs/gqlgen@v0.17.73 || \
+    (echo "Instalando gqlgen con GOINSECURE..." && \
+     GOINSECURE=* go install github.com/99designs/gqlgen@v0.17.73) || \
+    (echo "gqlgen se instalará manualmente más tarde" && mkdir -p /go/bin)
+
+# Copiar el código fuente
 COPY . .
 
-# Compilar la aplicación
-RUN go build -o asam-backend ./cmd/api
+# Intentar generar código GraphQL si es necesario
+RUN if [ ! -f "internal/adapters/gql/generated/generated.go" ]; then \
+        echo "=== Intentando generar código GraphQL ===" && \
+        mkdir -p internal/adapters/gql/generated internal/adapters/gql/model && \
+        (gqlgen generate || echo "GraphQL se generará más tarde"); \
+    fi
 
-# Etapa 2: Imagen Final
-FROM alpine:3.15
+# Construir la aplicación
+RUN go build -o asam-backend ./cmd/api || \
+    echo "Build inicial falló, se compilará con Air"
 
-# Configurar repositorios para usar HTTP
-RUN echo 'http://dl-cdn.alpinelinux.org/alpine/v3.15/main' > /etc/apk/repositories && \
-    echo 'http://dl-cdn.alpinelinux.org/alpine/v3.15/community' >> /etc/apk/repositories
+# Crear directorio para Air
+RUN mkdir -p /app/tmp
 
-# Instalar ca-certificates (opcional para la imagen final)
-RUN apk --no-cache add ca-certificates
-
-# Directorio de trabajo dentro del contenedor final
-WORKDIR /root/
-
-# Copiar el binario desde la etapa de construcción
-COPY --from=builder /app/asam-backend .
-
-# Variables de entorno para producción
-ENV PORT=8080
-
-# Exponer el puerto
+# Puerto
 EXPOSE 8080
 
-# Comando para ejecutar la aplicación
-CMD ["./asam-backend"]
+# Healthcheck simple
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health/live || exit 1
+
+# Si Air está instalado, usarlo. Si no, ejecutar directamente
+CMD if command -v air >/dev/null 2>&1; then \
+        air -c .air.toml; \
+    else \
+        echo "Air no disponible, ejecutando directamente..." && \
+        go run cmd/api/main.go; \
+    fi

@@ -28,12 +28,18 @@ func (r *cashFlowResolver) mapTransactionInputToModel(input *model.TransactionIn
 	}
 
 	if input.MemberID != nil {
-		memberID := parseID(*input.MemberID)
+		memberID, err := parseID(*input.MemberID)
+		if err != nil {
+			return nil
+		}
 		transaction.MemberID = &memberID
 	}
 
 	if input.FamilyID != nil {
-		familyID := parseID(*input.FamilyID)
+		familyID, err := parseID(*input.FamilyID)
+		if err != nil {
+			return nil
+		}
 		transaction.FamilyID = &familyID
 	}
 
@@ -255,7 +261,7 @@ func (r *cashFlowResolver) processAdjustment(ctx context.Context, adjustment *mo
 		return &model.MutationResponse{
 			Success: false,
 			Error:   &errorMsg,
-		}, nil
+		}, err
 	}
 
 	// Success response

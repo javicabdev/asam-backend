@@ -2,21 +2,22 @@ package resolvers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/pkg/constants"
 	"github.com/javicabdev/asam-backend/pkg/errors"
 )
 
-// Define un tipo personalizado para claves del contexto
-type contextKey string
-
-// Definir la clave para el token de autorización en el contexto
-const authorizationKey contextKey = "authorization"
+// authResolver contains auth-related resolvers
+type authResolver struct {
+	resolver *Resolver
+}
 
 // Login Mutation.login implementa la mutación de login
-func (r *Resolver) Login(ctx context.Context, input model.LoginInput) (*model.AuthResponse, error) {
+func (r *authResolver) Login(ctx context.Context, input model.LoginInput) (*model.AuthResponse, error) {
 	// Extraer username y password del input
 	username := input.Username
 	password := input.Password
@@ -32,14 +33,34 @@ func (r *Resolver) Login(ctx context.Context, input model.LoginInput) (*model.Au
 		)
 	}
 
+	// Check rate limiting
+	allowed, lockoutDuration := r.resolver.loginRateLimiter.AllowLogin(ctx, username)
+	if !allowed {
+		if lockoutDuration > 0 {
+			return nil, errors.NewBusinessError(
+				errors.ErrUnauthorized,
+				fmt.Sprintf("Demasiados intentos de inicio de sesión. Cuenta bloqueada por %v", lockoutDuration.Round(time.Minute)),
+			)
+		}
+		return nil, errors.NewBusinessError(
+			errors.ErrUnauthorized,
+			"Demasiados intentos de inicio de sesión. Por favor, intente más tarde",
+		)
+	}
+
 	// Llamada al servicio de autenticación
-	tokenDetails, err := r.authService.Login(ctx, username, password)
+	tokenDetails, err := r.resolver.authService.Login(ctx, username, password)
 	if err != nil {
+		// Record failure for rate limiting
+		r.resolver.loginRateLimiter.RecordFailure(ctx, username)
 		return nil, errors.Wrap(err, errors.ErrUnauthorized, "credenciales inválidas")
 	}
 
+	// Record success and reset rate limit counter
+	r.resolver.loginRateLimiter.RecordSuccess(ctx, username)
+
 	// Validar el token para obtener información del usuario
-	userModel, err := r.authService.ValidateToken(ctx, tokenDetails.AccessToken)
+	userModel, err := r.resolver.authService.ValidateToken(ctx, tokenDetails.AccessToken)
 	if err != nil {
 		return nil, errors.Wrap(err, errors.ErrInternalError, "error validando token")
 	}
@@ -57,7 +78,7 @@ func (r *Resolver) Login(ctx context.Context, input model.LoginInput) (*model.Au
 }
 
 // Logout Mutation.logout implementa la mutación de logout
-func (r *Resolver) Logout(ctx context.Context) (any, error) {
+func (r *authResolver) Logout(ctx context.Context) (*model.MutationResponse, error) {
 	// Obtener token del contexto
 	token, err := getAccessTokenFromContext(ctx)
 	if err != nil {
@@ -65,17 +86,17 @@ func (r *Resolver) Logout(ctx context.Context) (any, error) {
 		return &model.MutationResponse{
 			Success: false,
 			Error:   &errMsg,
-		}, nil
+		}, err
 	}
 
 	// Llamada al servicio de autenticación
-	err = r.authService.Logout(ctx, token)
+	err = r.resolver.authService.Logout(ctx, token)
 	if err != nil {
 		errMsg := "Error al cerrar sesión: " + err.Error()
 		return &model.MutationResponse{
 			Success: false,
 			Error:   &errMsg,
-		}, nil
+		}, err
 	}
 
 	successMsg := "Sesión cerrada correctamente"
@@ -86,7 +107,7 @@ func (r *Resolver) Logout(ctx context.Context) (any, error) {
 }
 
 // RefreshToken Mutation.refreshToken implementa la mutación de refreshToken
-func (r *Resolver) RefreshToken(ctx context.Context, input model.RefreshTokenInput) (any, error) {
+func (r *authResolver) RefreshToken(ctx context.Context, input model.RefreshTokenInput) (*model.TokenResponse, error) {
 	// Extraer refreshToken del input
 	refreshToken := input.RefreshToken
 
@@ -99,7 +120,7 @@ func (r *Resolver) RefreshToken(ctx context.Context, input model.RefreshTokenInp
 	}
 
 	// Llamada al servicio de autenticación
-	tokenDetails, err := r.authService.RefreshToken(ctx, refreshToken)
+	tokenDetails, err := r.resolver.authService.RefreshToken(ctx, refreshToken)
 	if err != nil {
 		return nil, errors.Wrap(err, errors.ErrUnauthorized, "token de refresco inválido o expirado")
 	}
@@ -115,9 +136,9 @@ func (r *Resolver) RefreshToken(ctx context.Context, input model.RefreshTokenInp
 // Funciones auxiliares
 
 // mapUserToGQL convierte un modelo de dominio User a un modelo generado por gqlgen
-// Esta función simplemente devuelve el mismo user que recibe,
-// ya que estamos usando directamente el modelo del dominio en GraphQL
+// Ya no es necesaria la conversión de roles porque el schema GraphQL ahora usa minúsculas
 func mapUserToGQL(user *models.User) *models.User {
+	// Simplemente retornar el usuario tal cual, ya que los roles coinciden
 	return user
 }
 
@@ -126,7 +147,7 @@ func getAccessTokenFromContext(ctx context.Context) (string, error) {
 	// Intentar obtener el token de las posibles ubicaciones en el contexto
 	var token string
 
-	if tokenVal, ok := ctx.Value(authorizationKey).(string); ok && tokenVal != "" {
+	if tokenVal, ok := ctx.Value(constants.AuthTokenContextKey).(string); ok && tokenVal != "" {
 		token = tokenVal
 	}
 

@@ -1,3 +1,6 @@
+// Package main provides a database seeding tool for the ASAM backend.
+// It supports seeding different types of datasets (minimal, full, scenario, custom)
+// and can target different environments (local, aiven, or both).
 package main
 
 import (
@@ -13,6 +16,7 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq" // PostgreSQL driver for database/sql
 
+	"github.com/javicabdev/asam-backend/pkg/constants"
 	"github.com/javicabdev/asam-backend/test/seed"
 	"github.com/javicabdev/asam-backend/test/seed/data"
 )
@@ -48,7 +52,7 @@ var envVarsToClear = []string{
 	"DATABASE_URL", "DB_MAX_IDLE_CONNS", "DB_MAX_OPEN_CONNS", "DB_CONN_MAX_LIFETIME",
 }
 
-func init() {
+func main() {
 	// Setup command line flags with default values and descriptions
 	flag.StringVar(&datasetType, "type", "minimal", "Dataset type to seed (minimal, full, scenario, custom)")
 	flag.StringVar(&scenario, "scenario", "payment_overdue", "Scenario name (used if type=scenario, e.g., 'payment_overdue')")
@@ -65,32 +69,30 @@ func init() {
 	flag.IntVar(&numFamiliares, "familiares", 0, "Number of 'familiares' (relatives) to generate (custom type, overrides default)")
 	flag.IntVar(&numPayments, "payments", 0, "Number of payments to generate (custom type, overrides default)")
 	flag.IntVar(&numCashflows, "cashflows", 0, "Number of cashflow entries to generate (custom type, overrides default)")
-}
 
-func main() {
 	flag.Parse()
 
 	// Validate the environment flag
 	environment = strings.ToLower(environment)
-	if environment != "local" && environment != "aiven" && environment != "all" {
+	if environment != constants.EnvLocal && environment != constants.EnvAiven && environment != constants.EnvAll {
 		log.Fatalf("Invalid environment '%s'. Must be 'local', 'aiven', or 'all'.", environment)
 	}
 
 	// Execute seeder for the specified environment(s)
-	if environment == "local" || environment == "all" {
+	if environment == constants.EnvLocal || environment == constants.EnvAll {
 		log.Println("==================================================")
 		log.Println("Running seed on LOCAL database")
 		log.Println("==================================================")
 		clearDatabaseEnvVars()
 		if err := runSeedForEnv(LocalEnvFile); err != nil {
 			log.Printf("Error seeding local database: %v", err)
-			if environment == "local" { // Exit if only local was specified and it failed
+			if environment == constants.EnvLocal { // Exit if only local was specified and it failed
 				os.Exit(1)
 			}
 		}
 	}
 
-	if environment == "aiven" || environment == "all" {
+	if environment == constants.EnvAiven || environment == constants.EnvAll {
 		log.Println("==================================================")
 		log.Println("Running seed on AIVEN database")
 		log.Println("==================================================")
@@ -139,7 +141,7 @@ func connectToDatabase(envFile string) (*sqlx.DB, error) {
 			return nil, fmt.Errorf("database connection parameters (DB_HOST, DB_PORT, DB_USER, DB_NAME) not found in environment file %s", envFile)
 		}
 		if sslMode == "" {
-			sslMode = "disable" // Default SSL mode
+			sslMode = constants.SSLModeDisable // Default SSL mode
 			log.Printf("DB_SSL_MODE not set, defaulting to '%s'", sslMode)
 		}
 		dbConn = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",

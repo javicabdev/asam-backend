@@ -26,6 +26,12 @@ type MemberService interface {
 
 	// ListMembers obtiene una lista de miembros según los criterios especificados
 	ListMembers(ctx context.Context, filters MemberFilters) ([]*models.Member, error)
+
+	// GetNextMemberNumber obtiene el siguiente número de socio disponible según el tipo
+	GetNextMemberNumber(ctx context.Context, isFamily bool) (string, error)
+
+	// CheckMemberNumberExists verifica si un número de socio ya existe
+	CheckMemberNumberExists(ctx context.Context, memberNumber string) (bool, error)
 }
 
 // MemberFilters defines search criteria for members

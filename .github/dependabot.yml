@@ -1,53 +1,43 @@
-# Configuración de Dependabot para mantener las dependencias actualizadas
-# Para más info: https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
-
 version: 2
 updates:
-  # Mantener las dependencias de Go actualizadas
+  # Go modules
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 10
+      time: "08:00"
+    reviewers:
+      - "javicabdev"
     labels:
       - "dependencies"
       - "go"
-    commit-message:
-      prefix: "deps"
-      include: "scope"
-    # Límites de versión para controlar qué actualizaciones permitir
-    # Solo permitimos actualizaciones de parches y versiones menores, no cambios mayores
-    versioning-strategy: auto
-    ignore:
-      # Ignora actualizaciones de versiones mayores por seguridad
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
-
-  # Mantener las acciones de GitHub actualizadas
+    open-pull-requests-limit: 5
+    
+  # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "wednesday"
-    open-pull-requests-limit: 10
+      day: "monday"
+      time: "08:00"
+    reviewers:
+      - "javicabdev"
     labels:
       - "dependencies"
       - "github-actions"
-    commit-message:
-      prefix: "ci"
-      include: "scope"
-
-  # Mantener las imágenes de Docker actualizadas (si se usa Dockerfile)
+    open-pull-requests-limit: 3
+    
+  # Docker
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "friday"
-    open-pull-requests-limit: 5
+      day: "monday"
+      time: "08:00"
+    reviewers:
+      - "javicabdev"
     labels:
       - "dependencies"
       - "docker"
-    commit-message:
-      prefix: "docker"
-      include: "scope"
+    open-pull-requests-limit: 2

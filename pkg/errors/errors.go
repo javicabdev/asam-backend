@@ -39,6 +39,11 @@ const (
 	ErrUnauthorized ErrorCode = "UNAUTHORIZED"
 	ErrForbidden    ErrorCode = "FORBIDDEN"
 	ErrInvalidToken ErrorCode = "INVALID_TOKEN"
+
+	// ErrInvalidRequest error de solicitud inválida
+	ErrInvalidRequest ErrorCode = "INVALID_REQUEST"
+	// ErrRateLimitExceeded error de límite de tasa excedido
+	ErrRateLimitExceeded ErrorCode = "RATE_LIMIT_EXCEEDED"
 )
 
 // AppError representa un error de la aplicación
@@ -235,8 +240,8 @@ func extractFieldsFromAppError(appErr *AppError, fields map[string]string) {
 }
 
 // findBaseError encuentra el primer error no nulo para usar como base
-func findBaseError(errs []error) (*AppError, map[string]string) {
-	fields := make(map[string]string)
+func findBaseError(errs []error) (baseError *AppError, fields map[string]string) {
+	fields = make(map[string]string)
 
 	for _, err := range errs {
 		if err == nil {
@@ -353,6 +358,14 @@ func NewUnauthorizedError() error {
 	return &AppError{
 		Code:    ErrUnauthorized,
 		Message: "Unauthorized access to the resource",
+	}
+}
+
+// NewInternalError crea un error interno del servidor
+func NewInternalError(message string) error {
+	return &AppError{
+		Code:    ErrInternalError,
+		Message: message,
 	}
 }
 

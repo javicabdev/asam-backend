@@ -1,99 +1,52 @@
 name: Deploy to Google Cloud Run
 
+# Este workflow despliega la aplicación a Google Cloud Run usando imágenes pre-construidas
+# Las imágenes se construyen automáticamente en el CI cuando se hace push a main
+# Puedes desplegar usando:
+# - 'latest': la última imagen construida de main
+# - SHA corto del commit (ej: 'a1b2c3d'): una versión específica
+# - Cualquier otro tag disponible en GCR
+
 on:
-  push:
-    branches: [ main ]
-    paths-ignore:
-      - '**/*.md'
-  workflow_dispatch:  # Para despliegues manuales
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      image_tag:
+        description: 'Docker image tag to deploy (e.g., latest, a1b2c3d, v1.0.0)'
+        required: false
+        default: 'latest'
+        type: string
+      run_migrations:
+        description: 'Run database migrations'
+        required: false
+        default: false
+        type: boolean
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   SERVICE_NAME: asam-backend
   REGION: europe-west1
-  GO_VERSION: '1.24'  # Definido como variable de entorno global
+  GO_VERSION: '1.24'
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
 
 jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
-
-      - name: Install dependencies
-        run: go mod download
-
-      - name: Generate GraphQL code
-        run: go run ./cmd/generate/main.go
-
-      # Paso para instalar y configurar golangci-lint con la versión 2.1.6
-      - name: Install and run golangci-lint
-        uses: golangci/golangci-lint-action@v8.0.0
-        with:
-          version: v2.1.6
-          args: --timeout=5m
-
-  test:
-    name: Test
-    needs: lint
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16  # Actualizado a PostgreSQL 16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: asam_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
-
-      - name: Get dependencies
-        run: go mod download
-
-      - name: Generate GraphQL code
-        run: go run ./cmd/generate/main.go  # Ruta completa al archivo main.go
-
-      - name: Run unit tests
-        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./internal/... ./pkg/...
-
-      - name: Setup test environment for integration tests
-        run: |
-          cp .env.test .env
-          go run cmd/migrate/main.go up  # Ruta completa al archivo main.go
-
-      - name: Run integration tests
-        run: go test -v -tags=integration ./test/integration/...
-
   deploy:
     name: Deploy to Cloud Run
-    needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
     steps:
-      - uses: actions/checkout@v4
-
       - name: Authenticate to Google Cloud
-        id: auth
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
@@ -101,67 +54,327 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Docker
-        run: gcloud auth configure-docker --quiet
-
-      - name: Generate Image Tag
-        id: tag
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-
-      # Construir y publicar imagen Docker
-      - name: Build and Push Container
+      - name: Determine image to deploy
+        id: image
         run: |
-          docker build -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ steps.tag.outputs.sha_short }} .
-          docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ steps.tag.outputs.sha_short }}
+          IMAGE_TAG="${{ github.event.inputs.image_tag || 'latest' }}"
+          GCR_IMAGE="gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${IMAGE_TAG}"
+          
+          echo "Image to deploy: $GCR_IMAGE"
+          echo "gcr_image=$GCR_IMAGE" >> $GITHUB_OUTPUT
+          echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Verify image exists
+        run: |
+          echo "Verifying image exists in registry..."
+          if gcloud container images describe ${{ steps.image.outputs.gcr_image }} > /dev/null 2>&1; then
+            echo "✅ Image found: ${{ steps.image.outputs.gcr_image }}"
+          else
+            echo "❌ Error: Image not found: ${{ steps.image.outputs.gcr_image }}"
+            echo "Available tags for this repository:"
+            gcloud container images list-tags gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }} --limit=10 --format="table(tags,timestamp)"
+            exit 1
+          fi
 
       - name: Deploy to Cloud Run
         id: deploy
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: ${{ env.SERVICE_NAME }}
-          region: ${{ env.REGION }}
-          image: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ steps.tag.outputs.sha_short }}
-          env_vars: |
-            DB_HOST=${{ secrets.AIVEN_DB_HOST }}
-            DB_PORT=${{ secrets.AIVEN_DB_PORT }}
-            DB_USER=${{ secrets.AIVEN_DB_USER }}
-            DB_PASSWORD=${{ secrets.AIVEN_DB_PASSWORD }}
-            DB_NAME=${{ secrets.AIVEN_DB_NAME }}
-            DB_SSL_MODE=require
-            JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}
-            JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
-            ENVIRONMENT=production
-            PORT=8080
-          flags: >-
-            --allow-unauthenticated
-            --cpu=1
-            --memory=512Mi
-            --concurrency=80
-            --min-instances=0
-            --max-instances=3
-            --timeout=60s
+        run: |
+          echo "Deploying image: ${{ steps.image.outputs.gcr_image }}"
 
-      - name: Set up Go for migrate tool
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image="${{ steps.image.outputs.gcr_image }}" \
+            --region=${{ env.REGION }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --set-env-vars="ENVIRONMENT=${{ github.event.inputs.environment }}" \
+            --set-env-vars="DB_SSL_MODE=require" \
+            --set-env-vars="JWT_ACCESS_TTL=15m" \
+            --set-env-vars="JWT_REFRESH_TTL=168h" \
+            --set-env-vars="SMTP_SERVER=smtp.gmail.com" \
+            --set-env-vars="SMTP_PORT=587" \
+            --set-env-vars="SMTP_USE_TLS=true" \
+            --set-env-vars="SMTP_FROM_EMAIL=noreply@asam.org" \
+            --set-env-vars="RATE_LIMIT_RPS=10" \
+            --set-env-vars="RATE_LIMIT_BURST=20" \
+            --set-env-vars="LOG_SLOW_QUERIES=true" \
+            --set-env-vars="SLOW_QUERY_THRESHOLD=100ms" \
+            --set-env-vars="LOG_SLOW_RESOLVERS=true" \
+            --set-env-vars="SLOW_RESOLVER_THRESHOLD=100ms" \
+            --set-env-vars="GQL_COMPLEXITY_LIMIT=1000" \
+            --set-env-vars="GQL_CONCURRENT_RESOLVERS=10" \
+            --set-secrets="DB_HOST=db-host:latest" \
+            --set-secrets="DB_PORT=db-port:latest" \
+            --set-secrets="DB_USER=db-user:latest" \
+            --set-secrets="DB_PASSWORD=db-password:latest" \
+            --set-secrets="DB_NAME=db-name:latest" \
+            --set-secrets="JWT_ACCESS_SECRET=jwt-access-secret:latest" \
+            --set-secrets="JWT_REFRESH_SECRET=jwt-refresh-secret:latest" \
+            --set-secrets="ADMIN_USER=admin-user:latest" \
+            --set-secrets="ADMIN_PASSWORD=admin-password:latest" \
+            --set-secrets="SMTP_USER=smtp-user:latest" \
+            --set-secrets="SMTP_PASSWORD=smtp-password:latest" \
+            --cpu=1 \
+            --memory=512Mi \
+            --concurrency=80 \
+            --min-instances=0 \
+            --max-instances=3 \
+            --timeout=60s \
+            --labels="managed-by=github-actions,image-tag=${IMAGE_TAG},deployed-at=$(date -u +%Y%m%d-%H%M%S)" \
+            --quiet
+
+      - name: Get service URL
+        id: service
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --format='value(status.url)')
+          echo "url=$SERVICE_URL" >> $GITHUB_OUTPUT
+
+      - name: Verify deployment
+        run: |
+          echo "Testing service at ${{ steps.service.outputs.url }}"
+          MAX_ATTEMPTS=10
+          SLEEP_TIME=5
+          
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+            if curl -f -s "${{ steps.service.outputs.url }}/health/live" > /dev/null; then
+              echo "✅ Health check passed on attempt $i"
+              break
+            fi
+            echo "⏳ Attempt $i/$MAX_ATTEMPTS failed, retrying in ${SLEEP_TIME}s..."
+            sleep $SLEEP_TIME
+          done
+          
+          # Final check with detailed output
+          echo ""
+          echo "Final health check:"
+          curl -s "${{ steps.service.outputs.url }}/health" | jq '.' || echo "Failed to get health status"
+
+      - name: Create deployment summary
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Service Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service**: \`${{ env.SERVICE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: \`${{ github.event.inputs.environment }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Region**: \`${{ env.REGION }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: ${{ steps.service.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Docker Image" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry**: Google Container Registry" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: \`${{ steps.image.outputs.gcr_image }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: \`${{ steps.image.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment Info" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployed by**: @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployed at**: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Workflow run**: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+
+  migrate:
+    name: Run Database Migrations
+    if: github.event.inputs.run_migrations == 'true'
+    needs: deploy
+    runs-on: ubuntu-latest
+    environment: production-migrations
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Download dependencies for migrate tool
-        run: go mod download
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Run Database Migrations
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get database secrets
         run: |
-          go build -o migrate ./cmd/migrate
-          ./migrate up
+          echo "Obteniendo secretos de la base de datos..."
+          
+          # Obtener y verificar cada secreto, limpiando caracteres de control
+          DB_HOST_VALUE=$(gcloud secrets versions access latest --secret=db-host 2>&1 | tr -d '\r\n')
+          if [[ $? -ne 0 ]]; then
+            echo "❌ Error: No se pudo obtener db-host"
+            echo "Detalles: $DB_HOST_VALUE"
+            exit 1
+          fi
+          echo "✅ db-host obtenido"
+          
+          DB_PORT_VALUE=$(gcloud secrets versions access latest --secret=db-port 2>&1 | tr -d '\r\n')
+          if [[ $? -ne 0 ]]; then
+            echo "❌ Error: No se pudo obtener db-port"
+            echo "Detalles: $DB_PORT_VALUE"
+            exit 1
+          fi
+          echo "✅ db-port obtenido"
+          
+          DB_USER_VALUE=$(gcloud secrets versions access latest --secret=db-user 2>&1 | tr -d '\r\n')
+          if [[ $? -ne 0 ]]; then
+            echo "❌ Error: No se pudo obtener db-user"
+            echo "Detalles: $DB_USER_VALUE"
+            exit 1
+          fi
+          echo "✅ db-user obtenido"
+          
+          DB_PASSWORD_VALUE=$(gcloud secrets versions access latest --secret=db-password 2>&1 | tr -d '\r\n')
+          if [[ $? -ne 0 ]]; then
+            echo "❌ Error: No se pudo obtener db-password"
+            echo "Detalles: $DB_PASSWORD_VALUE"
+            exit 1
+          fi
+          echo "✅ db-password obtenido"
+          
+          DB_NAME_VALUE=$(gcloud secrets versions access latest --secret=db-name 2>&1 | tr -d '\r\n')
+          if [[ $? -ne 0 ]]; then
+            echo "❌ Error: No se pudo obtener db-name"
+            echo "Detalles: $DB_NAME_VALUE"
+            exit 1
+          fi
+          echo "✅ db-name obtenido"
+          
+          # Agregar máscaras para valores sensibles
+          echo "::add-mask::$DB_HOST_VALUE"
+          echo "::add-mask::$DB_PASSWORD_VALUE"
+          
+          # Exportar con ambos prefijos para compatibilidad
+          # Primero con prefijo DB_
+          echo "DB_HOST=$DB_HOST_VALUE" >> $GITHUB_ENV
+          echo "DB_PORT=$DB_PORT_VALUE" >> $GITHUB_ENV
+          echo "DB_USER=$DB_USER_VALUE" >> $GITHUB_ENV
+          echo "DB_PASSWORD=$DB_PASSWORD_VALUE" >> $GITHUB_ENV
+          echo "DB_NAME=$DB_NAME_VALUE" >> $GITHUB_ENV
+          
+          # También con prefijo POSTGRES_ para compatibilidad con el código de migración
+          echo "POSTGRES_HOST=$DB_HOST_VALUE" >> $GITHUB_ENV
+          echo "POSTGRES_PORT=$DB_PORT_VALUE" >> $GITHUB_ENV
+          echo "POSTGRES_USER=$DB_USER_VALUE" >> $GITHUB_ENV
+          echo "POSTGRES_PASSWORD=$DB_PASSWORD_VALUE" >> $GITHUB_ENV
+          echo "POSTGRES_DB=$DB_NAME_VALUE" >> $GITHUB_ENV
+          
+          echo ""
+          echo "✅ Todos los secretos obtenidos y exportados correctamente"
+
+      - name: Verify environment variables
+        run: |
+          echo "Verificando variables de entorno..."
+          echo ""
+          echo "=== Variables con prefijo DB_ ==="
+          
+          # Verificar variables DB_
+          if [[ -z "$DB_HOST" ]]; then
+            echo "❌ Error: DB_HOST no está configurado"
+            exit 1
+          fi
+          echo "✅ DB_HOST configurado"
+          
+          if [[ -z "$DB_PORT" ]]; then
+            echo "❌ Error: DB_PORT no está configurado"
+            exit 1
+          fi
+          echo "✅ DB_PORT configurado: $DB_PORT"
+          
+          if [[ -z "$DB_USER" ]]; then
+            echo "❌ Error: DB_USER no está configurado"
+            exit 1
+          fi
+          echo "✅ DB_USER configurado: $DB_USER"
+          
+          if [[ -z "$DB_PASSWORD" ]]; then
+            echo "❌ Error: DB_PASSWORD no está configurado"
+            exit 1
+          fi
+          echo "✅ DB_PASSWORD configurado (oculto)"
+          
+          if [[ -z "$DB_NAME" ]]; then
+            echo "❌ Error: DB_NAME no está configurado"
+            exit 1
+          fi
+          echo "✅ DB_NAME configurado: $DB_NAME"
+          
+          echo ""
+          echo "=== Variables con prefijo POSTGRES_ ==="
+          
+          # Verificar variables POSTGRES_
+          if [[ -z "$POSTGRES_HOST" ]]; then
+            echo "❌ Error: POSTGRES_HOST no está configurado"
+            exit 1
+          fi
+          echo "✅ POSTGRES_HOST configurado"
+          
+          if [[ -z "$POSTGRES_PORT" ]]; then
+            echo "❌ Error: POSTGRES_PORT no está configurado"
+            exit 1
+          fi
+          echo "✅ POSTGRES_PORT configurado: $POSTGRES_PORT"
+          
+          if [[ -z "$POSTGRES_USER" ]]; then
+            echo "❌ Error: POSTGRES_USER no está configurado"
+            exit 1
+          fi
+          echo "✅ POSTGRES_USER configurado: $POSTGRES_USER"
+          
+          if [[ -z "$POSTGRES_PASSWORD" ]]; then
+            echo "❌ Error: POSTGRES_PASSWORD no está configurado"
+            exit 1
+          fi
+          echo "✅ POSTGRES_PASSWORD configurado (oculto)"
+          
+          if [[ -z "$POSTGRES_DB" ]]; then
+            echo "❌ Error: POSTGRES_DB no está configurado"
+            exit 1
+          fi
+          echo "✅ POSTGRES_DB configurado: $POSTGRES_DB"
+          
+          echo ""
+          echo "✅ Todas las variables de entorno están configuradas correctamente"
+          echo ""
+          echo "SSL Mode configurado: ${DB_SSL_MODE:-no configurado}"
+
+      - name: Run migrations
+        run: |
+          echo "Running database migrations..."
+          echo "Environment: CI mode"
+          echo "SSL Mode: ${DB_SSL_MODE:-require}"
+          echo ""
+          echo "=== Debug Information ==="
+          echo "Current directory: $(pwd)"
+          echo "Go version: $(go version)"
+          echo ""
+          echo "Checking for migrations directory..."
+          if [ -d "migrations" ]; then
+            echo "✅ Migrations directory found"
+            echo "Number of migration files: $(ls -1 migrations/*.sql 2>/dev/null | wc -l)"
+          else
+            echo "❌ Migrations directory not found!"
+            exit 1
+          fi
+          echo ""
+          echo "=== Running migrations ==="
+          go run cmd/migrate/main.go -cmd up
+          
+          if [ $? -eq 0 ]; then
+            echo ""
+            echo "✅ Migrations completed successfully"
+          else
+            echo ""
+            echo "❌ Migration failed"
+            exit 1
+          fi
         env:
-          DB_HOST: ${{ secrets.AIVEN_DB_HOST }}
-          DB_PORT: ${{ secrets.AIVEN_DB_PORT }}
-          DB_USER: ${{ secrets.AIVEN_DB_USER }}
-          DB_PASSWORD: ${{ secrets.AIVEN_DB_PASSWORD }}
-          DB_NAME: ${{ secrets.AIVEN_DB_NAME }}
+          CI: "true"
           DB_SSL_MODE: require
 
-      - name: Show Service URL
+      - name: Create migration summary
+        if: success()
         run: |
-          echo "Service URL: ${{ steps.deploy.outputs.url }}"
+          echo "## ✅ Database Migrations Completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Executed at**: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Executed by**: @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY

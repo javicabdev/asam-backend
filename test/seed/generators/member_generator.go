@@ -16,34 +16,34 @@ type MemberGenerator struct {
 	lastCount int
 }
 
-// Member represents a miembro record for generation
+// Member represents a member record for generation
 type Member struct {
-	MiembroID          int        `db:"miembro_id"`
-	NumeroSocio        string     `db:"numero_socio"`
-	TipoMembresia      string     `db:"tipo_membresia"`
-	Nombre             string     `db:"nombre"`
-	Apellidos          string     `db:"apellidos"`
-	CalleNumeroPiso    string     `db:"calle_numero_piso"`
-	CodigoPostal       string     `db:"codigo_postal"`
-	Poblacion          string     `db:"poblacion"`
-	Provincia          string     `db:"provincia"`
-	Pais               string     `db:"pais"`
-	Estado             string     `db:"estado"`
-	FechaAlta          time.Time  `db:"fecha_alta"`
-	FechaBaja          *time.Time `db:"fecha_baja"`
-	FechaNacimiento    *time.Time `db:"fecha_nacimiento"`
-	DocumentoIdentidad string     `db:"documento_identidad"`
-	CorreoElectronico  string     `db:"correo_electronico"`
-	Profession         string     `db:"profesion"`
-	Nacionalidad       string     `db:"nacionalidad"`
-	Observaciones      string     `db:"observaciones"`
+	ID               uint       `db:"id"`
+	MembershipNumber string     `db:"membership_number"`
+	MembershipType   string     `db:"membership_type"`
+	Name             string     `db:"name"`
+	Surnames         string     `db:"surnames"`
+	Address          string     `db:"address"`
+	Postcode         string     `db:"postcode"`
+	City             string     `db:"city"`
+	Province         string     `db:"province"`
+	Country          string     `db:"country"`
+	State            string     `db:"state"`
+	RegistrationDate time.Time  `db:"registration_date"`
+	LeavingDate      *time.Time `db:"leaving_date"`
+	BirthDate        *time.Time `db:"birth_date"`
+	IdentityCard     string     `db:"identity_card"`
+	Email            string     `db:"email"`
+	Profession       string     `db:"profession"`
+	Nationality      string     `db:"nationality"`
+	Remarks          string     `db:"remarks"`
 }
 
 // NewMemberGenerator creates a new member generator
 func NewMemberGenerator(db *sqlx.DB, seed int64) *MemberGenerator {
 	return &MemberGenerator{
 		db:   db,
-		rand: rand.New(rand.NewSource(seed)),
+		rand: rand.New(rand.NewSource(seed)), //nolint:gosec // Deterministic random for test data generation
 	}
 }
 
@@ -51,7 +51,7 @@ func NewMemberGenerator(db *sqlx.DB, seed int64) *MemberGenerator {
 func (g *MemberGenerator) Generate(ctx context.Context, n int) error {
 	// Get current count to start sequence
 	var count int
-	err := g.db.GetContext(ctx, &count, "SELECT COUNT(*) FROM miembros")
+	err := g.db.GetContext(ctx, &count, "SELECT COUNT(*) FROM members")
 	if err != nil {
 		return fmt.Errorf("failed to get member count: %w", err)
 	}
@@ -87,16 +87,18 @@ func (g *MemberGenerator) Generate(ctx context.Context, n int) error {
 func (g *MemberGenerator) generateBatch(ctx context.Context, tx *sqlx.Tx, start, end int) error {
 	// Prepare query
 	query := `
-		INSERT INTO miembros (
-			numero_socio, tipo_membresia, nombre, apellidos, 
-			calle_numero_piso, codigo_postal, poblacion, provincia, pais,
-			estado, fecha_alta, fecha_baja, fecha_nacimiento, 
-			documento_identidad, correo_electronico, profesion, nacionalidad, observaciones
+		INSERT INTO members (
+			membership_number, membership_type, name, surnames, 
+			address, postcode, city, province, country,
+			state, registration_date, leaving_date, birth_date, 
+			identity_card, email, profession, nationality, remarks,
+			created_at, updated_at
 		) VALUES (
-			:numero_socio, :tipo_membresia, :nombre, :apellidos, 
-			:calle_numero_piso, :codigo_postal, :poblacion, :provincia, :pais,
-			:estado, :fecha_alta, :fecha_baja, :fecha_nacimiento, 
-			:documento_identidad, :correo_electronico, :profesion, :nacionalidad, :observaciones
+			:membership_number, :membership_type, :name, :surnames, 
+			:address, :postcode, :city, :province, :country,
+			:state, :registration_date, :leaving_date, :birth_date, 
+			:identity_card, :email, :profession, :nationality, :remarks,
+			NOW(), NOW()
 		)
 	`
 
@@ -162,12 +164,12 @@ func (g *MemberGenerator) generateMember() Member {
 	// 15% chance member is inactive
 	var status string
 	if g.rand.Float64() < 0.15 {
-		status = "inactivo"
+		status = "inactive"
 		// Corregido: crear una variable y luego asignar su dirección
 		cancelDate := GenerateRandomDate(g.rand, signupDate.AddDate(0, 3, 0), now)
 		cancellationDate = &cancelDate
 	} else {
-		status = "activo"
+		status = "active"
 	}
 
 	// Birthday - between 18 and 80 years ago
@@ -181,24 +183,24 @@ func (g *MemberGenerator) generateMember() Member {
 
 	// Generate member
 	return Member{
-		NumeroSocio:        memberNumber,
-		TipoMembresia:      membershipType,
-		Nombre:             firstName,
-		Apellidos:          lastName,
-		CalleNumeroPiso:    address,
-		CodigoPostal:       postalCode,
-		Poblacion:          city,
-		Provincia:          province,
-		Pais:               "España",
-		Estado:             status,
-		FechaAlta:          signupDate,
-		FechaBaja:          cancellationDate,
-		FechaNacimiento:    &birthDate,
-		DocumentoIdentidad: documentID,
-		CorreoElectronico:  email,
-		Profession:         profession,
-		Nacionalidad:       nationality,
-		Observaciones:      "",
+		MembershipNumber: memberNumber,
+		MembershipType:   membershipType,
+		Name:             firstName,
+		Surnames:         lastName,
+		Address:          address,
+		Postcode:         postalCode,
+		City:             city,
+		Province:         province,
+		Country:          "España",
+		State:            status,
+		RegistrationDate: signupDate,
+		LeavingDate:      cancellationDate,
+		BirthDate:        &birthDate,
+		IdentityCard:     documentID,
+		Email:            email,
+		Profession:       profession,
+		Nationality:      nationality,
+		Remarks:          "",
 	}
 }
 
@@ -208,12 +210,12 @@ func (g *MemberGenerator) GetLastInsertedMembers(ctx context.Context, n int) ([]
 
 	query := `
 		SELECT 
-			miembro_id, numero_socio, tipo_membresia, nombre, apellidos,
-			calle_numero_piso, codigo_postal, poblacion, provincia, pais,
-			estado, fecha_alta, fecha_baja, fecha_nacimiento,
-			documento_identidad, correo_electronico, profesion, nacionalidad, observaciones
-		FROM miembros
-		ORDER BY miembro_id DESC
+			id, membership_number, membership_type, name, surnames,
+			address, postcode, city, province, country,
+			state, registration_date, leaving_date, birth_date,
+			identity_card, email, profession, nationality, remarks
+		FROM members
+		ORDER BY id DESC
 		LIMIT $1
 	`
 
@@ -231,12 +233,12 @@ func (g *MemberGenerator) FindIndividualMembers(ctx context.Context, limit int) 
 
 	query := `
 		SELECT 
-			miembro_id, numero_socio, tipo_membresia, nombre, apellidos,
-			calle_numero_piso, codigo_postal, poblacion, provincia, pais,
-			estado, fecha_alta, fecha_baja, fecha_nacimiento,
-			documento_identidad, correo_electronico, profesion, nacionalidad, observaciones
-		FROM miembros
-		WHERE tipo_membresia = 'individual' AND estado = 'activo'
+			id, membership_number, membership_type, name, surnames,
+			address, postcode, city, province, country,
+			state, registration_date, leaving_date, birth_date,
+			identity_card, email, profession, nationality, remarks
+		FROM members
+		WHERE membership_type = 'individual' AND state = 'active'
 		LIMIT $1
 	`
 
@@ -254,12 +256,12 @@ func (g *MemberGenerator) FindFamilyMembers(ctx context.Context, limit int) ([]M
 
 	query := `
 		SELECT 
-			miembro_id, numero_socio, tipo_membresia, nombre, apellidos,
-			calle_numero_piso, codigo_postal, poblacion, provincia, pais,
-			estado, fecha_alta, fecha_baja, fecha_nacimiento,
-			documento_identidad, correo_electronico, profesion, nacionalidad, observaciones
-		FROM miembros
-		WHERE tipo_membresia = 'familiar' AND estado = 'activo'
+			id, membership_number, membership_type, name, surnames,
+			address, postcode, city, province, country,
+			state, registration_date, leaving_date, birth_date,
+			identity_card, email, profession, nationality, remarks
+		FROM members
+		WHERE membership_type = 'familiar' AND state = 'active'
 		LIMIT $1
 	`
 

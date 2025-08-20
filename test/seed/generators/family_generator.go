@@ -16,9 +16,9 @@ type FamilyGenerator struct {
 	lastCount int
 }
 
-// Family represents a familia record for generation
+// Family represents a family record for generation
 type Family struct {
-	FamiliaID                int        `db:"familia_id"`
+	ID                       int        `db:"id"`
 	NumeroSocio              string     `db:"numero_socio"`
 	MiembroOrigenID          *int       `db:"miembro_origen_id"`
 	EsposoNombre             string     `db:"esposo_nombre"`
@@ -37,7 +37,7 @@ type Family struct {
 func NewFamilyGenerator(db *sqlx.DB, seed int64) *FamilyGenerator {
 	return &FamilyGenerator{
 		db:   db,
-		rand: rand.New(rand.NewSource(seed)),
+		rand: rand.New(rand.NewSource(seed)), //nolint:gosec // Deterministic random for test data generation
 	}
 }
 
@@ -45,7 +45,7 @@ func NewFamilyGenerator(db *sqlx.DB, seed int64) *FamilyGenerator {
 func (g *FamilyGenerator) Generate(ctx context.Context, n int) error {
 	// Get current count to start sequence
 	var count int
-	err := g.db.GetContext(ctx, &count, "SELECT COUNT(*) FROM familias")
+	err := g.db.GetContext(ctx, &count, "SELECT COUNT(*) FROM families")
 	if err != nil {
 		return fmt.Errorf("failed to get family count: %w", err)
 	}
@@ -58,7 +58,7 @@ func (g *FamilyGenerator) Generate(ctx context.Context, n int) error {
 	}
 
 	err = g.db.SelectContext(ctx, &originMembers,
-		"SELECT miembro_id FROM miembros WHERE tipo_membresia = 'familiar' AND estado = 'activo'")
+		"SELECT id as miembro_id FROM members WHERE membership_type = 'familiar' AND state = 'active'")
 	if err != nil {
 		return fmt.Errorf("failed to get potential origin members: %w", err)
 	}
@@ -104,16 +104,18 @@ func (g *FamilyGenerator) generateBatch(
 ) error {
 	// Prepare query
 	query := `
-		INSERT INTO familias (
+		INSERT INTO families (
 			numero_socio, miembro_origen_id,
 			esposo_nombre, esposo_apellidos, esposa_nombre, esposa_apellidos,
 			esposo_fecha_nacimiento, esposo_documento_identidad, esposo_correo_electronico,
-			esposa_fecha_nacimiento, esposa_documento_identidad, esposa_correo_electronico
+			esposa_fecha_nacimiento, esposa_documento_identidad, esposa_correo_electronico,
+			created_at, updated_at
 		) VALUES (
 			:numero_socio, :miembro_origen_id,
 			:esposo_nombre, :esposo_apellidos, :esposa_nombre, :esposa_apellidos,
 			:esposo_fecha_nacimiento, :esposo_documento_identidad, :esposo_correo_electronico,
-			:esposa_fecha_nacimiento, :esposa_documento_identidad, :esposa_correo_electronico
+			:esposa_fecha_nacimiento, :esposa_documento_identidad, :esposa_correo_electronico,
+			NOW(), NOW()
 		)
 	`
 
@@ -202,11 +204,11 @@ func (g *FamilyGenerator) GetAllFamilies(ctx context.Context) ([]Family, error) 
 
 	query := `
 		SELECT 
-			familia_id, numero_socio, miembro_origen_id,
+			id, numero_socio, miembro_origen_id,
 			esposo_nombre, esposo_apellidos, esposa_nombre, esposa_apellidos,
 			esposo_fecha_nacimiento, esposo_documento_identidad, esposo_correo_electronico,
 			esposa_fecha_nacimiento, esposa_documento_identidad, esposa_correo_electronico
-		FROM familias
+		FROM families
 	`
 
 	err := g.db.SelectContext(ctx, &families, query)
@@ -223,12 +225,12 @@ func (g *FamilyGenerator) GetLastInsertedFamilies(ctx context.Context, n int) ([
 
 	query := `
 		SELECT 
-			familia_id, numero_socio, miembro_origen_id,
+			id, numero_socio, miembro_origen_id,
 			esposo_nombre, esposo_apellidos, esposa_nombre, esposa_apellidos,
 			esposo_fecha_nacimiento, esposo_documento_identidad, esposo_correo_electronico,
 			esposa_fecha_nacimiento, esposa_documento_identidad, esposa_correo_electronico
-		FROM familias
-		ORDER BY familia_id DESC
+		FROM families
+		ORDER BY id DESC
 		LIMIT $1
 	`
 

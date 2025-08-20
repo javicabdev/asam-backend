@@ -9,40 +9,69 @@
 *.dll
 *.so
 *.dylib
+asam-backend
 
 # Ignorar archivos de configuración locales
 .env
-.env.local
-.env.development*
-!.env.production
+.env.*
+!.env.production.example
 
-# Ignorar directorios de prueba
+# Ignorar directorios de prueba y cobertura
 /test
-/coverage
+/coverage*
+*.out
+*.test
+*.html
 
 # Ignorar archivos de logs y temporales
 *.log
 *.tmp
+/logs
+/.tmp
 
-# Ignorar el directorio .git
+# Ignorar el directorio .git y configuración
 .git
 .gitignore
+.gitattributes
 
-# Ignorar Dockerfile y docker-compose.yml si no se necesita dentro del contenedor
-Dockerfile.dev
-Dockerfile.test
+# Ignorar archivos de IDE
+/.idea
+/.vscode
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Ignorar Dockerfile y docker-compose
+Dockerfile*
 docker-compose*.yml
+.dockerignore
 
-# Ignorar documentación y otros archivos que no son necesarios para la ejecución
+# Ignorar documentación y scripts
 README.md
+IMPROVEMENTS.md
 LICENSE
 /.github
-/.idea
 *.ps1
 *.bat
+*.sh
 
-# Mantener el código fuente y las migraciones
+# Ignorar archivos de configuración de herramientas
+.golangci.yml
+.air.toml
+tools.go
+# NO ignorar gqlgen.yml - es necesario para el build
+
+# Ignorar archivos de análisis
+/docs
+coverage.txt
+coverage.html
+
+# Mantener el código fuente esencial
 !/cmd/**
 !/internal/**
 !/pkg/**
 !/migrations/**
+!/go.mod
+!/go.sum
+!/gqlgen.yml

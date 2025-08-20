@@ -14,8 +14,8 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
-// ErrorHandlerKey is a typed key for context
 type ErrorHandlerKey struct{}
+type HttpRequestKey struct{}
 
 // ErrorMiddleware handles application errors
 type ErrorMiddleware struct {
@@ -36,18 +36,17 @@ func (m *ErrorMiddleware) Handler(next http.Handler) http.Handler {
 	return m
 }
 
-// ServeHTTP implements http.Handler
+// ServeHTTP implements http.Handler.
 func (m *ErrorMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Create a new context with error handler
+	// CORRECCIÓN: Usar el tipo exportado
 	ctx := context.WithValue(r.Context(), ErrorHandlerKey{}, m)
-
-	// Execute next handler with the new context
+	// CORRECCIÓN: Usar el tipo exportado
+	ctx = context.WithValue(ctx, HttpRequestKey{}, r)
 	m.next.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // HandleError processes an error and transforms it for GraphQL
 func (m *ErrorMiddleware) HandleError(ctx context.Context, err error) *gqlerror.Error {
-	// If already a GraphQL error, return it
 	var gqlErr *gqlerror.Error
 	if errors.As(err, &gqlErr) {
 		if m.logger != nil {
@@ -56,22 +55,19 @@ func (m *ErrorMiddleware) HandleError(ctx context.Context, err error) *gqlerror.
 		return gqlErr
 	}
 
-	// Convert to AppError if possible
 	var appErr *appErrors.AppError
 	if errors.As(err, &appErr) {
 		return m.handleAppError(ctx, appErr)
 	}
 
-	// Handle common errors
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return m.createNotFoundError(ctx)
 	}
 
-	// For other errors, create a generic internal error
 	return m.createInternalError(ctx, err)
 }
 
-// Log levels for different error types
+// Log levels
 const (
 	levelDebug = "debug"
 	levelInfo  = "info"
@@ -79,17 +75,15 @@ const (
 	levelError = "error"
 )
 
-// Map AppError codes to logging levels
+// getErrorLevel maps AppError codes to logging levels
 func (m *ErrorMiddleware) getErrorLevel(code appErrors.ErrorCode) string {
 	switch code {
-	case appErrors.ErrValidationFailed, appErrors.ErrInvalidFormat, appErrors.ErrNotFound:
+	case appErrors.ErrValidationFailed, appErrors.ErrNotFound:
 		return levelDebug
-	case appErrors.ErrUnauthorized, appErrors.ErrForbidden, appErrors.ErrDuplicateEntry:
+	case appErrors.ErrUnauthorized, appErrors.ErrForbidden, appErrors.ErrDuplicateEntry, appErrors.ErrInvalidToken:
 		return levelWarn
-	case appErrors.ErrDatabaseError, appErrors.ErrInternalError:
-		return levelError
 	default:
-		return levelWarn
+		return levelError
 	}
 }
 
@@ -100,19 +94,13 @@ func (m *ErrorMiddleware) handleAppError(ctx context.Context, err *appErrors.App
 		m.logError(ctx, string(err.Code), err.Message, level, err.Code, graphql.GetPath(ctx))
 	}
 
-	// Create GraphQL error
-	path := graphql.GetPath(ctx)
-	extensions := map[string]any{
-		"code": err.Code,
-	}
-
-	// Add validation fields if they exist
+	extensions := map[string]any{"code": err.Code}
 	if len(err.Fields) > 0 {
 		extensions["fields"] = err.Fields
 	}
 
 	return &gqlerror.Error{
-		Path:       path,
+		Path:       graphql.GetPath(ctx),
 		Message:    err.Message,
 		Extensions: extensions,
 	}
@@ -128,21 +116,20 @@ func (m *ErrorMiddleware) logError(ctx context.Context, errType, message, level 
 		zap.String("error_type", errType),
 		zap.String("message", message),
 	}
-
 	if code != nil {
 		fields = append(fields, zap.Any("code", code))
 	}
-
 	if path != nil {
 		fields = append(fields, zap.Any("path", path))
 	}
 
-	// Add operation name if available
-	if op := graphql.GetOperationContext(ctx); op != nil {
-		fields = append(fields, zap.String("operation", op.OperationName))
+	// CORRECCIÓN: Usar el tipo exportado para extraer el request del contexto
+	if httpReq, ok := ctx.Value(HttpRequestKey{}).(*http.Request); ok {
+		if operationName, err := getOperationName(httpReq); err == nil && operationName != "" {
+			fields = append(fields, zap.String("operation", operationName))
+		}
 	}
 
-	// Log at the appropriate level
 	switch level {
 	case levelDebug:
 		m.logger.Debug("GraphQL error", fields...)
@@ -161,11 +148,9 @@ func (m *ErrorMiddleware) logError(ctx context.Context, errType, message, level 
 func (m *ErrorMiddleware) createNotFoundError(ctx context.Context) *gqlerror.Error {
 	path := graphql.GetPath(ctx)
 	message := "Resource not found"
-
 	if m.logger != nil {
 		m.logError(ctx, "Not found", message, levelDebug, appErrors.ErrNotFound, path)
 	}
-
 	return &gqlerror.Error{
 		Path:    path,
 		Message: message,
@@ -179,14 +164,12 @@ func (m *ErrorMiddleware) createNotFoundError(ctx context.Context) *gqlerror.Err
 func (m *ErrorMiddleware) createInternalError(ctx context.Context, err error) *gqlerror.Error {
 	path := graphql.GetPath(ctx)
 	message := "Internal server error"
-
 	if m.logger != nil {
 		m.logger.Error("Unhandled error",
 			zap.Error(err),
 			zap.Any("path", path),
 		)
 	}
-
 	return &gqlerror.Error{
 		Path:    path,
 		Message: message,

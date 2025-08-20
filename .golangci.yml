@@ -1,75 +1,132 @@
-# Archivo de configuración para golangci-lint v2.1.6
+# golangci-lint configuration for v2.1.6
 version: "2"
 
 run:
-  go: '1.24'
   timeout: 5m
+  tests: false
+  build-tags: []
+  modules-download-mode: readonly
+  allow-parallel-runners: false
 
 linters:
   enable:
-    - bodyclose
     - errcheck
     - govet
     - ineffassign
-    - noctx
     - staticcheck
     - unused
+    - whitespace
     - revive
+    - bodyclose
+    - dupl
+    - goconst
+    - gocritic
+    - gocyclo
+    - nakedret
+    - prealloc
     - unconvert
-    # - misspell
-    # - gocyclo
-    # - gocritic
-    # - nolintlint
+    - unparam
+    - gosec
+    - exhaustive
+    - gochecknoinits
+    - goprintffuncname
+    - noctx
+    - nolintlint
+    - rowserrcheck
+    - sqlclosecheck
+    - bidichk
+    - durationcheck
+    - errname
+    - forcetypeassert
+    - makezero
+    - nilerr
+    - wastedassign
 
-  # Configuración específica para linters
   settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: false
+
+    govet:
+      enable-all: false
+
     gocyclo:
       min-complexity: 15
-    funlen:
-      lines: 100
-      statements: 50
-    # Removiendo configuraciones que no son válidas en v2.1.6
-    # revive:
-    #   ignore-generated-header: true
-    # govet:
-    #   check-shadowing: true
 
-  # Reglas de exclusión
+    dupl:
+      threshold: 150
+
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+
+    unused:
+      exported-fields-are-used: true
+
+    unparam:
+      check-exported: false
+
+    nakedret:
+      max-func-lines: 30
+
+    prealloc:
+      simple: true
+      range-loops: true
+      for-loops: false
+
+    gocritic:
+      enabled-checks:
+        - nestingReduce
+        - unnamedResult
+        - ruleguard
+        - truncateCmp
+
+    revive:
+      confidence: 0.8
+      severity: warning
+      rules:
+        - name: package-comments
+          disabled: true
+        - name: exported
+          disabled: true
+
+    exhaustive:
+      default-signifies-exhaustive: true
+
+    nolintlint:
+      allow-unused: false
+      require-explanation: true
+      require-specific: true
+
   exclusions:
-    warn-unused: true
     rules:
-      # Excluir globalmente el issue "package-comments" del linter "revive".
-      - linters:
-          - revive
-        text: "package-comments: should have a package comment"
-
-      # Excluir issues del archivo schema.resolvers.go
-      - path: internal/adapters/gql/resolvers/schema\.resolvers\.go$
-        text: "." # Excluye todos los issues de todos los linters en este path.
-
-      # Excluir issues del directorio generated
-      - path: internal/adapters/gql/generated/
-        text: "." # Excluye todos los issues de todos los linters en este path.
-
-      # Reglas de exclusión generales
-      - path: ".*_generated\\.go$"
-        text: "."
-      - path: ".*\\.pb\\.go$"
-        text: "."
-      - path: "pkg(?:/|\\\\)errors(?:/|\\\\)errors\\.go"
-        text: "."
-      - path: "_test\\.go$"
+      # Allow init functions in cmd
+      - path: cmd/.*\.go
         linters:
-          - errcheck
-          - funlen
+          - gochecknoinits
 
-formatters:
-  settings:
-    goimports:
-      # Corrigiendo local-prefixes como array
-      local-prefixes:
-        - github.com/javicabdev/asam-backend
+      # Reduce revive noise in cmd
+      - path: cmd/.*\.go
+        linters:
+          - revive
+
+      # Exclude generated files
+      - path: '.*\.pb\.go$'
+        linters:
+          - revive
+          - govet
+          - staticcheck
+          - unused
+
+      - path: '.*\.gen\.go$'
+        linters:
+          - revive
+          - govet
+          - staticcheck
+          - unused
 
 issues:
-  max-same-issues: 300
-  # exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  new: false
+  fix: false

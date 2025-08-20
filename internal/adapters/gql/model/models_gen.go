@@ -19,6 +19,11 @@ type AuthResponse struct {
 	ExpiresAt    time.Time    `json:"expiresAt"`
 }
 
+type ChangePasswordInput struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
 type CreateFamilyInput struct {
 	NumeroSocio              string     `json:"numero_socio"`
 	MiembroOrigenID          *string    `json:"miembro_origen_id,omitempty"`
@@ -50,6 +55,20 @@ type CreateMemberInput struct {
 	Profesion          *string        `json:"profesion,omitempty"`
 	Nacionalidad       *string        `json:"nacionalidad,omitempty"`
 	Observaciones      *string        `json:"observaciones,omitempty"`
+}
+
+type CreateUserInput struct {
+	Username string   `json:"username"`
+	Email    string   `json:"email"`
+	Password string   `json:"password"`
+	Role     UserRole `json:"role"`
+	MemberID *string  `json:"memberId,omitempty"`
+}
+
+type DocumentValidationResult struct {
+	IsValid         bool    `json:"isValid"`
+	NormalizedValue *string `json:"normalizedValue,omitempty"`
+	ErrorMessage    *string `json:"errorMessage,omitempty"`
 }
 
 type FamiliarInput struct {
@@ -181,6 +200,16 @@ type UpdateMemberInput struct {
 	CorreoElectronico  *string `json:"correo_electronico,omitempty"`
 	Profesion          *string `json:"profesion,omitempty"`
 	Observaciones      *string `json:"observaciones,omitempty"`
+}
+
+type UpdateUserInput struct {
+	ID       string    `json:"id"`
+	Username *string   `json:"username,omitempty"`
+	Email    *string   `json:"email,omitempty"`
+	Password *string   `json:"password,omitempty"`
+	Role     *UserRole `json:"role,omitempty"`
+	IsActive *bool     `json:"isActive,omitempty"`
+	MemberID *string   `json:"memberId,omitempty"`
 }
 
 type FamilySortField string
@@ -526,8 +555,8 @@ func (e TransactionSortField) MarshalJSON() ([]byte, error) {
 type UserRole string
 
 const (
-	UserRoleAdmin UserRole = "ADMIN"
-	UserRoleUser  UserRole = "USER"
+	UserRoleAdmin UserRole = "admin"
+	UserRoleUser  UserRole = "user"
 )
 
 var AllUserRole = []UserRole{

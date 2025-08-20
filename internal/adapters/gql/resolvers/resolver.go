@@ -1,16 +1,28 @@
 package resolvers
 
 import (
+	"context"
+
+	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
+	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
+	"github.com/javicabdev/asam-backend/pkg/auth"
+	"github.com/javicabdev/asam-backend/pkg/errors"
+	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
 // Resolver contiene las dependencias necesarias para los resolvers
 type Resolver struct {
-	memberService   input.MemberService
-	familyService   input.FamilyService
-	paymentService  input.PaymentService
-	cashFlowService input.CashFlowService
-	authService     input.AuthService // Añadimos authService
+	memberService            input.MemberService
+	familyService            input.FamilyService
+	paymentService           input.PaymentService
+	cashFlowService          input.CashFlowService
+	authService              input.AuthService              // Añadimos authService
+	userService              input.UserService              // Añadimos userService
+	emailVerificationService input.EmailVerificationService // Añadimos email verification service
+	emailNotificationService input.EmailNotificationService // Añadimos email notification service
+	loginRateLimiter         *auth.LoginRateLimiter         // Añadimos rate limiter para login
+	logger                   logger.Logger                  // Añadimos logger
 }
 
 // NewResolver crea una nueva instancia del Resolver principal para GraphQL
@@ -21,14 +33,161 @@ func NewResolver(
 	paymentService input.PaymentService,
 	cashFlowService input.CashFlowService,
 	authService input.AuthService, // Añadimos el parámetro
+	userService input.UserService, // Añadimos el servicio de usuarios
+	emailVerificationService input.EmailVerificationService, // Añadimos email verification
+	emailNotificationService input.EmailNotificationService, // Añadimos email notification
+	loginRateLimiter *auth.LoginRateLimiter, // Añadimos el rate limiter
+	logger logger.Logger, // Añadimos logger
 ) *Resolver {
 	return &Resolver{
-		memberService:   memberService,
-		familyService:   familyService,
-		paymentService:  paymentService,
-		cashFlowService: cashFlowService,
-		authService:     authService, // Asignamos el servicio
+		memberService:            memberService,
+		familyService:            familyService,
+		paymentService:           paymentService,
+		cashFlowService:          cashFlowService,
+		authService:              authService,              // Asignamos el servicio
+		userService:              userService,              // Asignamos el servicio de usuarios
+		emailVerificationService: emailVerificationService, // Asignamos email verification
+		emailNotificationService: emailNotificationService, // Asignamos email notification
+		loginRateLimiter:         loginRateLimiter,         // Asignamos el rate limiter
+		logger:                   logger,                   // Asignamos logger
 	}
 }
 
-// Las interfaces de los resolvers se definirán en schema.resolvers.go
+// Member mutation methods
+
+// CreateMember creates a new member
+func (r *Resolver) CreateMember(ctx context.Context, input model.CreateMemberInput) (*models.Member, error) {
+	// Validate input
+	memberResolver := &memberResolver{r}
+	if err := memberResolver.validateCreateInput(&input); err != nil {
+		return nil, err
+	}
+
+	// Map input to member model
+	member, err := memberResolver.mapCreateInputToMember(&input)
+	if err != nil {
+		return nil, err
+	}
+
+	// Handle the mutation
+	return memberResolver.handleMemberMutation(ctx, member)
+}
+
+// UpdateMember updates an existing member
+func (r *Resolver) UpdateMember(ctx context.Context, input model.UpdateMemberInput) (*models.Member, error) {
+	// Validate input
+	memberResolver := &memberResolver{r}
+	if err := memberResolver.validateUpdateInput(&input); err != nil {
+		return nil, err
+	}
+
+	// Parse member ID
+	memberID, err := parseID(input.MiembroID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get existing member
+	existing, err := r.memberService.GetMemberByID(ctx, memberID)
+	if err != nil {
+		return nil, err
+	}
+	if existing == nil {
+		return nil, errors.NewNotFoundError("Member")
+	}
+
+	// Map input to member model
+	member := memberResolver.mapUpdateInputToMember(memberID, &input, existing)
+
+	// Handle the mutation
+	return memberResolver.handleMemberMutation(ctx, member)
+}
+
+// Auth methods (delegate to auth_resolver.go)
+
+// Login handles user authentication
+func (r *Resolver) Login(ctx context.Context, input model.LoginInput) (*model.AuthResponse, error) {
+	authResolver := &authResolver{resolver: r}
+	return authResolver.Login(ctx, input)
+}
+
+// Logout handles user logout
+func (r *Resolver) Logout(ctx context.Context) (*model.MutationResponse, error) {
+	authResolver := &authResolver{resolver: r}
+	return authResolver.Logout(ctx)
+}
+
+// RefreshToken handles token refresh
+func (r *Resolver) RefreshToken(ctx context.Context, input model.RefreshTokenInput) (*model.TokenResponse, error) {
+	authResolver := &authResolver{resolver: r}
+	return authResolver.RefreshToken(ctx, input)
+}
+
+// User methods (delegate to user_resolver.go)
+
+// GetUser retrieves a user by ID
+func (r *Resolver) GetUser(ctx context.Context, id string) (*models.User, error) {
+	return (&userResolver{r}).GetUser(ctx, id)
+}
+
+// ListUsers retrieves a list of users
+func (r *Resolver) ListUsers(ctx context.Context, page *int, pageSize *int) ([]*models.User, error) {
+	return (&userResolver{r}).ListUsers(ctx, page, pageSize)
+}
+
+// GetCurrentUser retrieves the current authenticated user
+func (r *Resolver) GetCurrentUser(ctx context.Context) (*models.User, error) {
+	return (&userResolver{r}).GetCurrentUser(ctx)
+}
+
+// CreateUser creates a new user
+func (r *Resolver) CreateUser(ctx context.Context, input model.CreateUserInput) (*models.User, error) {
+	return (&userResolver{r}).CreateUser(ctx, input)
+}
+
+// UpdateUser updates an existing user
+func (r *Resolver) UpdateUser(ctx context.Context, input model.UpdateUserInput) (*models.User, error) {
+	return (&userResolver{r}).UpdateUser(ctx, input)
+}
+
+// DeleteUser deletes a user
+func (r *Resolver) DeleteUser(ctx context.Context, id string) (*model.MutationResponse, error) {
+	return (&userResolver{r}).DeleteUser(ctx, id)
+}
+
+// ChangePassword changes the current user's password
+func (r *Resolver) ChangePassword(ctx context.Context, input model.ChangePasswordInput) (*model.MutationResponse, error) {
+	return (&userResolver{r}).ChangePassword(ctx, input)
+}
+
+// ResetUserPassword resets a user's password
+func (r *Resolver) ResetUserPassword(ctx context.Context, userID string, newPassword string) (*model.MutationResponse, error) {
+	return (&userResolver{r}).ResetUserPassword(ctx, userID, newPassword)
+}
+
+// Email methods (delegate to email_resolver.go)
+
+// SendVerificationEmail sends an email verification link to the current user
+func (r *Resolver) SendVerificationEmail(ctx context.Context) (*model.MutationResponse, error) {
+	return (&emailResolver{r}).SendVerificationEmail(ctx)
+}
+
+// VerifyEmail verifies a user's email address using a token
+func (r *Resolver) VerifyEmail(ctx context.Context, token string) (*model.MutationResponse, error) {
+	return (&emailResolver{r}).VerifyEmail(ctx, token)
+}
+
+// ResendVerificationEmail resends the verification email to a specific email address
+func (r *Resolver) ResendVerificationEmail(ctx context.Context, email string) (*model.MutationResponse, error) {
+	return (&emailResolver{r}).ResendVerificationEmail(ctx, email)
+}
+
+// RequestPasswordReset sends a password reset email
+func (r *Resolver) RequestPasswordReset(ctx context.Context, email string) (*model.MutationResponse, error) {
+	return (&emailResolver{r}).RequestPasswordReset(ctx, email)
+}
+
+// ResetPasswordWithToken resets a user's password using a valid reset token
+func (r *Resolver) ResetPasswordWithToken(ctx context.Context, token string, newPassword string) (*model.MutationResponse, error) {
+	return (&emailResolver{r}).ResetPasswordWithToken(ctx, token, newPassword)
+}

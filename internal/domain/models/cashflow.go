@@ -1,3 +1,5 @@
+// Package models defines the domain models for the ASAM backend.
+// It contains the core business entities and their validation logic.
 package models
 
 import (

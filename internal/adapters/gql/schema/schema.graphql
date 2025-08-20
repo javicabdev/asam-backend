@@ -52,17 +52,21 @@ enum TransactionSortField {
 }
 
 enum UserRole {
-    ADMIN
-    USER
+    admin
+    user
 }
 
 # Tipos de autenticación
 type User {
     id: ID!
     username: String!
+    email: String!
     role: UserRole!
+    member: Member  # Asociación con socio (null para admin, requerido para user)
     isActive: Boolean!
     lastLogin: Time
+    emailVerified: Boolean!
+    emailVerifiedAt: Time
 }
 
 type AuthResponse {
@@ -200,6 +204,15 @@ type TransactionConnection {
 
 # Query principal
 type Query {
+    # Health check - no authentication required
+    health: String!
+    ping: String!
+    
+    # User Queries (Admin only)
+    getUser(id: ID!): User
+    listUsers(page: Int = 1, pageSize: Int = 10): [User!]!
+    getCurrentUser: User!
+    
     # Member Queries
     getMember(id: ID!): Member
     listMembers(filter: MemberFilter): MemberConnection!
@@ -220,6 +233,20 @@ type Query {
     getCashFlow(id: ID!): CashFlow
     getBalance: Float!
     getTransactions(filter: TransactionFilter): TransactionConnection!
+    
+    # Member Number Queries
+    getNextMemberNumber(isFamily: Boolean!): String!
+    checkMemberNumberExists(memberNumber: String!): Boolean!
+    
+    # Document Validation Query
+    checkDocumentValidity(documentNumber: String!): DocumentValidationResult!
+}
+
+# Type for document validation result
+type DocumentValidationResult {
+    isValid: Boolean!
+    normalizedValue: String
+    errorMessage: String
 }
 
 # Input Types para mutations
@@ -317,6 +344,30 @@ input RefreshTokenInput {
     refreshToken: JWT!
 }
 
+# Input Types para User Management
+input CreateUserInput {
+    username: String!
+    email: String!
+    password: String!
+    role: UserRole!
+    memberId: ID  # Requerido si role es USER, prohibido si role es ADMIN
+}
+
+input UpdateUserInput {
+    id: ID!
+    username: String
+    email: String
+    password: String
+    role: UserRole
+    isActive: Boolean
+    memberId: ID  # Solo puede cambiar si también cambia el rol
+}
+
+input ChangePasswordInput {
+    currentPassword: String!
+    newPassword: String!
+}
+
 # Mutation Types
 type MutationResponse {
     success: Boolean!
@@ -352,4 +403,20 @@ type Mutation {
     login(input: LoginInput!): AuthResponse!
     logout: MutationResponse!
     refreshToken(input: RefreshTokenInput!): TokenResponse!
+
+    # User Management Mutations (Admin only)
+    createUser(input: CreateUserInput!): User!
+    updateUser(input: UpdateUserInput!): User!
+    deleteUser(id: ID!): MutationResponse!
+    changePassword(input: ChangePasswordInput!): MutationResponse!
+    resetUserPassword(userId: ID!, newPassword: String!): MutationResponse! # Admin only
+    
+    # Email Verification Mutations
+    sendVerificationEmail: MutationResponse!
+    verifyEmail(token: String!): MutationResponse!
+    resendVerificationEmail(email: String!): MutationResponse!
+    
+    # Password Recovery Mutations
+    requestPasswordReset(email: String!): MutationResponse!
+    resetPasswordWithToken(token: String!, newPassword: String!): MutationResponse!
 }

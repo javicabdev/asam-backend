@@ -21,6 +21,7 @@ func NewUserRepository(db *gorm.DB) output.UserRepository {
 	return &userRepository{db: db}
 }
 
+// Create implements the output.UserRepository interface
 func (r *userRepository) Create(ctx context.Context, user *models.User) error {
 	result := r.db.WithContext(ctx).Create(user)
 	if result.Error != nil {
@@ -33,9 +34,15 @@ func (r *userRepository) Create(ctx context.Context, user *models.User) error {
 	return nil
 }
 
+// CreateUser is a method that doesn't require a context parameter.
+// This method is used by test fixtures.
+func (r *userRepository) CreateUser(user *models.User) error {
+	return r.Create(context.Background(), user)
+}
+
 func (r *userRepository) FindByID(ctx context.Context, id uint) (*models.User, error) {
 	var user models.User
-	result := r.db.WithContext(ctx).First(&user, id)
+	result := r.db.WithContext(ctx).Preload("Member").First(&user, id)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, nil // Consistent pattern: nil, nil for "not found"
@@ -47,12 +54,36 @@ func (r *userRepository) FindByID(ctx context.Context, id uint) (*models.User, e
 
 func (r *userRepository) FindByUsername(ctx context.Context, username string) (*models.User, error) {
 	var user models.User
-	result := r.db.WithContext(ctx).Where("username = ?", username).First(&user)
+	result := r.db.WithContext(ctx).Preload("Member").Where("username = ?", username).First(&user)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, nil // Consistent pattern: nil, nil for "not found"
 		}
 		return nil, appErrors.DB(result.Error, "Error finding user by username")
+	}
+	return &user, nil
+}
+
+func (r *userRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
+	var user models.User
+	result := r.db.WithContext(ctx).Preload("Member").Where("email = ?", email).First(&user)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil // Consistent pattern: nil, nil for "not found"
+		}
+		return nil, appErrors.DB(result.Error, "Error finding user by email")
+	}
+	return &user, nil
+}
+
+func (r *userRepository) FindByMemberID(ctx context.Context, memberID uint) (*models.User, error) {
+	var user models.User
+	result := r.db.WithContext(ctx).Preload("Member").Where("member_id = ?", memberID).First(&user)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil // Consistent pattern: nil, nil for "not found"
+		}
+		return nil, appErrors.DB(result.Error, "Error finding user by member ID")
 	}
 	return &user, nil
 }
@@ -114,4 +145,65 @@ func (r *userRepository) DeactivateUser(ctx context.Context, userID uint) error 
 	}
 
 	return nil
+}
+
+// ListUsers returns a paginated list of users with optional filters
+func (r *userRepository) ListUsers(ctx context.Context, page, pageSize int) ([]*models.User, int64, error) {
+	var users []*models.User
+	var total int64
+
+	// Calculate offset
+	offset := (page - 1) * pageSize
+
+	// Count total records
+	countResult := r.db.WithContext(ctx).Model(&models.User{}).Count(&total)
+	if countResult.Error != nil {
+		return nil, 0, appErrors.DB(countResult.Error, "Error counting users")
+	}
+
+	// Fetch paginated results with Member preloaded
+	result := r.db.WithContext(ctx).
+		Preload("Member").
+		Offset(offset).
+		Limit(pageSize).
+		Order("created_at DESC").
+		Find(&users)
+
+	if result.Error != nil {
+		return nil, 0, appErrors.DB(result.Error, "Error listing users")
+	}
+
+	return users, total, nil
+}
+
+// GetUserWithMember retrieves a user with their associated member data
+func (r *userRepository) GetUserWithMember(ctx context.Context, userID uint) (*models.User, error) {
+	var user models.User
+	result := r.db.WithContext(ctx).
+		Preload("Member").
+		First(&user, userID)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, appErrors.DB(result.Error, "Error finding user with member")
+	}
+
+	return &user, nil
+}
+
+// CountUsersByRole counts users by their role
+func (r *userRepository) CountUsersByRole(ctx context.Context, role models.Role) (int64, error) {
+	var count int64
+	result := r.db.WithContext(ctx).
+		Model(&models.User{}).
+		Where("role = ? AND is_active = ?", role, true).
+		Count(&count)
+
+	if result.Error != nil {
+		return 0, appErrors.DB(result.Error, "Error counting users by role")
+	}
+
+	return count, nil
 }

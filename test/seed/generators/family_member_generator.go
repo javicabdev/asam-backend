@@ -17,19 +17,21 @@ type FamilyMemberGenerator struct {
 
 // FamiliarMember represents a familiar record for generation
 type FamiliarMember struct {
-	FamiliarID        int        `db:"familiar_id"`
-	FamiliaID         int        `db:"familia_id"`
+	ID                uint       `db:"id"`
+	FamiliaID         uint       `db:"familia_id"`
 	Nombre            string     `db:"nombre"`
+	Apellidos         string     `db:"apellidos"`
 	DniNie            string     `db:"dni_nie"`
 	FechaNacimiento   *time.Time `db:"fecha_nacimiento"`
 	CorreoElectronico string     `db:"correo_electronico"`
+	Parentesco        string     `db:"parentesco"`
 }
 
 // NewFamilyMemberGenerator creates a new family member generator
 func NewFamilyMemberGenerator(db *sqlx.DB, seed int64) *FamilyMemberGenerator {
 	return &FamilyMemberGenerator{
 		db:   db,
-		rand: rand.New(rand.NewSource(seed)),
+		rand: rand.New(rand.NewSource(seed)), //nolint:gosec // Deterministic random for test data generation
 	}
 }
 
@@ -41,7 +43,7 @@ func (g *FamilyMemberGenerator) Generate(ctx context.Context, n int) error {
 		NumeroSocio string `db:"numero_socio"`
 	}
 
-	err := g.db.SelectContext(ctx, &families, "SELECT familia_id, numero_socio FROM familias")
+	err := g.db.SelectContext(ctx, &families, "SELECT id as familia_id, numero_socio FROM families")
 	if err != nil {
 		return fmt.Errorf("failed to get families: %w", err)
 	}
@@ -88,10 +90,12 @@ func (g *FamilyMemberGenerator) generateBatch(
 ) error {
 	// Prepare query
 	query := `
-		INSERT INTO familiares (
-			familia_id, nombre, dni_nie, fecha_nacimiento, correo_electronico
+		INSERT INTO familiars (
+			familia_id, nombre, apellidos, dni_nie, fecha_nacimiento, correo_electronico, parentesco,
+			created_at, updated_at
 		) VALUES (
-			:familia_id, :nombre, :dni_nie, :fecha_nacimiento, :correo_electronico
+			:familia_id, :nombre, :apellidos, :dni_nie, :fecha_nacimiento, :correo_electronico, :parentesco,
+			NOW(), NOW()
 		)
 	`
 
@@ -130,7 +134,7 @@ func (g *FamilyMemberGenerator) generateBatch(
 func (g *FamilyMemberGenerator) generateFamilyMember(familiaID int) FamiliarMember {
 	// 50% male, 50% female
 	gender := []string{"male", "female"}[g.rand.Intn(2)]
-	firstName, _ := GenerateRandomName(g.rand, gender)
+	firstName, lastName := GenerateRandomName(g.rand, gender)
 
 	// Generate random ID (75% chance for DNI if child is older, 75% chance for NIE if child is younger)
 	var documentID string
@@ -166,12 +170,31 @@ func (g *FamilyMemberGenerator) generateFamilyMember(familiaID int) FamiliarMemb
 		email = GenerateRandomEmail(g.rand, firstName, "familiar")
 	}
 
+	// Determine parentesco (relationship)
+	var parentesco string
+	if gender == "male" {
+		parentesco = "Hijo"
+	} else {
+		parentesco = "Hija"
+	}
+	// 10% chance of being "Otro" (other relationship)
+	if g.rand.Float64() < 0.1 {
+		parentesco = "Otro"
+	}
+
+	// Ensure familiaID is positive before conversion
+	if familiaID < 0 {
+		panic(fmt.Sprintf("familiaID cannot be negative: %d", familiaID))
+	}
+
 	return FamiliarMember{
-		FamiliaID:         familiaID,
+		FamiliaID:         uint(familiaID),
 		Nombre:            firstName,
+		Apellidos:         lastName,
 		DniNie:            documentID,
 		FechaNacimiento:   &birthDate,
 		CorreoElectronico: email,
+		Parentesco:        parentesco,
 	}
 }
 
@@ -180,8 +203,8 @@ func (g *FamilyMemberGenerator) GetFamilyMembersByFamily(ctx context.Context, fa
 	var familyMembers []FamiliarMember
 
 	query := `
-		SELECT familiar_id, familia_id, nombre, dni_nie, fecha_nacimiento, correo_electronico
-		FROM familiares
+		SELECT id, familia_id, nombre, apellidos, dni_nie, fecha_nacimiento, correo_electronico, parentesco
+		FROM familiars
 		WHERE familia_id = $1
 	`
 

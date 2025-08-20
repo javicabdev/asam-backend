@@ -32,6 +32,16 @@ models:
     model:
       - github.com/99designs/gqlgen/graphql.String
   User:
-    fields:
-      role:
-        resolver: true
+    model: github.com/javicabdev/asam-backend/internal/domain/models.User
+  Member:
+    model: github.com/javicabdev/asam-backend/internal/domain/models.Member
+  Family:
+    model: github.com/javicabdev/asam-backend/internal/domain/models.Family
+  Familiar:
+    model: github.com/javicabdev/asam-backend/internal/domain/models.Familiar
+  Payment:
+    model: github.com/javicabdev/asam-backend/internal/domain/models.Payment
+  CashFlow:
+    model: github.com/javicabdev/asam-backend/internal/domain/models.CashFlow
+  RefreshToken:
+    model: github.com/javicabdev/asam-backend/internal/domain/models.RefreshToken

@@ -1,14 +1,19 @@
 # ASAM Backend
 
+[![Continuous Integration](https://github.com/javicabdev/asam-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/javicabdev/asam-backend/actions/workflows/ci.yml)
+[![Go Version](https://img.shields.io/badge/go-1.24-blue.svg)](https://golang.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 ## Documentación
 
-- [Descripción General de la API](docs/api-overview.md) - Visión general de la arquitectura y API del backend
-- [Guía para Frontend](docs/guia-frontend.md) - Documentación detallada para desarrolladores frontend
+- [Descripción General de la API](docs/frontend/api-overview.md) - Visión general de la arquitectura y API del backend
+- [Guía para Frontend](docs/frontend/guia-frontend.md) - Documentación detallada para desarrolladores frontend
 - [Autenticación](docs/auth.md) - Información sobre el sistema de autenticación
 - [Base de Datos](docs/database.md) - Detalles sobre el modelado de datos y migraciones
 - [Manejo de Errores](docs/errs.md) - Sistema de manejo de errores
 - [Configuración de GCP](docs/gcp-project-setup.md) - Guía para configurar el proyecto en Google Cloud
 - [Configuración de GitHub Secrets](docs/github-secrets-setup.md) - Guía para configurar los secretos en GitHub
+- [Compatibilidad con Apollo Client](docs/apollo-client-compatibility.md) - Manejo del campo __typename para Apollo Client
 
 ## Pipeline de CI/CD
 
@@ -37,6 +42,66 @@ Antes de utilizar este workflow, necesitas:
 2. **Configurar secretos en GitHub**: Sigue la [guía de configuración de secretos](docs/github-secrets-setup.md)
 
 ## Desarrollo
+
+### Inicio rápido (Windows PowerShell)
+
+Para arrancar el entorno de desarrollo completo:
+
+```powershell
+# Inicio limpio (recomendado primera vez)
+.\start-docker.ps1 --clean
+
+# Inicio normal
+.\start-docker.ps1
+```
+
+**Usuarios de prueba:**
+- Admin: `admin@asam.org` / `admin123`
+- Usuario: `user@asam.org` / `admin123`
+
+### Si tienes problemas
+
+```powershell
+# Ejecutar diagnóstico
+.\scripts\diagnostico.ps1
+
+# Reinicio completo
+.\scripts\clean-restart.ps1
+
+# Setup manual
+.\scripts\manual-setup.ps1
+```
+
+Consulta [INICIO-RAPIDO.md](INICIO-RAPIDO.md) para más detalles.
+
+### Usando Make (Linux/Mac/WSL)
+
+```bash
+# Arrancar todo (Docker, migraciones, usuarios de prueba)
+make dev-setup
+
+# Ver los logs
+make dev-logs
+
+# Parar todo
+make dev-stop
+```
+
+### Comandos útiles
+
+```bash
+# Solo arrancar Docker
+make dev
+
+# Solo ejecutar migraciones
+make db-migrate
+
+# Resetear base de datos
+make db-reset
+
+# Limpiar todo (contenedores, volúmenes)
+make clean
+```
 
 ### Generación de código GraphQL
 

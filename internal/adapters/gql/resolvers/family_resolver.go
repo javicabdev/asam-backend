@@ -12,7 +12,10 @@ import (
 func (r *familyResolver) mapCreateInputToFamily(input *model.CreateFamilyInput) *models.Family {
 	var miembroOrigenID *uint
 	if input.MiembroOrigenID != nil {
-		id := parseID(*input.MiembroOrigenID)
+		id, err := parseID(*input.MiembroOrigenID)
+		if err != nil {
+			return nil
+		}
 		miembroOrigenID = &id
 	}
 

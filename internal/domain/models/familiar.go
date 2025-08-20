@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+
+	"github.com/javicabdev/asam-backend/internal/domain/services/validation"
 )
 
 // Familiar representa un familiar (hijo/a u otro dependiente) en una familia ASAM
@@ -45,15 +47,30 @@ func (f *Familiar) Validate() error {
 		return errors.New("parentesco es requerido")
 	}
 
+	// Validar DNI/NIE si se proporciona
+	if f.DNINIE != "" {
+		if !validation.ValidarNIF(f.DNINIE) {
+			return errors.New("DNI/NIE inválido")
+		}
+	}
+
 	return nil
 }
 
 // BeforeCreate hook de GORM para validaciones antes de crear
 func (f *Familiar) BeforeCreate(_ *gorm.DB) error {
+	// Normalizar DNI/NIE si se proporciona
+	if f.DNINIE != "" {
+		f.DNINIE = validation.NormalizarNIF(f.DNINIE)
+	}
 	return f.Validate()
 }
 
 // BeforeSave hook de GORM para validaciones antes de guardar
 func (f *Familiar) BeforeSave(_ *gorm.DB) error {
+	// Normalizar DNI/NIE si se proporciona
+	if f.DNINIE != "" {
+		f.DNINIE = validation.NormalizarNIF(f.DNINIE)
+	}
 	return f.Validate()
 }

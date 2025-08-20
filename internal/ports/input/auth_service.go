@@ -24,4 +24,7 @@ type AuthService interface {
 	Logout(ctx context.Context, accessToken string) error
 	RefreshToken(ctx context.Context, refreshToken string) (*TokenDetails, error)
 	ValidateToken(ctx context.Context, token string) (*models.User, error)
+
+	// Password reset operations
+	ResetPasswordWithToken(ctx context.Context, token string, newPassword string) error
 }

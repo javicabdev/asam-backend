@@ -13,11 +13,19 @@ Para que el flujo de trabajo de CI/CD funcione correctamente, necesitas configur
 - `AIVEN_DB_PORT`: Puerto del servidor PostgreSQL (ej. 14276)
 - `AIVEN_DB_USER`: Usuario para conectarse a PostgreSQL (ej. avnadmin)
 - `AIVEN_DB_PASSWORD`: Contraseña para conectarse a PostgreSQL
-- `AIVEN_DB_NAME`: Name de la base de datos (ej. defaultdb)
+- `AIVEN_DB_NAME`: Name de la base de datos (ej. asam-backend-db)
 
 ### Seguridad de la aplicación
 - `JWT_ACCESS_SECRET`: Clave secreta para la generación de tokens JWT de acceso
 - `JWT_REFRESH_SECRET`: Clave secreta para la generación de tokens JWT de actualización
+- `ADMIN_USER`: Usuario administrador para acceder a endpoints de monitoreo en producción
+- `ADMIN_PASSWORD`: Contraseña del administrador (debe ser muy segura)
+
+### Configuración de Email (opcional)
+- `SMTP_SERVER`: Servidor SMTP para envío de correos
+- `SMTP_PORT`: Puerto del servidor SMTP
+- `SMTP_USER`: Usuario SMTP
+- `SMTP_PASSWORD`: Contraseña SMTP
 
 ## Cómo configurar los secretos en GitHub
 
