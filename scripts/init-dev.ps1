@@ -39,7 +39,7 @@ Write-Host "Verificando air..." -ForegroundColor Cyan
 $airCommand = Get-Command air -ErrorAction SilentlyContinue
 if (-not $airCommand) {
     Write-Host "❌ Air no encontrado. Instalando..." -ForegroundColor Yellow
-    go install github.com/cosmtrek/air@latest
+    go install github.com/air-verse/air@latest
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Error instalando air" -ForegroundColor Red
         exit 1
