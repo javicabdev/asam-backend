@@ -56,8 +56,8 @@ Para arrancar el entorno de desarrollo completo:
 ```
 
 **Usuarios de prueba:**
-- Admin: `admin@asam.org` / `admin123`
-- Usuario: `user@asam.org` / `admin123`
+- Admin: `admin` / `AsamAdmin2025!`
+- Usuario: `user` / `AsamUser2025!`
 
 ### Si tienes problemas
 

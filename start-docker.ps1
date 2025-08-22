@@ -350,7 +350,7 @@ if ($userCountInt -eq 0) {
 }
 
 # Verificación final antes de mostrar logs
-$finalUserCheck = docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT COUNT(*) FROM users WHERE username IN ('admin@asam.org', 'user@asam.org');" 2>$null
+$finalUserCheck = docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT COUNT(*) FROM users WHERE username IN ('admin', 'user');" 2>$null
 if ($LASTEXITCODE -ne 0) {
     $finalUserCount = 0
 } else {
@@ -390,8 +390,8 @@ Write-Host @"
 ║  📊 Metrics:          http://localhost:8080/metrics       ║
 ╠════════════════════════════════════════════════════════════╣
 ║                  Usuarios de Prueba:                       ║
-║  👤 Admin:     admin@asam.org / admin123                  ║
-║  👤 Usuario:   user@asam.org  / admin123                  ║
+║  👤 Admin:     admin / AsamAdmin2025!                     ║
+║  👤 Usuario:   user  / AsamUser2025!                      ║
 ╠════════════════════════════════════════════════════════════╣
 ║  🛑 Para detener: docker-compose down                      ║
 ║  🧹 Limpiar todo: .\start-docker.ps1 --clean             ║
