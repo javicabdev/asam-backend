@@ -504,21 +504,16 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 	// Initialize JWT utility
 	jwtUtil := auth.NewJWTUtil(cfg.JWTAccessSecret, cfg.JWTRefreshSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 
-	// Initialize email notification service.
-	// The check in run() guarantees that SMTP credentials are set, so we can initialize directly
-	// and have removed the previous 'if/else' block with the mock adapter.
-	smtpConfig := email.SMTPConfig{
-		Host:     cfg.SMTPServer,
-		Port:     cfg.SMTPPort,
-		Username: cfg.SMTPUser,
-		Password: cfg.SMTPPassword,
-		From:     cfg.SMTPFromEmail,
+	// Initialize email notification service with MailerSend.
+	mailersendConfig := email.MailerSendConfig{
+		APIKey:    cfg.MailerSendAPIKey,
+		FromEmail: cfg.MailerSendFromEmail,
+		FromName:  cfg.MailerSendFromName,
 	}
-	emailNotificationService := email.NewSMTPAdapter(smtpConfig, appLogger)
-	appLogger.Info("Email service configured with SMTP",
-		zap.String("host", cfg.SMTPServer),
-		zap.Int("port", cfg.SMTPPort),
-		zap.String("from", cfg.SMTPFromEmail),
+	emailNotificationService := email.NewMailerSendAdapter(mailersendConfig, appLogger)
+	appLogger.Info("Email service configured with MailerSend",
+		zap.String("from_email", cfg.MailerSendFromEmail),
+		zap.String("from_name", cfg.MailerSendFromName),
 	)
 
 	// Initialize domain services
@@ -1107,10 +1102,10 @@ func run(ctx context.Context) error {
 		zap.String("ENVIRONMENT", cfg.Environment))
 
 	appLogger.Info("Validating critical configurations...")
-	if cfg.SMTPUser == "" || cfg.SMTPPassword == "" {
-		// Este error detendrá la ejecución de la aplicación si el SMTP no está configurado,
+	if cfg.MailerSendAPIKey == "" {
+		// Este error detendrá la ejecución de la aplicación si MailerSend no está configurado,
 		// independientemente del entorno.
-		return fmt.Errorf("FATAL: SMTP_USER and SMTP_PASSWORD must be configured. The application cannot start without them")
+		return fmt.Errorf("FATAL: MAILERSEND_API_KEY must be configured. The application cannot start without it")
 	}
 
 	// Step 2: Setup and register Prometheus metrics early.

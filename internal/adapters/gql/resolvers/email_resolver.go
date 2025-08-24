@@ -19,12 +19,21 @@ type emailResolver struct {
 
 // SendVerificationEmail sends an email verification link to the current user
 func (r *emailResolver) SendVerificationEmail(ctx context.Context) (*model.MutationResponse, error) {
+	// Debug logging
+	r.logger.Info("[DEBUG] SendVerificationEmail called",
+		zap.Any("contextKeys", ctx),
+		zap.Bool("hasUserKey", ctx.Value(constants.UserContextKey) != nil),
+		zap.String("userKeyType", fmt.Sprintf("%T", ctx.Value(constants.UserContextKey))),
+	)
+
 	// Get current user from context
 	user, ok := ctx.Value(constants.UserContextKey).(*models.User)
 	if !ok || user == nil {
-		r.logger.Warn("SendVerificationEmail: User not found in context",
+		r.logger.Error("[DEBUG] SendVerificationEmail: User not found in context",
 			zap.Bool("contextHasUser", ctx.Value(constants.UserContextKey) != nil),
 			zap.String("contextType", fmt.Sprintf("%T", ctx.Value(constants.UserContextKey))),
+			zap.Bool("typeAssertionOk", ok),
+			zap.Bool("userIsNil", user == nil),
 		)
 		return nil, errors.NewUnauthorizedError()
 	}

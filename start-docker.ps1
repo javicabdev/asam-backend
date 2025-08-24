@@ -92,7 +92,8 @@ JWT_REFRESH_TTL=168h
 
 # Admin user (for monitoring endpoints)
 ADMIN_USER=admin
-ADMIN_PASSWORD=admin123
+ADMIN_PASSWORD=AsamAdmin2025!
+ADMIN_PASSWORD=AsamAdmin2025!
 "@ | Out-File -FilePath ".env" -Encoding utf8
         Write-Host "✅ Archivo .env creado con configuración mínima" -ForegroundColor Green
     }
