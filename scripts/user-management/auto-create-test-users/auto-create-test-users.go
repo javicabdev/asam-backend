@@ -19,6 +19,16 @@ import (
 // This script automatically creates test users without user interaction
 // It's used by start-docker.ps1 to initialize the system
 
+// Constants for test users
+const (
+	adminEmail    = "admin@asam.org"
+	userEmail     = "user@asam.org"
+	adminUsername = "admin"
+	userUsername  = "user"
+	adminPassword = "AsamAdmin2025!"
+	userPassword  = "AsamUser2025!"
+)
+
 func main() {
 	fmt.Println("=== Auto-creating Test Users with Members ===")
 
@@ -101,14 +111,14 @@ func createOrUpdateAdminUser(db *gorm.DB) error {
 	var user models.User
 
 	// Check if admin user exists
-	err := db.Where("username = ?", "admin").First(&user).Error
+	err := db.Where("username = ?", adminUsername).First(&user).Error
 
 	switch {
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		// Create new admin user (sin miembro asociado)
 		user = models.User{
-			Username:      "admin",
-			Email:         "admin@asam.org",
+			Username:      adminUsername,
+			Email:         adminEmail,
 			Role:          models.RoleAdmin,
 			IsActive:      true,
 			EmailVerified: true, // Admin pre-verificado
@@ -116,7 +126,7 @@ func createOrUpdateAdminUser(db *gorm.DB) error {
 		}
 
 		// Set password using the model method
-		if err := user.SetPassword("AsamAdmin2025!"); err != nil {
+		if err := user.SetPassword(adminPassword); err != nil {
 			return fmt.Errorf("failed to set admin password: %w", err)
 		}
 
@@ -136,7 +146,7 @@ func createOrUpdateAdminUser(db *gorm.DB) error {
 		// Update existing admin user
 		originalID := user.ID
 
-		if err := user.SetPassword("AsamAdmin2025!"); err != nil {
+		if err := user.SetPassword(adminPassword); err != nil {
 			return fmt.Errorf("failed to update admin password: %w", err)
 		}
 
@@ -146,8 +156,8 @@ func createOrUpdateAdminUser(db *gorm.DB) error {
 		user.EmailVerified = true
 		user.MemberID = nil // Admin no debe tener miembro
 
-		if user.Email != "admin@asam.org" {
-			user.Email = "admin@asam.org"
+		if user.Email != adminEmail {
+			user.Email = adminEmail
 		}
 
 		// Save changes
@@ -167,26 +177,38 @@ func createOrUpdateAdminUser(db *gorm.DB) error {
 
 // createOrUpdateUserWithMember crea o actualiza un usuario regular con su miembro asociado
 func createOrUpdateUserWithMember(db *gorm.DB) error {
-	// Helper para crear puntero a string
-	stringPtr := func(s string) *string {
-		return &s
+	// Primero crear o buscar el miembro
+	member, err := getOrCreateTestMember(db)
+	if err != nil {
+		return err
 	}
 
+	// Luego crear o actualizar el usuario
+	if err := createOrUpdateTestUser(db, member); err != nil {
+		return err
+	}
+
+	// Finalmente crear miembros adicionales para testing
+	createAdditionalTestMembers(db)
+
+	return nil
+}
+
+// getOrCreateTestMember obtiene o crea el miembro de prueba
+func getOrCreateTestMember(db *gorm.DB) (*models.Member, error) {
 	// Usar números de membresía válidos según el formato requerido
 	// Formato: [A|B] seguido de al menos 5 dígitos
 	// Usamos A99xxx para miembros de prueba
 	memberNumber := "A99001"
 
-	// Primero, crear o buscar el miembro
 	var member models.Member
 	err := db.Where("membership_number = ?", memberNumber).First(&member).Error
 
 	switch {
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		// Crear nuevo miembro para el usuario de prueba
-		userEmail := "user@asam.org"
 		member = models.Member{
-			MembershipNumber: memberNumber, // Usar número válido
+			MembershipNumber: memberNumber,
 			MembershipType:   models.TipoMembresiaPIndividual,
 			Name:             "Usuario",
 			Surnames:         "Prueba García",
@@ -195,14 +217,14 @@ func createOrUpdateUserWithMember(db *gorm.DB) error {
 			City:             "Barcelona",
 			Province:         "Barcelona",
 			Country:          "España",
-			Email:            &userEmail, // Usar puntero a string
+			Email:            stringPtr(userEmail),
 			State:            models.EstadoActivo,
 			Nationality:      "Española",
 			RegistrationDate: time.Now(),
 		}
 
 		if err := db.Create(&member).Error; err != nil {
-			return fmt.Errorf("failed to create member: %w", err)
+			return nil, fmt.Errorf("failed to create member: %w", err)
 		}
 
 		fmt.Printf("✅ Created new member: %s %s (ID: %d, Number: %s)\n",
@@ -213,9 +235,8 @@ func createOrUpdateUserWithMember(db *gorm.DB) error {
 			member.Name, member.Surnames, member.ID)
 
 		// Actualizar email del miembro si es necesario
-		userEmail := "user@asam.org"
 		if member.Email == nil || *member.Email != userEmail {
-			member.Email = &userEmail
+			member.Email = stringPtr(userEmail)
 			if err := db.Save(&member).Error; err != nil {
 				log.Printf("Warning: Could not update member email: %v", err)
 			} else {
@@ -224,27 +245,31 @@ func createOrUpdateUserWithMember(db *gorm.DB) error {
 		}
 
 	default:
-		return fmt.Errorf("database error checking member: %w", err)
+		return nil, fmt.Errorf("database error checking member: %w", err)
 	}
 
-	// Ahora crear o actualizar el usuario asociado al miembro
+	return &member, nil
+}
+
+// createOrUpdateTestUser crea o actualiza el usuario de prueba
+func createOrUpdateTestUser(db *gorm.DB, member *models.Member) error {
 	var user models.User
-	err = db.Where("username = ?", "user").First(&user).Error
+	err := db.Where("username = ?", userUsername).First(&user).Error
 
 	switch {
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		// Crear nuevo usuario con miembro asociado
 		user = models.User{
-			Username:      "user",
-			Email:         "user@asam.org",
+			Username:      userUsername,
+			Email:         userEmail,
 			Role:          models.RoleUser,
-			MemberID:      &member.ID, // Asociar con el miembro
+			MemberID:      &member.ID,
 			IsActive:      true,
 			EmailVerified: false, // Usuario regular debe verificar email
 		}
 
 		// Set password using the model method
-		if err := user.SetPassword("AsamUser2025!"); err != nil {
+		if err := user.SetPassword(userPassword); err != nil {
 			return fmt.Errorf("failed to set user password: %w", err)
 		}
 
@@ -265,17 +290,17 @@ func createOrUpdateUserWithMember(db *gorm.DB) error {
 		// Update existing user
 		originalID := user.ID
 
-		if err := user.SetPassword("AsamUser2025!"); err != nil {
+		if err := user.SetPassword(userPassword); err != nil {
 			return fmt.Errorf("failed to update user password: %w", err)
 		}
 
 		// Ensure user configuration
 		user.IsActive = true
 		user.Role = models.RoleUser
-		user.MemberID = &member.ID // Asociar con el miembro
+		user.MemberID = &member.ID
 
-		if user.Email != "user@asam.org" {
-			user.Email = "user@asam.org"
+		if user.Email != userEmail {
+			user.Email = userEmail
 		}
 
 		// Save changes
@@ -290,8 +315,13 @@ func createOrUpdateUserWithMember(db *gorm.DB) error {
 		return fmt.Errorf("database error checking user: %w", err)
 	}
 
-	// Crear algunos miembros adicionales sin usuarios para testing
+	return nil
+}
+
+// createAdditionalTestMembers crea miembros adicionales sin usuarios para testing
+func createAdditionalTestMembers(db *gorm.DB) {
 	fmt.Println("\n📝 Creating additional test members...")
+
 	testMembers := []struct {
 		number   string
 		name     string
@@ -313,7 +343,7 @@ func createOrUpdateUserWithMember(db *gorm.DB) error {
 					MembershipType:   models.TipoMembresiaPIndividual,
 					Name:             tm.name,
 					Surnames:         tm.surnames,
-					Email:            stringPtr(tm.email), // Usar helper para crear puntero
+					Email:            stringPtr(tm.email),
 					Address:          "Calle Ejemplo 100",
 					Postcode:         "08001",
 					City:             "Barcelona",
@@ -335,6 +365,9 @@ func createOrUpdateUserWithMember(db *gorm.DB) error {
 			}
 		}
 	}
+}
 
-	return nil
+// stringPtr helper para crear puntero a string
+func stringPtr(s string) *string {
+	return &s
 }

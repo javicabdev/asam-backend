@@ -388,3 +388,18 @@ l: dev-logs
 c: clean
 t: test
 ta: test-auth
+
+## verify-mailersend: Verify MailerSend migration
+.PHONY: verify-mailersend
+verify-mailersend:
+	@echo "📧 Verifying MailerSend migration..."
+	@echo "Checking dependencies..."
+	@grep -q "mailersend/mailersend-go" go.mod && echo "✅ MailerSend SDK found" || echo "❌ MailerSend SDK missing"
+	@echo "Checking files..."
+	@test -f internal/adapters/email/mailersend_adapter.go && echo "✅ Adapter exists" || echo "❌ Adapter missing"
+	@echo "Checking .env..."
+	@grep -q "MAILERSEND_API_KEY" .env && echo "✅ API Key configured" || echo "❌ API Key missing"
+	@echo "Building project..."
+	@go build -o /tmp/asam-test ./cmd/api 2>/dev/null && echo "✅ Project builds successfully" || echo "❌ Build failed"
+	@rm -f /tmp/asam-test
+	@echo "✨ MailerSend migration verification complete"
