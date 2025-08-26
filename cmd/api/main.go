@@ -121,6 +121,7 @@ type appDependencies struct {
 	notificationService      input.NotificationService
 	emailVerificationService input.EmailVerificationService
 	emailNotificationService input.EmailNotificationService
+	dashboardService         input.DashboardService
 	// Monitoring components
 	queryMonitor    *monitoring.QueryMonitor
 	gqlTracer       *middleware.GraphQLTracer
@@ -557,6 +558,9 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 	authService := services.NewAuthService(userRepo, memberRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, appLogger)
 	serviceStatus.Auth.Store(true)
 
+	// Initialize dashboard service
+	dashboardService := services.NewDashboardService(memberRepo, paymentRepo, cashFlowRepo, familyRepo, appLogger)
+
 	// Initialize monitoring components
 	// 1. Setup query monitor for tracking slow queries
 	var slowThreshold time.Duration
@@ -605,6 +609,7 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 		notificationService:      notificationService,
 		emailVerificationService: emailVerificationService,
 		emailNotificationService: emailNotificationService,
+		dashboardService:         dashboardService,
 		queryMonitor:             queryMonitor,
 		gqlTracer:                gqlTracer,
 		memoryMonitor:            memoryMonitor,
@@ -902,6 +907,7 @@ func setupApplicationComponents(state *appState, cfg *config.Config, database *g
 		deps.userService,
 		deps.emailVerificationService,
 		deps.emailNotificationService,
+		deps.dashboardService,
 		loginRateLimiter,
 		appLogger,
 	)
@@ -1045,6 +1051,7 @@ func retryDatabaseConnection(ctx context.Context, state *appState, cfg *config.C
 				deps.userService,
 				deps.emailVerificationService,
 				deps.emailNotificationService,
+				deps.dashboardService,
 				loginRateLimiter,
 				appLogger,
 			)

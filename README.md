@@ -1,7 +1,7 @@
 # ASAM Backend
 
 [![Continuous Integration](https://github.com/javicabdev/asam-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/javicabdev/asam-backend/actions/workflows/ci.yml)
-[![Go Version](https://img.shields.io/badge/go-1.24-blue.svg)](https://golang.org/)
+[![Go Version](https://img.shields.io/badge/go-1.25-blue.svg)](https://golang.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ## Documentación
@@ -289,7 +289,7 @@ Verifica que los mensajes de commit sigan las convenciones establecidas:
 3. **Trabajo de Lint**:
    - GitHub crea una máquina virtual con Ubuntu
    - Clona el repositorio en esa máquina
-   - Instala Go 1.24
+   - Instala Go 1.25
    - Instala golangci-lint
    - Ejecuta varios linters para verificar la calidad del código
    - Verifica el formateo con gofmt

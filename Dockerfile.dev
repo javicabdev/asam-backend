@@ -1,5 +1,5 @@
-# Dockerfile para desarrollo con Go 1.24 - Solución completa SSL/Proxy
-FROM golang:1.24
+# Dockerfile para desarrollo con Go 1.25 - Solución completa SSL/Proxy
+FROM golang:1.25
 
 # Instalar certificados y herramientas básicas
 RUN apt-get update && \

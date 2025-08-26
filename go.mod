@@ -1,6 +1,6 @@
 module github.com/javicabdev/asam-backend
 
-go 1.24
+go 1.25
 
 require (
 	github.com/99designs/gqlgen v0.17.73

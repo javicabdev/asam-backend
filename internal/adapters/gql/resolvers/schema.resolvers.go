@@ -1197,6 +1197,30 @@ func (r *queryResolver) CheckDocumentValidity(ctx context.Context, documentNumbe
 	return result, nil
 }
 
+// GetDashboardStats is the resolver for the getDashboardStats field.
+func (r *queryResolver) GetDashboardStats(ctx context.Context) (*model.DashboardStats, error) {
+	// Solo ADMIN puede ver las estadísticas del dashboard
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+
+	// Delegar al dashboard resolver
+	dashboardResolver := &dashboardResolver{r.Resolver}
+	return dashboardResolver.GetDashboardStats(ctx)
+}
+
+// GetRecentActivity is the resolver for the getRecentActivity field.
+func (r *queryResolver) GetRecentActivity(ctx context.Context, limit *int) ([]*model.RecentActivity, error) {
+	// Solo ADMIN puede ver la actividad reciente
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+
+	// Delegar al dashboard resolver
+	dashboardResolver := &dashboardResolver{r.Resolver}
+	return dashboardResolver.GetRecentActivity(ctx, limit)
+}
+
 // ID is the resolver for the id field.
 func (r *userResolver) ID(ctx context.Context, obj *models.User) (string, error) {
 	return fmt.Sprintf("%d", obj.ID), nil

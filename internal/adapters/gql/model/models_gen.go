@@ -65,6 +65,29 @@ type CreateUserInput struct {
 	MemberID *string  `json:"memberId,omitempty"`
 }
 
+type DashboardStats struct {
+	TotalMembers            int                    `json:"totalMembers"`
+	ActiveMembers           int                    `json:"activeMembers"`
+	InactiveMembers         int                    `json:"inactiveMembers"`
+	IndividualMembers       int                    `json:"individualMembers"`
+	FamilyMembers           int                    `json:"familyMembers"`
+	NewMembersThisMonth     int                    `json:"newMembersThisMonth"`
+	NewMembersLastMonth     int                    `json:"newMembersLastMonth"`
+	MemberGrowthPercentage  float64                `json:"memberGrowthPercentage"`
+	TotalRevenue            float64                `json:"totalRevenue"`
+	MonthlyRevenue          float64                `json:"monthlyRevenue"`
+	PendingPayments         float64                `json:"pendingPayments"`
+	AveragePayment          float64                `json:"averagePayment"`
+	PaymentCompletionRate   float64                `json:"paymentCompletionRate"`
+	RevenueGrowthPercentage float64                `json:"revenueGrowthPercentage"`
+	CurrentBalance          float64                `json:"currentBalance"`
+	MonthlyExpenses         float64                `json:"monthlyExpenses"`
+	TotalTransactions       int                    `json:"totalTransactions"`
+	RecentPaymentsCount     int                    `json:"recentPaymentsCount"`
+	MembershipTrend         []*MembershipTrendData `json:"membershipTrend"`
+	RevenueTrend            []*RevenueTrendData    `json:"revenueTrend"`
+}
+
 type DocumentValidationResult struct {
 	IsValid         bool    `json:"isValid"`
 	NormalizedValue *string `json:"normalizedValue,omitempty"`
@@ -109,6 +132,12 @@ type MemberFilter struct {
 	Sort          *SortInput       `json:"sort,omitempty"`
 }
 
+type MembershipTrendData struct {
+	Month        string `json:"month"`
+	NewMembers   int    `json:"newMembers"`
+	TotalMembers int    `json:"totalMembers"`
+}
+
 type Mutation struct {
 }
 
@@ -140,8 +169,24 @@ type PaymentInput struct {
 type Query struct {
 }
 
+type RecentActivity struct {
+	ID            string         `json:"id"`
+	Type          ActivityType   `json:"type"`
+	Description   string         `json:"description"`
+	Timestamp     time.Time      `json:"timestamp"`
+	RelatedMember *models.Member `json:"relatedMember,omitempty"`
+	RelatedFamily *models.Family `json:"relatedFamily,omitempty"`
+	Amount        *float64       `json:"amount,omitempty"`
+}
+
 type RefreshTokenInput struct {
 	RefreshToken string `json:"refreshToken"`
+}
+
+type RevenueTrendData struct {
+	Month    string  `json:"month"`
+	Revenue  float64 `json:"revenue"`
+	Expenses float64 `json:"expenses"`
 }
 
 type SortInput struct {
@@ -210,6 +255,67 @@ type UpdateUserInput struct {
 	Role     *UserRole `json:"role,omitempty"`
 	IsActive *bool     `json:"isActive,omitempty"`
 	MemberID *string   `json:"memberId,omitempty"`
+}
+
+type ActivityType string
+
+const (
+	ActivityTypeMemberRegistered    ActivityType = "MEMBER_REGISTERED"
+	ActivityTypePaymentReceived     ActivityType = "PAYMENT_RECEIVED"
+	ActivityTypeFamilyCreated       ActivityType = "FAMILY_CREATED"
+	ActivityTypeMemberDeactivated   ActivityType = "MEMBER_DEACTIVATED"
+	ActivityTypeTransactionRecorded ActivityType = "TRANSACTION_RECORDED"
+)
+
+var AllActivityType = []ActivityType{
+	ActivityTypeMemberRegistered,
+	ActivityTypePaymentReceived,
+	ActivityTypeFamilyCreated,
+	ActivityTypeMemberDeactivated,
+	ActivityTypeTransactionRecorded,
+}
+
+func (e ActivityType) IsValid() bool {
+	switch e {
+	case ActivityTypeMemberRegistered, ActivityTypePaymentReceived, ActivityTypeFamilyCreated, ActivityTypeMemberDeactivated, ActivityTypeTransactionRecorded:
+		return true
+	}
+	return false
+}
+
+func (e ActivityType) String() string {
+	return string(e)
+}
+
+func (e *ActivityType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ActivityType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ActivityType", str)
+	}
+	return nil
+}
+
+func (e ActivityType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ActivityType) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ActivityType) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
 
 type FamilySortField string

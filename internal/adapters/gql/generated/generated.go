@@ -72,6 +72,29 @@ type ComplexityRoot struct {
 		Payment       func(childComplexity int) int
 	}
 
+	DashboardStats struct {
+		ActiveMembers           func(childComplexity int) int
+		AveragePayment          func(childComplexity int) int
+		CurrentBalance          func(childComplexity int) int
+		FamilyMembers           func(childComplexity int) int
+		InactiveMembers         func(childComplexity int) int
+		IndividualMembers       func(childComplexity int) int
+		MemberGrowthPercentage  func(childComplexity int) int
+		MembershipTrend         func(childComplexity int) int
+		MonthlyExpenses         func(childComplexity int) int
+		MonthlyRevenue          func(childComplexity int) int
+		NewMembersLastMonth     func(childComplexity int) int
+		NewMembersThisMonth     func(childComplexity int) int
+		PaymentCompletionRate   func(childComplexity int) int
+		PendingPayments         func(childComplexity int) int
+		RecentPaymentsCount     func(childComplexity int) int
+		RevenueGrowthPercentage func(childComplexity int) int
+		RevenueTrend            func(childComplexity int) int
+		TotalMembers            func(childComplexity int) int
+		TotalRevenue            func(childComplexity int) int
+		TotalTransactions       func(childComplexity int) int
+	}
+
 	DocumentValidationResult struct {
 		ErrorMessage    func(childComplexity int) int
 		IsValid         func(childComplexity int) int
@@ -128,6 +151,12 @@ type ComplexityRoot struct {
 	MemberConnection struct {
 		Nodes    func(childComplexity int) int
 		PageInfo func(childComplexity int) int
+	}
+
+	MembershipTrendData struct {
+		Month        func(childComplexity int) int
+		NewMembers   func(childComplexity int) int
+		TotalMembers func(childComplexity int) int
 	}
 
 	Mutation struct {
@@ -190,6 +219,7 @@ type ComplexityRoot struct {
 		GetBalance              func(childComplexity int) int
 		GetCashFlow             func(childComplexity int, id string) int
 		GetCurrentUser          func(childComplexity int) int
+		GetDashboardStats       func(childComplexity int) int
 		GetFamily               func(childComplexity int, id string) int
 		GetFamilyMembers        func(childComplexity int, familyID string) int
 		GetFamilyPayments       func(childComplexity int, familyID string) int
@@ -198,6 +228,7 @@ type ComplexityRoot struct {
 		GetNextMemberNumber     func(childComplexity int, isFamily bool) int
 		GetPayment              func(childComplexity int, id string) int
 		GetPaymentStatus        func(childComplexity int, id string) int
+		GetRecentActivity       func(childComplexity int, limit *int) int
 		GetTransactions         func(childComplexity int, filter *model.TransactionFilter) int
 		GetUser                 func(childComplexity int, id string) int
 		Health                  func(childComplexity int) int
@@ -206,6 +237,22 @@ type ComplexityRoot struct {
 		ListUsers               func(childComplexity int, page *int, pageSize *int) int
 		Ping                    func(childComplexity int) int
 		SearchMembers           func(childComplexity int, criteria string) int
+	}
+
+	RecentActivity struct {
+		Amount        func(childComplexity int) int
+		Description   func(childComplexity int) int
+		ID            func(childComplexity int) int
+		RelatedFamily func(childComplexity int) int
+		RelatedMember func(childComplexity int) int
+		Timestamp     func(childComplexity int) int
+		Type          func(childComplexity int) int
+	}
+
+	RevenueTrendData struct {
+		Expenses func(childComplexity int) int
+		Month    func(childComplexity int) int
+		Revenue  func(childComplexity int) int
 	}
 
 	TokenResponse struct {
@@ -317,6 +364,8 @@ type QueryResolver interface {
 	GetNextMemberNumber(ctx context.Context, isFamily bool) (string, error)
 	CheckMemberNumberExists(ctx context.Context, memberNumber string) (bool, error)
 	CheckDocumentValidity(ctx context.Context, documentNumber string) (*model.DocumentValidationResult, error)
+	GetDashboardStats(ctx context.Context) (*model.DashboardStats, error)
+	GetRecentActivity(ctx context.Context, limit *int) ([]*model.RecentActivity, error)
 }
 type UserResolver interface {
 	ID(ctx context.Context, obj *models.User) (string, error)
@@ -426,6 +475,146 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.CashFlow.Payment(childComplexity), true
+
+	case "DashboardStats.activeMembers":
+		if e.complexity.DashboardStats.ActiveMembers == nil {
+			break
+		}
+
+		return e.complexity.DashboardStats.ActiveMembers(childComplexity), true
+
+	case "DashboardStats.averagePayment":
+		if e.complexity.DashboardStats.AveragePayment == nil {
+			break
+		}
+
+		return e.complexity.DashboardStats.AveragePayment(childComplexity), true
+
+	case "DashboardStats.currentBalance":
+		if e.complexity.DashboardStats.CurrentBalance == nil {
+			break
+		}
+
+		return e.complexity.DashboardStats.CurrentBalance(childComplexity), true
+
+	case "DashboardStats.familyMembers":
+		if e.complexity.DashboardStats.FamilyMembers == nil {
+			break
+		}
+
+		return e.complexity.DashboardStats.FamilyMembers(childComplexity), true
+
+	case "DashboardStats.inactiveMembers":
+		if e.complexity.DashboardStats.InactiveMembers == nil {
+			break
+		}
+
+		return e.complexity.DashboardStats.InactiveMembers(childComplexity), true
+
+	case "DashboardStats.individualMembers":
+		if e.complexity.DashboardStats.IndividualMembers == nil {
+			break
+		}
+
+		return e.complexity.DashboardStats.IndividualMembers(childComplexity), true
+
+	case "DashboardStats.memberGrowthPercentage":
+		if e.complexity.DashboardStats.MemberGrowthPercentage == nil {
+			break
+		}
+
+		return e.complexity.DashboardStats.MemberGrowthPercentage(childComplexity), true
+
+	case "DashboardStats.membershipTrend":
+		if e.complexity.DashboardStats.MembershipTrend == nil {
+			break
+		}
+
+		return e.complexity.DashboardStats.MembershipTrend(childComplexity), true
+
+	case "DashboardStats.monthlyExpenses":
+		if e.complexity.DashboardStats.MonthlyExpenses == nil {
+			break
+		}
+
+		return e.complexity.DashboardStats.MonthlyExpenses(childComplexity), true
+
+	case "DashboardStats.monthlyRevenue":
+		if e.complexity.DashboardStats.MonthlyRevenue == nil {
+			break
+		}
+
+		return e.complexity.DashboardStats.MonthlyRevenue(childComplexity), true
+
+	case "DashboardStats.newMembersLastMonth":
+		if e.complexity.DashboardStats.NewMembersLastMonth == nil {
+			break
+		}
+
+		return e.complexity.DashboardStats.NewMembersLastMonth(childComplexity), true
+
+	case "DashboardStats.newMembersThisMonth":
+		if e.complexity.DashboardStats.NewMembersThisMonth == nil {
+			break
+		}
+
+		return e.complexity.DashboardStats.NewMembersThisMonth(childComplexity), true
+
+	case "DashboardStats.paymentCompletionRate":
+		if e.complexity.DashboardStats.PaymentCompletionRate == nil {
+			break
+		}
+
+		return e.complexity.DashboardStats.PaymentCompletionRate(childComplexity), true
+
+	case "DashboardStats.pendingPayments":
+		if e.complexity.DashboardStats.PendingPayments == nil {
+			break
+		}
+
+		return e.complexity.DashboardStats.PendingPayments(childComplexity), true
+
+	case "DashboardStats.recentPaymentsCount":
+		if e.complexity.DashboardStats.RecentPaymentsCount == nil {
+			break
+		}
+
+		return e.complexity.DashboardStats.RecentPaymentsCount(childComplexity), true
+
+	case "DashboardStats.revenueGrowthPercentage":
+		if e.complexity.DashboardStats.RevenueGrowthPercentage == nil {
+			break
+		}
+
+		return e.complexity.DashboardStats.RevenueGrowthPercentage(childComplexity), true
+
+	case "DashboardStats.revenueTrend":
+		if e.complexity.DashboardStats.RevenueTrend == nil {
+			break
+		}
+
+		return e.complexity.DashboardStats.RevenueTrend(childComplexity), true
+
+	case "DashboardStats.totalMembers":
+		if e.complexity.DashboardStats.TotalMembers == nil {
+			break
+		}
+
+		return e.complexity.DashboardStats.TotalMembers(childComplexity), true
+
+	case "DashboardStats.totalRevenue":
+		if e.complexity.DashboardStats.TotalRevenue == nil {
+			break
+		}
+
+		return e.complexity.DashboardStats.TotalRevenue(childComplexity), true
+
+	case "DashboardStats.totalTransactions":
+		if e.complexity.DashboardStats.TotalTransactions == nil {
+			break
+		}
+
+		return e.complexity.DashboardStats.TotalTransactions(childComplexity), true
 
 	case "DocumentValidationResult.errorMessage":
 		if e.complexity.DocumentValidationResult.ErrorMessage == nil {
@@ -706,6 +895,27 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.MemberConnection.PageInfo(childComplexity), true
+
+	case "MembershipTrendData.month":
+		if e.complexity.MembershipTrendData.Month == nil {
+			break
+		}
+
+		return e.complexity.MembershipTrendData.Month(childComplexity), true
+
+	case "MembershipTrendData.newMembers":
+		if e.complexity.MembershipTrendData.NewMembers == nil {
+			break
+		}
+
+		return e.complexity.MembershipTrendData.NewMembers(childComplexity), true
+
+	case "MembershipTrendData.totalMembers":
+		if e.complexity.MembershipTrendData.TotalMembers == nil {
+			break
+		}
+
+		return e.complexity.MembershipTrendData.TotalMembers(childComplexity), true
 
 	case "Mutation.addFamilyMember":
 		if e.complexity.Mutation.AddFamilyMember == nil {
@@ -1181,6 +1391,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Query.GetCurrentUser(childComplexity), true
 
+	case "Query.getDashboardStats":
+		if e.complexity.Query.GetDashboardStats == nil {
+			break
+		}
+
+		return e.complexity.Query.GetDashboardStats(childComplexity), true
+
 	case "Query.getFamily":
 		if e.complexity.Query.GetFamily == nil {
 			break
@@ -1277,6 +1494,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Query.GetPaymentStatus(childComplexity, args["id"].(string)), true
 
+	case "Query.getRecentActivity":
+		if e.complexity.Query.GetRecentActivity == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getRecentActivity_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetRecentActivity(childComplexity, args["limit"].(*int)), true
+
 	case "Query.getTransactions":
 		if e.complexity.Query.GetTransactions == nil {
 			break
@@ -1362,6 +1591,76 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.SearchMembers(childComplexity, args["criteria"].(string)), true
+
+	case "RecentActivity.amount":
+		if e.complexity.RecentActivity.Amount == nil {
+			break
+		}
+
+		return e.complexity.RecentActivity.Amount(childComplexity), true
+
+	case "RecentActivity.description":
+		if e.complexity.RecentActivity.Description == nil {
+			break
+		}
+
+		return e.complexity.RecentActivity.Description(childComplexity), true
+
+	case "RecentActivity.id":
+		if e.complexity.RecentActivity.ID == nil {
+			break
+		}
+
+		return e.complexity.RecentActivity.ID(childComplexity), true
+
+	case "RecentActivity.relatedFamily":
+		if e.complexity.RecentActivity.RelatedFamily == nil {
+			break
+		}
+
+		return e.complexity.RecentActivity.RelatedFamily(childComplexity), true
+
+	case "RecentActivity.relatedMember":
+		if e.complexity.RecentActivity.RelatedMember == nil {
+			break
+		}
+
+		return e.complexity.RecentActivity.RelatedMember(childComplexity), true
+
+	case "RecentActivity.timestamp":
+		if e.complexity.RecentActivity.Timestamp == nil {
+			break
+		}
+
+		return e.complexity.RecentActivity.Timestamp(childComplexity), true
+
+	case "RecentActivity.type":
+		if e.complexity.RecentActivity.Type == nil {
+			break
+		}
+
+		return e.complexity.RecentActivity.Type(childComplexity), true
+
+	case "RevenueTrendData.expenses":
+		if e.complexity.RevenueTrendData.Expenses == nil {
+			break
+		}
+
+		return e.complexity.RevenueTrendData.Expenses(childComplexity), true
+
+	case "RevenueTrendData.month":
+		if e.complexity.RevenueTrendData.Month == nil {
+			break
+		}
+
+		return e.complexity.RevenueTrendData.Month(childComplexity), true
+
+	case "RevenueTrendData.revenue":
+		if e.complexity.RevenueTrendData.Revenue == nil {
+			break
+		}
+
+		return e.complexity.RevenueTrendData.Revenue(childComplexity), true
 
 	case "TokenResponse.accessToken":
 		if e.complexity.TokenResponse.AccessToken == nil {
@@ -1825,6 +2124,10 @@ type Query {
     
     # Document Validation Query
     checkDocumentValidity(documentNumber: String!): DocumentValidationResult!
+    
+    # Dashboard Queries
+    getDashboardStats: DashboardStats!
+    getRecentActivity(limit: Int = 10): [RecentActivity!]!
 }
 
 # Type for document validation result
@@ -1832,6 +2135,69 @@ type DocumentValidationResult {
     isValid: Boolean!
     normalizedValue: String
     errorMessage: String
+}
+
+# Dashboard Types
+type DashboardStats {
+    # Member stats
+    totalMembers: Int!
+    activeMembers: Int!
+    inactiveMembers: Int!
+    individualMembers: Int!
+    familyMembers: Int!
+    newMembersThisMonth: Int!
+    newMembersLastMonth: Int!
+    memberGrowthPercentage: Float!
+    
+    # Payment stats
+    totalRevenue: Float!
+    monthlyRevenue: Float!
+    pendingPayments: Float!
+    averagePayment: Float!
+    paymentCompletionRate: Float!
+    revenueGrowthPercentage: Float!
+    
+    # Financial stats
+    currentBalance: Float!
+    monthlyExpenses: Float!
+    
+    # Activity stats
+    totalTransactions: Int!
+    recentPaymentsCount: Int!
+    
+    # Time-based data for charts
+    membershipTrend: [MembershipTrendData!]!
+    revenueTrend: [RevenueTrendData!]!
+}
+
+type MembershipTrendData {
+    month: String!
+    newMembers: Int!
+    totalMembers: Int!
+}
+
+type RevenueTrendData {
+    month: String!
+    revenue: Float!
+    expenses: Float!
+}
+
+enum ActivityType {
+    MEMBER_REGISTERED
+    PAYMENT_RECEIVED
+    FAMILY_CREATED
+    MEMBER_DEACTIVATED
+    TRANSACTION_RECORDED
+}
+
+type RecentActivity {
+    id: ID!
+    type: ActivityType!
+    description: String!
+    timestamp: Time!
+    relatedMember: Member
+    relatedFamily: Family
+    amount: Float
 }
 
 # Input Types para mutations
@@ -3306,6 +3672,34 @@ func (ec *executionContext) field_Query_getPayment_argsID(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Query_getRecentActivity_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getRecentActivity_argsLimit(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_getRecentActivity_argsLimit(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["limit"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+	if tmp, ok := rawArgs["limit"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Query_getTransactions_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -4227,6 +4621,902 @@ func (ec *executionContext) fieldContext_CashFlow_payment(_ context.Context, fie
 				return ec.fieldContext_Payment_notes(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Payment", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardStats_totalMembers(ctx context.Context, field graphql.CollectedField, obj *model.DashboardStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DashboardStats_totalMembers(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalMembers, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DashboardStats_totalMembers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardStats_activeMembers(ctx context.Context, field graphql.CollectedField, obj *model.DashboardStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DashboardStats_activeMembers(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ActiveMembers, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DashboardStats_activeMembers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardStats_inactiveMembers(ctx context.Context, field graphql.CollectedField, obj *model.DashboardStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DashboardStats_inactiveMembers(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.InactiveMembers, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DashboardStats_inactiveMembers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardStats_individualMembers(ctx context.Context, field graphql.CollectedField, obj *model.DashboardStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DashboardStats_individualMembers(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.IndividualMembers, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DashboardStats_individualMembers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardStats_familyMembers(ctx context.Context, field graphql.CollectedField, obj *model.DashboardStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DashboardStats_familyMembers(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FamilyMembers, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DashboardStats_familyMembers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardStats_newMembersThisMonth(ctx context.Context, field graphql.CollectedField, obj *model.DashboardStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DashboardStats_newMembersThisMonth(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NewMembersThisMonth, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DashboardStats_newMembersThisMonth(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardStats_newMembersLastMonth(ctx context.Context, field graphql.CollectedField, obj *model.DashboardStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DashboardStats_newMembersLastMonth(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NewMembersLastMonth, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DashboardStats_newMembersLastMonth(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardStats_memberGrowthPercentage(ctx context.Context, field graphql.CollectedField, obj *model.DashboardStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DashboardStats_memberGrowthPercentage(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MemberGrowthPercentage, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DashboardStats_memberGrowthPercentage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardStats_totalRevenue(ctx context.Context, field graphql.CollectedField, obj *model.DashboardStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DashboardStats_totalRevenue(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalRevenue, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DashboardStats_totalRevenue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardStats_monthlyRevenue(ctx context.Context, field graphql.CollectedField, obj *model.DashboardStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DashboardStats_monthlyRevenue(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MonthlyRevenue, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DashboardStats_monthlyRevenue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardStats_pendingPayments(ctx context.Context, field graphql.CollectedField, obj *model.DashboardStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DashboardStats_pendingPayments(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PendingPayments, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DashboardStats_pendingPayments(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardStats_averagePayment(ctx context.Context, field graphql.CollectedField, obj *model.DashboardStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DashboardStats_averagePayment(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.AveragePayment, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DashboardStats_averagePayment(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardStats_paymentCompletionRate(ctx context.Context, field graphql.CollectedField, obj *model.DashboardStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DashboardStats_paymentCompletionRate(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PaymentCompletionRate, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DashboardStats_paymentCompletionRate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardStats_revenueGrowthPercentage(ctx context.Context, field graphql.CollectedField, obj *model.DashboardStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DashboardStats_revenueGrowthPercentage(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RevenueGrowthPercentage, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DashboardStats_revenueGrowthPercentage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardStats_currentBalance(ctx context.Context, field graphql.CollectedField, obj *model.DashboardStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DashboardStats_currentBalance(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CurrentBalance, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DashboardStats_currentBalance(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardStats_monthlyExpenses(ctx context.Context, field graphql.CollectedField, obj *model.DashboardStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DashboardStats_monthlyExpenses(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MonthlyExpenses, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DashboardStats_monthlyExpenses(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardStats_totalTransactions(ctx context.Context, field graphql.CollectedField, obj *model.DashboardStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DashboardStats_totalTransactions(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalTransactions, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DashboardStats_totalTransactions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardStats_recentPaymentsCount(ctx context.Context, field graphql.CollectedField, obj *model.DashboardStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DashboardStats_recentPaymentsCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RecentPaymentsCount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DashboardStats_recentPaymentsCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardStats_membershipTrend(ctx context.Context, field graphql.CollectedField, obj *model.DashboardStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DashboardStats_membershipTrend(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MembershipTrend, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.MembershipTrendData)
+	fc.Result = res
+	return ec.marshalNMembershipTrendData2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMembershipTrendDataᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DashboardStats_membershipTrend(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "month":
+				return ec.fieldContext_MembershipTrendData_month(ctx, field)
+			case "newMembers":
+				return ec.fieldContext_MembershipTrendData_newMembers(ctx, field)
+			case "totalMembers":
+				return ec.fieldContext_MembershipTrendData_totalMembers(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MembershipTrendData", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardStats_revenueTrend(ctx context.Context, field graphql.CollectedField, obj *model.DashboardStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DashboardStats_revenueTrend(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RevenueTrend, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.RevenueTrendData)
+	fc.Result = res
+	return ec.marshalNRevenueTrendData2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐRevenueTrendDataᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DashboardStats_revenueTrend(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "month":
+				return ec.fieldContext_RevenueTrendData_month(ctx, field)
+			case "revenue":
+				return ec.fieldContext_RevenueTrendData_revenue(ctx, field)
+			case "expenses":
+				return ec.fieldContext_RevenueTrendData_expenses(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RevenueTrendData", field.Name)
 		},
 	}
 	return fc, nil
@@ -6073,6 +7363,138 @@ func (ec *executionContext) fieldContext_MemberConnection_pageInfo(_ context.Con
 				return ec.fieldContext_PageInfo_totalCount(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type PageInfo", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MembershipTrendData_month(ctx context.Context, field graphql.CollectedField, obj *model.MembershipTrendData) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MembershipTrendData_month(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Month, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MembershipTrendData_month(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MembershipTrendData",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MembershipTrendData_newMembers(ctx context.Context, field graphql.CollectedField, obj *model.MembershipTrendData) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MembershipTrendData_newMembers(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NewMembers, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MembershipTrendData_newMembers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MembershipTrendData",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MembershipTrendData_totalMembers(ctx context.Context, field graphql.CollectedField, obj *model.MembershipTrendData) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MembershipTrendData_totalMembers(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalMembers, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MembershipTrendData_totalMembers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MembershipTrendData",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -10037,6 +11459,163 @@ func (ec *executionContext) fieldContext_Query_checkDocumentValidity(ctx context
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_getDashboardStats(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getDashboardStats(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetDashboardStats(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.DashboardStats)
+	fc.Result = res
+	return ec.marshalNDashboardStats2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDashboardStats(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getDashboardStats(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "totalMembers":
+				return ec.fieldContext_DashboardStats_totalMembers(ctx, field)
+			case "activeMembers":
+				return ec.fieldContext_DashboardStats_activeMembers(ctx, field)
+			case "inactiveMembers":
+				return ec.fieldContext_DashboardStats_inactiveMembers(ctx, field)
+			case "individualMembers":
+				return ec.fieldContext_DashboardStats_individualMembers(ctx, field)
+			case "familyMembers":
+				return ec.fieldContext_DashboardStats_familyMembers(ctx, field)
+			case "newMembersThisMonth":
+				return ec.fieldContext_DashboardStats_newMembersThisMonth(ctx, field)
+			case "newMembersLastMonth":
+				return ec.fieldContext_DashboardStats_newMembersLastMonth(ctx, field)
+			case "memberGrowthPercentage":
+				return ec.fieldContext_DashboardStats_memberGrowthPercentage(ctx, field)
+			case "totalRevenue":
+				return ec.fieldContext_DashboardStats_totalRevenue(ctx, field)
+			case "monthlyRevenue":
+				return ec.fieldContext_DashboardStats_monthlyRevenue(ctx, field)
+			case "pendingPayments":
+				return ec.fieldContext_DashboardStats_pendingPayments(ctx, field)
+			case "averagePayment":
+				return ec.fieldContext_DashboardStats_averagePayment(ctx, field)
+			case "paymentCompletionRate":
+				return ec.fieldContext_DashboardStats_paymentCompletionRate(ctx, field)
+			case "revenueGrowthPercentage":
+				return ec.fieldContext_DashboardStats_revenueGrowthPercentage(ctx, field)
+			case "currentBalance":
+				return ec.fieldContext_DashboardStats_currentBalance(ctx, field)
+			case "monthlyExpenses":
+				return ec.fieldContext_DashboardStats_monthlyExpenses(ctx, field)
+			case "totalTransactions":
+				return ec.fieldContext_DashboardStats_totalTransactions(ctx, field)
+			case "recentPaymentsCount":
+				return ec.fieldContext_DashboardStats_recentPaymentsCount(ctx, field)
+			case "membershipTrend":
+				return ec.fieldContext_DashboardStats_membershipTrend(ctx, field)
+			case "revenueTrend":
+				return ec.fieldContext_DashboardStats_revenueTrend(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DashboardStats", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getRecentActivity(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getRecentActivity(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetRecentActivity(rctx, fc.Args["limit"].(*int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.RecentActivity)
+	fc.Result = res
+	return ec.marshalNRecentActivity2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐRecentActivityᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getRecentActivity(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_RecentActivity_id(ctx, field)
+			case "type":
+				return ec.fieldContext_RecentActivity_type(ctx, field)
+			case "description":
+				return ec.fieldContext_RecentActivity_description(ctx, field)
+			case "timestamp":
+				return ec.fieldContext_RecentActivity_timestamp(ctx, field)
+			case "relatedMember":
+				return ec.fieldContext_RecentActivity_relatedMember(ctx, field)
+			case "relatedFamily":
+				return ec.fieldContext_RecentActivity_relatedFamily(ctx, field)
+			case "amount":
+				return ec.fieldContext_RecentActivity_amount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RecentActivity", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getRecentActivity_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query___type(ctx, field)
 	if err != nil {
@@ -10163,6 +11742,495 @@ func (ec *executionContext) fieldContext_Query___schema(_ context.Context, field
 				return ec.fieldContext___Schema_directives(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type __Schema", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RecentActivity_id(ctx context.Context, field graphql.CollectedField, obj *model.RecentActivity) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_RecentActivity_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNID2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_RecentActivity_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RecentActivity",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RecentActivity_type(ctx context.Context, field graphql.CollectedField, obj *model.RecentActivity) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_RecentActivity_type(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Type, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(model.ActivityType)
+	fc.Result = res
+	return ec.marshalNActivityType2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐActivityType(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_RecentActivity_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RecentActivity",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ActivityType does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RecentActivity_description(ctx context.Context, field graphql.CollectedField, obj *model.RecentActivity) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_RecentActivity_description(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Description, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_RecentActivity_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RecentActivity",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RecentActivity_timestamp(ctx context.Context, field graphql.CollectedField, obj *model.RecentActivity) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_RecentActivity_timestamp(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Timestamp, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_RecentActivity_timestamp(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RecentActivity",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RecentActivity_relatedMember(ctx context.Context, field graphql.CollectedField, obj *model.RecentActivity) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_RecentActivity_relatedMember(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RelatedMember, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*models.Member)
+	fc.Result = res
+	return ec.marshalOMember2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐMember(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_RecentActivity_relatedMember(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RecentActivity",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "miembro_id":
+				return ec.fieldContext_Member_miembro_id(ctx, field)
+			case "numero_socio":
+				return ec.fieldContext_Member_numero_socio(ctx, field)
+			case "tipo_membresia":
+				return ec.fieldContext_Member_tipo_membresia(ctx, field)
+			case "nombre":
+				return ec.fieldContext_Member_nombre(ctx, field)
+			case "apellidos":
+				return ec.fieldContext_Member_apellidos(ctx, field)
+			case "calle_numero_piso":
+				return ec.fieldContext_Member_calle_numero_piso(ctx, field)
+			case "codigo_postal":
+				return ec.fieldContext_Member_codigo_postal(ctx, field)
+			case "poblacion":
+				return ec.fieldContext_Member_poblacion(ctx, field)
+			case "provincia":
+				return ec.fieldContext_Member_provincia(ctx, field)
+			case "pais":
+				return ec.fieldContext_Member_pais(ctx, field)
+			case "estado":
+				return ec.fieldContext_Member_estado(ctx, field)
+			case "fecha_alta":
+				return ec.fieldContext_Member_fecha_alta(ctx, field)
+			case "fecha_baja":
+				return ec.fieldContext_Member_fecha_baja(ctx, field)
+			case "fecha_nacimiento":
+				return ec.fieldContext_Member_fecha_nacimiento(ctx, field)
+			case "documento_identidad":
+				return ec.fieldContext_Member_documento_identidad(ctx, field)
+			case "correo_electronico":
+				return ec.fieldContext_Member_correo_electronico(ctx, field)
+			case "profesion":
+				return ec.fieldContext_Member_profesion(ctx, field)
+			case "nacionalidad":
+				return ec.fieldContext_Member_nacionalidad(ctx, field)
+			case "observaciones":
+				return ec.fieldContext_Member_observaciones(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Member", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RecentActivity_relatedFamily(ctx context.Context, field graphql.CollectedField, obj *model.RecentActivity) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_RecentActivity_relatedFamily(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RelatedFamily, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*models.Family)
+	fc.Result = res
+	return ec.marshalOFamily2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐFamily(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_RecentActivity_relatedFamily(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RecentActivity",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Family_id(ctx, field)
+			case "numero_socio":
+				return ec.fieldContext_Family_numero_socio(ctx, field)
+			case "miembro_origen":
+				return ec.fieldContext_Family_miembro_origen(ctx, field)
+			case "esposo_nombre":
+				return ec.fieldContext_Family_esposo_nombre(ctx, field)
+			case "esposo_apellidos":
+				return ec.fieldContext_Family_esposo_apellidos(ctx, field)
+			case "esposa_nombre":
+				return ec.fieldContext_Family_esposa_nombre(ctx, field)
+			case "esposa_apellidos":
+				return ec.fieldContext_Family_esposa_apellidos(ctx, field)
+			case "familiares":
+				return ec.fieldContext_Family_familiares(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Family", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RecentActivity_amount(ctx context.Context, field graphql.CollectedField, obj *model.RecentActivity) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_RecentActivity_amount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Amount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*float64)
+	fc.Result = res
+	return ec.marshalOFloat2ᚖfloat64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_RecentActivity_amount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RecentActivity",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RevenueTrendData_month(ctx context.Context, field graphql.CollectedField, obj *model.RevenueTrendData) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_RevenueTrendData_month(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Month, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_RevenueTrendData_month(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RevenueTrendData",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RevenueTrendData_revenue(ctx context.Context, field graphql.CollectedField, obj *model.RevenueTrendData) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_RevenueTrendData_revenue(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Revenue, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_RevenueTrendData_revenue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RevenueTrendData",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RevenueTrendData_expenses(ctx context.Context, field graphql.CollectedField, obj *model.RevenueTrendData) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_RevenueTrendData_expenses(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Expenses, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_RevenueTrendData_expenses(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RevenueTrendData",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
 		},
 	}
 	return fc, nil
@@ -13976,6 +16044,140 @@ func (ec *executionContext) _CashFlow(ctx context.Context, sel ast.SelectionSet,
 	return out
 }
 
+var dashboardStatsImplementors = []string{"DashboardStats"}
+
+func (ec *executionContext) _DashboardStats(ctx context.Context, sel ast.SelectionSet, obj *model.DashboardStats) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, dashboardStatsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DashboardStats")
+		case "totalMembers":
+			out.Values[i] = ec._DashboardStats_totalMembers(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "activeMembers":
+			out.Values[i] = ec._DashboardStats_activeMembers(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "inactiveMembers":
+			out.Values[i] = ec._DashboardStats_inactiveMembers(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "individualMembers":
+			out.Values[i] = ec._DashboardStats_individualMembers(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "familyMembers":
+			out.Values[i] = ec._DashboardStats_familyMembers(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "newMembersThisMonth":
+			out.Values[i] = ec._DashboardStats_newMembersThisMonth(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "newMembersLastMonth":
+			out.Values[i] = ec._DashboardStats_newMembersLastMonth(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "memberGrowthPercentage":
+			out.Values[i] = ec._DashboardStats_memberGrowthPercentage(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalRevenue":
+			out.Values[i] = ec._DashboardStats_totalRevenue(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "monthlyRevenue":
+			out.Values[i] = ec._DashboardStats_monthlyRevenue(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "pendingPayments":
+			out.Values[i] = ec._DashboardStats_pendingPayments(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "averagePayment":
+			out.Values[i] = ec._DashboardStats_averagePayment(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "paymentCompletionRate":
+			out.Values[i] = ec._DashboardStats_paymentCompletionRate(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "revenueGrowthPercentage":
+			out.Values[i] = ec._DashboardStats_revenueGrowthPercentage(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "currentBalance":
+			out.Values[i] = ec._DashboardStats_currentBalance(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "monthlyExpenses":
+			out.Values[i] = ec._DashboardStats_monthlyExpenses(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalTransactions":
+			out.Values[i] = ec._DashboardStats_totalTransactions(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "recentPaymentsCount":
+			out.Values[i] = ec._DashboardStats_recentPaymentsCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "membershipTrend":
+			out.Values[i] = ec._DashboardStats_membershipTrend(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "revenueTrend":
+			out.Values[i] = ec._DashboardStats_revenueTrend(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var documentValidationResultImplementors = []string{"DocumentValidationResult"}
 
 func (ec *executionContext) _DocumentValidationResult(ctx context.Context, sel ast.SelectionSet, obj *model.DocumentValidationResult) graphql.Marshaler {
@@ -14989,6 +17191,55 @@ func (ec *executionContext) _MemberConnection(ctx context.Context, sel ast.Selec
 	return out
 }
 
+var membershipTrendDataImplementors = []string{"MembershipTrendData"}
+
+func (ec *executionContext) _MembershipTrendData(ctx context.Context, sel ast.SelectionSet, obj *model.MembershipTrendData) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, membershipTrendDataImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MembershipTrendData")
+		case "month":
+			out.Values[i] = ec._MembershipTrendData_month(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "newMembers":
+			out.Values[i] = ec._MembershipTrendData_newMembers(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalMembers":
+			out.Values[i] = ec._MembershipTrendData_totalMembers(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -15881,6 +18132,50 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getDashboardStats":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getDashboardStats(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getRecentActivity":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getRecentActivity(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -15889,6 +18184,115 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___schema(ctx, field)
 			})
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var recentActivityImplementors = []string{"RecentActivity"}
+
+func (ec *executionContext) _RecentActivity(ctx context.Context, sel ast.SelectionSet, obj *model.RecentActivity) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, recentActivityImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RecentActivity")
+		case "id":
+			out.Values[i] = ec._RecentActivity_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "type":
+			out.Values[i] = ec._RecentActivity_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "description":
+			out.Values[i] = ec._RecentActivity_description(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "timestamp":
+			out.Values[i] = ec._RecentActivity_timestamp(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "relatedMember":
+			out.Values[i] = ec._RecentActivity_relatedMember(ctx, field, obj)
+		case "relatedFamily":
+			out.Values[i] = ec._RecentActivity_relatedFamily(ctx, field, obj)
+		case "amount":
+			out.Values[i] = ec._RecentActivity_amount(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var revenueTrendDataImplementors = []string{"RevenueTrendData"}
+
+func (ec *executionContext) _RevenueTrendData(ctx context.Context, sel ast.SelectionSet, obj *model.RevenueTrendData) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, revenueTrendDataImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RevenueTrendData")
+		case "month":
+			out.Values[i] = ec._RevenueTrendData_month(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "revenue":
+			out.Values[i] = ec._RevenueTrendData_revenue(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "expenses":
+			out.Values[i] = ec._RevenueTrendData_expenses(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -16472,6 +18876,16 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
+func (ec *executionContext) unmarshalNActivityType2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐActivityType(ctx context.Context, v any) (model.ActivityType, error) {
+	var res model.ActivityType
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNActivityType2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐActivityType(ctx context.Context, sel ast.SelectionSet, v model.ActivityType) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) marshalNAuthResponse2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐAuthResponse(ctx context.Context, sel ast.SelectionSet, v model.AuthResponse) graphql.Marshaler {
 	return ec._AuthResponse(ctx, sel, &v)
 }
@@ -16578,6 +18992,20 @@ func (ec *executionContext) unmarshalNCreateMemberInput2githubᚗcomᚋjavicabde
 func (ec *executionContext) unmarshalNCreateUserInput2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐCreateUserInput(ctx context.Context, v any) (model.CreateUserInput, error) {
 	res, err := ec.unmarshalInputCreateUserInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDashboardStats2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDashboardStats(ctx context.Context, sel ast.SelectionSet, v model.DashboardStats) graphql.Marshaler {
+	return ec._DashboardStats(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDashboardStats2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDashboardStats(ctx context.Context, sel ast.SelectionSet, v *model.DashboardStats) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DashboardStats(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNDocumentValidationResult2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDocumentValidationResult(ctx context.Context, sel ast.SelectionSet, v model.DocumentValidationResult) graphql.Marshaler {
@@ -16880,6 +19308,60 @@ func (ec *executionContext) marshalNMemberStatus2githubᚗcomᚋjavicabdevᚋasa
 	return v
 }
 
+func (ec *executionContext) marshalNMembershipTrendData2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMembershipTrendDataᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MembershipTrendData) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNMembershipTrendData2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMembershipTrendData(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNMembershipTrendData2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMembershipTrendData(ctx context.Context, sel ast.SelectionSet, v *model.MembershipTrendData) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._MembershipTrendData(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNMembershipType2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMembershipType(ctx context.Context, v any) (model.MembershipType, error) {
 	var res model.MembershipType
 	err := res.UnmarshalGQL(v)
@@ -17011,9 +19493,117 @@ func (ec *executionContext) marshalNPaymentStatus2githubᚗcomᚋjavicabdevᚋas
 	return res
 }
 
+func (ec *executionContext) marshalNRecentActivity2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐRecentActivityᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.RecentActivity) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNRecentActivity2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐRecentActivity(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNRecentActivity2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐRecentActivity(ctx context.Context, sel ast.SelectionSet, v *model.RecentActivity) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._RecentActivity(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNRefreshTokenInput2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐRefreshTokenInput(ctx context.Context, v any) (model.RefreshTokenInput, error) {
 	res, err := ec.unmarshalInputRefreshTokenInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNRevenueTrendData2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐRevenueTrendDataᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.RevenueTrendData) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNRevenueTrendData2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐRevenueTrendData(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNRevenueTrendData2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐRevenueTrendData(ctx context.Context, sel ast.SelectionSet, v *model.RevenueTrendData) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._RevenueTrendData(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNSortDirection2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐSortDirection(ctx context.Context, v any) (model.SortDirection, error) {
@@ -17546,6 +20136,23 @@ func (ec *executionContext) unmarshalOFamilyFilter2ᚖgithubᚗcomᚋjavicabdev�
 	}
 	res, err := ec.unmarshalInputFamilyFilter(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOFloat2ᚖfloat64(ctx context.Context, v any) (*float64, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalFloatContext(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOFloat2ᚖfloat64(ctx context.Context, sel ast.SelectionSet, v *float64) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	res := graphql.MarshalFloatContext(*v)
+	return graphql.WrapContextMarshaler(ctx, res)
 }
 
 func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v any) (*string, error) {

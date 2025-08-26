@@ -21,6 +21,7 @@ type Resolver struct {
 	userService              input.UserService              // Añadimos userService
 	emailVerificationService input.EmailVerificationService // Añadimos email verification service
 	emailNotificationService input.EmailNotificationService // Añadimos email notification service
+	dashboardService         input.DashboardService         // Añadimos dashboard service
 	loginRateLimiter         *auth.LoginRateLimiter         // Añadimos rate limiter para login
 	logger                   logger.Logger                  // Añadimos logger
 }
@@ -36,6 +37,7 @@ func NewResolver(
 	userService input.UserService, // Añadimos el servicio de usuarios
 	emailVerificationService input.EmailVerificationService, // Añadimos email verification
 	emailNotificationService input.EmailNotificationService, // Añadimos email notification
+	dashboardService input.DashboardService, // Añadimos dashboard service
 	loginRateLimiter *auth.LoginRateLimiter, // Añadimos el rate limiter
 	logger logger.Logger, // Añadimos logger
 ) *Resolver {
@@ -48,6 +50,7 @@ func NewResolver(
 		userService:              userService,              // Asignamos el servicio de usuarios
 		emailVerificationService: emailVerificationService, // Asignamos email verification
 		emailNotificationService: emailNotificationService, // Asignamos email notification
+		dashboardService:         dashboardService,         // Asignamos dashboard service
 		loginRateLimiter:         loginRateLimiter,         // Asignamos el rate limiter
 		logger:                   logger,                   // Asignamos logger
 	}

@@ -240,6 +240,10 @@ type Query {
     
     # Document Validation Query
     checkDocumentValidity(documentNumber: String!): DocumentValidationResult!
+    
+    # Dashboard Queries
+    getDashboardStats: DashboardStats!
+    getRecentActivity(limit: Int = 10): [RecentActivity!]!
 }
 
 # Type for document validation result
@@ -247,6 +251,69 @@ type DocumentValidationResult {
     isValid: Boolean!
     normalizedValue: String
     errorMessage: String
+}
+
+# Dashboard Types
+type DashboardStats {
+    # Member stats
+    totalMembers: Int!
+    activeMembers: Int!
+    inactiveMembers: Int!
+    individualMembers: Int!
+    familyMembers: Int!
+    newMembersThisMonth: Int!
+    newMembersLastMonth: Int!
+    memberGrowthPercentage: Float!
+    
+    # Payment stats
+    totalRevenue: Float!
+    monthlyRevenue: Float!
+    pendingPayments: Float!
+    averagePayment: Float!
+    paymentCompletionRate: Float!
+    revenueGrowthPercentage: Float!
+    
+    # Financial stats
+    currentBalance: Float!
+    monthlyExpenses: Float!
+    
+    # Activity stats
+    totalTransactions: Int!
+    recentPaymentsCount: Int!
+    
+    # Time-based data for charts
+    membershipTrend: [MembershipTrendData!]!
+    revenueTrend: [RevenueTrendData!]!
+}
+
+type MembershipTrendData {
+    month: String!
+    newMembers: Int!
+    totalMembers: Int!
+}
+
+type RevenueTrendData {
+    month: String!
+    revenue: Float!
+    expenses: Float!
+}
+
+enum ActivityType {
+    MEMBER_REGISTERED
+    PAYMENT_RECEIVED
+    FAMILY_CREATED
+    MEMBER_DEACTIVATED
+    TRANSACTION_RECORDED
+}
+
+type RecentActivity {
+    id: ID!
+    type: ActivityType!
+    description: String!
+    timestamp: Time!
+    relatedMember: Member
+    relatedFamily: Family
+    amount: Float
 }
 
 # Input Types para mutations

@@ -7,7 +7,7 @@ echo "🔍 Ejecutando verificaciones de código..."
 if ! command -v golangci-lint &> /dev/null; then
     echo "❌ golangci-lint no está instalado."
     echo "Instálalo con:"
-    echo "  curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.61.0"
+    echo "  curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.1.6"
     exit 1
 fi
 

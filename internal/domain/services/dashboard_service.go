@@ -1,0 +1,565 @@
+package services
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"go.uber.org/zap"
+
+	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/internal/ports/input"
+	"github.com/javicabdev/asam-backend/internal/ports/output"
+	"github.com/javicabdev/asam-backend/pkg/errors"
+	"github.com/javicabdev/asam-backend/pkg/logger"
+)
+
+type dashboardService struct {
+	memberRepo   output.MemberRepository
+	paymentRepo  output.PaymentRepository
+	cashflowRepo output.CashFlowRepository
+	familyRepo   output.FamilyRepository
+	appLogger    logger.Logger
+}
+
+// Helper structures for payment processing
+type paymentStats struct {
+	totalPaid     float64
+	monthlyPaid   float64
+	lastMonthPaid float64
+	pendingAmount float64
+	paidCount     int
+	pendingCount  int
+	recentCount   int
+}
+
+type timeFilters struct {
+	yearStart      time.Time
+	yearEnd        time.Time
+	monthStart     time.Time
+	lastMonthStart time.Time
+	lastMonthEnd   time.Time
+	oneWeekAgo     time.Time
+}
+
+// NewDashboardService crea una nueva instancia del servicio de dashboard
+func NewDashboardService(
+	memberRepo output.MemberRepository,
+	paymentRepo output.PaymentRepository,
+	cashflowRepo output.CashFlowRepository,
+	familyRepo output.FamilyRepository,
+	appLogger logger.Logger,
+) input.DashboardService {
+	return &dashboardService{
+		memberRepo:   memberRepo,
+		paymentRepo:  paymentRepo,
+		cashflowRepo: cashflowRepo,
+		familyRepo:   familyRepo,
+		appLogger:    appLogger,
+	}
+}
+
+// GetDashboardStats obtiene las estadísticas principales del dashboard
+func (s *dashboardService) GetDashboardStats(ctx context.Context) (*input.DashboardStats, error) {
+	s.appLogger.Info("Getting dashboard stats")
+
+	stats := &input.DashboardStats{}
+	now := time.Now()
+	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	startOfLastMonth := startOfMonth.AddDate(0, -1, 0)
+	endOfLastMonth := startOfMonth.AddDate(0, 0, -1)
+
+	// Member statistics
+	if err := s.calculateMemberStats(ctx, stats, startOfMonth, startOfLastMonth); err != nil {
+		s.appLogger.Error("Error calculating member stats", zap.Error(err))
+		return nil, errors.InternalError("error calculating member statistics", err)
+	}
+
+	// Payment statistics
+	if err := s.calculatePaymentStats(ctx, stats, startOfMonth, startOfLastMonth, endOfLastMonth); err != nil {
+		s.appLogger.Error("Error calculating payment stats", zap.Error(err))
+		return nil, errors.InternalError("error calculating payment statistics", err)
+	}
+
+	// Financial statistics
+	if err := s.calculateFinancialStats(ctx, stats, startOfMonth); err != nil {
+		s.appLogger.Error("Error calculating financial stats", zap.Error(err))
+		return nil, errors.InternalError("error calculating financial statistics", err)
+	}
+
+	// Trend data - no longer returns error
+	s.calculateTrendData(ctx, stats)
+
+	s.appLogger.Info("Dashboard stats retrieved successfully")
+	return stats, nil
+}
+
+// calculateMemberStats calcula las estadísticas de miembros
+func (s *dashboardService) calculateMemberStats(ctx context.Context, stats *input.DashboardStats, startOfMonth, startOfLastMonth time.Time) error {
+	// Get all members - using List with empty filters to get all
+	filters := output.MemberFilters{
+		Page:     1,
+		PageSize: 10000, // Large enough to get all members
+	}
+
+	allMembers, err := s.memberRepo.List(ctx, filters)
+	if err != nil {
+		return err
+	}
+
+	stats.TotalMembers = len(allMembers)
+
+	// Count active, inactive, individual and family members
+	for _, member := range allMembers {
+		if member.State == models.EstadoActivo {
+			stats.ActiveMembers++
+
+			// Use switch for membership type comparison
+			switch member.MembershipType {
+			case models.TipoMembresiaPIndividual:
+				stats.IndividualMembers++
+			case models.TipoMembresiaPFamiliar:
+				stats.FamilyMembers++
+			}
+		} else {
+			stats.InactiveMembers++
+		}
+
+		// Count new members this month
+		if member.RegistrationDate.After(startOfMonth) || member.RegistrationDate.Equal(startOfMonth) {
+			stats.NewMembersThisMonth++
+		}
+
+		// Count new members last month
+		if member.RegistrationDate.After(startOfLastMonth) && member.RegistrationDate.Before(startOfMonth) {
+			stats.NewMembersLastMonth++
+		}
+	}
+
+	// Calculate growth percentage
+	if stats.NewMembersLastMonth > 0 {
+		stats.MemberGrowthPercentage = float64(stats.NewMembersThisMonth-stats.NewMembersLastMonth) / float64(stats.NewMembersLastMonth) * 100
+	} else if stats.NewMembersThisMonth > 0 {
+		stats.MemberGrowthPercentage = 100
+	}
+
+	return nil
+}
+
+// calculatePaymentStats calcula las estadísticas de pagos
+func (s *dashboardService) calculatePaymentStats(ctx context.Context, stats *input.DashboardStats, startOfMonth, startOfLastMonth, endOfLastMonth time.Time) error {
+	now := time.Now()
+
+	// Create time filters
+	filters := timeFilters{
+		yearStart:      time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location()),
+		yearEnd:        time.Date(now.Year(), 12, 31, 23, 59, 59, 0, now.Location()),
+		monthStart:     startOfMonth,
+		lastMonthStart: startOfLastMonth,
+		lastMonthEnd:   endOfLastMonth,
+		oneWeekAgo:     now.AddDate(0, 0, -7),
+	}
+
+	// Process member payments
+	memberStats, err := s.processMemberPayments(ctx, filters)
+	if err != nil {
+		return err
+	}
+
+	// Process family payments
+	familyStats, err := s.processFamilyPayments(ctx, filters)
+	if err != nil {
+		return err
+	}
+
+	// Combine statistics
+	totalStats := s.combinePaymentStats(memberStats, familyStats)
+
+	// Update dashboard stats
+	stats.TotalRevenue = totalStats.totalPaid
+	stats.MonthlyRevenue = totalStats.monthlyPaid
+	stats.RecentPaymentsCount = totalStats.recentCount
+	stats.PendingPayments = totalStats.pendingAmount
+
+	// Calculate average payment
+	if totalStats.paidCount > 0 {
+		stats.AveragePayment = totalStats.totalPaid / float64(totalStats.paidCount)
+	}
+
+	// Calculate payment completion rate
+	totalPayments := totalStats.paidCount + totalStats.pendingCount
+	if totalPayments > 0 {
+		stats.PaymentCompletionRate = float64(totalStats.paidCount) / float64(totalPayments) * 100
+	}
+
+	// Calculate revenue growth percentage
+	if totalStats.lastMonthPaid > 0 {
+		stats.RevenueGrowthPercentage = (totalStats.monthlyPaid - totalStats.lastMonthPaid) / totalStats.lastMonthPaid * 100
+	} else if totalStats.monthlyPaid > 0 {
+		stats.RevenueGrowthPercentage = 100
+	}
+
+	return nil
+}
+
+// processMemberPayments processes payments for all members
+func (s *dashboardService) processMemberPayments(ctx context.Context, filters timeFilters) (*paymentStats, error) {
+	// Get all members
+	memberFilters := output.MemberFilters{
+		Page:     1,
+		PageSize: 10000,
+	}
+	members, err := s.memberRepo.List(ctx, memberFilters)
+	if err != nil {
+		return nil, err
+	}
+
+	stats := &paymentStats{}
+
+	// Get payments for each member
+	for _, member := range members {
+		payments, err := s.paymentRepo.FindByMember(ctx, member.ID, filters.yearStart, filters.yearEnd)
+		if err != nil {
+			continue // Skip errors for individual members
+		}
+
+		s.processPayments(payments, stats, filters)
+	}
+
+	return stats, nil
+}
+
+// processFamilyPayments processes payments for all families
+// The error return is kept for consistency with processMemberPayments even though we currently
+// choose to return nil error to allow partial results when family data is unavailable.
+//
+//nolint:unparam // Intentional: error return kept for API consistency
+func (s *dashboardService) processFamilyPayments(ctx context.Context, filters timeFilters) (*paymentStats, error) {
+	stats := &paymentStats{}
+
+	// Get all families
+	families, _, err := s.familyRepo.List(ctx, 1, 10000, nil, "")
+	if err != nil {
+		// Log the error but continue with empty stats to allow partial results
+		s.appLogger.Warn("Error getting families for payment stats", zap.Error(err))
+		return stats, nil
+	}
+
+	for _, family := range families {
+		payments, err := s.paymentRepo.FindByFamily(ctx, family.ID, filters.yearStart, filters.yearEnd)
+		if err != nil {
+			continue // Skip errors for individual families
+		}
+
+		s.processPayments(payments, stats, filters)
+	}
+
+	return stats, nil
+}
+
+// processPayments processes a list of payments and updates statistics
+func (s *dashboardService) processPayments(payments []models.Payment, stats *paymentStats, filters timeFilters) {
+	for _, payment := range payments {
+		// Use switch for payment status comparison
+		switch payment.Status {
+		case models.PaymentStatusPaid:
+			stats.totalPaid += payment.Amount
+			stats.paidCount++
+
+			// This month's payments
+			if payment.PaymentDate.After(filters.monthStart) || payment.PaymentDate.Equal(filters.monthStart) {
+				stats.monthlyPaid += payment.Amount
+			}
+
+			// Last month's payments
+			if (payment.PaymentDate.After(filters.lastMonthStart) || payment.PaymentDate.Equal(filters.lastMonthStart)) &&
+				(payment.PaymentDate.Before(filters.lastMonthEnd) || payment.PaymentDate.Equal(filters.lastMonthEnd)) {
+				stats.lastMonthPaid += payment.Amount
+			}
+
+			// Recent payments (last week)
+			if payment.PaymentDate.After(filters.oneWeekAgo) {
+				stats.recentCount++
+			}
+
+		case models.PaymentStatusPending:
+			stats.pendingAmount += payment.Amount
+			stats.pendingCount++
+
+		case models.PaymentStatusCancelled:
+			// Cancelled payments are ignored in statistics
+			// They don't count towards revenue or pending amounts
+		}
+	}
+}
+
+// combinePaymentStats combines payment statistics from members and families
+func (s *dashboardService) combinePaymentStats(memberStats, familyStats *paymentStats) *paymentStats {
+	return &paymentStats{
+		totalPaid:     memberStats.totalPaid + familyStats.totalPaid,
+		monthlyPaid:   memberStats.monthlyPaid + familyStats.monthlyPaid,
+		lastMonthPaid: memberStats.lastMonthPaid + familyStats.lastMonthPaid,
+		pendingAmount: memberStats.pendingAmount + familyStats.pendingAmount,
+		paidCount:     memberStats.paidCount + familyStats.paidCount,
+		pendingCount:  memberStats.pendingCount + familyStats.pendingCount,
+		recentCount:   memberStats.recentCount + familyStats.recentCount,
+	}
+}
+
+// calculateFinancialStats calcula las estadísticas financieras
+func (s *dashboardService) calculateFinancialStats(ctx context.Context, stats *input.DashboardStats, startOfMonth time.Time) error {
+	// Get current balance
+	balance, err := s.cashflowRepo.GetBalance(ctx)
+	if err != nil {
+		return err
+	}
+	stats.CurrentBalance = balance
+
+	// Get all transactions using List with empty filter
+	filter := output.CashFlowFilter{
+		Page:     1,
+		PageSize: 10000, // Large enough to get all
+	}
+
+	transactions, err := s.cashflowRepo.List(ctx, filter)
+	if err != nil {
+		return err
+	}
+
+	stats.TotalTransactions = len(transactions)
+
+	// Calculate monthly expenses
+	var monthlyExpenses float64
+	for _, transaction := range transactions {
+		// Count as expense if it's a current expense and happened this month
+		if transaction.OperationType == models.OperationTypeCurrentExpense &&
+			(transaction.Date.After(startOfMonth) || transaction.Date.Equal(startOfMonth)) {
+			monthlyExpenses += transaction.Amount
+		}
+	}
+	stats.MonthlyExpenses = monthlyExpenses
+
+	return nil
+}
+
+// calculateTrendData calcula los datos de tendencia para los gráficos
+func (s *dashboardService) calculateTrendData(ctx context.Context, stats *input.DashboardStats) {
+	// Calculate membership trend for the last 6 months
+	stats.MembershipTrend = s.calculateMembershipTrend(ctx, 6)
+
+	// Calculate revenue trend for the last 6 months
+	stats.RevenueTrend = s.calculateRevenueTrend(ctx, 6)
+}
+
+// calculateMembershipTrend calcula la tendencia de membresías
+func (s *dashboardService) calculateMembershipTrend(ctx context.Context, months int) []input.MembershipTrendData {
+	trend := make([]input.MembershipTrendData, 0, months)
+	now := time.Now()
+
+	// Get all members
+	filters := output.MemberFilters{
+		Page:     1,
+		PageSize: 10000,
+	}
+
+	allMembers, err := s.memberRepo.List(ctx, filters)
+	if err != nil {
+		s.appLogger.Error("Error getting members for trend", zap.Error(err))
+		return trend
+	}
+
+	// Calculate for each month
+	for i := months - 1; i >= 0; i-- {
+		monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location()).AddDate(0, -i, 0)
+		monthEnd := monthStart.AddDate(0, 1, 0).AddDate(0, 0, -1)
+		monthName := monthStart.Format("Jan")
+
+		var newCount, totalCount int
+		for _, member := range allMembers {
+			// Count members registered up to this month
+			if member.RegistrationDate.Before(monthEnd) || member.RegistrationDate.Equal(monthEnd) {
+				if member.State == models.EstadoActivo {
+					totalCount++
+				}
+			}
+
+			// Count new members in this month
+			if (member.RegistrationDate.After(monthStart) || member.RegistrationDate.Equal(monthStart)) &&
+				(member.RegistrationDate.Before(monthEnd) || member.RegistrationDate.Equal(monthEnd)) {
+				newCount++
+			}
+		}
+
+		trend = append(trend, input.MembershipTrendData{
+			Month:        monthName,
+			NewMembers:   newCount,
+			TotalMembers: totalCount,
+		})
+	}
+
+	return trend
+}
+
+// calculateRevenueTrend calcula la tendencia de ingresos y gastos
+func (s *dashboardService) calculateRevenueTrend(ctx context.Context, months int) []input.RevenueTrendData {
+	trend := make([]input.RevenueTrendData, 0, months)
+	now := time.Now()
+
+	// Get all transactions
+	filter := output.CashFlowFilter{
+		Page:     1,
+		PageSize: 10000,
+	}
+
+	transactions, err := s.cashflowRepo.List(ctx, filter)
+	if err != nil {
+		s.appLogger.Error("Error getting transactions for trend", zap.Error(err))
+		return trend
+	}
+
+	// Calculate for each month
+	for i := months - 1; i >= 0; i-- {
+		monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location()).AddDate(0, -i, 0)
+		monthEnd := monthStart.AddDate(0, 1, 0).AddDate(0, 0, -1)
+		monthName := monthStart.Format("Jan")
+
+		var revenue, expenses float64
+
+		// Calculate revenue and expenses from transactions
+		for _, transaction := range transactions {
+			if (transaction.Date.After(monthStart) || transaction.Date.Equal(monthStart)) &&
+				(transaction.Date.Before(monthEnd) || transaction.Date.Equal(monthEnd)) {
+				switch transaction.OperationType {
+				case models.OperationTypeMembershipFee, models.OperationTypeOtherIncome:
+					revenue += transaction.Amount
+				case models.OperationTypeCurrentExpense, models.OperationTypeFundDelivery:
+					expenses += transaction.Amount
+				}
+			}
+		}
+
+		trend = append(trend, input.RevenueTrendData{
+			Month:    monthName,
+			Revenue:  revenue,
+			Expenses: expenses,
+		})
+	}
+
+	return trend
+}
+
+// GetRecentActivity obtiene la actividad reciente del sistema
+func (s *dashboardService) GetRecentActivity(ctx context.Context, limit int) ([]*input.RecentActivity, error) {
+	s.appLogger.Info("Getting recent activity", zap.Int("limit", limit))
+
+	activities := make([]*input.RecentActivity, 0)
+
+	// Get recent members
+	memberFilters := output.MemberFilters{
+		Page:     1,
+		PageSize: 100, // Get last 100 members
+		OrderBy:  "registration_date DESC",
+	}
+
+	members, err := s.memberRepo.List(ctx, memberFilters)
+	if err != nil {
+		s.appLogger.Error("Error getting members for activity", zap.Error(err))
+		return nil, errors.InternalError("error getting members", err)
+	}
+
+	// Add member registrations to activities
+	for _, member := range members {
+		activity := &input.RecentActivity{
+			ID:              member.ID,
+			Type:            input.ActivityMemberRegistered,
+			Description:     fmt.Sprintf("Nuevo miembro registrado: %s %s", member.Name, member.Surnames),
+			Timestamp:       member.RegistrationDate,
+			RelatedMemberID: &member.ID,
+		}
+
+		// Check if member was deactivated
+		if member.State == models.EstadoInactivo && member.LeavingDate != nil {
+			activity.Type = input.ActivityMemberDeactivated
+			activity.Description = fmt.Sprintf("Miembro dado de baja: %s %s", member.Name, member.Surnames)
+			activity.Timestamp = *member.LeavingDate
+		}
+
+		activities = append(activities, activity)
+	}
+
+	// Get recent families
+	families, _, err := s.familyRepo.List(ctx, 1, 50, nil, "created_at DESC")
+	if err != nil {
+		s.appLogger.Error("Error getting families for activity", zap.Error(err))
+		// Don't return error, continue with other activities
+	} else {
+		// Add family creations to activities
+		for _, family := range families {
+			activity := &input.RecentActivity{
+				ID:              family.ID,
+				Type:            input.ActivityFamilyCreated,
+				Description:     fmt.Sprintf("Nueva familia creada: %s", family.NumeroSocio),
+				Timestamp:       family.CreatedAt,
+				RelatedFamilyID: &family.ID,
+			}
+			activities = append(activities, activity)
+		}
+	}
+
+	// Get recent transactions
+	transactionFilter := output.CashFlowFilter{
+		Page:     1,
+		PageSize: 50,
+		OrderBy:  "date DESC",
+	}
+
+	transactions, err := s.cashflowRepo.List(ctx, transactionFilter)
+	if err != nil {
+		s.appLogger.Error("Error getting transactions for activity", zap.Error(err))
+		// Don't return error, continue with other activities
+	} else {
+		// Add transactions to activities
+		for _, transaction := range transactions {
+			activity := &input.RecentActivity{
+				ID:          transaction.ID,
+				Type:        input.ActivityTransactionRecorded,
+				Description: fmt.Sprintf("Transacción registrada: %s - €%.2f", transaction.Detail, transaction.Amount),
+				Timestamp:   transaction.Date,
+				Amount:      &transaction.Amount,
+			}
+
+			if transaction.MemberID != nil {
+				activity.RelatedMemberID = transaction.MemberID
+			}
+			if transaction.FamilyID != nil {
+				activity.RelatedFamilyID = transaction.FamilyID
+			}
+
+			activities = append(activities, activity)
+		}
+	}
+
+	// Sort activities by timestamp (most recent first)
+	s.sortActivitiesByTimestamp(activities)
+
+	// Limit the results
+	if len(activities) > limit {
+		activities = activities[:limit]
+	}
+
+	s.appLogger.Info("Recent activity retrieved successfully", zap.Int("count", len(activities)))
+	return activities, nil
+}
+
+// sortActivitiesByTimestamp sorts activities by timestamp in descending order
+func (s *dashboardService) sortActivitiesByTimestamp(activities []*input.RecentActivity) {
+	// Simple bubble sort for now - can optimize if needed
+	n := len(activities)
+	for i := 0; i < n-1; i++ {
+		for j := 0; j < n-i-1; j++ {
+			if activities[j].Timestamp.Before(activities[j+1].Timestamp) {
+				activities[j], activities[j+1] = activities[j+1], activities[j]
+			}
+		}
+	}
+}
