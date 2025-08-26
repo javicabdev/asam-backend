@@ -50,7 +50,7 @@ jobs:
           # Run with explicit flags (avoiding config file issues)
           golangci-lint run \
             --enable=errcheck,govet,ineffassign,staticcheck,unused,gosec \
-            --exclude-dirs=internal/adapters/gql/generated,internal/adapters/gql/model,test,scripts,vendor \
+            --skip-dirs=internal/adapters/gql/generated,internal/adapters/gql/model,test,scripts,vendor \
             --timeout=5m \
             ./...
 
