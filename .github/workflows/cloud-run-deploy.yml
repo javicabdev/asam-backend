@@ -104,10 +104,8 @@ jobs:
             --set-env-vars="DB_SSL_MODE=require" \
             --set-env-vars="JWT_ACCESS_TTL=15m" \
             --set-env-vars="JWT_REFRESH_TTL=168h" \
-            --set-env-vars="SMTP_SERVER=smtp.gmail.com" \
-            --set-env-vars="SMTP_PORT=587" \
-            --set-env-vars="SMTP_USE_TLS=true" \
-            --set-env-vars="SMTP_FROM_EMAIL=noreply@asam.org" \
+            --set-env-vars="MAILERSEND_FROM_EMAIL=noreply@asam.org" \
+            --set-env-vars="MAILERSEND_FROM_NAME=ASAM" \
             --set-env-vars="RATE_LIMIT_RPS=10" \
             --set-env-vars="RATE_LIMIT_BURST=20" \
             --set-env-vars="LOG_SLOW_QUERIES=true" \
@@ -125,8 +123,7 @@ jobs:
             --set-secrets="JWT_REFRESH_SECRET=jwt-refresh-secret:latest" \
             --set-secrets="ADMIN_USER=admin-user:latest" \
             --set-secrets="ADMIN_PASSWORD=admin-password:latest" \
-            --set-secrets="SMTP_USER=smtp-user:latest" \
-            --set-secrets="SMTP_PASSWORD=smtp-password:latest" \
+            --set-secrets="MAILERSEND_API_KEY=mailersend-api-key:latest" \
             --cpu=1 \
             --memory=512Mi \
             --concurrency=80 \

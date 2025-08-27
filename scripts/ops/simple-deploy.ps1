@@ -96,13 +96,46 @@ switch ($Action) {
         # Deploy
         Write-Host "Desplegando..." -ForegroundColor Yellow
         
+        # Quitar la 'v' del tag si existe (Git usa v0.2.0, Docker usa 0.2.0)
+        $dockerTag = $version
+        if ($dockerTag -match "^v[0-9]") {
+            $dockerTag = $dockerTag.Substring(1)
+            Write-Host "  Usando tag Docker: $dockerTag (Git tag: $version)" -ForegroundColor Gray
+        }
+        
         gcloud run deploy asam-backend `
-            --image="gcr.io/babacar-asam/asam-backend:$version" `
+            --image="gcr.io/babacar-asam/asam-backend:$dockerTag" `
             --region=europe-west1 `
             --platform=managed `
             --memory=512Mi `
             --min-instances=0 `
-            --max-instances=2
+            --max-instances=2 `
+            --allow-unauthenticated `
+            --port=8080 `
+            --set-env-vars="ENVIRONMENT=production" `
+            --set-env-vars="DB_SSL_MODE=require" `
+            --set-env-vars="JWT_ACCESS_TTL=15m" `
+            --set-env-vars="JWT_REFRESH_TTL=168h" `
+            --set-env-vars="MAILERSEND_FROM_EMAIL=noreply@asam.org" `
+            --set-env-vars="MAILERSEND_FROM_NAME=ASAM" `
+            --set-env-vars="RATE_LIMIT_RPS=10" `
+            --set-env-vars="RATE_LIMIT_BURST=20" `
+            --set-env-vars="LOG_SLOW_QUERIES=true" `
+            --set-env-vars="SLOW_QUERY_THRESHOLD=100ms" `
+            --set-env-vars="LOG_SLOW_RESOLVERS=true" `
+            --set-env-vars="SLOW_RESOLVER_THRESHOLD=100ms" `
+            --set-env-vars="GQL_COMPLEXITY_LIMIT=1000" `
+            --set-env-vars="GQL_CONCURRENT_RESOLVERS=10" `
+            --set-secrets="DB_HOST=db-host:latest" `
+            --set-secrets="DB_PORT=db-port:latest" `
+            --set-secrets="DB_USER=db-user:latest" `
+            --set-secrets="DB_PASSWORD=db-password:latest" `
+            --set-secrets="DB_NAME=db-name:latest" `
+            --set-secrets="JWT_ACCESS_SECRET=jwt-access-secret:latest" `
+            --set-secrets="JWT_REFRESH_SECRET=jwt-refresh-secret:latest" `
+            --set-secrets="ADMIN_USER=admin-user:latest" `
+            --set-secrets="ADMIN_PASSWORD=admin-password:latest" `
+            --set-secrets="MAILERSEND_API_KEY=mailersend-api-key:latest"
             
         if ($LASTEXITCODE -eq 0) {
             Write-Host ""
