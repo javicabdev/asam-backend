@@ -1,11 +1,13 @@
 name: Deploy to Google Cloud Run
 
 # Este workflow despliega la aplicación a Google Cloud Run usando imágenes pre-construidas
-# Las imágenes se construyen automáticamente en el CI cuando se hace push a main
-# Puedes desplegar usando:
-# - 'latest': la última imagen construida de main
-# - SHA corto del commit (ej: 'a1b2c3d'): una versión específica
-# - Cualquier otro tag disponible en GCR
+# POLÍTICA DE DEPLOYMENT:
+# - staging: puede usar cualquier tag incluyendo 'latest' para pruebas rápidas
+# - production: SOLO versiones semánticas (v1.0.0, v2.1.3)
+# 
+# Las imágenes se construyen automáticamente:
+# - 'latest': cuando se hace push a main
+# - 'vX.Y.Z': cuando se crea un tag de release
 
 on:
   workflow_dispatch:
@@ -13,15 +15,14 @@ on:
       environment:
         description: 'Environment to deploy'
         required: true
-        default: 'production'
+        default: 'staging'
         type: choice
         options:
-          - production
           - staging
+          - production
       image_tag:
-        description: 'Docker image tag to deploy (e.g., latest, a1b2c3d, v1.0.0)'
-        required: false
-        default: 'latest'
+        description: 'Docker image tag (staging: any, production: vX.Y.Z only)'
+        required: true
         type: string
       run_migrations:
         description: 'Run database migrations'
@@ -36,15 +37,15 @@ env:
   GO_VERSION: '1.25'
 
 concurrency:
-  group: production-deploy
+  group: ${{ github.event.inputs.environment }}-deploy
   cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Deploy to Cloud Run
+    name: Deploy to Cloud Run - ${{ github.event.inputs.environment }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: production
+    environment: ${{ github.event.inputs.environment }}
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -54,15 +55,59 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Validate deployment tag
+        run: |
+          IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          
+          echo "Validating deployment..."
+          echo "Environment: $ENVIRONMENT"
+          echo "Image tag: $IMAGE_TAG"
+          
+          if [[ "$ENVIRONMENT" == "production" ]]; then
+            # Producción requiere tags semánticos
+            if [[ ! "$IMAGE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ ]]; then
+              echo "❌ ERROR: Production requires semantic version tags"
+              echo "   Valid examples: v1.0.0, v2.1.3, v1.0.0-hotfix1"
+              echo "   Invalid: latest, main, dev, abc123"
+              echo ""
+              echo "Available version tags:"
+              gcloud container images list-tags gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }} \
+                --filter="tags ~ '^v[0-9]'" \
+                --limit=10 \
+                --format="table(tags,timestamp)"
+              exit 1
+            fi
+            echo "✅ Valid production tag: $IMAGE_TAG"
+          else
+            # Staging acepta cualquier tag
+            echo "✅ Staging deployment - any tag allowed"
+            if [[ "$IMAGE_TAG" == "latest" ]]; then
+              echo "⚠️  Warning: Using 'latest' tag - contents may change unexpectedly"
+            fi
+          fi
+
       - name: Determine image to deploy
         id: image
         run: |
-          IMAGE_TAG="${{ github.event.inputs.image_tag || 'latest' }}"
+          IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          
+          # Determinar el nombre del servicio según el ambiente
+          if [[ "$ENVIRONMENT" == "staging" ]]; then
+            SERVICE_SUFFIX="-staging"
+          else
+            SERVICE_SUFFIX=""
+          fi
+          
           GCR_IMAGE="gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${IMAGE_TAG}"
+          SERVICE_NAME="${{ env.SERVICE_NAME }}${SERVICE_SUFFIX}"
           
           echo "Image to deploy: $GCR_IMAGE"
+          echo "Service name: $SERVICE_NAME"
           echo "gcr_image=$GCR_IMAGE" >> $GITHUB_OUTPUT
           echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "service_name=$SERVICE_NAME" >> $GITHUB_OUTPUT
 
       - name: Verify image exists
         run: |
@@ -81,7 +126,7 @@ jobs:
         run: |
           echo "Deploying image: ${{ steps.image.outputs.gcr_image }}"
 
-          gcloud run deploy ${{ env.SERVICE_NAME }} \
+          gcloud run deploy ${{ steps.image.outputs.service_name }} \
             --image="${{ steps.image.outputs.gcr_image }}" \
             --region=${{ env.REGION }} \
             --platform=managed \
@@ -125,7 +170,7 @@ jobs:
       - name: Get service URL
         id: service
         run: |
-          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+          SERVICE_URL=$(gcloud run services describe ${{ steps.image.outputs.service_name }} \
             --region=${{ env.REGION }} \
             --format='value(status.url)')
           echo "url=$SERVICE_URL" >> $GITHUB_OUTPUT
@@ -155,7 +200,7 @@ jobs:
           echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Service Details" >> $GITHUB_STEP_SUMMARY
-          echo "- **Service**: \`${{ env.SERVICE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service**: \`${{ steps.image.outputs.service_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment**: \`${{ github.event.inputs.environment }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Region**: \`${{ env.REGION }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **URL**: ${{ steps.service.outputs.url }}" >> $GITHUB_STEP_SUMMARY

@@ -1,214 +1,143 @@
-# ASAM Backend - Deployment Guide
+# Guía de Deployment - ASAM Backend
 
-## Prerequisites
+## 📋 Política de Deployment
 
-- Google Cloud SDK installed and configured
-- Docker installed (for local builds)
-- Access to the Google Cloud project
-- PostgreSQL database already configured (Aiven)
+### Ambientes
 
-## Quick Start - Pre-deployment Check
+| Ambiente | Tags Permitidos | Ejemplo | Uso |
+|----------|----------------|---------|-----|
+| **staging** | Cualquier tag | `latest`, `dev`, `feature-xyz`, `v1.0.0-rc1` | Pruebas, QA, demos |
+| **production** | Solo semánticos | `v1.0.0`, `v2.1.3`, `v1.0.0-hotfix1` | Usuarios finales |
 
-Before deploying, run the pre-deployment check script to ensure everything is configured correctly:
+### Reglas de Versionado
+
+Usamos [Semantic Versioning](https://semver.org/):
+- **MAJOR** (v**X**.0.0): Cambios incompatibles de API
+- **MINOR** (v1.**X**.0): Nueva funcionalidad compatible
+- **PATCH** (v1.0.**X**): Corrección de bugs
+
+## 🚀 Proceso de Release
+
+### 1. Development → Staging
+
+```bash
+# Para pruebas rápidas (NO recomendado para features completas)
+git push origin main
+# Automáticamente crea imagen con tag 'latest'
+
+# Para features completas (RECOMENDADO)
+git tag -a v1.0.0-rc1 -m "Release candidate 1"
+git push origin v1.0.0-rc1
+```
+
+### 2. Staging → Production
+
+```bash
+# Crear release final
+git tag -a v1.0.0 -m "Release v1.0.0: Add payment notifications"
+git push origin v1.0.0
+
+# El workflow de release:
+# 1. Valida el código
+# 2. Crea GitHub Release
+# 3. Construye imagen Docker con tag v1.0.0
+# 4. La sube a GCR
+```
+
+### 3. Deploy a Production
+
+1. Ir a GitHub Actions → "Deploy to Google Cloud Run"
+2. Click "Run workflow"
+3. Configurar:
+   - **environment**: `production`
+   - **image_tag**: `v1.0.0` (NUNCA `latest`)
+   - **run_migrations**: ✓ si hay cambios de BD
+
+## 🔍 Verificación
+
+### Verificar Deployment Actual
 
 ```powershell
-# Windows
-.\scripts\gcp\pre-deploy-check.ps1 -ProjectId YOUR-PROJECT-ID
+# Ver qué está corriendo en cada ambiente
+.\scripts\ops\check-environments.ps1
 
-# Linux/Mac
-./scripts/gcp/pre-deploy-check.sh YOUR-PROJECT-ID
+# Validar antes de deployar
+.\scripts\ops\validate-deployment.ps1 -Environment production -ImageTag v1.0.0
 ```
 
-This script will verify:
-- Google Cloud SDK installation and authentication
-- Required APIs are enabled
-- Service account exists with correct permissions
-- All required secrets are configured
-- Docker images availability
-
-## Environment Variables
-
-The application requires the following environment variables in production:
-
-### Required Variables
-
-- `ENVIRONMENT`: Set to "production"
-- `ADMIN_USER`: Administrator username for accessing protected endpoints
-- `ADMIN_PASSWORD`: Administrator password
-- `JWT_ACCESS_SECRET`: Secret key for JWT access tokens (auto-generated)
-- `JWT_REFRESH_SECRET`: Secret key for JWT refresh tokens (auto-generated)
-
-**Important**: Do NOT set the `PORT` variable. Cloud Run automatically assigns and manages this variable.
-
-### Optional Variables
-
-- `SMTP_USER`: SMTP username for email notifications (optional)
-- `SMTP_PASSWORD`: SMTP password for email notifications (optional)
-
-If SMTP credentials are not provided, the notification service will be disabled but the application will continue to function.
-
-## Database Secrets Configuration
-
-Before deploying, ensure all database secrets are configured in Google Secret Manager:
+### Rollback de Emergencia
 
 ```powershell
-# Windows - Verify and create secrets
-.\scripts\gcp\verify-db-secrets.ps1 -ProjectId YOUR-PROJECT-ID -CreateSecrets
-
-# Linux/Mac - Verify and create secrets
-./scripts/gcp/verify-db-secrets.sh YOUR-PROJECT-ID --create-secrets
+# Si algo sale mal, volver a versión anterior
+gcloud run deploy asam-backend `
+  --image=gcr.io/babacar-asam/asam-backend:v0.9.9 `
+  --region=europe-west1
 ```
 
-Required secrets:
-- `db-host`: PostgreSQL host (e.g., pg-xxx.aivencloud.com)
-- `db-port`: PostgreSQL port (e.g., 14276)
-- `db-user`: Database user (e.g., avnadmin)
-- `db-password`: Database password
-- `db-name`: Database name (e.g., defaultdb)
+## ⚠️ Errores Comunes
 
-## Deployment Steps
+| Error | Causa | Solución |
+|-------|-------|----------|
+| "Cannot deploy latest to production" | Intentar usar `latest` en prod | Usar tag semántico |
+| "Image not found" | El tag no existe en GCR | Verificar con `gcloud container images list-tags` |
+| "Invalid version format" | Tag mal formateado | Usar formato `vX.Y.Z` |
 
-### 1. Fix Lint Issues (if any)
+## 📊 Historial de Deployments
 
-The project uses golangci-lint v2.1.6. If you encounter lint issues, they are configured in `.golangci.yml`.
-
-### 2. Deploy to Cloud Run
-
-The deployment is automated through GitHub Actions. To deploy:
-
-1. Go to your repository on GitHub
-2. Navigate to Actions tab
-3. Select "Deploy to Google Cloud Run" workflow
-4. Click "Run workflow"
-5. Select options:
-   - Environment: production or staging
-   - Image tag: latest or specific version
-   - Run migrations: check if you need to run database migrations
-
-You can also deploy manually:
+Ver deployments anteriores:
 
 ```bash
-# Build and push to Google Container Registry
-gcloud builds submit --tag gcr.io/YOUR-PROJECT-ID/asam-backend
+# Últimas 10 revisiones
+gcloud run revisions list --service=asam-backend --region=europe-west1 --limit=10
 
-# Deploy to Cloud Run
-gcloud run deploy asam-backend \
-  --image gcr.io/YOUR-PROJECT-ID/asam-backend \
-  --region europe-west1 \
-  --platform managed \
-  --allow-unauthenticated
+# Con detalles de imagen
+gcloud run revisions list --service=asam-backend --region=europe-west1 \
+  --format="table(metadata.name,metadata.creationTimestamp,metadata.labels.'image-tag')"
 ```
 
-### 3. Configure Environment Variables
+## 🏗️ Arquitectura de Ambientes
 
-After deployment, you need to set the required environment variables.
-
-#### On Windows (PowerShell):
-
-```powershell
-# Run the PowerShell script
-.\scripts\Set-CloudRunEnv.ps1
+```
+┌─────────────┐     ┌─────────────┐     ┌──────────────┐
+│   GitHub    │────▶│   Staging   │────▶│  Production  │
+│    Repo     │     │  (latest)   │     │   (vX.Y.Z)   │
+└─────────────┘     └─────────────┘     └──────────────┘
+      │                    │                     │
+      │                    ▼                     ▼
+      │             asam-backend-         asam-backend
+      │               staging
+      │                    
+      ▼                    
+  Google Container Registry
+    - latest
+    - v1.0.0
+    - v1.0.1
+    - etc.
 ```
 
-#### On Linux/Mac:
+## 🔒 Seguridad
 
-```bash
-# Run the bash script
-./scripts/set-cloudrun-env.sh
-```
+- **Secretos**: Todos en Google Secret Manager
+- **Acceso**: Solo GitHub Actions puede deployar
+- **Auditoría**: Todos los deployments quedan registrados en Cloud Run
 
-The script will:
-- Generate secure random JWT secrets
-- Prompt you for admin credentials
-- Optionally configure SMTP settings
-- Update the Cloud Run service with these variables
+## 📝 Checklist Pre-Deployment
 
-### 4. Verify Deployment
+### Para Staging
+- [ ] Código mergeado a `main`
+- [ ] Tests pasando en CI
+- [ ] Imagen disponible en GCR
 
-Check the service health:
+### Para Production
+- [ ] Probado en staging
+- [ ] Tag semántico creado
+- [ ] Release notes actualizadas
+- [ ] Backup de BD realizado (si aplica)
+- [ ] Plan de rollback definido
 
-```bash
-# Get the service URL
-gcloud run services describe asam-backend --region europe-west1 --format 'value(status.url)'
+## 🆘 Soporte
 
-# Test the health endpoint
-curl https://YOUR-SERVICE-URL/health
-```
-
-## Troubleshooting
-
-For detailed troubleshooting guide, see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
-
-### Common Issues
-
-#### Database Migration Errors
-
-If migrations fail with "connection parameters not found":
-1. Verify secrets are configured: `.\scripts\gcp\verify-db-secrets.ps1 -ProjectId YOUR-PROJECT-ID`
-2. The workflow exports variables with both `DB_` and `POSTGRES_` prefixes for compatibility
-3. Check the migration logs in GitHub Actions for specific errors
-
-#### Service Account Permission Issues
-
-If you see permission errors:
-```bash
-gcloud projects add-iam-policy-binding YOUR-PROJECT-ID \
-  --member='serviceAccount:github-actions-deploy@YOUR-PROJECT-ID.iam.gserviceaccount.com' \
-  --role='roles/secretmanager.secretAccessor'
-```
-
-#### Build Failures
-
-If the Docker build fails:
-- Ensure all GraphQL schema files are present
-- Check that the image tag format is correct
-- Verify Container Registry API is enabled
-
-## Security Notes
-
-1. **JWT Secrets**: The configuration scripts generate cryptographically secure random secrets. Store these safely.
-
-2. **Admin Credentials**: Choose strong credentials for the admin user. These are used to access:
-   - `/debug/*` endpoints in production
-   - Other protected administrative endpoints
-
-3. **Database**: The database password is set through Cloud Run build triggers and should not be committed to the repository.
-
-## Monitoring
-
-Once deployed, you can monitor the application through:
-
-- **Logs**: `gcloud run services logs read asam-backend --region europe-west1`
-- **Metrics**: Available at `/metrics` endpoint (Prometheus format)
-- **Health**: `/health` endpoint provides detailed health status
-- **Cloud Run Console**: View metrics, logs, and revisions in the GCP Console
-
-### Useful Commands
-
-```bash
-# View service details
-gcloud run services describe asam-backend --region europe-west1
-
-# Stream logs in real-time
-gcloud run services logs tail asam-backend --region europe-west1
-
-# List all revisions
-gcloud run revisions list --service asam-backend --region europe-west1
-
-# Check current traffic allocation
-gcloud run services describe asam-backend --region europe-west1 --format="value(spec.traffic[].percent)"
-```
-
-## Rolling Back
-
-If you need to rollback to a previous version:
-
-```bash
-# List revisions
-gcloud run revisions list --service asam-backend --region europe-west1
-
-# Route traffic to a previous revision
-gcloud run services update-traffic asam-backend \
-  --region europe-west1 \
-  --to-revisions REVISION-NAME=100
-```
+Si tienes problemas con el deployment:
+1. Revisar logs: `gcloud run logs read asam-backend --region=europe-west1`
+2. Verificar imagen: `gcloud container images list-tags gcr.io/babacar-asam/asam-backend`
+3. Contactar al equipo de DevOps
