@@ -69,3 +69,4 @@ _archived/
 gosec-report.json
 gosec-report.txt
 /github-actions-sa-key.json
+/docsTemp/

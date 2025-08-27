@@ -1,171 +1,156 @@
-# Scripts de Operaciones - ASAM Backend
+# Scripts de Operaciones - ASAM Backend (Simplificado)
 
-Esta carpeta contiene scripts para gestionar el deployment y operaciones del backend de ASAM.
+Scripts para gestión simple y directa del backend de ASAM.
 
-## 📋 Scripts Disponibles
+## 🚀 Scripts Principales
 
-### 🚀 Deployment y CI/CD
-
-#### `validate-deployment.ps1`
-Valida que un deployment sea seguro antes de ejecutarlo.
+### `simple-deploy.ps1`
+Tu herramienta principal para todo lo relacionado con deployment.
 
 ```powershell
-# Validar deployment a producción
-.\validate-deployment.ps1 -Environment production -ImageTag v1.0.0
+# Ver qué está desplegado
+.\simple-deploy.ps1 status
 
-# Validar deployment a staging
-.\validate-deployment.ps1 -Environment staging -ImageTag latest
+# Hacer deploy (interactivo)
+.\simple-deploy.ps1 deploy
+
+# Ver logs en tiempo real
+.\simple-deploy.ps1 logs
+
+# Rollback si algo sale mal
+.\simple-deploy.ps1 rollback
 ```
 
-#### `check-environments.ps1`
-Muestra el estado actual de todos los ambientes (staging y production).
+### `test-data.ps1`
+Gestión de datos de prueba durante desarrollo.
 
 ```powershell
-.\check-environments.ps1
+# Cargar datos de prueba (con sufijo TEST)
+.\test-data.ps1 load
+
+# Ver estado de los datos
+.\test-data.ps1 status
+
+# Limpiar datos TEST cuando estés listo
+.\test-data.ps1 clear
 ```
 
-Output esperado:
-- URL de cada ambiente
-- Versión/tag desplegado
-- Estado de salud
-- Warnings si production usa 'latest'
-
-#### `manage-releases.ps1`
-Gestiona la creación y verificación de releases.
+### `backup-database.ps1`
+Crear backups de la base de datos.
 
 ```powershell
-# Ver estado actual y sugerencias
-.\manage-releases.ps1 check
-
-# Crear un nuevo release interactivamente
-.\manage-releases.ps1 create
-
-# Listar releases disponibles
-.\manage-releases.ps1 list
+# Hacer backup (se guarda con timestamp)
+.\backup-database.ps1
 ```
 
-### 🔧 Utilidades
-
-#### `build.ps1`
-Construye la aplicación localmente.
+### `reset-database.ps1`
+⚠️ PELIGROSO: Resetea completamente la BD.
 
 ```powershell
+# Borra TODO y reinicia la BD
+.\reset-database.ps1
+```
+
+### `monitor-usage.ps1`
+Verificar que te mantienes en la capa gratuita.
+
+```powershell
+# Ver uso y costos estimados
+.\monitor-usage.ps1
+```
+
+## 🔧 Scripts de Desarrollo
+
+### `build.ps1`
+```powershell
+# Compilar el binario localmente
 .\build.ps1
 ```
 
-#### `clean.ps1`
-Limpia archivos temporales y build artifacts.
-
+### `clean.ps1`
 ```powershell
+# Limpiar archivos temporales
 .\clean.ps1
 ```
 
-#### `run.ps1`
-Ejecuta la aplicación en modo desarrollo.
-
+### `run.ps1`
 ```powershell
+# Ejecutar en modo desarrollo
 .\run.ps1
 ```
 
-### ☁️ Google Cloud Platform
+## 📁 Carpeta GCP
 
-Los scripts en la subcarpeta `gcp/` son para gestión de GCP:
-
-- `pre-deploy-check.ps1` - Verifica configuración antes de deploy
-- `verify-db-secrets.ps1` - Valida secretos de base de datos
-- `verify-setup.ps1` - Verifica la configuración completa de GCP
+Los scripts en `gcp/` son para configuración inicial:
+- `pre-deploy-check.ps1` - Verificar antes del primer deploy
+- `verify-db-secrets.ps1` - Validar secretos de BD
+- `verify-setup.ps1` - Verificar configuración de GCP
 
 ## 🎯 Flujo de Trabajo Típico
 
-### 1. Desarrollo Local
 ```powershell
-# Limpiar y construir
-.\clean.ps1
-.\build.ps1
-
-# Ejecutar localmente
+# 1. Desarrollar y probar local
 .\run.ps1
+
+# 2. Ver estado actual
+.\simple-deploy.ps1 status
+
+# 3. Deploy (usar 'latest' durante desarrollo)
+.\simple-deploy.ps1 deploy
+
+# 4. Cargar datos de prueba
+.\test-data.ps1 load
+
+# 5. Ver logs si hay problemas
+.\simple-deploy.ps1 logs
+
+# 6. Cuando esté listo, limpiar datos TEST
+.\test-data.ps1 clear
 ```
 
-### 2. Preparar Release
-```powershell
-# Verificar estado
-.\manage-releases.ps1 check
+## 🏷️ Versionado Simple
 
-# Crear release
-.\manage-releases.ps1 create
-# Seleccionar tipo (patch/minor/major)
-# Confirmar
+Durante desarrollo:
+```powershell
+# Deploy con 'latest'
+.\simple-deploy.ps1 deploy
+# Seleccionar: L
 ```
 
-### 3. Deploy a Staging
+Para marcar hitos:
 ```powershell
-# Automático al pushear a main
-git push origin main
+# Crear tag
+git tag -a v0.2.0 -m "40% frontend completo"
+git push origin v0.2.0
 
-# O manual con cualquier tag
-.\validate-deployment.ps1 -Environment staging -ImageTag latest
-```
-
-### 4. Deploy a Production
-```powershell
-# Validar primero
-.\validate-deployment.ps1 -Environment production -ImageTag v1.0.0
-
-# Si es válido, ir a GitHub Actions
-# O usar gcloud directamente (no recomendado)
-```
-
-### 5. Verificar Estado
-```powershell
-# Ver todos los ambientes
-.\check-environments.ps1
-
-# Ver logs de producción
-gcloud run logs tail asam-backend --region=europe-west1
-```
-
-## ⚠️ Reglas Importantes
-
-1. **NUNCA** usar `latest` en producción
-2. **SIEMPRE** validar antes de deployar
-3. **SIEMPRE** probar en staging primero
-4. Los releases se crean desde la rama `main`
-5. Los tags deben seguir formato semántico: `vX.Y.Z`
-
-## 🔒 Requisitos
-
-- PowerShell 5.1 o superior
-- Google Cloud SDK instalado y configurado
-- Git configurado
-- Permisos en el proyecto GCP `babacar-asam`
-
-## 🆘 Troubleshooting
-
-### Error: "gcloud: command not found"
-```powershell
-# Instalar Google Cloud SDK
-# https://cloud.google.com/sdk/docs/install
-```
-
-### Error: "You do not have permission"
-```powershell
-# Autenticarse
-gcloud auth login
-
-# Configurar proyecto
-gcloud config set project babacar-asam
-```
-
-### Error: "Image not found"
-```powershell
-# Verificar imágenes disponibles
-gcloud container images list-tags gcr.io/babacar-asam/asam-backend
+# Deploy de esa versión
+.\simple-deploy.ps1 deploy
+# Seleccionar el número
 ```
 
 ## 📝 Notas
 
-- Los scripts asumen que el proyecto GCP es `babacar-asam`
-- La región por defecto es `europe-west1`
-- El servicio de producción es `asam-backend`
-- El servicio de staging es `asam-backend-staging`
+- **Proyecto GCP**: babacar-asam
+- **Región**: europe-west1
+- **Servicio**: asam-backend
+- **URL**: https://asam-backend-jtpswzdxuq-ew.a.run.app
+
+## 💡 Tips
+
+- Los datos de prueba tienen sufijo "TEST" para identificarlos
+- El deploy pregunta si quieres hacer backup primero
+- Con `min-instances=0` el servicio se apaga sin tráfico (0€)
+
+## 🆘 Problemas Comunes
+
+**"gcloud: command not found"**
+→ Instala [Google Cloud SDK](https://cloud.google.com/sdk/docs/install)
+
+**"You do not have permission"**
+```powershell
+gcloud auth login
+gcloud config set project babacar-asam
+```
+
+**"Image not found"**
+→ La imagen con ese tag no existe. Usa `latest` o crea un tag primero.
