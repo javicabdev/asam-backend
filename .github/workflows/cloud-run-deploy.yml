@@ -1,28 +1,16 @@
 name: Deploy to Google Cloud Run
 
-# Este workflow despliega la aplicación a Google Cloud Run usando imágenes pre-construidas
-# POLÍTICA DE DEPLOYMENT:
-# - staging: puede usar cualquier tag incluyendo 'latest' para pruebas rápidas
-# - production: SOLO versiones semánticas (v1.0.0, v2.1.3)
-# 
-# Las imágenes se construyen automáticamente:
-# - 'latest': cuando se hace push a main
-# - 'vX.Y.Z': cuando se crea un tag de release
+# Workflow simplificado para un solo ambiente (production)
+# POLÍTICA: Durante desarrollo se puede usar 'latest', 
+# pero se recomienda usar versiones semánticas para producción real
 
 on:
   workflow_dispatch:
     inputs:
-      environment:
-        description: 'Environment to deploy'
-        required: true
-        default: 'staging'
-        type: choice
-        options:
-          - staging
-          - production
       image_tag:
-        description: 'Docker image tag (staging: any, production: vX.Y.Z only)'
+        description: 'Docker image tag (ej: latest, v0.2.0)'
         required: true
+        default: 'latest'
         type: string
       run_migrations:
         description: 'Run database migrations'
@@ -37,15 +25,15 @@ env:
   GO_VERSION: '1.25'
 
 concurrency:
-  group: ${{ github.event.inputs.environment }}-deploy
+  group: production-deploy
   cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Deploy to Cloud Run - ${{ github.event.inputs.environment }}
+    name: Deploy to Production
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: ${{ github.event.inputs.environment }}
+    environment: production
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -58,80 +46,61 @@ jobs:
       - name: Validate deployment tag
         run: |
           IMAGE_TAG="${{ github.event.inputs.image_tag }}"
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
           
-          echo "Validating deployment..."
-          echo "Environment: $ENVIRONMENT"
+          echo "=== Deployment Info ==="
           echo "Image tag: $IMAGE_TAG"
+          echo "Service: ${{ env.SERVICE_NAME }}"
+          echo "Region: ${{ env.REGION }}"
+          echo ""
           
-          if [[ "$ENVIRONMENT" == "production" ]]; then
-            # Producción requiere tags semánticos
-            if [[ ! "$IMAGE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ ]]; then
-              echo "❌ ERROR: Production requires semantic version tags"
-              echo "   Valid examples: v1.0.0, v2.1.3, v1.0.0-hotfix1"
-              echo "   Invalid: latest, main, dev, abc123"
-              echo ""
-              echo "Available version tags:"
-              gcloud container images list-tags gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }} \
-                --filter="tags ~ '^v[0-9]'" \
-                --limit=10 \
-                --format="table(tags,timestamp)"
-              exit 1
-            fi
-            echo "✅ Valid production tag: $IMAGE_TAG"
+          # Warning si se usa latest
+          if [[ "$IMAGE_TAG" == "latest" ]]; then
+            echo "⚠️  WARNING: Using 'latest' tag"
+            echo "   This is OK for development but use version tags for production releases"
+            echo "   Example: v0.2.0, v1.0.0"
+          elif [[ "$IMAGE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ ]]; then
+            echo "✅ Using semantic version: $IMAGE_TAG"
           else
-            # Staging acepta cualquier tag
-            echo "✅ Staging deployment - any tag allowed"
-            if [[ "$IMAGE_TAG" == "latest" ]]; then
-              echo "⚠️  Warning: Using 'latest' tag - contents may change unexpectedly"
-            fi
-          fi
-
-      - name: Determine image to deploy
-        id: image
-        run: |
-          IMAGE_TAG="${{ github.event.inputs.image_tag }}"
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
-          
-          # Determinar el nombre del servicio según el ambiente
-          if [[ "$ENVIRONMENT" == "staging" ]]; then
-            SERVICE_SUFFIX="-staging"
-          else
-            SERVICE_SUFFIX=""
+            echo "ℹ️  Using custom tag: $IMAGE_TAG"
           fi
           
-          GCR_IMAGE="gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${IMAGE_TAG}"
-          SERVICE_NAME="${{ env.SERVICE_NAME }}${SERVICE_SUFFIX}"
-          
-          echo "Image to deploy: $GCR_IMAGE"
-          echo "Service name: $SERVICE_NAME"
-          echo "gcr_image=$GCR_IMAGE" >> $GITHUB_OUTPUT
-          echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo "service_name=$SERVICE_NAME" >> $GITHUB_OUTPUT
+          echo ""
+          echo "Available tags in registry:"
+          gcloud container images list-tags gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }} \
+            --limit=10 \
+            --format="table(tags,timestamp)"
 
       - name: Verify image exists
         run: |
-          echo "Verifying image exists in registry..."
-          if gcloud container images describe ${{ steps.image.outputs.gcr_image }} > /dev/null 2>&1; then
-            echo "✅ Image found: ${{ steps.image.outputs.gcr_image }}"
+          IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+          GCR_IMAGE="gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${IMAGE_TAG}"
+          
+          echo "Verifying image: $GCR_IMAGE"
+          if gcloud container images describe $GCR_IMAGE > /dev/null 2>&1; then
+            echo "✅ Image found"
           else
-            echo "❌ Error: Image not found: ${{ steps.image.outputs.gcr_image }}"
-            echo "Available tags for this repository:"
-            gcloud container images list-tags gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }} --limit=10 --format="table(tags,timestamp)"
+            echo "❌ Error: Image not found: $GCR_IMAGE"
+            echo ""
+            echo "Build the image first with:"
+            echo "  Push to main for 'latest' tag"
+            echo "  Or create a git tag for version tags"
             exit 1
           fi
 
       - name: Deploy to Cloud Run
         id: deploy
         run: |
-          echo "Deploying image: ${{ steps.image.outputs.gcr_image }}"
+          IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+          GCR_IMAGE="gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${IMAGE_TAG}"
+          
+          echo "Deploying: $GCR_IMAGE"
 
-          gcloud run deploy ${{ steps.image.outputs.service_name }} \
-            --image="${{ steps.image.outputs.gcr_image }}" \
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image="${GCR_IMAGE}" \
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
-            --set-env-vars="ENVIRONMENT=${{ github.event.inputs.environment }}" \
+            --set-env-vars="ENVIRONMENT=production" \
             --set-env-vars="DB_SSL_MODE=require" \
             --set-env-vars="JWT_ACCESS_TTL=15m" \
             --set-env-vars="JWT_REFRESH_TTL=168h" \
@@ -162,7 +131,7 @@ jobs:
             --memory=512Mi \
             --concurrency=80 \
             --min-instances=0 \
-            --max-instances=3 \
+            --max-instances=2 \
             --timeout=60s \
             --labels="managed-by=github-actions,image-tag=${IMAGE_TAG},deployed-at=$(date -u +%Y%m%d-%H%M%S)" \
             --quiet
@@ -170,7 +139,7 @@ jobs:
       - name: Get service URL
         id: service
         run: |
-          SERVICE_URL=$(gcloud run services describe ${{ steps.image.outputs.service_name }} \
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
             --region=${{ env.REGION }} \
             --format='value(status.url)')
           echo "url=$SERVICE_URL" >> $GITHUB_OUTPUT
@@ -190,7 +159,7 @@ jobs:
             sleep $SLEEP_TIME
           done
           
-          # Final check with detailed output
+          # Final check
           echo ""
           echo "Final health check:"
           curl -s "${{ steps.service.outputs.url }}/health" | jq '.' || echo "Failed to get health status"
@@ -200,15 +169,15 @@ jobs:
           echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Service Details" >> $GITHUB_STEP_SUMMARY
-          echo "- **Service**: \`${{ steps.image.outputs.service_name }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Environment**: \`${{ github.event.inputs.environment }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Region**: \`${{ env.REGION }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **URL**: ${{ steps.service.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Tag**: \`${{ github.event.inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Region**: \`${{ env.REGION }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Docker Image" >> $GITHUB_STEP_SUMMARY
-          echo "- **Registry**: Google Container Registry" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image**: \`${{ steps.image.outputs.gcr_image }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tag**: \`${{ steps.image.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "### Resources" >> $GITHUB_STEP_SUMMARY
+          echo "- **CPU**: 1 vCPU" >> $GITHUB_STEP_SUMMARY
+          echo "- **Memory**: 512Mi" >> $GITHUB_STEP_SUMMARY
+          echo "- **Min Instances**: 0 (scales to zero)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Max Instances**: 2" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Deployment Info" >> $GITHUB_STEP_SUMMARY
           echo "- **Deployed by**: @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
@@ -240,186 +209,36 @@ jobs:
 
       - name: Get database secrets
         run: |
-          echo "Obteniendo secretos de la base de datos..."
+          echo "Getting database secrets..."
           
-          # Obtener y verificar cada secreto, limpiando caracteres de control
           DB_HOST_VALUE=$(gcloud secrets versions access latest --secret=db-host 2>&1 | tr -d '\r\n')
-          if [[ $? -ne 0 ]]; then
-            echo "❌ Error: No se pudo obtener db-host"
-            echo "Detalles: $DB_HOST_VALUE"
-            exit 1
-          fi
-          echo "✅ db-host obtenido"
-          
           DB_PORT_VALUE=$(gcloud secrets versions access latest --secret=db-port 2>&1 | tr -d '\r\n')
-          if [[ $? -ne 0 ]]; then
-            echo "❌ Error: No se pudo obtener db-port"
-            echo "Detalles: $DB_PORT_VALUE"
-            exit 1
-          fi
-          echo "✅ db-port obtenido"
-          
           DB_USER_VALUE=$(gcloud secrets versions access latest --secret=db-user 2>&1 | tr -d '\r\n')
-          if [[ $? -ne 0 ]]; then
-            echo "❌ Error: No se pudo obtener db-user"
-            echo "Detalles: $DB_USER_VALUE"
-            exit 1
-          fi
-          echo "✅ db-user obtenido"
-          
           DB_PASSWORD_VALUE=$(gcloud secrets versions access latest --secret=db-password 2>&1 | tr -d '\r\n')
-          if [[ $? -ne 0 ]]; then
-            echo "❌ Error: No se pudo obtener db-password"
-            echo "Detalles: $DB_PASSWORD_VALUE"
-            exit 1
-          fi
-          echo "✅ db-password obtenido"
-          
           DB_NAME_VALUE=$(gcloud secrets versions access latest --secret=db-name 2>&1 | tr -d '\r\n')
-          if [[ $? -ne 0 ]]; then
-            echo "❌ Error: No se pudo obtener db-name"
-            echo "Detalles: $DB_NAME_VALUE"
-            exit 1
-          fi
-          echo "✅ db-name obtenido"
           
-          # Agregar máscaras para valores sensibles
           echo "::add-mask::$DB_HOST_VALUE"
           echo "::add-mask::$DB_PASSWORD_VALUE"
           
-          # Exportar con ambos prefijos para compatibilidad
-          # Primero con prefijo DB_
           echo "DB_HOST=$DB_HOST_VALUE" >> $GITHUB_ENV
           echo "DB_PORT=$DB_PORT_VALUE" >> $GITHUB_ENV
           echo "DB_USER=$DB_USER_VALUE" >> $GITHUB_ENV
           echo "DB_PASSWORD=$DB_PASSWORD_VALUE" >> $GITHUB_ENV
           echo "DB_NAME=$DB_NAME_VALUE" >> $GITHUB_ENV
           
-          # También con prefijo POSTGRES_ para compatibilidad con el código de migración
           echo "POSTGRES_HOST=$DB_HOST_VALUE" >> $GITHUB_ENV
           echo "POSTGRES_PORT=$DB_PORT_VALUE" >> $GITHUB_ENV
           echo "POSTGRES_USER=$DB_USER_VALUE" >> $GITHUB_ENV
           echo "POSTGRES_PASSWORD=$DB_PASSWORD_VALUE" >> $GITHUB_ENV
           echo "POSTGRES_DB=$DB_NAME_VALUE" >> $GITHUB_ENV
           
-          echo ""
-          echo "✅ Todos los secretos obtenidos y exportados correctamente"
-
-      - name: Verify environment variables
-        run: |
-          echo "Verificando variables de entorno..."
-          echo ""
-          echo "=== Variables con prefijo DB_ ==="
-          
-          # Verificar variables DB_
-          if [[ -z "$DB_HOST" ]]; then
-            echo "❌ Error: DB_HOST no está configurado"
-            exit 1
-          fi
-          echo "✅ DB_HOST configurado"
-          
-          if [[ -z "$DB_PORT" ]]; then
-            echo "❌ Error: DB_PORT no está configurado"
-            exit 1
-          fi
-          echo "✅ DB_PORT configurado: $DB_PORT"
-          
-          if [[ -z "$DB_USER" ]]; then
-            echo "❌ Error: DB_USER no está configurado"
-            exit 1
-          fi
-          echo "✅ DB_USER configurado: $DB_USER"
-          
-          if [[ -z "$DB_PASSWORD" ]]; then
-            echo "❌ Error: DB_PASSWORD no está configurado"
-            exit 1
-          fi
-          echo "✅ DB_PASSWORD configurado (oculto)"
-          
-          if [[ -z "$DB_NAME" ]]; then
-            echo "❌ Error: DB_NAME no está configurado"
-            exit 1
-          fi
-          echo "✅ DB_NAME configurado: $DB_NAME"
-          
-          echo ""
-          echo "=== Variables con prefijo POSTGRES_ ==="
-          
-          # Verificar variables POSTGRES_
-          if [[ -z "$POSTGRES_HOST" ]]; then
-            echo "❌ Error: POSTGRES_HOST no está configurado"
-            exit 1
-          fi
-          echo "✅ POSTGRES_HOST configurado"
-          
-          if [[ -z "$POSTGRES_PORT" ]]; then
-            echo "❌ Error: POSTGRES_PORT no está configurado"
-            exit 1
-          fi
-          echo "✅ POSTGRES_PORT configurado: $POSTGRES_PORT"
-          
-          if [[ -z "$POSTGRES_USER" ]]; then
-            echo "❌ Error: POSTGRES_USER no está configurado"
-            exit 1
-          fi
-          echo "✅ POSTGRES_USER configurado: $POSTGRES_USER"
-          
-          if [[ -z "$POSTGRES_PASSWORD" ]]; then
-            echo "❌ Error: POSTGRES_PASSWORD no está configurado"
-            exit 1
-          fi
-          echo "✅ POSTGRES_PASSWORD configurado (oculto)"
-          
-          if [[ -z "$POSTGRES_DB" ]]; then
-            echo "❌ Error: POSTGRES_DB no está configurado"
-            exit 1
-          fi
-          echo "✅ POSTGRES_DB configurado: $POSTGRES_DB"
-          
-          echo ""
-          echo "✅ Todas las variables de entorno están configuradas correctamente"
-          echo ""
-          echo "SSL Mode configurado: ${DB_SSL_MODE:-no configurado}"
+          echo "✅ Database secrets loaded"
 
       - name: Run migrations
         run: |
           echo "Running database migrations..."
-          echo "Environment: CI mode"
-          echo "SSL Mode: ${DB_SSL_MODE:-require}"
-          echo ""
-          echo "=== Debug Information ==="
-          echo "Current directory: $(pwd)"
-          echo "Go version: $(go version)"
-          echo ""
-          echo "Checking for migrations directory..."
-          if [ -d "migrations" ]; then
-            echo "✅ Migrations directory found"
-            echo "Number of migration files: $(ls -1 migrations/*.sql 2>/dev/null | wc -l)"
-          else
-            echo "❌ Migrations directory not found!"
-            exit 1
-          fi
-          echo ""
-          echo "=== Running migrations ==="
           go run cmd/migrate/main.go -cmd up
-          
-          if [ $? -eq 0 ]; then
-            echo ""
-            echo "✅ Migrations completed successfully"
-          else
-            echo ""
-            echo "❌ Migration failed"
-            exit 1
-          fi
+          echo "✅ Migrations completed"
         env:
           CI: "true"
           DB_SSL_MODE: require
-
-      - name: Create migration summary
-        if: success()
-        run: |
-          echo "## ✅ Database Migrations Completed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Environment**: ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Executed at**: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Executed by**: @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
