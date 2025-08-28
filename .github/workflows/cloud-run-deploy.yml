@@ -93,7 +93,12 @@ jobs:
           IMAGE_TAG="${{ github.event.inputs.image_tag }}"
           GCR_IMAGE="gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${IMAGE_TAG}"
           
+          # Transform IMAGE_TAG for GCP label compatibility
+          # Replace dots with hyphens (0.2.0 -> 0-2-0)
+          LABEL_TAG=$(echo $IMAGE_TAG | sed 's/\./-/g')
+          
           echo "Deploying: $GCR_IMAGE"
+          echo "Using label tag: $LABEL_TAG"
 
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --image="${GCR_IMAGE}" \
@@ -130,7 +135,7 @@ jobs:
             --min-instances=0 \
             --max-instances=2 \
             --timeout=60s \
-            --labels="managed-by=github-actions,image-tag=${IMAGE_TAG},deployed-at=$(date -u +%Y%m%d-%H%M%S)" \
+            --labels="managed-by=github-actions,image-tag=${LABEL_TAG},deployed-at=$(date -u +%Y%m%d-%H%M%S)" \
             --quiet
 
       - name: Get service URL
