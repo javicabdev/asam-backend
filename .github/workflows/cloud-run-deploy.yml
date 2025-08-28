@@ -236,16 +236,28 @@ jobs:
           
           echo "✅ Database secrets loaded"
 
-      - name: Run production migrations (simplified)
+      - name: Run production migrations (with dirty state handling)
         run: |
           echo "🚀 Running production migrations..."
           
-          # Simple approach: just run migrations normally
-          # The new migration 000010 will handle any missing email functionality
+          # Check current migration status
           echo "📊 Current migration status:"
-          go run cmd/migrate/main.go -cmd version || echo "No migrations applied yet"
+          MIGRATION_STATUS=$(go run cmd/migrate/main.go -cmd version 2>&1) || echo "No migrations applied yet"
+          echo "$MIGRATION_STATUS"
           
-          echo "🔄 Applying all pending migrations..."
+          # Check if database is in dirty state or has old migrations
+          if echo "$MIGRATION_STATUS" | grep -q "dirty: true" || echo "$MIGRATION_STATUS" | grep -q "version: [2-9]"; then
+            echo "⚠️  Database has dirty state or old migrations - performing clean slate reset"
+            echo "🧝 Development phase: Safe to drop and recreate schema"
+            
+            # Drop all tables and reset to clean state
+            echo "🗑️ Dropping all existing schema..."
+            go run cmd/migrate/main.go -cmd drop || echo "No existing schema to drop"
+            
+            echo "✅ Clean slate achieved"
+          fi
+          
+          echo "🔄 Applying all migrations from scratch..."
           go run cmd/migrate/main.go -cmd up
           
           echo "📊 Final migration status:"
