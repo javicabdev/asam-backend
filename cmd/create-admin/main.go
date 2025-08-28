@@ -17,6 +17,8 @@ import (
 	"github.com/javicabdev/asam-backend/internal/adapters/db"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/domain/services"
+	"github.com/javicabdev/asam-backend/internal/ports/input"
+	"github.com/javicabdev/asam-backend/internal/ports/output"
 	"github.com/javicabdev/asam-backend/pkg/constants"
 	"github.com/javicabdev/asam-backend/pkg/logger"
 )
@@ -35,7 +37,33 @@ const (
 )
 
 func main() {
-	// Setup command line flags
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
+	// Parse command line arguments
+	if err := parseFlags(); err != nil {
+		return err
+	}
+
+	// Load environment
+	if err := loadEnvironment(); err != nil {
+		return err
+	}
+
+	// Get and validate credentials
+	creds, err := getCredentials()
+	if err != nil {
+		return err
+	}
+
+	// Create or update admin user
+	return createOrUpdateAdmin(creds)
+}
+
+func parseFlags() error {
 	flag.StringVar(&environment, "env", "local", "Environment to use (local, aiven)")
 	flag.StringVar(&envFile, "envfile", "", "Custom environment file path (overrides -env)")
 	flag.BoolVar(&forceUpdate, "force", false, "Force update existing admin user if exists")
@@ -49,55 +77,98 @@ func main() {
 		case constants.EnvAiven:
 			envFile = AivenEnvFile
 		default:
-			log.Fatalf("Invalid environment '%s'. Must be 'local' or 'aiven'", environment)
+			return fmt.Errorf("invalid environment '%s'. Must be 'local' or 'aiven'", environment)
 		}
 	}
+	return nil
+}
 
-	// Load environment variables
+func loadEnvironment() error {
 	log.Printf("Loading environment from: %s", envFile)
 	if err := godotenv.Load(envFile); err != nil {
-		log.Fatalf("Error loading %s file: %v", envFile, err)
+		return fmt.Errorf("error loading %s file: %v", envFile, err)
+	}
+	return nil
+}
+
+type adminCredentials struct {
+	Email    string
+	Password string
+	Username string
+}
+
+func getCredentials() (*adminCredentials, error) {
+	creds := &adminCredentials{
+		Email:    os.Getenv("ADMIN_EMAIL"),
+		Password: os.Getenv("ADMIN_PASSWORD"),
+		Username: os.Getenv("ADMIN_USERNAME"),
 	}
 
-	// Get admin credentials from environment
-	adminEmail := os.Getenv("ADMIN_EMAIL")
-	adminPassword := os.Getenv("ADMIN_PASSWORD")
-	adminUsername := os.Getenv("ADMIN_USERNAME")
-
-	// Validate required environment variables
-	if adminEmail == "" {
-		log.Fatal("ADMIN_EMAIL environment variable is required. Set it to the admin's email address.")
+	// Validate required fields
+	if creds.Email == "" {
+		return nil, fmt.Errorf("ADMIN_EMAIL environment variable is required. Set it to the admin's email address")
 	}
-	if adminPassword == "" {
-		log.Fatal("ADMIN_PASSWORD environment variable is required. Must be at least 8 characters with uppercase, lowercase, and number.")
+	if creds.Password == "" {
+		return nil, fmt.Errorf("ADMIN_PASSWORD environment variable is required. Must be at least 8 characters with uppercase, lowercase, and number")
 	}
 
 	// If username not provided, use email as username
-	if adminUsername == "" {
-		adminUsername = adminEmail
-		log.Printf("ADMIN_USERNAME not provided, using email as username: %s", adminUsername)
+	if creds.Username == "" {
+		creds.Username = creds.Email
+		log.Printf("ADMIN_USERNAME not provided, using email as username: %s", creds.Username)
 	} else {
-		log.Printf("Using custom username: %s (email: %s)", adminUsername, adminEmail)
+		log.Printf("Using custom username: %s (email: %s)", creds.Username, creds.Email)
 	}
 
 	// Validate password strength
-	if len(adminPassword) < 8 {
-		log.Fatal("ADMIN_PASSWORD must be at least 8 characters long")
+	if len(creds.Password) < 8 {
+		return nil, fmt.Errorf("ADMIN_PASSWORD must be at least 8 characters long")
 	}
 
+	return creds, nil
+}
+
+func createOrUpdateAdmin(creds *adminCredentials) error {
 	// Connect to database
 	dbInstance, err := connectDatabase()
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		return fmt.Errorf("failed to connect to database: %v", err)
 	}
 
 	sqlDB, err := dbInstance.DB()
 	if err != nil {
-		log.Fatalf("Failed to get SQL DB: %v", err)
+		return fmt.Errorf("failed to get SQL DB: %v", err)
 	}
-	defer sqlDB.Close()
+	defer func() {
+		if err := sqlDB.Close(); err != nil {
+			log.Printf("Warning: error closing database connection: %v", err)
+		}
+	}()
 
-	// Create repositories
+	// Setup services
+	services, err := setupServices(dbInstance)
+	if err != nil {
+		return fmt.Errorf("failed to setup services: %v", err)
+	}
+
+	ctx := context.Background()
+
+	// Check if user already exists
+	existingUser, _ := services.userRepo.FindByUsername(ctx, creds.Username)
+
+	if existingUser != nil {
+		return handleExistingUser(ctx, services, existingUser, creds)
+	}
+
+	return createNewAdmin(ctx, services, creds)
+}
+
+type appServices struct {
+	userRepo    output.UserRepository
+	userService input.UserService
+}
+
+func setupServices(dbInstance *gorm.DB) (*appServices, error) {
 	userRepo := db.NewUserRepository(dbInstance)
 	memberRepo := db.NewMemberRepository(dbInstance)
 	tokenRepo := db.NewVerificationTokenRepository(dbInstance)
@@ -108,7 +179,7 @@ func main() {
 		Development: true,
 	})
 	if err != nil {
-		log.Fatalf("Failed to create logger: %v", err)
+		return nil, fmt.Errorf("failed to create logger: %v", err)
 	}
 
 	// Create email service (stub for this command)
@@ -124,74 +195,82 @@ func main() {
 		os.Getenv("BASE_URL"),
 	)
 
-	ctx := context.Background()
+	return &appServices{
+		userRepo:    userRepo,
+		userService: userService,
+	}, nil
+}
 
-	// Check if user already exists
-	existingUser, _ := userRepo.FindByUsername(ctx, adminUsername)
-
-	if existingUser != nil {
-		if !forceUpdate {
-			log.Printf("Admin user '%s' already exists. Use -force flag to update password.", adminUsername)
-			os.Exit(0)
-		}
-
-		log.Printf("Updating existing admin user '%s'...", adminUsername)
-
-		// Update existing user
-		updates := map[string]interface{}{
-			"password": adminPassword,
-			"email":    adminEmail,
-			"role":     models.RoleAdmin,
-			"isActive": true,
-		}
-
-		_, err = userService.UpdateUser(ctx, existingUser.ID, updates)
-		if err != nil {
-			log.Fatalf("Failed to update admin user: %v", err)
-		}
-
-		// Reset email verification status directly in database
-		existingUser.EmailVerified = false
-		existingUser.EmailVerifiedAt = nil
-		if err := userRepo.Update(ctx, existingUser); err != nil {
-			log.Fatalf("Failed to reset email verification: %v", err)
-		}
-
-		log.Println("================================")
-		log.Println("Admin user updated successfully!")
-		log.Printf("Username: %s", adminUsername)
-		log.Printf("Email: %s", adminEmail)
-		log.Println("Email verified: false")
-		log.Println("The user must verify their email on first login")
-		log.Println("================================")
-	} else {
-		log.Printf("Creating new admin user '%s'...", adminUsername)
-
-		// Create new admin user
-		user, err := userService.CreateUser(
-			ctx,
-			adminUsername,
-			adminEmail,
-			adminPassword,
-			models.RoleAdmin,
-			nil, // No member association for admin
-		)
-		if err != nil {
-			log.Fatalf("Failed to create admin user: %v", err)
-		}
-
-		log.Println("================================")
-		log.Println("Admin user created successfully!")
-		log.Printf("ID: %d", user.ID)
-		log.Printf("Username: %s", user.Username)
-		log.Printf("Email: %s", user.Email)
-		log.Printf("Role: %s", user.Role)
-		log.Printf("Email verified: %v", user.EmailVerified)
-		log.Println("The user must verify their email on first login")
-		log.Println("================================")
+func handleExistingUser(ctx context.Context, services *appServices, existingUser *models.User, creds *adminCredentials) error {
+	if !forceUpdate {
+		log.Printf("Admin user '%s' already exists. Use -force flag to update password.", creds.Username)
+		return nil
 	}
 
-	// Security reminder
+	log.Printf("Updating existing admin user '%s'...", creds.Username)
+
+	// Update existing user
+	updates := map[string]interface{}{
+		"password": creds.Password,
+		"email":    creds.Email,
+		"role":     models.RoleAdmin,
+		"isActive": true,
+	}
+
+	_, err := services.userService.UpdateUser(ctx, existingUser.ID, updates)
+	if err != nil {
+		return fmt.Errorf("failed to update admin user: %v", err)
+	}
+
+	// Reset email verification status directly in database
+	existingUser.EmailVerified = false
+	existingUser.EmailVerifiedAt = nil
+	if err := services.userRepo.Update(ctx, existingUser); err != nil {
+		return fmt.Errorf("failed to reset email verification: %v", err)
+	}
+
+	printSuccess(creds.Username, creds.Email, 0, true)
+	return nil
+}
+
+func createNewAdmin(ctx context.Context, services *appServices, creds *adminCredentials) error {
+	log.Printf("Creating new admin user '%s'...", creds.Username)
+
+	// Create new admin user
+	user, err := services.userService.CreateUser(
+		ctx,
+		creds.Username,
+		creds.Email,
+		creds.Password,
+		models.RoleAdmin,
+		nil, // No member association for admin
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create admin user: %v", err)
+	}
+
+	printSuccess(user.Username, user.Email, user.ID, false)
+	printSecurityReminders()
+	return nil
+}
+
+func printSuccess(username, email string, userID uint, isUpdate bool) {
+	log.Println("================================")
+	if isUpdate {
+		log.Println("Admin user updated successfully!")
+	} else {
+		log.Println("Admin user created successfully!")
+		log.Printf("ID: %d", userID)
+	}
+	log.Printf("Username: %s", username)
+	log.Printf("Email: %s", email)
+	log.Printf("Role: %s", models.RoleAdmin)
+	log.Println("Email verified: false")
+	log.Println("The user must verify their email on first login")
+	log.Println("================================")
+}
+
+func printSecurityReminders() {
 	log.Println("\nSECURITY REMINDERS:")
 	log.Println("1. Never commit .env files with real credentials")
 	log.Println("2. Use strong passwords in production")
