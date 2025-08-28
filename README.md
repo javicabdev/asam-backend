@@ -43,6 +43,21 @@ Antes de utilizar este workflow, necesitas:
 
 ## Desarrollo
 
+### Creación de Usuarios Administradores
+
+⚠️ **IMPORTANTE**: Por seguridad, los usuarios administradores NO se crean automáticamente en las migraciones.
+
+Para crear un usuario administrador:
+
+```bash
+# Configurar credenciales en variables de entorno
+ADMIN_EMAIL=admin@tudominio.com \
+ADMIN_PASSWORD=ContraseñaSegura123! \
+go run cmd/create-admin/main.go -env local
+```
+
+Consulta [docs/ADMIN_CREATION.md](docs/ADMIN_CREATION.md) para instrucciones detalladas sobre la creación segura de usuarios administradores.
+
 ### Inicio rápido (Windows PowerShell)
 
 Para arrancar el entorno de desarrollo completo:

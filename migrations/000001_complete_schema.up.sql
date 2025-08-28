@@ -155,6 +155,7 @@ CREATE TABLE users (
     member_id INTEGER NULL,
     last_login TIMESTAMP WITH TIME ZONE,
     is_active BOOLEAN NOT NULL DEFAULT true,
+    email_verified BOOLEAN NOT NULL DEFAULT false,
     email_verified_at TIMESTAMP WITH TIME ZONE NULL,
     email_verification_sent_at TIMESTAMP WITH TIME ZONE NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -371,66 +372,14 @@ COMMENT ON COLUMN refresh_tokens.uuid IS 'Unique identifier for the refresh toke
 COMMENT ON COLUMN cash_flows.operation_type IS 'Type of operation: income, expense, transfer, etc.';
 
 -- =============================================================================
--- INITIAL ADMIN USERS FOR DEVELOPMENT
+-- NOTA SOBRE USUARIOS INICIALES
 -- =============================================================================
--- IMPORTANTE: Estos usuarios son solo para desarrollo inicial
--- Las contraseñas deben cambiarse en producción real
--- Los datos provienen de archivos temporales que NO se commitean
-
--- Crear usuarios administradores iniciales
--- Usamos ON CONFLICT para hacer la migración idempotente
-INSERT INTO users (
-    username,
-    email,
-    password,
-    role,
-    is_active,
-    email_verified,
-    email_verified_at,
-    created_at,
-    updated_at
-) VALUES 
-    (
-        'babacar',
-        'mmbaye@hotmail.com',
-        crypt('un9cAPM32hah', gen_salt('bf', 10)),
-        'ADMIN',
-        true,
-        true,
-        NOW(),
-        NOW(),
-        NOW()
-    ),
-    (
-        'javiAdmin',
-        'javierfernandezc@gmail.com',
-        crypt('U$VYZUv4!RgR', gen_salt('bf', 10)),
-        'ADMIN',
-        true,
-        true,
-        NOW(),
-        NOW(),
-        NOW()
-    )
-ON CONFLICT (username) DO UPDATE SET
-    email = EXCLUDED.email,
-    password = EXCLUDED.password,
-    role = EXCLUDED.role,
-    is_active = EXCLUDED.is_active,
-    email_verified = EXCLUDED.email_verified,
-    email_verified_at = COALESCE(users.email_verified_at, EXCLUDED.email_verified_at),
-    updated_at = NOW()
-WHERE users.role != 'ADMIN' OR users.password != EXCLUDED.password;
--- Solo actualiza si el usuario no era admin o si la contraseña cambió
-
--- Log de usuarios creados (solo para desarrollo)
-DO $
-BEGIN
-    RAISE NOTICE 'Usuarios admin iniciales procesados:';
-    RAISE NOTICE '  - babacar (mmbaye@hotmail.com)';
-    RAISE NOTICE '  - javiAdmin (javierfernandezc@gmail.com)';
-    RAISE NOTICE 'IMPORTANTE: Cambiar contraseñas en producción real';
-END $;
+-- Los usuarios administradores iniciales deben crearse usando el comando seed:
+-- ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=SecurePass123! go run cmd/seed/main.go
+-- 
+-- NUNCA incluyas contraseñas en los archivos de migración, incluso si están hasheadas.
+-- Los usuarios creados con el comando seed tendrán email_verified=false y deberán
+-- verificar su email en el primer acceso.
 
 -- =============================================================================
 -- SCHEMA CREATION COMPLETE
