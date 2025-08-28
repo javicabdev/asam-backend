@@ -236,11 +236,22 @@ jobs:
           
           echo "✅ Database secrets loaded"
 
-      - name: Run migrations
+      - name: Run production migrations (simplified)
         run: |
-          echo "Running database migrations..."
+          echo "🚀 Running production migrations..."
+          
+          # Simple approach: just run migrations normally
+          # The new migration 000010 will handle any missing email functionality
+          echo "📊 Current migration status:"
+          go run cmd/migrate/main.go -cmd version || echo "No migrations applied yet"
+          
+          echo "🔄 Applying all pending migrations..."
           go run cmd/migrate/main.go -cmd up
-          echo "✅ Migrations completed"
+          
+          echo "📊 Final migration status:"
+          go run cmd/migrate/main.go -cmd version
+          
+          echo "✅ Migrations completed successfully!"
         env:
           CI: "true"
           DB_SSL_MODE: require

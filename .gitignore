@@ -18,8 +18,12 @@ coverage.html
 # Dependencias
 vendor/
 
-# GoLand
+# GoLand / IntelliJ IDEA
 .idea/
+# But include shared SQL dialect configuration
+!.idea/sqldialects.xml
+# Include shared data sources template (if any)
+!.idea/dataSources.xml
 *.iml
 *.iws
 .idea_modules/

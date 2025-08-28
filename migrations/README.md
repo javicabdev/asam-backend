@@ -1,80 +1,98 @@
-# Database Migrations
+# Database Migrations - ASAM Backend
 
-This directory contains database migrations for the ASAM backend application.
+Clean, simple database schema for the ASAM (Asociación de Senegaleses y Amigos de Montmeló) backend.
 
-## Current Schema
+## 🎯 Philosophy
 
-The database schema is defined in the following migrations:
-- `000001_initial_schema.up.sql` - Creates all tables matching the GORM models (includes refresh_tokens table)
-- `000001_initial_schema.down.sql` - Drops all tables
-- `000004_add_email_verification.up.sql` - Adds email verification fields and verification_tokens table
-- `000004_add_email_verification.down.sql` - Removes email verification features
-- `000006_add_token_cleanup_indexes.up.sql` - Adds indexes for token cleanup optimization
-- `000006_add_token_cleanup_indexes.down.sql` - Removes token cleanup indexes
+**One Migration, Complete Schema** - Since we're in development phase with no production users, we maintain a single, comprehensive migration that includes all functionality.
 
-**Note:** Migration numbers 000002, 000003, and 000005 were not used.
+## 📁 Active Migrations
 
-## Tables
+- **`000001_complete_schema.up.sql`** - Complete database schema with all features
+- **`000001_complete_schema.down.sql`** - Complete schema rollback
 
-The schema includes the following tables (names match GORM conventions):
+## 🗂️ Database Tables
 
-1. **members** - Association members (model: Member)
-2. **families** - Family groups (model: Family) - uses Spanish field names
-3. **familiars** - Family relatives (model: Familiar) - uses Spanish field names  
-4. **telephones** - Phone numbers (model: Telephone) - polymorphic, uses Spanish field name
-5. **membership_fees** - Monthly membership fee definitions (model: MembershipFee)
-6. **payments** - Payment records (model: Payment)
-7. **cash_flows** - Financial movements (model: CashFlow)
-8. **users** - System users for authentication (model: User)
-9. **refresh_tokens** - JWT refresh tokens (separate table approach)
-10. **verification_tokens** - Email verification and password reset tokens
+### Core Business
+- **`members`** - Association members  
+- **`families`** - Family groups (Spanish field names)
+- **`familiars`** - Family relatives (Spanish field names)
+- **`telephones`** - Phone numbers (polymorphic)
 
-## Important Notes
+### Financial
+- **`payments`** - Payment records
+- **`membership_fees`** - Monthly fee definitions  
+- **`cash_flows`** - Financial movement tracking
 
-- The migrations respect the exact field names defined in the Go models
-- Some models use Spanish field names (families, familiars, telephones) while others use English
-- All timestamps use `TIMESTAMP WITH TIME ZONE`
-- Soft deletes are implemented with `deleted_at` columns  
-- The `updated_at` column is automatically updated via triggers
-- All foreign key relationships match the GORM model definitions
-- The project uses PostgreSQL database
+### Authentication & Users
+- **`users`** - System users with email authentication
+- **`refresh_tokens`** - JWT refresh token management
+- **`verification_tokens`** - Email verification & password reset
 
-## Running Migrations
+## 🚀 Usage
 
-To run migrations:
-
+### Fresh Installation (Development)
 ```bash
-# Apply all migrations
+# Create complete schema
 go run cmd/migrate/main.go -cmd up
 
-# Rollback all migrations  
-go run cmd/migrate/main.go -cmd down
+# Check status  
+go run cmd/migrate/main.go -cmd version
 
-# Check migration status
-go run cmd/migrate/main.go -cmd status
+# Add test data
+go run cmd/seed/main.go
 ```
 
-For development with Docker:
-
+### Reset Database (Development)
 ```bash
-# Apply migrations
-make db-migrate
-
-# Reset database (rollback and re-apply)
-make db-reset
+# Drop everything and recreate
+go run cmd/migrate/main.go -cmd drop
+go run cmd/migrate/main.go -cmd up
 ```
 
-## Model-Database Mapping
+### Using Helper Scripts
+```bash
+# Linux/macOS
+./scripts/dev/fresh-database-setup.sh
 
-The migrations are designed to match the existing Go models exactly:
+# Windows PowerShell  
+.\scripts\dev\fresh-database-setup.ps1
+```
 
-- `Member` model → `members` table (English fields)
-- `Family` model → `families` table (Spanish fields like `numero_socio`, `miembro_origen_id`)
-- `Familiar` model → `familiars` table (Spanish fields like `familia_id`, `nombre`, `apellidos`)
-- `Telephone` model → `telephones` table (Spanish field `numero_telefono`)
-- `User` model → `users` table
-- `RefreshToken` model → `refresh_tokens` table
-- `VerificationToken` model → `verification_tokens` table
-- Other models use English field names
+## 🏗️ Features Included
 
-This ensures compatibility with the existing codebase without requiring model changes.
+The single migration includes **all** functionality:
+
+- ✅ Complete table structure with proper relationships
+- ✅ All indexes for performance optimization  
+- ✅ User authentication with email verification
+- ✅ JWT refresh token management
+- ✅ Automatic timestamp triggers (`updated_at`)
+- ✅ Soft deletes with `deleted_at` columns
+- ✅ Foreign key constraints with proper CASCADE/RESTRICT rules
+- ✅ Comprehensive commenting for documentation
+
+## 📋 Technical Details
+
+- **Database**: PostgreSQL with UUID extension
+- **ORM Compatibility**: Schema matches GORM models exactly
+- **Field Names**: Mixed English/Spanish per existing model definitions
+- **Soft Deletes**: Implemented via `deleted_at` timestamp columns
+- **Auto Timestamps**: `created_at`/`updated_at` with triggers
+- **Indexing**: Optimized indexes for queries and foreign keys
+
+## 🔄 Migration History
+
+Previous migration files (development artifacts) have been moved to `old_migrations/` for reference.
+
+## 🌱 Production Considerations
+
+When transitioning to production with real users, consider:
+- Incremental migrations for schema changes
+- Proper backup/rollback procedures  
+- Migration testing in staging environment
+- Zero-downtime deployment strategies
+
+---
+
+> **Current Status**: ✅ **Development Phase** - Single comprehensive migration approach
