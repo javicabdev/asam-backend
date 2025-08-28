@@ -207,7 +207,7 @@ func (r *emailResolver) RequestPasswordReset(ctx context.Context, email string) 
 		)
 	}
 
-	msg := "If an account exists with this email, a password reset link will be sent"
+	msg := "Si existe una cuenta con esta dirección de correo electrónico, se enviará un enlace para restablecer la contraseña."
 	return &model.MutationResponse{
 		Success: true,
 		Message: &msg,
