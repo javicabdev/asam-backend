@@ -472,9 +472,9 @@ func (s *authService) ResetPasswordWithToken(ctx context.Context, token string, 
 		return errors.Wrap(err, errors.ErrDatabaseError, "error actualizando usuario")
 	}
 
-	// Mark the token as used
-	verificationToken.Use()
-	if err := s.verificationTokenRepo.Update(ctx, verificationToken); err != nil {
+	// Mark the token as used using atomic operation
+	if err := s.verificationTokenRepo.MarkTokenAsUsed(ctx, verificationToken.ID); err != nil {
+		// Log warning but don't fail since password was already reset
 		s.logger.Warn("Failed to mark reset token as used", zap.Uint("tokenID", verificationToken.ID), zap.Error(err))
 	}
 

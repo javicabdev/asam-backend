@@ -31,4 +31,7 @@ type VerificationTokenRepository interface {
 
 	// CountActiveTokensByUser counts the number of active (non-expired, non-used) tokens for a user and type
 	CountActiveTokensByUser(ctx context.Context, userID uint, tokenType string) (int64, error)
+
+	// MarkTokenAsUsed marks a specific token as used atomically
+	MarkTokenAsUsed(ctx context.Context, tokenID uint) error
 }

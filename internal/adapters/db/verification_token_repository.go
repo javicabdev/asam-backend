@@ -63,7 +63,20 @@ func (r *verificationTokenRepository) GetByUserIDAndType(ctx context.Context, us
 // Update updates a verification token
 func (r *verificationTokenRepository) Update(ctx context.Context, token *models.VerificationToken) error {
 	token.UpdatedAt = time.Now()
-	if err := r.db.WithContext(ctx).Save(token).Error; err != nil {
+
+	// Use Updates with a map to ensure boolean fields are properly updated
+	updates := map[string]interface{}{
+		"token":      token.Token,
+		"user_id":    token.UserID,
+		"type":       token.Type,
+		"email":      token.Email,
+		"used":       token.Used,
+		"used_at":    token.UsedAt,
+		"expires_at": token.ExpiresAt,
+		"updated_at": token.UpdatedAt,
+	}
+
+	if err := r.db.WithContext(ctx).Model(token).Updates(updates).Error; err != nil {
 		return errors.Wrap(err, errors.ErrDatabaseError, "failed to update verification token")
 	}
 	return nil
@@ -97,10 +110,16 @@ func (r *verificationTokenRepository) DeleteExpired(ctx context.Context) error {
 // InvalidateUserTokens invalidates all tokens of a specific type for a user
 func (r *verificationTokenRepository) InvalidateUserTokens(ctx context.Context, userID uint, tokenType string) error {
 	now := time.Now()
+
+	// Update both 'used' and 'used_at' fields for consistency
 	err := r.db.WithContext(ctx).
 		Model(&models.VerificationToken{}).
-		Where("user_id = ? AND type = ? AND used_at IS NULL", userID, tokenType).
-		Update("used_at", &now).Error
+		Where("user_id = ? AND type = ? AND used = false", userID, tokenType).
+		Updates(map[string]interface{}{
+			"used":       true,
+			"used_at":    &now,
+			"updated_at": now,
+		}).Error
 
 	if err != nil {
 		return errors.Wrap(err, errors.ErrDatabaseError, "failed to invalidate user tokens")
@@ -122,4 +141,30 @@ func (r *verificationTokenRepository) CountActiveTokensByUser(ctx context.Contex
 	}
 
 	return count, nil
+}
+
+// MarkTokenAsUsed marks a specific token as used atomically
+func (r *verificationTokenRepository) MarkTokenAsUsed(ctx context.Context, tokenID uint) error {
+	now := time.Now()
+
+	// Atomic update to mark token as used
+	result := r.db.WithContext(ctx).
+		Model(&models.VerificationToken{}).
+		Where("id = ? AND used = false", tokenID).
+		Updates(map[string]interface{}{
+			"used":       true,
+			"used_at":    &now,
+			"updated_at": now,
+		})
+
+	if result.Error != nil {
+		return errors.Wrap(result.Error, errors.ErrDatabaseError, "failed to mark token as used")
+	}
+
+	// Check if any rows were affected
+	if result.RowsAffected == 0 {
+		return errors.NewBusinessError(errors.ErrInvalidToken, "token already used or not found")
+	}
+
+	return nil
 }

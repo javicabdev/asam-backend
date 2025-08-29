@@ -169,9 +169,9 @@ func (s *emailVerificationService) VerifyEmailToken(ctx context.Context, tokenVa
 		return nil, errors.Wrap(err, errors.ErrDatabaseError, "failed to update user")
 	}
 
-	// Mark token as used
-	token.Use()
-	if err := s.tokenRepo.Update(ctx, token); err != nil {
+	// Mark token as used using atomic operation
+	if err := s.tokenRepo.MarkTokenAsUsed(ctx, token.ID); err != nil {
+		// Log warning but don't fail since email was already verified
 		s.logger.Warn("Failed to mark token as used", zap.Uint("tokenID", token.ID), zap.Error(err))
 	}
 
