@@ -107,25 +107,25 @@ func (a *mailersendAdapter) SendVerificationEmail(_ context.Context, user *model
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background-color: #007bff; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
         .content { padding: 20px; background-color: #f9f9f9; border: 1px solid #e0e0e0; border-top: none; }
-        .button { 
-            display: inline-block; 
-            padding: 12px 30px; 
-            background-color: #007bff; 
-            color: #ffffff !important; 
-            text-decoration: none !important; 
-            border-radius: 5px; 
-            margin: 20px 0; 
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #007bff;
+            color: #ffffff !important;
+            text-decoration: none !important;
+            border-radius: 5px;
+            margin: 20px 0;
             font-weight: bold;
             font-size: 16px;
         }
         .button:hover {
             background-color: #0056b3;
         }
-        .footer { 
-            text-align: center; 
-            padding: 20px; 
-            font-size: 0.9em; 
-            color: #666; 
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 0.9em;
+            color: #666;
             background-color: #f5f5f5;
             border: 1px solid #e0e0e0;
             border-top: none;
@@ -148,18 +148,18 @@ func (a *mailersendAdapter) SendVerificationEmail(_ context.Context, user *model
         <div class="content">
             <h2>¡Hola {{.Username}}!</h2>
             <p>Gracias por registrarte en ASAM. Para completar tu registro y activar tu cuenta, por favor verifica tu dirección de correo electrónico.</p>
-            
+
             <div style="text-align: center; margin: 30px 0;">
                 <a href="{{.VerificationURL}}" class="button">Verificar mi correo electrónico</a>
             </div>
-            
+
             <p>Si el botón no funciona, puedes copiar y pegar este enlace en tu navegador:</p>
             <div class="url-container">
                 {{.VerificationURL}}
             </div>
-            
+
             <p><strong>⏰ Este enlace expirará en 24 horas.</strong></p>
-            
+
             <p>Si no has solicitado este registro, puedes ignorar este correo de forma segura.</p>
         </div>
         <div class="footer">
@@ -202,35 +202,35 @@ func (a *mailersendAdapter) SendPasswordResetEmail(_ context.Context, user *mode
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background-color: #dc3545; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
         .content { padding: 20px; background-color: #f9f9f9; border: 1px solid #e0e0e0; border-top: none; }
-        .button { 
-            display: inline-block; 
-            padding: 12px 30px; 
-            background-color: #dc3545; 
-            color: #ffffff !important; 
-            text-decoration: none !important; 
-            border-radius: 5px; 
-            margin: 20px 0; 
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #dc3545;
+            color: #ffffff !important;
+            text-decoration: none !important;
+            border-radius: 5px;
+            margin: 20px 0;
             font-weight: bold;
             font-size: 16px;
         }
         .button:hover {
             background-color: #bd2130;
         }
-        .footer { 
-            text-align: center; 
-            padding: 20px; 
-            font-size: 0.9em; 
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 0.9em;
             color: #666;
             background-color: #f5f5f5;
             border: 1px solid #e0e0e0;
             border-top: none;
             border-radius: 0 0 8px 8px;
         }
-        .warning { 
-            background-color: #fff3cd; 
-            border: 1px solid #ffeaa7; 
-            padding: 12px; 
-            margin: 20px 0; 
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 12px;
+            margin: 20px 0;
             border-radius: 4px;
             color: #856404;
         }
@@ -252,18 +252,18 @@ func (a *mailersendAdapter) SendPasswordResetEmail(_ context.Context, user *mode
         <div class="content">
             <h2>Hola {{.Username}},</h2>
             <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en ASAM.</p>
-            
+
             <p>Si has solicitado este cambio, haz clic en el siguiente botón para crear una nueva contraseña:</p>
-            
+
             <div style="text-align: center; margin: 30px 0;">
                 <a href="{{.ResetURL}}" class="button">Restablecer mi contraseña</a>
             </div>
-            
+
             <p>Si el botón no funciona, puedes copiar y pegar este enlace en tu navegador:</p>
             <div class="url-container">
                 {{.ResetURL}}
             </div>
-            
+
             <div class="warning">
                 <strong>⚠️ Importante:</strong>
                 <ul style="margin: 5px 0; padding-left: 20px;">
@@ -272,7 +272,7 @@ func (a *mailersendAdapter) SendPasswordResetEmail(_ context.Context, user *mode
                     <li>Si no has solicitado este cambio, ignora este correo y tu contraseña permanecerá sin cambios.</li>
                 </ul>
             </div>
-            
+
             <p>Por tu seguridad, te recomendamos:</p>
             <ul>
                 <li>Usar una contraseña única y segura</li>
@@ -319,17 +319,17 @@ func (a *mailersendAdapter) SendWelcomeEmail(_ context.Context, user *models.Use
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { 
+        .header {
             background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-            color: white; 
-            padding: 30px 20px; 
-            text-align: center; 
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
             border-radius: 8px 8px 0 0;
         }
-        .content { 
-            padding: 30px 20px; 
-            background-color: #ffffff; 
-            border: 1px solid #e0e0e0; 
+        .content {
+            padding: 30px 20px;
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
             border-top: none;
         }
         .features {
@@ -345,10 +345,10 @@ func (a *mailersendAdapter) SendWelcomeEmail(_ context.Context, user *models.Use
         .feature-item:last-child {
             border-bottom: none;
         }
-        .footer { 
-            text-align: center; 
-            padding: 20px; 
-            font-size: 0.9em; 
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 0.9em;
             color: #666;
             background-color: #f5f5f5;
             border: 1px solid #e0e0e0;
@@ -370,11 +370,11 @@ func (a *mailersendAdapter) SendWelcomeEmail(_ context.Context, user *models.Use
         </div>
         <div class="content">
             <h2>Hola {{.Username}},</h2>
-            
-            <p>¡Felicitaciones! Tu cuenta ha sido verificada y ahora formas parte oficial de la <strong>Asociación de Ayuda Mutua (ASAM)</strong>.</p>
-            
+
+            <p>¡Felicidades! Tu cuenta ha sido verificada y ahora formas parte oficial de la <strong>Asociación de Ayuda Mutua (ASAM)</strong>.</p>
+
             <p>Estamos encantados de tenerte con nosotros en esta comunidad solidaria.</p>
-            
+
             <div class="features">
                 <h3 style="margin-top: 0;">Con tu cuenta puedes:</h3>
                 <div class="feature-item">
@@ -394,12 +394,12 @@ func (a *mailersendAdapter) SendWelcomeEmail(_ context.Context, user *models.Use
                     <p style="margin: 5px 0; color: #666;">Recibe noticias y actualizaciones importantes de la asociación.</p>
                 </div>
             </div>
-            
+
             <p><strong>¿Necesitas ayuda?</strong></p>
             <p>Si tienes alguna pregunta o necesitas asistencia, no dudes en contactar con el administrador del sistema. Estamos aquí para ayudarte.</p>
-            
+
             <p style="margin-top: 30px;">Gracias por unirte a nuestra comunidad solidaria.</p>
-            
+
             <p><em>- El equipo de ASAM</em></p>
         </div>
         <div class="footer">
@@ -438,35 +438,35 @@ func (a *mailersendAdapter) SendPasswordChangedEmail(_ context.Context, user *mo
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { 
-            background-color: #ffc107; 
-            color: #333; 
-            padding: 20px; 
+        .header {
+            background-color: #ffc107;
+            color: #333;
+            padding: 20px;
             text-align: center;
             border-radius: 8px 8px 0 0;
         }
-        .content { 
-            padding: 20px; 
+        .content {
+            padding: 20px;
             background-color: #ffffff;
             border: 1px solid #e0e0e0;
             border-top: none;
         }
-        .footer { 
-            text-align: center; 
-            padding: 20px; 
-            font-size: 0.9em; 
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 0.9em;
             color: #666;
             background-color: #f5f5f5;
             border: 1px solid #e0e0e0;
             border-top: none;
             border-radius: 0 0 8px 8px;
         }
-        .alert { 
-            background-color: #f8d7da; 
-            border: 1px solid #f5c6cb; 
-            padding: 15px; 
-            margin: 20px 0; 
-            border-radius: 4px; 
+        .alert {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
             color: #721c24;
         }
         .security-tips {
@@ -491,11 +491,11 @@ func (a *mailersendAdapter) SendPasswordChangedEmail(_ context.Context, user *mo
         </div>
         <div class="content">
             <h2>Hola {{.Username}},</h2>
-            
+
             <p>Te informamos que la contraseña de tu cuenta en ASAM ha sido <strong>actualizada exitosamente</strong>.</p>
-            
+
             <p><strong>📅 Fecha y hora del cambio:</strong> {{.Timestamp}}</p>
-            
+
             <div class="alert">
                 <strong>⚠️ ¿No reconoces este cambio?</strong>
                 <p style="margin: 10px 0;">Si no has realizado este cambio, tu cuenta podría estar comprometida. Por favor:</p>
@@ -505,7 +505,7 @@ func (a *mailersendAdapter) SendPasswordChangedEmail(_ context.Context, user *mo
                     <li>Revisa la seguridad de tu correo electrónico</li>
                 </ol>
             </div>
-            
+
             <div class="security-tips">
                 <strong>🛡️ Consejos de seguridad:</strong>
                 <ul style="margin: 10px 0; padding-left: 20px;">
@@ -516,9 +516,9 @@ func (a *mailersendAdapter) SendPasswordChangedEmail(_ context.Context, user *mo
                     <li>Ten cuidado con los correos de phishing que soliciten tu contraseña</li>
                 </ul>
             </div>
-            
+
             <p>Si realizaste este cambio, puedes ignorar este mensaje de forma segura.</p>
-            
+
             <p style="margin-top: 30px;">Gracias por mantener tu cuenta segura.</p>
         </div>
         <div class="footer">
