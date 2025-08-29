@@ -158,6 +158,7 @@ CREATE TABLE users (
     email_verified BOOLEAN NOT NULL DEFAULT false,
     email_verified_at TIMESTAMP WITH TIME ZONE NULL,
     email_verification_sent_at TIMESTAMP WITH TIME ZONE NULL,
+    password_reset_sent_at TIMESTAMP WITH TIME ZONE NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP WITH TIME ZONE
@@ -377,6 +378,7 @@ COMMENT ON TABLE verification_tokens IS 'Email verification and password reset t
 COMMENT ON COLUMN users.email IS 'User email address, required for notifications and authentication';
 COMMENT ON COLUMN users.email_verified_at IS 'Timestamp when email was verified, NULL if not verified';
 COMMENT ON COLUMN users.email_verification_sent_at IS 'Last time verification email was sent';
+COMMENT ON COLUMN users.password_reset_sent_at IS 'Last time password reset email was sent';
 COMMENT ON COLUMN users.member_id IS 'Optional link to member record for members who have user accounts';
 COMMENT ON COLUMN verification_tokens.type IS 'Type of token: email_verification, password_reset, etc.';
 COMMENT ON COLUMN verification_tokens.email IS 'Email address associated with the token';

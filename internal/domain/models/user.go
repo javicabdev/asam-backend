@@ -33,6 +33,7 @@ type User struct {
 	EmailVerified           bool `gorm:"not null;default:false"`
 	EmailVerifiedAt         *time.Time
 	EmailVerificationSentAt *time.Time
+	PasswordResetSentAt     *time.Time          `gorm:"column:password_reset_sent_at" json:"-"`
 	RefreshTokens           []RefreshToken      `gorm:"foreignKey:UserID"` // Relación con tokens
 	VerificationTokens      []VerificationToken `gorm:"foreignKey:UserID"` // Relación con tokens de verificación
 }

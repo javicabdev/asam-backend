@@ -214,9 +214,13 @@ func (s *emailVerificationService) SendVerificationEmailToUser(ctx context.Conte
 
 		if timeSinceLastEmail < minWaitTime {
 			waitTime := minWaitTime - timeSinceLastEmail
+			waitMinutes := int(waitTime.Minutes())
+			if waitMinutes == 0 {
+				waitMinutes = 1 // Show at least 1 minute
+			}
 			return errors.NewBusinessError(
 				errors.ErrRateLimitExceeded,
-				fmt.Sprintf("Please wait %d minutes before requesting another verification email", int(waitTime.Minutes())),
+				fmt.Sprintf("Please wait %d minutes before requesting another verification email", waitMinutes),
 			)
 		}
 	}
@@ -256,16 +260,20 @@ func (s *emailVerificationService) SendVerificationEmailToUser(ctx context.Conte
 // SendPasswordResetEmailToUser generates a token and sends reset email
 func (s *emailVerificationService) SendPasswordResetEmailToUser(ctx context.Context, user *models.User) error {
 	// Check if password reset email was sent recently (anti-spam protection)
-	// We can use the same field since both are email verifications
-	if user.EmailVerificationSentAt != nil {
-		timeSinceLastEmail := time.Since(*user.EmailVerificationSentAt)
+	// Now using dedicated field for password reset rate limiting
+	if user.PasswordResetSentAt != nil {
+		timeSinceLastReset := time.Since(*user.PasswordResetSentAt)
 		minWaitTime := 5 * time.Minute
 
-		if timeSinceLastEmail < minWaitTime {
-			waitTime := minWaitTime - timeSinceLastEmail
+		if timeSinceLastReset < minWaitTime {
+			waitTime := minWaitTime - timeSinceLastReset
+			waitMinutes := int(waitTime.Minutes())
+			if waitMinutes == 0 {
+				waitMinutes = 1 // Show at least 1 minute
+			}
 			return errors.NewBusinessError(
 				errors.ErrRateLimitExceeded,
-				fmt.Sprintf("Please wait %d minutes before requesting another password reset email", int(waitTime.Minutes())),
+				fmt.Sprintf("Please wait %d minutes before requesting another password reset email", waitMinutes),
 			)
 		}
 	}
@@ -301,14 +309,14 @@ func (s *emailVerificationService) SendPasswordResetEmailToUser(ctx context.Cont
 		return errors.Wrap(err, errors.ErrInternalError, "failed to send password reset email")
 	}
 
-	// Update EmailVerificationSentAt timestamp (we use the same field for all verification emails)
+	// Update PasswordResetSentAt timestamp (now using dedicated field)
 	now := time.Now()
-	user.EmailVerificationSentAt = &now
+	user.PasswordResetSentAt = &now
 	user.UpdatedAt = now
 
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		// Log error but don't fail since email was already sent
-		s.logger.Warn("Failed to update EmailVerificationSentAt for password reset",
+		s.logger.Warn("Failed to update PasswordResetSentAt",
 			zap.Uint("userID", user.ID),
 			zap.Error(err))
 	}
