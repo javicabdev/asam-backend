@@ -105,6 +105,7 @@ jobs:
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
+            --set-env-vars="BASE_URL=https://mutuaasam.org" \
             --set-env-vars="ENVIRONMENT=production" \
             --set-env-vars="DB_SSL_MODE=require" \
             --set-env-vars="JWT_ACCESS_TTL=15m" \
