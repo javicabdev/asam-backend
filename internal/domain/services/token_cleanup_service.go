@@ -12,27 +12,30 @@ import (
 
 // TokenCleanupService handles automatic cleanup of expired tokens
 type TokenCleanupService struct {
-	tokenRepo        output.TokenRepository
-	logger           logger.Logger
-	interval         time.Duration
-	maxTokensPerUser int
-	ticker           *time.Ticker
-	done             chan bool
+	tokenRepo             output.TokenRepository
+	verificationTokenRepo output.VerificationTokenRepository
+	logger                logger.Logger
+	interval              time.Duration
+	maxTokensPerUser      int
+	ticker                *time.Ticker
+	done                  chan bool
 }
 
 // NewTokenCleanupService creates a new token cleanup service
 func NewTokenCleanupService(
 	tokenRepo output.TokenRepository,
+	verificationTokenRepo output.VerificationTokenRepository,
 	logger logger.Logger,
 	interval time.Duration,
 	maxTokensPerUser int,
 ) *TokenCleanupService {
 	return &TokenCleanupService{
-		tokenRepo:        tokenRepo,
-		logger:           logger,
-		interval:         interval,
-		maxTokensPerUser: maxTokensPerUser,
-		done:             make(chan bool),
+		tokenRepo:             tokenRepo,
+		verificationTokenRepo: verificationTokenRepo,
+		logger:                logger,
+		interval:              interval,
+		maxTokensPerUser:      maxTokensPerUser,
+		done:                  make(chan bool),
 	}
 }
 
@@ -76,14 +79,23 @@ func (s *TokenCleanupService) Stop() {
 func (s *TokenCleanupService) performCleanup(ctx context.Context) {
 	s.logger.Info("Performing token cleanup...")
 
-	// 1. Clean expired tokens
+	// 1. Clean expired refresh tokens
 	if err := s.tokenRepo.CleanupExpiredTokens(ctx); err != nil {
-		s.logger.Error("Error cleaning expired tokens", zap.Error(err))
+		s.logger.Error("Error cleaning expired refresh tokens", zap.Error(err))
 	} else {
-		s.logger.Info("Expired tokens cleaned successfully")
+		s.logger.Info("Expired refresh tokens cleaned successfully")
 	}
 
-	// 2. If max tokens per user is set, enforce the limit
+	// 2. Clean expired verification tokens
+	if s.verificationTokenRepo != nil {
+		if err := s.verificationTokenRepo.DeleteExpired(ctx); err != nil {
+			s.logger.Error("Error cleaning expired verification tokens", zap.Error(err))
+		} else {
+			s.logger.Info("Expired verification tokens cleaned successfully")
+		}
+	}
+
+	// 3. If max tokens per user is set, enforce the limit for refresh tokens
 	if s.maxTokensPerUser > 0 {
 		s.enforceTokenLimitPerUser(ctx)
 	}

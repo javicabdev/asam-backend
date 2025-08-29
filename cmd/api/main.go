@@ -127,6 +127,8 @@ type appDependencies struct {
 	gqlTracer       *middleware.GraphQLTracer
 	memoryMonitor   *monitoring.MemoryMonitor
 	profilingServer *monitoring.ProfilingServer
+	// Maintenance services
+	tokenCleanupService *services.TokenCleanupService
 	// Service status
 	serviceStatus *ServiceStatus
 }
@@ -487,7 +489,7 @@ func setupDatabaseWithRetry(cfg *config.Config, appLogger logger.Logger, maxRetr
 
 // initializeServicesAndDependencies sets up repositories, services, JWT utility,
 // and other core application components, returning them in an appDependencies struct.
-func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, appLogger logger.Logger, auditLogger audit.Logger) *appDependencies {
+func initializeServicesAndDependencies(ctx context.Context, cfg *config.Config, database *gorm.DB, appLogger logger.Logger, auditLogger audit.Logger) *appDependencies {
 	// Initialize service status
 	serviceStatus := &ServiceStatus{}
 	serviceStatus.Database.Store(true)
@@ -599,6 +601,28 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 		profilingServer.Start()
 	}
 
+	// 5. Initialize token cleanup service if enabled
+	var tokenCleanupService *services.TokenCleanupService
+	if cfg.TokenCleanupEnabled {
+		tokenCleanupService = services.NewTokenCleanupService(
+			tokenRepo,
+			verificationTokenRepo,
+			appLogger,
+			cfg.TokenCleanupInterval,
+			cfg.MaxTokensPerUser,
+		)
+
+		// Start the cleanup service with the application context
+		go tokenCleanupService.Start(ctx)
+
+		appLogger.Info("Token cleanup service started",
+			zap.Duration("interval", cfg.TokenCleanupInterval),
+			zap.Int("max_tokens_per_user", cfg.MaxTokensPerUser),
+		)
+	} else {
+		appLogger.Info("Token cleanup service is disabled")
+	}
+
 	return &appDependencies{
 		memberService:            memberService,
 		familyService:            familyService,
@@ -614,6 +638,7 @@ func initializeServicesAndDependencies(cfg *config.Config, database *gorm.DB, ap
 		gqlTracer:                gqlTracer,
 		memoryMonitor:            memoryMonitor,
 		profilingServer:          profilingServer,
+		tokenCleanupService:      tokenCleanupService,
 		serviceStatus:            serviceStatus,
 	}
 }
@@ -875,7 +900,7 @@ func performInitialization(ctx context.Context, state *appState, cfg *config.Con
 	}
 
 	// Initialize all components
-	setupApplicationComponents(state, cfg, database, appLogger, auditLogger, initStart)
+	setupApplicationComponents(ctx, state, cfg, database, appLogger, auditLogger, initStart)
 
 	// Start periodic metrics updates
 	go updateMetricsPeriodically(ctx, appLogger, state.deps)
@@ -885,9 +910,9 @@ func performInitialization(ctx context.Context, state *appState, cfg *config.Con
 }
 
 // setupApplicationComponents initializes all application components
-func setupApplicationComponents(state *appState, cfg *config.Config, database *gorm.DB, appLogger logger.Logger, auditLogger audit.Logger, initStart time.Time) {
+func setupApplicationComponents(ctx context.Context, state *appState, cfg *config.Config, database *gorm.DB, appLogger logger.Logger, auditLogger audit.Logger, initStart time.Time) {
 	// Initialize services and other dependencies
-	deps := initializeServicesAndDependencies(cfg, database, appLogger, auditLogger)
+	deps := initializeServicesAndDependencies(ctx, cfg, database, appLogger, auditLogger)
 
 	// Initialize login rate limiter
 	loginRateLimiter := auth.NewLoginRateLimiterWithConfig(
@@ -986,6 +1011,10 @@ func cleanupResources(state *appState, appLogger logger.Logger) {
 	}
 
 	if deps != nil {
+		if deps.tokenCleanupService != nil {
+			appLogger.Info("Stopping token cleanup service...")
+			deps.tokenCleanupService.Stop()
+		}
 		if deps.memoryMonitor != nil {
 			appLogger.Info("Stopping memory monitor...")
 			deps.memoryMonitor.Stop()
@@ -1031,7 +1060,7 @@ func retryDatabaseConnection(ctx context.Context, state *appState, cfg *config.C
 			}
 
 			// Initialize services and dependencies
-			deps := initializeServicesAndDependencies(cfg, database, appLogger, auditLogger)
+			deps := initializeServicesAndDependencies(ctx, cfg, database, appLogger, auditLogger)
 
 			// Initialize login rate limiter
 			loginRateLimiter := auth.NewLoginRateLimiterWithConfig(
