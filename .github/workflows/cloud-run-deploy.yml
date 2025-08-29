@@ -1,7 +1,7 @@
 name: Deploy to Google Cloud Run
 
 # Workflow simplificado para un solo ambiente (production)
-# POLÍTICA: Durante desarrollo se puede usar 'latest', 
+# POLÍTICA: Durante desarrollo se puede usar 'latest',
 # pero se recomienda usar versiones semánticas para producción real
 
 on:
@@ -46,13 +46,13 @@ jobs:
       - name: Validate deployment tag
         run: |
           IMAGE_TAG="${{ github.event.inputs.image_tag }}"
-          
+
           echo "=== Deployment Info ==="
           echo "Image tag: $IMAGE_TAG"
           echo "Service: ${{ env.SERVICE_NAME }}"
           echo "Region: ${{ env.REGION }}"
           echo ""
-          
+
           # Warning si se usa latest
           if [[ "$IMAGE_TAG" == "latest" ]]; then
             echo "⚠️  WARNING: Using 'latest' tag"
@@ -63,7 +63,7 @@ jobs:
           else
             echo "ℹ️  Using custom tag: $IMAGE_TAG"
           fi
-          
+
           echo ""
           echo "Available tags in registry:"
           gcloud container images list-tags gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }} \
@@ -74,7 +74,7 @@ jobs:
         run: |
           IMAGE_TAG="${{ github.event.inputs.image_tag }}"
           GCR_IMAGE="gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${IMAGE_TAG}"
-          
+
           echo "Verifying image: $GCR_IMAGE"
           if gcloud container images describe $GCR_IMAGE > /dev/null 2>&1; then
             echo "✅ Image found"
@@ -92,11 +92,11 @@ jobs:
         run: |
           IMAGE_TAG="${{ github.event.inputs.image_tag }}"
           GCR_IMAGE="gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${IMAGE_TAG}"
-          
+
           # Transform IMAGE_TAG for GCP label compatibility
           # Replace dots with hyphens (0.2.0 -> 0-2-0)
           LABEL_TAG=$(echo $IMAGE_TAG | sed 's/\./-/g')
-          
+
           echo "Deploying: $GCR_IMAGE"
           echo "Using label tag: $LABEL_TAG"
 
@@ -109,7 +109,7 @@ jobs:
             --set-env-vars="DB_SSL_MODE=require" \
             --set-env-vars="JWT_ACCESS_TTL=15m" \
             --set-env-vars="JWT_REFRESH_TTL=168h" \
-            --set-env-vars="MAILERSEND_FROM_EMAIL=noreply@asam.org" \
+            --set-env-vars="MAILERSEND_FROM_EMAIL=admin@mutuaasam.org" \
             --set-env-vars="MAILERSEND_FROM_NAME=ASAM" \
             --set-env-vars="RATE_LIMIT_RPS=10" \
             --set-env-vars="RATE_LIMIT_BURST=20" \
@@ -151,7 +151,7 @@ jobs:
           echo "Testing service at ${{ steps.service.outputs.url }}"
           MAX_ATTEMPTS=10
           SLEEP_TIME=5
-          
+
           for i in $(seq 1 $MAX_ATTEMPTS); do
             if curl -f -s "${{ steps.service.outputs.url }}/health/live" > /dev/null; then
               echo "✅ Health check passed on attempt $i"
@@ -160,7 +160,7 @@ jobs:
             echo "⏳ Attempt $i/$MAX_ATTEMPTS failed, retrying in ${SLEEP_TIME}s..."
             sleep $SLEEP_TIME
           done
-          
+
           # Final check
           echo ""
           echo "Final health check:"
@@ -212,57 +212,57 @@ jobs:
       - name: Get database secrets
         run: |
           echo "Getting database secrets..."
-          
+
           DB_HOST_VALUE=$(gcloud secrets versions access latest --secret=db-host 2>&1 | tr -d '\r\n')
           DB_PORT_VALUE=$(gcloud secrets versions access latest --secret=db-port 2>&1 | tr -d '\r\n')
           DB_USER_VALUE=$(gcloud secrets versions access latest --secret=db-user 2>&1 | tr -d '\r\n')
           DB_PASSWORD_VALUE=$(gcloud secrets versions access latest --secret=db-password 2>&1 | tr -d '\r\n')
           DB_NAME_VALUE=$(gcloud secrets versions access latest --secret=db-name 2>&1 | tr -d '\r\n')
-          
+
           echo "::add-mask::$DB_HOST_VALUE"
           echo "::add-mask::$DB_PASSWORD_VALUE"
-          
+
           echo "DB_HOST=$DB_HOST_VALUE" >> $GITHUB_ENV
           echo "DB_PORT=$DB_PORT_VALUE" >> $GITHUB_ENV
           echo "DB_USER=$DB_USER_VALUE" >> $GITHUB_ENV
           echo "DB_PASSWORD=$DB_PASSWORD_VALUE" >> $GITHUB_ENV
           echo "DB_NAME=$DB_NAME_VALUE" >> $GITHUB_ENV
-          
+
           echo "POSTGRES_HOST=$DB_HOST_VALUE" >> $GITHUB_ENV
           echo "POSTGRES_PORT=$DB_PORT_VALUE" >> $GITHUB_ENV
           echo "POSTGRES_USER=$DB_USER_VALUE" >> $GITHUB_ENV
           echo "POSTGRES_PASSWORD=$DB_PASSWORD_VALUE" >> $GITHUB_ENV
           echo "POSTGRES_DB=$DB_NAME_VALUE" >> $GITHUB_ENV
-          
+
           echo "✅ Database secrets loaded"
 
       - name: Run production migrations (with dirty state handling)
         run: |
           echo "🚀 Running production migrations..."
-          
+
           # Check current migration status
           echo "📊 Current migration status:"
           MIGRATION_STATUS=$(go run cmd/migrate/main.go -cmd version 2>&1) || echo "No migrations applied yet"
           echo "$MIGRATION_STATUS"
-          
+
           # Check if database is in dirty state or has old migrations
           if echo "$MIGRATION_STATUS" | grep -q "dirty: true" || echo "$MIGRATION_STATUS" | grep -q "version: [2-9]"; then
             echo "⚠️  Database has dirty state or old migrations - performing clean slate reset"
             echo "🧝 Development phase: Safe to drop and recreate schema"
-            
+
             # Drop all tables and reset to clean state
             echo "🗑️ Dropping all existing schema..."
             go run cmd/migrate/main.go -cmd drop || echo "No existing schema to drop"
-            
+
             echo "✅ Clean slate achieved"
           fi
-          
+
           echo "🔄 Applying all migrations from scratch..."
           go run cmd/migrate/main.go -cmd up
-          
+
           echo "📊 Final migration status:"
           go run cmd/migrate/main.go -cmd version
-          
+
           echo "✅ Migrations completed successfully!"
         env:
           CI: "true"
