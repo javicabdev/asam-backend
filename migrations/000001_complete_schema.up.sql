@@ -180,11 +180,15 @@ CREATE TABLE refresh_tokens (
 CREATE TABLE verification_tokens (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
-    token VARCHAR(255) NOT NULL UNIQUE,
-    token_type VARCHAR(50) NOT NULL DEFAULT 'email_verification',
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    token VARCHAR(64) NOT NULL UNIQUE,
+    type VARCHAR(20) NOT NULL DEFAULT 'email_verification',
+    email VARCHAR(100) NOT NULL,
+    used BOOLEAN NOT NULL DEFAULT false,
     used_at TIMESTAMP WITH TIME ZONE NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 -- =============================================================================
@@ -298,7 +302,9 @@ CREATE INDEX idx_refresh_tokens_created_at ON refresh_tokens(created_at);
 CREATE INDEX idx_verification_tokens_user_id ON verification_tokens(user_id);
 CREATE INDEX idx_verification_tokens_token ON verification_tokens(token);
 CREATE INDEX idx_verification_tokens_expires_at ON verification_tokens(expires_at);
-CREATE INDEX idx_verification_tokens_token_type ON verification_tokens(token_type);
+CREATE INDEX idx_verification_tokens_type ON verification_tokens(type);
+CREATE INDEX idx_verification_tokens_used ON verification_tokens(used);
+CREATE INDEX idx_verification_tokens_deleted_at ON verification_tokens(deleted_at);
 
 -- =============================================================================
 -- TRIGGERS FOR AUTOMATIC TIMESTAMP UPDATES
@@ -344,6 +350,11 @@ CREATE TRIGGER update_users_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_verification_tokens_updated_at
+    BEFORE UPDATE ON verification_tokens
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
 -- =============================================================================
 -- COMMENTS AND DOCUMENTATION
 -- =============================================================================
@@ -367,7 +378,10 @@ COMMENT ON COLUMN users.email IS 'User email address, required for notifications
 COMMENT ON COLUMN users.email_verified_at IS 'Timestamp when email was verified, NULL if not verified';
 COMMENT ON COLUMN users.email_verification_sent_at IS 'Last time verification email was sent';
 COMMENT ON COLUMN users.member_id IS 'Optional link to member record for members who have user accounts';
-COMMENT ON COLUMN verification_tokens.token_type IS 'Type of token: email_verification, password_reset, etc.';
+COMMENT ON COLUMN verification_tokens.type IS 'Type of token: email_verification, password_reset, etc.';
+COMMENT ON COLUMN verification_tokens.email IS 'Email address associated with the token';
+COMMENT ON COLUMN verification_tokens.used IS 'Whether the token has been used';
+COMMENT ON COLUMN verification_tokens.used_at IS 'Timestamp when the token was used';
 COMMENT ON COLUMN refresh_tokens.uuid IS 'Unique identifier for the refresh token';
 COMMENT ON COLUMN cash_flows.operation_type IS 'Type of operation: income, expense, transfer, etc.';
 

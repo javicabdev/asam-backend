@@ -58,6 +58,16 @@ func (r *emailResolver) SendVerificationEmail(ctx context.Context) (*model.Mutat
 
 	// Send verification email
 	if err := r.emailVerificationService.SendVerificationEmailToUser(ctx, user); err != nil {
+		// Check if it's a rate limit error
+		if errors.Is(err, errors.ErrRateLimitExceeded) {
+			if appErr, ok := errors.AsAppError(err); ok {
+				return &model.MutationResponse{
+					Success: false,
+					Error:   &appErr.Message,
+				}, nil // Don't propagate error to avoid GraphQL error logging
+			}
+		}
+
 		errMsg := "Failed to send verification email"
 		return &model.MutationResponse{
 			Success: false,
@@ -193,13 +203,22 @@ func (r *emailResolver) RequestPasswordReset(ctx context.Context, email string) 
 	// Send password reset email
 	r.logger.Debug("[PASSWORD-RESET] Calling SendPasswordResetEmailToUser")
 	if err := r.emailVerificationService.SendPasswordResetEmailToUser(ctx, user); err != nil {
-		// Log error but return success for security
-		r.logger.Error("[PASSWORD-RESET] Failed to send password reset email",
-			zap.String("email", email),
-			zap.Uint("userID", user.ID),
-			zap.Error(err),
-			zap.String("errorType", fmt.Sprintf("%T", err)),
-		)
+		// Check if it's a rate limit error
+		if errors.Is(err, errors.ErrRateLimitExceeded) {
+			r.logger.Warn("[PASSWORD-RESET] Rate limit exceeded for password reset email",
+				zap.String("email", email),
+				zap.Uint("userID", user.ID),
+				zap.Error(err),
+			)
+		} else {
+			// Log other errors
+			r.logger.Error("[PASSWORD-RESET] Failed to send password reset email",
+				zap.String("email", email),
+				zap.Uint("userID", user.ID),
+				zap.Error(err),
+				zap.String("errorType", fmt.Sprintf("%T", err)),
+			)
+		}
 	} else {
 		r.logger.Info("[PASSWORD-RESET] SendPasswordResetEmailToUser completed successfully",
 			zap.String("email", email),

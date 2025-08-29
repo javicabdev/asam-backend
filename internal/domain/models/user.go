@@ -22,18 +22,19 @@ const (
 // User representa un usuario del sistema con autenticación
 type User struct {
 	gorm.Model
-	Username           string  `gorm:"uniqueIndex:uni_users_username;not null;size:100"`
-	Email              string  `gorm:"uniqueIndex:uni_users_email;not null;size:255"`
-	Password           string  `gorm:"not null"`
-	Role               Role    `gorm:"type:varchar(20);not null;default:'user'"`
-	MemberID           *uint   `gorm:"index:,unique,where:member_id IS NOT NULL"`
-	Member             *Member `gorm:"foreignKey:MemberID;constraint:OnDelete:RESTRICT"`
-	LastLogin          time.Time
-	IsActive           bool `gorm:"not null;default:true"`
-	EmailVerified      bool `gorm:"not null;default:false"`
-	EmailVerifiedAt    *time.Time
-	RefreshTokens      []RefreshToken      `gorm:"foreignKey:UserID"` // Relación con tokens
-	VerificationTokens []VerificationToken `gorm:"foreignKey:UserID"` // Relación con tokens de verificación
+	Username                string  `gorm:"uniqueIndex:uni_users_username;not null;size:100"`
+	Email                   string  `gorm:"uniqueIndex:uni_users_email;not null;size:255"`
+	Password                string  `gorm:"not null"`
+	Role                    Role    `gorm:"type:varchar(20);not null;default:'user'"`
+	MemberID                *uint   `gorm:"index:,unique,where:member_id IS NOT NULL"`
+	Member                  *Member `gorm:"foreignKey:MemberID;constraint:OnDelete:RESTRICT"`
+	LastLogin               time.Time
+	IsActive                bool `gorm:"not null;default:true"`
+	EmailVerified           bool `gorm:"not null;default:false"`
+	EmailVerifiedAt         *time.Time
+	EmailVerificationSentAt *time.Time
+	RefreshTokens           []RefreshToken      `gorm:"foreignKey:UserID"` // Relación con tokens
+	VerificationTokens      []VerificationToken `gorm:"foreignKey:UserID"` // Relación con tokens de verificación
 }
 
 // SetPassword hashea y guarda la contraseña del usuario
@@ -88,7 +89,7 @@ func (u *User) ValidateMemberAssociation() error {
 }
 
 // BeforeCreate hook de GORM que se ejecuta antes de crear un usuario
-func (u *User) BeforeCreate(tx *gorm.DB) error {
+func (u *User) BeforeCreate(_ *gorm.DB) error {
 	if u.Role == "" {
 		u.Role = RoleUser
 	}
@@ -98,7 +99,7 @@ func (u *User) BeforeCreate(tx *gorm.DB) error {
 }
 
 // BeforeUpdate hook de GORM que se ejecuta antes de actualizar un usuario
-func (u *User) BeforeUpdate(tx *gorm.DB) error {
+func (u *User) BeforeUpdate(_ *gorm.DB) error {
 	// Validar la asociación rol-socio
 	return u.ValidateMemberAssociation()
 }

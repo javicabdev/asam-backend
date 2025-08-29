@@ -56,7 +56,7 @@ func generateSecureToken() (string, error) {
 }
 
 // generateToken creates a token with the given parameters
-func (s *emailVerificationService) generateToken(ctx context.Context, userID uint, tokenType models.TokenType, expiresIn time.Duration) (string, error) {
+func (s *emailVerificationService) generateToken(ctx context.Context, userID uint, email string, tokenType models.TokenType, expiresIn time.Duration) (string, error) {
 	// Invalidate any existing tokens of this type for this user
 	if err := s.tokenRepo.InvalidateUserTokens(ctx, userID, string(tokenType)); err != nil {
 		s.logger.Warn("Failed to invalidate existing tokens",
@@ -76,6 +76,7 @@ func (s *emailVerificationService) generateToken(ctx context.Context, userID uin
 		UserID:    userID,
 		Token:     tokenValue,
 		Type:      string(tokenType),
+		Email:     email,
 		ExpiresAt: time.Now().Add(expiresIn),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -90,12 +91,42 @@ func (s *emailVerificationService) generateToken(ctx context.Context, userID uin
 
 // GenerateVerificationToken generates and stores a new email verification token
 func (s *emailVerificationService) GenerateVerificationToken(ctx context.Context, userID uint) (string, error) {
-	return s.generateToken(ctx, userID, models.TokenTypeEmailVerification, 24*time.Hour)
+	// Get user to obtain email
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return "", errors.Wrap(err, errors.ErrNotFound, "user not found")
+	}
+
+	// Determine which email to use
+	emailToUse := user.Email
+	if emailToUse == "" && strings.Contains(user.Username, "@") {
+		emailToUse = user.Username
+	}
+	if emailToUse == "" {
+		return "", errors.NewBusinessError(errors.ErrInvalidRequest, "user has no email address")
+	}
+
+	return s.generateToken(ctx, userID, emailToUse, models.TokenTypeEmailVerification, 24*time.Hour)
 }
 
 // GeneratePasswordResetToken generates and stores a new password reset token
 func (s *emailVerificationService) GeneratePasswordResetToken(ctx context.Context, userID uint) (string, error) {
-	return s.generateToken(ctx, userID, models.TokenTypePasswordReset, 1*time.Hour)
+	// Get user to obtain email
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return "", errors.Wrap(err, errors.ErrNotFound, "user not found")
+	}
+
+	// Determine which email to use (same logic as in SendPasswordResetEmailToUser)
+	emailToUse := user.Email
+	if strings.Contains(user.Username, "@") {
+		emailToUse = user.Username
+	}
+	if emailToUse == "" {
+		return "", errors.NewBusinessError(errors.ErrInvalidRequest, "user has no email address")
+	}
+
+	return s.generateToken(ctx, userID, emailToUse, models.TokenTypePasswordReset, 1*time.Hour)
 }
 
 // VerifyEmailToken verifies an email verification token and marks the user's email as verified
@@ -176,6 +207,20 @@ func (s *emailVerificationService) VerifyPasswordResetToken(ctx context.Context,
 
 // SendVerificationEmailToUser generates a token and sends verification email
 func (s *emailVerificationService) SendVerificationEmailToUser(ctx context.Context, user *models.User) error {
+	// Check if email was sent recently (anti-spam protection)
+	if user.EmailVerificationSentAt != nil {
+		timeSinceLastEmail := time.Since(*user.EmailVerificationSentAt)
+		minWaitTime := 1 * time.Minute
+
+		if timeSinceLastEmail < minWaitTime {
+			waitTime := minWaitTime - timeSinceLastEmail
+			return errors.NewBusinessError(
+				errors.ErrRateLimitExceeded,
+				fmt.Sprintf("Please wait %d minutes before requesting another verification email", int(waitTime.Minutes())),
+			)
+		}
+	}
+
 	// Generate verification token
 	token, err := s.GenerateVerificationToken(ctx, user.ID)
 	if err != nil {
@@ -193,11 +238,38 @@ func (s *emailVerificationService) SendVerificationEmailToUser(ctx context.Conte
 		return errors.Wrap(err, errors.ErrInternalError, "failed to send verification email")
 	}
 
+	// Update EmailVerificationSentAt timestamp
+	now := time.Now()
+	user.EmailVerificationSentAt = &now
+	user.UpdatedAt = now
+
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		// Log error but don't fail since email was already sent
+		s.logger.Warn("Failed to update EmailVerificationSentAt",
+			zap.Uint("userID", user.ID),
+			zap.Error(err))
+	}
+
 	return nil
 }
 
 // SendPasswordResetEmailToUser generates a token and sends reset email
 func (s *emailVerificationService) SendPasswordResetEmailToUser(ctx context.Context, user *models.User) error {
+	// Check if password reset email was sent recently (anti-spam protection)
+	// We can use the same field since both are email verifications
+	if user.EmailVerificationSentAt != nil {
+		timeSinceLastEmail := time.Since(*user.EmailVerificationSentAt)
+		minWaitTime := 5 * time.Minute
+
+		if timeSinceLastEmail < minWaitTime {
+			waitTime := minWaitTime - timeSinceLastEmail
+			return errors.NewBusinessError(
+				errors.ErrRateLimitExceeded,
+				fmt.Sprintf("Please wait %d minutes before requesting another password reset email", int(waitTime.Minutes())),
+			)
+		}
+	}
+
 	// Determine which email to use
 	// If username is an email, use that; otherwise use the email field
 	emailToUse := user.Email
@@ -227,6 +299,18 @@ func (s *emailVerificationService) SendPasswordResetEmailToUser(ctx context.Cont
 	if err := s.emailNotifier.SendPasswordResetEmail(ctx, &userCopy, resetURL); err != nil {
 		s.logger.Error("Failed to send password reset email", zap.Uint("userID", user.ID), zap.Error(err))
 		return errors.Wrap(err, errors.ErrInternalError, "failed to send password reset email")
+	}
+
+	// Update EmailVerificationSentAt timestamp (we use the same field for all verification emails)
+	now := time.Now()
+	user.EmailVerificationSentAt = &now
+	user.UpdatedAt = now
+
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		// Log error but don't fail since email was already sent
+		s.logger.Warn("Failed to update EmailVerificationSentAt for password reset",
+			zap.Uint("userID", user.ID),
+			zap.Error(err))
 	}
 
 	return nil
