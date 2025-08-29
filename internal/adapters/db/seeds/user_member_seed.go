@@ -14,14 +14,14 @@ import (
 func SeedUserWithMember(db *gorm.DB) error {
 	// 1. Verificar si ya existe el socio
 	var existingMember models.Member
-	if err := db.Where("membership_number = ?", "M001").First(&existingMember).Error; err != nil {
+	if err := db.Where("membership_number = ?", "B001").First(&existingMember).Error; err != nil {
 		if err != gorm.ErrRecordNotFound {
 			return fmt.Errorf("error checking existing member: %w", err)
 		}
 
 		// 2. Crear el socio si no existe
 		member := models.Member{
-			MembershipNumber: "M001",
+			MembershipNumber: "B001",
 			MembershipType:   models.TipoMembresiaPIndividual,
 			Name:             "Juan",
 			Surnames:         "Pérez García",
@@ -80,10 +80,10 @@ func SeedUserWithMember(db *gorm.DB) error {
 
 	// 5. Crear un segundo ejemplo: socio sin usuario (para futura asociación)
 	var member2 models.Member
-	if err := db.Where("membership_number = ?", "M002").First(&member2).Error; err != nil {
+	if err := db.Where("membership_number = ?", "B002").First(&member2).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			member2 = models.Member{
-				MembershipNumber: "M002",
+				MembershipNumber: "B002",
 				MembershipType:   models.TipoMembresiaPIndividual,
 				Name:             "María",
 				Surnames:         "González López",

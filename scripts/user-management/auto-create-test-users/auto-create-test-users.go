@@ -97,7 +97,7 @@ func main() {
 		fmt.Println("\n✅ Test users created successfully!")
 		fmt.Println("You can login with:")
 		fmt.Println("  Admin: admin / AsamAdmin2025! (no member associated)")
-		fmt.Println("  User:  user / AsamUser2025! (member: A99001)")
+		fmt.Println("  User:  user / AsamUser2025! (member: B99001)")
 		os.Exit(0)
 	} else {
 		fmt.Println("\n⚠️ Some users could not be created")
@@ -121,8 +121,8 @@ func createOrUpdateAdminUser(db *gorm.DB) error {
 			Email:         adminEmail,
 			Role:          models.RoleAdmin,
 			IsActive:      true,
-			EmailVerified: true, // Admin pre-verificado
-			MemberID:      nil,  // Admin no tiene miembro asociado
+			EmailVerified: false,
+			MemberID:      nil, // Admin no tiene miembro asociado
 		}
 
 		// Set password using the model method
@@ -198,8 +198,11 @@ func createOrUpdateUserWithMember(db *gorm.DB) error {
 func getOrCreateTestMember(db *gorm.DB) (*models.Member, error) {
 	// Usar números de membresía válidos según el formato requerido
 	// Formato: [A|B] seguido de al menos 5 dígitos
-	// Usamos A99xxx para miembros de prueba
-	memberNumber := "A99001"
+	// Convención ASAM:
+	// - A: Miembros FAMILIARES (asociados a una familia)
+	// - B: Miembros INDIVIDUALES
+	// Usamos B99xxx para miembros individuales de prueba
+	memberNumber := "B99001"
 
 	var member models.Member
 	err := db.Where("membership_number = ?", memberNumber).First(&member).Error
@@ -322,16 +325,20 @@ func createOrUpdateTestUser(db *gorm.DB, member *models.Member) error {
 func createAdditionalTestMembers(db *gorm.DB) {
 	fmt.Println("\n📝 Creating additional test members...")
 
+	// IMPORTANTE: Convención de numeración ASAM
+	// - Prefijo A: Miembros FAMILIARES (requieren entidad Family asociada)
+	// - Prefijo B: Miembros INDIVIDUALES
+	// Todos los miembros de prueba son individuales, por lo tanto usan prefijo B
 	testMembers := []struct {
 		number   string
 		name     string
 		surnames string
 		email    string
 	}{
-		{"A99002", "María", "González López", "maria.gonzalez@example.com"},
-		{"A99003", "Carlos", "Rodríguez Martín", "carlos.rodriguez@example.com"},
-		{"B99001", "Ana", "Martínez Sánchez", "ana.martinez@example.com"},
-		{"B99002", "Pedro", "López Fernández", "pedro.lopez@example.com"},
+		{"B99002", "María", "González López", "maria.gonzalez@example.com"},
+		{"B99003", "Carlos", "Rodríguez Martín", "carlos.rodriguez@example.com"},
+		{"B99004", "Ana", "Martínez Sánchez", "ana.martinez@example.com"},
+		{"B99005", "Pedro", "López Fernández", "pedro.lopez@example.com"},
 	}
 
 	for _, tm := range testMembers {

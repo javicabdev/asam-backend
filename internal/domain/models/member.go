@@ -10,9 +10,14 @@ import (
 )
 
 // Member representa un miembro individual de ASAM
+//
+// Convención de numeración de membresía (MembershipNumber):
+// - Prefijo 'A': Miembros FAMILIARES (asociados a una entidad Family)
+// - Prefijo 'B': Miembros INDIVIDUALES
+// - Formato: [A|B] seguido de al menos 5 dígitos (ej: A00001, B00001)
 type Member struct {
 	ID               uint       `gorm:"primaryKey"`
-	MembershipNumber string     `gorm:"unique;not null"`
+	MembershipNumber string     `gorm:"unique;not null"` // Formato: [A|B]XXXXX
 	MembershipType   string     `gorm:"not null"`
 	Name             string     `gorm:"not null"`
 	Surnames         string     `gorm:"not null"`

@@ -85,6 +85,23 @@ The single migration includes **all** functionality:
 
 Previous migration files (development artifacts) have been moved to `old_migrations/` for reference.
 
+## 🔢 Membership Numbering Convention
+
+**IMPORTANT**: The system uses a specific convention for membership numbers:
+- **Prefix 'A'**: FAMILY members (associated with a Family entity)
+- **Prefix 'B'**: INDIVIDUAL members
+- **Format**: `[A|B]XXXXX` (letter + at least 5 digits)
+
+This convention is enforced at the application level. Seed data scripts create:
+- Individual members: `B99001`, `B99002`, etc.
+- No family members by default (to keep development simple)
+
+**Note for Development**: When resetting data, no migration is needed. Simply:
+```bash
+docker-compose down -v
+./start-docker.ps1  # or ./scripts/dev/fresh-database-setup.sh
+```
+
 ## 🌱 Production Considerations
 
 When transitioning to production with real users, consider:

@@ -10,10 +10,14 @@ import (
 )
 
 // Family representa una familia en el sistema ASAM
+//
+// Convención de numeración:
+// - NumeroSocio debe comenzar con 'A' para familias (ej: A00001)
+// - Los miembros individuales asociados a esta familia también usan prefijo 'A'
 type Family struct {
 	ID              uint   `gorm:"primaryKey"`
-	NumeroSocio     string `gorm:"unique;not null"`
-	MiembroOrigenID *uint  `gorm:"index"` // Referencia al miembro que origina la familia
+	NumeroSocio     string `gorm:"unique;not null"` // Formato: AXXXXX
+	MiembroOrigenID *uint  `gorm:"index"`           // Referencia al miembro que origina la familia
 	EsposoNombre    string `gorm:"size:100"`
 	EsposoApellidos string `gorm:"size:100"`
 	EsposaNombre    string `gorm:"size:100"`
