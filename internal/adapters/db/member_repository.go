@@ -171,3 +171,30 @@ func (r *memberRepository) GetLastMemberNumberByPrefix(ctx context.Context, pref
 
 	return lastNumber, nil
 }
+
+// SearchWithoutUser busca miembros que coincidan con el criterio y no tengan usuario asociado
+func (r *memberRepository) SearchWithoutUser(ctx context.Context, criteria string) ([]models.Member, error) {
+	var members []models.Member
+
+	// Búsqueda por nombre, apellidos o número de socio
+	// Excluir miembros que ya tienen usuario asociado
+	searchPattern := "%" + criteria + "%"
+
+	query := r.db.WithContext(ctx).
+		Table("members").
+		Select("members.*").
+		Joins("LEFT JOIN users ON users.member_id = members.id").
+		Where("users.id IS NULL").                       // Excluir miembros con usuario
+		Where("members.state = ?", models.EstadoActivo). // Solo miembros activos
+		Where(
+			"members.name ILIKE ? OR members.surnames ILIKE ? OR members.membership_number ILIKE ?",
+			searchPattern, searchPattern, searchPattern,
+		)
+
+	result := query.Find(&members)
+	if result.Error != nil {
+		return nil, appErrors.DB(result.Error, "error searching members without user")
+	}
+
+	return members, nil
+}

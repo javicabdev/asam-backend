@@ -796,6 +796,22 @@ func (r *queryResolver) SearchMembers(ctx context.Context, criteria string) ([]*
 	return []*models.Member{}, nil
 }
 
+// SearchMembersWithoutUser is the resolver for the searchMembersWithoutUser field.
+func (r *queryResolver) SearchMembersWithoutUser(ctx context.Context, criteria string) ([]*models.Member, error) {
+	// Solo ADMIN puede buscar miembros sin usuario
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+
+	// Llamar al servicio para buscar miembros sin usuario asociado
+	members, err := r.memberService.SearchMembersWithoutUser(ctx, criteria)
+	if err != nil {
+		return nil, err
+	}
+
+	return members, nil
+}
+
 // GetFamily is the resolver for the getFamily field.
 func (r *queryResolver) GetFamily(ctx context.Context, id string) (*models.Family, error) {
 	// 1) parsear el id de string a uint (o lo que tu parseID retorne)

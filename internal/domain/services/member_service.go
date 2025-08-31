@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -451,4 +452,47 @@ func isValidMemberNumber(memberNumber string) bool {
 	}
 
 	return true
+}
+
+// SearchMembersWithoutUser busca miembros que no tienen usuario asociado
+func (s *memberService) SearchMembersWithoutUser(ctx context.Context, criteria string) ([]*models.Member, error) {
+	// Validar el criterio de búsqueda
+	if strings.TrimSpace(criteria) == "" {
+		return nil, errors.NewValidationError(
+			"Criterio de búsqueda vacío",
+			map[string]string{"criteria": "El criterio de búsqueda no puede estar vacío"},
+		)
+	}
+
+	// Si el criterio es muy corto, podría generar demasiados resultados
+	if len(strings.TrimSpace(criteria)) < 2 {
+		return nil, errors.NewValidationError(
+			"Criterio de búsqueda muy corto",
+			map[string]string{"criteria": "El criterio debe tener al menos 2 caracteres"},
+		)
+	}
+
+	s.appLogger.Debug("Searching members without user",
+		zap.String("criteria", criteria))
+
+	// Llamar al repositorio para buscar miembros sin usuario
+	members, err := s.repository.SearchWithoutUser(ctx, criteria)
+	if err != nil {
+		s.appLogger.Error("Error searching members without user",
+			zap.String("criteria", criteria),
+			zap.Error(err))
+		return nil, errors.DB(err, "error al buscar miembros sin usuario")
+	}
+
+	// Convertir []models.Member a []*models.Member
+	result := make([]*models.Member, len(members))
+	for i := range members {
+		result[i] = &members[i]
+	}
+
+	s.appLogger.Info("Members without user found",
+		zap.String("criteria", criteria),
+		zap.Int("count", len(result)))
+
+	return result, nil
 }

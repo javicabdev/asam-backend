@@ -32,6 +32,9 @@ type MemberService interface {
 
 	// CheckMemberNumberExists verifica si un número de socio ya existe
 	CheckMemberNumberExists(ctx context.Context, memberNumber string) (bool, error)
+
+	// SearchMembersWithoutUser busca miembros que no tienen usuario asociado
+	SearchMembersWithoutUser(ctx context.Context, criteria string) ([]*models.Member, error)
 }
 
 // MemberFilters defines search criteria for members

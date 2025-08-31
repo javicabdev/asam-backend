@@ -217,6 +217,7 @@ type Query {
     getMember(id: ID!): Member
     listMembers(filter: MemberFilter): MemberConnection!
     searchMembers(criteria: String!): [Member!]!
+    searchMembersWithoutUser(criteria: String!): [Member!]!
 
     # Family Queries
     getFamily(id: ID!): Family
