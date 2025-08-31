@@ -214,29 +214,30 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		CheckDocumentValidity   func(childComplexity int, documentNumber string) int
-		CheckMemberNumberExists func(childComplexity int, memberNumber string) int
-		GetBalance              func(childComplexity int) int
-		GetCashFlow             func(childComplexity int, id string) int
-		GetCurrentUser          func(childComplexity int) int
-		GetDashboardStats       func(childComplexity int) int
-		GetFamily               func(childComplexity int, id string) int
-		GetFamilyMembers        func(childComplexity int, familyID string) int
-		GetFamilyPayments       func(childComplexity int, familyID string) int
-		GetMember               func(childComplexity int, id string) int
-		GetMemberPayments       func(childComplexity int, memberID string) int
-		GetNextMemberNumber     func(childComplexity int, isFamily bool) int
-		GetPayment              func(childComplexity int, id string) int
-		GetPaymentStatus        func(childComplexity int, id string) int
-		GetRecentActivity       func(childComplexity int, limit *int) int
-		GetTransactions         func(childComplexity int, filter *model.TransactionFilter) int
-		GetUser                 func(childComplexity int, id string) int
-		Health                  func(childComplexity int) int
-		ListFamilies            func(childComplexity int, filter *model.FamilyFilter) int
-		ListMembers             func(childComplexity int, filter *model.MemberFilter) int
-		ListUsers               func(childComplexity int, page *int, pageSize *int) int
-		Ping                    func(childComplexity int) int
-		SearchMembers           func(childComplexity int, criteria string) int
+		CheckDocumentValidity    func(childComplexity int, documentNumber string) int
+		CheckMemberNumberExists  func(childComplexity int, memberNumber string) int
+		GetBalance               func(childComplexity int) int
+		GetCashFlow              func(childComplexity int, id string) int
+		GetCurrentUser           func(childComplexity int) int
+		GetDashboardStats        func(childComplexity int) int
+		GetFamily                func(childComplexity int, id string) int
+		GetFamilyMembers         func(childComplexity int, familyID string) int
+		GetFamilyPayments        func(childComplexity int, familyID string) int
+		GetMember                func(childComplexity int, id string) int
+		GetMemberPayments        func(childComplexity int, memberID string) int
+		GetNextMemberNumber      func(childComplexity int, isFamily bool) int
+		GetPayment               func(childComplexity int, id string) int
+		GetPaymentStatus         func(childComplexity int, id string) int
+		GetRecentActivity        func(childComplexity int, limit *int) int
+		GetTransactions          func(childComplexity int, filter *model.TransactionFilter) int
+		GetUser                  func(childComplexity int, id string) int
+		Health                   func(childComplexity int) int
+		ListFamilies             func(childComplexity int, filter *model.FamilyFilter) int
+		ListMembers              func(childComplexity int, filter *model.MemberFilter) int
+		ListUsers                func(childComplexity int, page *int, pageSize *int) int
+		Ping                     func(childComplexity int) int
+		SearchMembers            func(childComplexity int, criteria string) int
+		SearchMembersWithoutUser func(childComplexity int, criteria string) int
 	}
 
 	RecentActivity struct {
@@ -351,6 +352,7 @@ type QueryResolver interface {
 	GetMember(ctx context.Context, id string) (*models.Member, error)
 	ListMembers(ctx context.Context, filter *model.MemberFilter) (*model.MemberConnection, error)
 	SearchMembers(ctx context.Context, criteria string) ([]*models.Member, error)
+	SearchMembersWithoutUser(ctx context.Context, criteria string) ([]*models.Member, error)
 	GetFamily(ctx context.Context, id string) (*models.Family, error)
 	ListFamilies(ctx context.Context, filter *model.FamilyFilter) (*model.FamilyConnection, error)
 	GetFamilyMembers(ctx context.Context, familyID string) ([]*models.Familiar, error)
@@ -1592,6 +1594,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Query.SearchMembers(childComplexity, args["criteria"].(string)), true
 
+	case "Query.searchMembersWithoutUser":
+		if e.complexity.Query.SearchMembersWithoutUser == nil {
+			break
+		}
+
+		args, err := ec.field_Query_searchMembersWithoutUser_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.SearchMembersWithoutUser(childComplexity, args["criteria"].(string)), true
+
 	case "RecentActivity.amount":
 		if e.complexity.RecentActivity.Amount == nil {
 			break
@@ -2101,6 +2115,7 @@ type Query {
     getMember(id: ID!): Member
     listMembers(filter: MemberFilter): MemberConnection!
     searchMembers(criteria: String!): [Member!]!
+    searchMembersWithoutUser(criteria: String!): [Member!]!
 
     # Family Queries
     getFamily(id: ID!): Family
@@ -3860,6 +3875,34 @@ func (ec *executionContext) field_Query_listUsers_argsPageSize(
 	}
 
 	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_searchMembersWithoutUser_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_searchMembersWithoutUser_argsCriteria(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["criteria"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_searchMembersWithoutUser_argsCriteria(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["criteria"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("criteria"))
+	if tmp, ok := rawArgs["criteria"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
 	return zeroVal, nil
 }
 
@@ -10634,6 +10677,101 @@ func (ec *executionContext) fieldContext_Query_searchMembers(ctx context.Context
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_searchMembers_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_searchMembersWithoutUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_searchMembersWithoutUser(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().SearchMembersWithoutUser(rctx, fc.Args["criteria"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*models.Member)
+	fc.Result = res
+	return ec.marshalNMember2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐMemberᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_searchMembersWithoutUser(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "miembro_id":
+				return ec.fieldContext_Member_miembro_id(ctx, field)
+			case "numero_socio":
+				return ec.fieldContext_Member_numero_socio(ctx, field)
+			case "tipo_membresia":
+				return ec.fieldContext_Member_tipo_membresia(ctx, field)
+			case "nombre":
+				return ec.fieldContext_Member_nombre(ctx, field)
+			case "apellidos":
+				return ec.fieldContext_Member_apellidos(ctx, field)
+			case "calle_numero_piso":
+				return ec.fieldContext_Member_calle_numero_piso(ctx, field)
+			case "codigo_postal":
+				return ec.fieldContext_Member_codigo_postal(ctx, field)
+			case "poblacion":
+				return ec.fieldContext_Member_poblacion(ctx, field)
+			case "provincia":
+				return ec.fieldContext_Member_provincia(ctx, field)
+			case "pais":
+				return ec.fieldContext_Member_pais(ctx, field)
+			case "estado":
+				return ec.fieldContext_Member_estado(ctx, field)
+			case "fecha_alta":
+				return ec.fieldContext_Member_fecha_alta(ctx, field)
+			case "fecha_baja":
+				return ec.fieldContext_Member_fecha_baja(ctx, field)
+			case "fecha_nacimiento":
+				return ec.fieldContext_Member_fecha_nacimiento(ctx, field)
+			case "documento_identidad":
+				return ec.fieldContext_Member_documento_identidad(ctx, field)
+			case "correo_electronico":
+				return ec.fieldContext_Member_correo_electronico(ctx, field)
+			case "profesion":
+				return ec.fieldContext_Member_profesion(ctx, field)
+			case "nacionalidad":
+				return ec.fieldContext_Member_nacionalidad(ctx, field)
+			case "observaciones":
+				return ec.fieldContext_Member_observaciones(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Member", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_searchMembersWithoutUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -17843,6 +17981,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_searchMembers(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "searchMembersWithoutUser":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_searchMembersWithoutUser(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
