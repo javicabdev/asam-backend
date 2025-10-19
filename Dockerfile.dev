@@ -1,4 +1,4 @@
-# Dockerfile para desarrollo con Go 1.25 - Solución completa SSL/Proxy
+# Dockerfile para desarrollo con Go 1.25 - Sin Air (más simple)
 FROM golang:1.25
 
 # Instalar certificados y herramientas básicas
@@ -14,72 +14,45 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Configurar Go para manejar problemas de SSL/Proxy
+# Configurar Go
 ENV GO111MODULE=on \
     CGO_ENABLED=0 \
     GOOS=linux \
-    GOARCH=amd64 \
-    GOPROXY=direct \
-    GOSUMDB=off \
-    GOINSECURE=github.com,golang.org,goproxy.io,sum.golang.org \
-    GIT_SSL_NO_VERIFY=true
-
-# Configurar git para ignorar SSL (temporal)
-RUN git config --global http.sslVerify false && \
-    git config --global https.sslVerify false
+    GOARCH=amd64
 
 # Directorio de trabajo
 WORKDIR /app
 
-# Copiar archivos de módulos primero
+# Copiar archivos de módulos
 COPY go.mod go.sum ./
 
-# Intentar descargar dependencias con múltiples estrategias
-RUN go mod download || \
-    (echo "Intento 2: usando GOPROXY directo" && \
-     GOPROXY=direct go mod download) || \
-    (echo "Intento 3: modo offline - continuando sin descargar" && \
-     echo "Las dependencias se descargarán durante el build")
+# Descargar dependencias
+RUN go mod download
 
-# Instalar Air y gqlgen con múltiples intentos
-RUN go install -insecure github.com/air-verse/air@latest || \
-    (echo "Instalando Air con GOINSECURE..." && \
-     GOINSECURE=* go install github.com/air-verse/air@latest) || \
-    (echo "Air se instalará manualmente más tarde" && mkdir -p /go/bin)
+# Instalar gqlgen
+RUN go install github.com/99designs/gqlgen@v0.17.73
 
-RUN go install -insecure github.com/99designs/gqlgen@v0.17.73 || \
-    (echo "Instalando gqlgen con GOINSECURE..." && \
-     GOINSECURE=* go install github.com/99designs/gqlgen@v0.17.73) || \
-    (echo "gqlgen se instalará manualmente más tarde" && mkdir -p /go/bin)
-
-# Copiar el código fuente
+# Copiar código fuente
 COPY . .
 
-# Intentar generar código GraphQL si es necesario
+# Generar código GraphQL si los archivos no existen
 RUN if [ ! -f "internal/adapters/gql/generated/generated.go" ]; then \
-        echo "=== Intentando generar código GraphQL ===" && \
+        echo "=== Generando código GraphQL ===" && \
         mkdir -p internal/adapters/gql/generated internal/adapters/gql/model && \
-        (gqlgen generate || echo "GraphQL se generará más tarde"); \
+        gqlgen generate; \
     fi
 
 # Construir la aplicación
-RUN go build -o asam-backend ./cmd/api || \
-    echo "Build inicial falló, se compilará con Air"
-
-# Crear directorio para Air
-RUN mkdir -p /app/tmp
+RUN go build -o /app/asam-backend ./cmd/api && \
+    chmod +x /app/asam-backend && \
+    ls -lh /app/asam-backend
 
 # Puerto
 EXPOSE 8080
 
-# Healthcheck simple
+# Healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/health/live || exit 1
 
-# Si Air está instalado, usarlo. Si no, ejecutar directamente
-CMD if command -v air >/dev/null 2>&1; then \
-        air -c .air.toml; \
-    else \
-        echo "Air no disponible, ejecutando directamente..." && \
-        go run cmd/api/main.go; \
-    fi
+# Ejecutar con path absoluto
+CMD ["/app/asam-backend"]

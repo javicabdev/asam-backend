@@ -15,6 +15,9 @@ resolver:
   package: resolvers
   filename_template: "{name}.resolvers.go"
 
+# Desactivar go mod tidy automático en Docker
+skip_mod_tidy: true
+
 autobind:
   - "github.com/javicabdev/asam-backend/internal/domain/models"
 

@@ -25,7 +25,9 @@ services:
       - GOINSECURE=*
       - GIT_SSL_NO_VERIFY=true
     volumes:
-      - .:/app
+      # Comentado: Montar el directorio local sobrescribe el binario compilado
+      # Para ver cambios: docker-compose restart api (tarda ~10s)
+      # - .:/app
       - /app/tmp
       - go-mod-cache:/go/pkg/mod
     restart: unless-stopped
