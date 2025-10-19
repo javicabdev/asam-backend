@@ -47,25 +47,25 @@ docker-compose down --remove-orphans 2>/dev/null
 # Limpiar volúmenes si se especifica
 if [[ " $* " == *" --clean "* ]]; then
     echo -e "\n${YELLOW}🧹 Limpieza completa del entorno...${NC}"
-    
-    # Detener y limpiar todo
+
+    # Detener y limpiar
     echo -e "${GRAY}   Deteniendo todos los contenedores...${NC}"
     docker-compose down -v --remove-orphans
-    
+
     # Limpiar contenedores huérfanos adicionales
     echo -e "${GRAY}   Eliminando contenedores huérfanos...${NC}"
     docker container prune -f 2>/dev/null
-    
+
     # Limpiar redes no utilizadas
     echo -e "${GRAY}   Limpiando redes no utilizadas...${NC}"
     docker network prune -f 2>/dev/null
-    
+
     # Eliminar el archivo .env para empezar limpio
     if [ -f ".env" ]; then
         echo -e "${GRAY}   Eliminando archivo .env existente...${NC}"
         rm -f ".env"
     fi
-    
+
     echo -e "${GREEN}✅ Limpieza completa finalizada${NC}"
     sleep 2
 fi
@@ -82,7 +82,7 @@ if [ ! -f ".env" ]; then
     else
         echo -e "${RED}❌ No se encontró archivo de configuración de ejemplo${NC}"
         echo -e "${YELLOW}   Creando archivo .env mínimo...${NC}"
-        
+
         # Crear un .env mínimo para desarrollo
         cat > .env << 'ENVFILE'
 # Database configuration
@@ -209,7 +209,7 @@ READY=false
 while [ $ATTEMPT -lt $MAX_ATTEMPTS ] && [ "$READY" = false ]; do
     ATTEMPT=$((ATTEMPT + 1))
     echo -n "."
-    
+
     if docker-compose exec -T postgres pg_isready -U postgres -d asam_db &>/dev/null; then
         READY=true
     else
@@ -244,16 +244,16 @@ if [ $? -eq 0 ]; then
     echo -e "${GREEN}✅ Migraciones ejecutadas con éxito${NC}"
 else
     echo -e "${YELLOW}⚠️  Error al ejecutar migraciones con Go${NC}"
-    
+
     # Como respaldo, intentar ejecutar las migraciones SQL directamente
     echo -e "${GRAY}   Intentando ejecutar migraciones SQL directamente...${NC}"
-    
+
     # Obtener todos los archivos de migración .up.sql ordenados
     if [ -d "migrations" ]; then
         for MIGRATION_FILE in $(ls migrations/*.up.sql 2>/dev/null | sort); do
             MIGRATION_NAME=$(basename "$MIGRATION_FILE")
             echo -e "${GRAY}   Aplicando: $MIGRATION_NAME${NC}"
-            
+
             # Ejecutar la migración
             if docker-compose exec -T postgres psql -U postgres -d asam_db < "$MIGRATION_FILE" &>/dev/null; then
                 echo -e "${DARK_GREEN}   ✓ $MIGRATION_NAME aplicada${NC}"
@@ -263,7 +263,7 @@ else
             fi
         done
     fi
-    
+
     echo -e "${GREEN}✅ Proceso de migraciones completado${NC}"
 fi
 
@@ -303,11 +303,11 @@ if [ "$USER_COUNT_INT" -eq 0 ]; then
     echo -e "${GRAY}   No hay usuarios, creando usuarios de prueba...${NC}"
     # Esperar un poco para asegurar que el API esté completamente lista
     sleep 2
-    
+
     # Usar el script automatizado que no requiere interacción
     if docker-compose exec -T api go run scripts/user-management/auto-create-test-users/auto-create-test-users.go; then
         echo -e "${GREEN}✅ Usuarios de prueba creados correctamente${NC}"
-        
+
         # Verificar que los usuarios se crearon
         NEW_USER_COUNT=$(docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT COUNT(*) FROM users;" 2>/dev/null | tr -d ' ')
         if [ -n "$NEW_USER_COUNT" ]; then
@@ -321,7 +321,7 @@ if [ "$USER_COUNT_INT" -eq 0 ]; then
     fi
 else
     echo -e "${GREEN}✅ Ya existen $USER_COUNT_INT usuarios en la base de datos${NC}"
-    
+
     # Mostrar los usuarios existentes
     echo -e "${GRAY}   Usuarios existentes:${NC}"
     docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT username, role FROM users;" | while read -r line; do
