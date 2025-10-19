@@ -74,3 +74,4 @@ gosec-report.json
 gosec-report.txt
 /github-actions-sa-key.json
 /docsTemp/
+.DS_Store
