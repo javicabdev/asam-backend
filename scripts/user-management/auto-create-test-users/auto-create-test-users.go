@@ -21,8 +21,8 @@ import (
 
 // Constants for test users
 const (
-	adminEmail    = "admin@asam.org"
-	userEmail     = "user@asam.org"
+	adminEmail    = "javierfernandezc@gmail.com"
+	userEmail     = "javi_nov20@hotmail.com"
 	adminUsername = "admin"
 	userUsername  = "user"
 	adminPassword = "AsamAdmin2025!"
