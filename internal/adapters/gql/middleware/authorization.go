@@ -222,7 +222,13 @@ func CanAccessFamily(ctx context.Context, originMemberID *uint) error {
 }
 
 // CanAccessPayment verifica si el usuario puede acceder a un pago específico
-func CanAccessPayment(ctx context.Context, paymentMemberID uint) error {
+// paymentMemberID puede ser nil para pagos de familia sin miembro asociado
+func CanAccessPayment(ctx context.Context, paymentMemberID *uint) error {
+	// Si el pago no tiene miembro asociado (familia), solo admin puede acceder
+	if paymentMemberID == nil {
+		return MustBeAdmin(ctx)
+	}
+
 	userMemberID, err := GetMemberIDFromContext(ctx)
 	if err != nil {
 		return err
@@ -234,7 +240,7 @@ func CanAccessPayment(ctx context.Context, paymentMemberID uint) error {
 	}
 
 	// USER solo puede ver sus propios pagos
-	if *userMemberID != paymentMemberID {
+	if *userMemberID != *paymentMemberID {
 		return errors.NewBusinessError(
 			errors.ErrForbidden,
 			"No tienes permiso para acceder a este pago",

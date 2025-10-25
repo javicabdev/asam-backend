@@ -23,7 +23,7 @@ func (r *paymentResolver) mapPaymentInputToModel(input *model.PaymentInput) *mod
 		if err != nil {
 			return nil
 		}
-		payment.MemberID = memberID
+		payment.MemberID = &memberID
 	}
 
 	if input.FamilyID != nil {
@@ -72,7 +72,7 @@ func (r *paymentResolver) validateBasicPayment(payment *models.Payment) error {
 	}
 
 	// Ensure either member or family is provided
-	if payment.MemberID == 0 && payment.FamilyID == nil {
+	if (payment.MemberID == nil || *payment.MemberID == 0) && (payment.FamilyID == nil || *payment.FamilyID == 0) {
 		return appErrors.NewValidationError(
 			"Payment must be associated with either a member or family",
 			map[string]string{
@@ -88,14 +88,14 @@ func (r *paymentResolver) validateBasicPayment(payment *models.Payment) error {
 // validatePaymentAssociations verifica que las entidades asociadas existan
 func (r *paymentResolver) validatePaymentAssociations(ctx context.Context, payment *models.Payment) error {
 	// Check if member exists and is active
-	if payment.MemberID != 0 {
-		if err := r.validateMember(ctx, payment.MemberID); err != nil {
+	if payment.MemberID != nil && *payment.MemberID != 0 {
+		if err := r.validateMember(ctx, *payment.MemberID); err != nil {
 			return err
 		}
 	}
 
 	// Check if family exists
-	if payment.FamilyID != nil {
+	if payment.FamilyID != nil && *payment.FamilyID != 0 {
 		if err := r.validateFamily(ctx, *payment.FamilyID); err != nil {
 			return err
 		}

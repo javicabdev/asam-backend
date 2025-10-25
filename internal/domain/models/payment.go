@@ -23,8 +23,8 @@ const (
 // Payment representa un pago realizado por un miembro o familia
 type Payment struct {
 	gorm.Model
-	MemberID        uint
-	Member          Member `gorm:"foreignKey:MemberID"`
+	MemberID        *uint
+	Member          *Member `gorm:"foreignKey:MemberID"`
 	FamilyID        *uint
 	Family          *Family `gorm:"foreignKey:FamilyID"`
 	Amount          float64
@@ -62,12 +62,13 @@ func NewAnnualFee(year int, baseAmount float64) *MembershipFee {
 
 // Validate verifica que el pago cumpla con las reglas de negocio
 func (p *Payment) Validate() error {
-	if p.MemberID == 0 && p.FamilyID == nil {
+	// At least one of MemberID or FamilyID must be present
+	if (p.MemberID == nil || *p.MemberID == 0) && (p.FamilyID == nil || *p.FamilyID == 0) {
 		return appErrors.NewValidationError(
 			"payment must be associated with either a member or family",
 			map[string]string{
-				"MemberID": "cannot be 0 if FamilyID is nil",
-				"FamilyID": "cannot be nil if MemberID is 0",
+				"MemberID": "required if FamilyID not provided",
+				"FamilyID": "required if MemberID not provided",
 			},
 		)
 	}

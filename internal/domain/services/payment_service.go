@@ -17,6 +17,7 @@ type paymentService struct {
 	paymentRepo         output.PaymentRepository
 	membershipFeeRepo   output.MembershipFeeRepository
 	memberRepo          output.MemberRepository
+	familyRepo          output.FamilyRepository
 	notificationService input.NotificationService
 	feeCalculator       input.FeeCalculator
 }
@@ -27,6 +28,7 @@ func NewPaymentService(
 	paymentRepo output.PaymentRepository,
 	membershipFeeRepo output.MembershipFeeRepository,
 	memberRepo output.MemberRepository,
+	familyRepo output.FamilyRepository,
 	notificationService input.NotificationService,
 	feeCalculator input.FeeCalculator,
 ) input.PaymentService {
@@ -34,6 +36,7 @@ func NewPaymentService(
 		paymentRepo:         paymentRepo,
 		membershipFeeRepo:   membershipFeeRepo,
 		memberRepo:          memberRepo,
+		familyRepo:          familyRepo,
 		notificationService: notificationService,
 		feeCalculator:       feeCalculator,
 	}
@@ -100,7 +103,7 @@ func (s *paymentService) ensureAnnualFee(ctx context.Context, payment *models.Pa
 	return nil
 }
 
-// validatePayment valida que el pago sea correcto y que el miembro exista y esté activo
+// validatePayment valida que el pago sea correcto y que el miembro o familia exista
 func (s *paymentService) validatePayment(ctx context.Context, payment *models.Payment) error {
 	// Validar el pago
 	if err := payment.Validate(); err != nil {
@@ -112,8 +115,18 @@ func (s *paymentService) validatePayment(ctx context.Context, payment *models.Pa
 		return errors.NewValidationError(err.Error(), nil)
 	}
 
-	// Obtener miembro para validar que existe y está activo
-	return s.validateMember(ctx, payment.MemberID)
+	// Validar miembro si MemberID está presente
+	if payment.MemberID != nil && *payment.MemberID != 0 {
+		return s.validateMember(ctx, *payment.MemberID)
+	}
+
+	// Validar familia si FamilyID está presente
+	if payment.FamilyID != nil && *payment.FamilyID != 0 {
+		return s.validateFamily(ctx, *payment.FamilyID)
+	}
+
+	// Si llegamos aquí, ni MemberID ni FamilyID están presentes (ya validado en Validate())
+	return nil
 }
 
 // validateMember verifica que el miembro exista y esté activo
@@ -130,6 +143,20 @@ func (s *paymentService) validateMember(ctx context.Context, memberID uint) erro
 	// Verificar que el miembro esté activo
 	if member.State != models.EstadoActivo {
 		return errors.Validation("El miembro no está activo", "estado", "inactive")
+	}
+
+	return nil
+}
+
+// validateFamily verifica que la familia exista
+func (s *paymentService) validateFamily(ctx context.Context, familyID uint) error {
+	family, err := s.familyRepo.GetByID(ctx, familyID)
+	if err != nil {
+		return errors.DB(err, "error obteniendo familia")
+	}
+
+	if family == nil {
+		return errors.NotFound("family", nil)
 	}
 
 	return nil
@@ -185,8 +212,13 @@ func (s *paymentService) recordLatencyMetrics(ctx context.Context, payment *mode
 	}
 
 	if fee != nil && fee.DueDate.Before(payment.PaymentDate) {
+		// Only calculate latency metrics if payment has a member
+		if payment.MemberID == nil {
+			return nil // Skip metrics for family-only payments
+		}
+
 		// Obtener el miembro para las métricas
-		member, err := s.memberRepo.GetByID(ctx, payment.MemberID)
+		member, err := s.memberRepo.GetByID(ctx, *payment.MemberID)
 		if err != nil {
 			return err // Error silencioso para métricas
 		}
@@ -465,15 +497,21 @@ func (s *paymentService) GetDefaulters(ctx context.Context) ([]input.AccountStat
 			continue
 		}
 
-		if !memberMap[fee.Payment.MemberID] {
-			statement, err := s.GetMemberStatement(ctx, fee.Payment.MemberID)
+		// Skip family-only payments (no member associated)
+		if fee.Payment.MemberID == nil {
+			continue
+		}
+
+		memberID := *fee.Payment.MemberID
+		if !memberMap[memberID] {
+			statement, err := s.GetMemberStatement(ctx, memberID)
 			if err != nil {
 				// Loguear el error pero continuar con otros miembros
 				continue
 			}
 			if statement.IsDefaulter {
 				defaulters = append(defaulters, *statement)
-				memberMap[fee.Payment.MemberID] = true
+				memberMap[memberID] = true
 			}
 		}
 	}
@@ -515,7 +553,12 @@ func (s *paymentService) SendPaymentConfirmation(ctx context.Context, paymentID 
 		return errors.NotFound("payment", nil)
 	}
 
-	member, err := s.memberRepo.GetByID(ctx, payment.MemberID)
+	// If payment has no member (family-only payment), we cannot send confirmation
+	if payment.MemberID == nil {
+		return nil // Silently return, as family payments don't have individual email
+	}
+
+	member, err := s.memberRepo.GetByID(ctx, *payment.MemberID)
 	if err != nil {
 		return errors.DB(err, "error obteniendo miembro")
 	}

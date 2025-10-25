@@ -104,11 +104,8 @@ func NewFromPayment(payment *Payment) (*CashFlow, error) {
 		Detail:        detail,
 	}
 
-	// El MemberID en Payment es uint (no opcional)
-	memberID := payment.MemberID
-	cashFlow.MemberID = &memberID
-
-	// El FamilyID en Payment es *uint (ya es opcional)
+	// Both MemberID and FamilyID in Payment are *uint (optional)
+	cashFlow.MemberID = payment.MemberID
 	cashFlow.FamilyID = payment.FamilyID
 
 	return cashFlow, nil
