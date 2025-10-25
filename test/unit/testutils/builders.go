@@ -202,16 +202,15 @@ func (b *TestDataBuilder) BuildValidFamiliar(familiaID uint) *models.Familiar {
 	}
 }
 
-// BuildMembershipFee creates a valid membership fee
+// BuildMembershipFee creates a valid annual membership fee
+// The month parameter is ignored (kept for backward compatibility)
 func (b *TestDataBuilder) BuildMembershipFee(year, month int) *models.MembershipFee {
-	return &models.MembershipFee{
-		Year:           year,
-		Month:          month,
-		BaseFeeAmount:  30.0,
-		FamilyFeeExtra: 15.0,
-		Status:         models.PaymentStatusPending,
-		DueDate:        time.Date(year, time.Month(month), 10, 0, 0, 0, 0, time.UTC),
-	}
+	return models.NewAnnualFee(year, 30.0)
+}
+
+// BuildAnnualMembershipFee creates a valid annual membership fee
+func (b *TestDataBuilder) BuildAnnualMembershipFee(year int) *models.MembershipFee {
+	return models.NewAnnualFee(year, 30.0)
 }
 
 // randomUsername generates a random username

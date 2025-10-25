@@ -86,15 +86,22 @@ func NewFromPayment(payment *Payment) (*CashFlow, error) {
 		return nil, errors.New("payment no puede ser nil")
 	}
 
-	// Convertir uint a *uint
 	paymentID := payment.ID
+
+	// Determinar detalle según si es cuota anual
+	detail := "Pago registrado"
+	if payment.MembershipFee != nil {
+		detail = fmt.Sprintf("Cuota anual %d", payment.MembershipFee.Year)
+	} else if payment.Notes != "" {
+		detail = payment.Notes
+	}
 
 	cashFlow := &CashFlow{
 		PaymentID:     &paymentID,
 		OperationType: OperationTypeMembershipFee,
 		Amount:        payment.Amount,
 		Date:          payment.PaymentDate,
-		Detail:        fmt.Sprintf("Cuota de membresía - %d/%d", payment.MembershipFee.Month, payment.MembershipFee.Year),
+		Detail:        detail,
 	}
 
 	// El MemberID en Payment es uint (no opcional)

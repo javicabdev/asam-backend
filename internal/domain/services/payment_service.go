@@ -45,6 +45,13 @@ func (s *paymentService) RegisterPayment(ctx context.Context, payment *models.Pa
 		return err
 	}
 
+	// Si es un pago inicial (no tiene MembershipFeeID), asociar con cuota anual
+	if payment.MembershipFeeID == nil {
+		if err := s.ensureAnnualFee(ctx, payment); err != nil {
+			return err
+		}
+	}
+
 	// Procesar pago de cuota si aplica
 	if err := s.processMembershipFee(ctx, payment); err != nil {
 		return err
@@ -60,6 +67,35 @@ func (s *paymentService) RegisterPayment(ctx context.Context, payment *models.Pa
 		// Registrar el error sin interrumpir el flujo principal
 		log.Printf("Error registrando métricas de pago: %v", err)
 	}
+
+	return nil
+}
+
+// ensureAnnualFee busca o crea la cuota anual del año actual y la asocia al pago
+func (s *paymentService) ensureAnnualFee(ctx context.Context, payment *models.Payment) error {
+	currentYear := time.Now().Year()
+
+	// Buscar cuota anual existente
+	fee, err := s.membershipFeeRepo.FindByYear(ctx, currentYear)
+	if err != nil {
+		return errors.DB(err, "error buscando cuota anual")
+	}
+
+	// Si no existe, crearla
+	if fee == nil {
+		// Usar el monto del pago como monto base de la cuota
+		baseAmount := payment.Amount
+
+		fee = models.NewAnnualFee(currentYear, baseAmount)
+
+		if err := s.membershipFeeRepo.Create(ctx, fee); err != nil {
+			return errors.DB(err, "error creando cuota anual")
+		}
+	}
+
+	// Asociar el pago con la cuota anual
+	payment.MembershipFeeID = &fee.ID
+	payment.MembershipFee = fee
 
 	return nil
 }
@@ -107,7 +143,7 @@ func (s *paymentService) processMembershipFee(ctx context.Context, payment *mode
 	}
 
 	// Buscar cuota existente
-	fee, err := s.membershipFeeRepo.FindByYearMonth(ctx, time.Now().Year(), int(time.Now().Month()))
+	fee, err := s.membershipFeeRepo.FindByID(ctx, *payment.MembershipFeeID)
 	if err != nil {
 		return errors.DB(err, "error buscando cuota de membresía")
 	}
@@ -116,7 +152,7 @@ func (s *paymentService) processMembershipFee(ctx context.Context, payment *mode
 		return errors.NotFound("membership fee", nil)
 	}
 
-	// Actualizar estado de la cuota
+	// Actualizar estado de la cuota a pagado
 	fee.Status = models.PaymentStatusPaid
 	if err := s.membershipFeeRepo.Update(ctx, fee); err != nil {
 		return errors.DB(err, "error actualizando cuota de membresía")
@@ -143,7 +179,7 @@ func (s *paymentService) recordPaymentMetrics(ctx context.Context, payment *mode
 
 // recordLatencyMetrics registra métricas de latencia para pagos de cuotas
 func (s *paymentService) recordLatencyMetrics(ctx context.Context, payment *models.Payment) error {
-	fee, err := s.membershipFeeRepo.FindByYearMonth(ctx, time.Now().Year(), int(time.Now().Month()))
+	fee, err := s.membershipFeeRepo.FindByID(ctx, *payment.MembershipFeeID)
 	if err != nil {
 		return err // Error silencioso para métricas, no afecta el flujo principal
 	}
@@ -268,37 +304,39 @@ func (s *paymentService) GetFamilyPayments(ctx context.Context, familyID uint) (
 	return paymentPtrs, nil
 }
 
-func (s *paymentService) GenerateMonthlyFees(ctx context.Context, year, month int, baseAmount float64) error {
+// GenerateAnnualFee crea una cuota anual para un año específico
+func (s *paymentService) GenerateAnnualFee(ctx context.Context, year int, baseAmount float64) error {
 	// Validar datos de entrada
 	if baseAmount <= 0 {
 		return errors.Validation("El monto base debe ser positivo", "baseAmount", "debe ser positivo")
 	}
 
-	// Verificar si ya existe una cuota para el mismo año/mes
-	existingFee, err := s.membershipFeeRepo.FindByYearMonth(ctx, year, month)
+	// Verificar si ya existe una cuota para el año
+	existingFee, err := s.membershipFeeRepo.FindByYear(ctx, year)
 	if err != nil {
 		return errors.DB(err, "error verificando cuota existente")
 	}
 
 	if existingFee != nil {
-		return errors.New(errors.ErrDuplicateEntry, "ya existe una cuota para este período")
+		return errors.New(errors.ErrDuplicateEntry, "ya existe una cuota para este año")
 	}
 
-	// Generar cuota base
-	fee := &models.MembershipFee{
-		Year:           year,
-		Month:          month,
-		BaseFeeAmount:  baseAmount,
-		FamilyFeeExtra: s.feeCalculator.CalculateFamilyFee(year, month) - baseAmount,
-		Status:         models.PaymentStatusPending,
-		DueDate:        time.Date(year, time.Month(month), 10, 0, 0, 0, 0, time.UTC),
-	}
+	// Crear cuota anual
+	fee := models.NewAnnualFee(year, baseAmount)
 
 	return s.membershipFeeRepo.Create(ctx, fee)
 }
 
+// DEPRECATED: GenerateMonthlyFees - mantener por compatibilidad
+// Las cuotas ahora son anuales
+func (s *paymentService) GenerateMonthlyFees(ctx context.Context, year, month int, baseAmount float64) error {
+	// Simplemente delegar a GenerateAnnualFee ignorando el mes
+	return s.GenerateAnnualFee(ctx, year, baseAmount)
+}
+
 func (s *paymentService) GetMembershipFee(ctx context.Context, year, month int) (*models.MembershipFee, error) {
-	fee, err := s.membershipFeeRepo.FindByYearMonth(ctx, year, month)
+	// Las cuotas ahora son anuales, ignorar el mes
+	fee, err := s.membershipFeeRepo.FindByYear(ctx, year)
 	if err != nil {
 		return nil, errors.DB(err, "error buscando cuota de membresía")
 	}

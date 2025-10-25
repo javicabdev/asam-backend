@@ -37,17 +37,27 @@ type Payment struct {
 	CashFlow        *CashFlow      `gorm:"foreignKey:PaymentID"` // Relación inversa
 }
 
-// MembershipFee representa una cuota de membresía
+// MembershipFee representa una cuota de membresía anual
 type MembershipFee struct {
 	gorm.Model
 	Year           int
-	Month          int
 	BaseFeeAmount  float64
 	FamilyFeeExtra float64 // Additional amount for family memberships
 	Status         PaymentStatus
-	DueDate        time.Time
+	DueDate        time.Time // Siempre 31 de diciembre del año
 	PaymentID      *uint
 	Payment        *Payment `gorm:"foreignKey:PaymentID"`
+}
+
+// NewAnnualFee crea una nueva cuota anual con fecha de vencimiento al 31 de diciembre
+func NewAnnualFee(year int, baseAmount float64) *MembershipFee {
+	return &MembershipFee{
+		Year:           year,
+		BaseFeeAmount:  baseAmount,
+		FamilyFeeExtra: 0, // Se calculará por el FeeCalculator si aplica
+		Status:         PaymentStatusPending,
+		DueDate:        time.Date(year, 12, 31, 23, 59, 59, 0, time.UTC),
+	}
 }
 
 // Validate verifica que el pago cumpla con las reglas de negocio

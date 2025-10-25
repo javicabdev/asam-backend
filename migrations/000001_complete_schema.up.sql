@@ -2,6 +2,7 @@
 -- ASAM Backend - Complete Database Schema
 -- Single migration containing the complete final schema for development phase
 -- Includes all features: members, families, users, authentication, email verification, payments, etc.
+-- VERSION: 1.1 - Annual membership fee system (without month field)
 
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -95,15 +96,15 @@ CREATE TABLE telephones (
 -- FINANCIAL TABLES
 -- =============================================================================
 
--- Membership fees table - Monthly fee definitions
+-- Membership fees table - Annual fee definitions
+-- IMPORTANT: This is an ANNUAL system. One fee per year, due date is always December 31st
 CREATE TABLE membership_fees (
     id SERIAL PRIMARY KEY,
-    year INTEGER NOT NULL,
-    month INTEGER NOT NULL,
+    year INTEGER NOT NULL UNIQUE,  -- UNIQUE constraint ensures one fee per year
     base_fee_amount DECIMAL(10,2) NOT NULL,
     family_fee_extra DECIMAL(10,2) NOT NULL DEFAULT 0,
     status VARCHAR(255) NOT NULL DEFAULT 'pending',
-    due_date DATE NOT NULL,
+    due_date DATE NOT NULL,  -- Always December 31st of the year
     payment_id INTEGER,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -276,7 +277,13 @@ CREATE INDEX idx_payments_member_id ON payments(member_id);
 CREATE INDEX idx_payments_family_id ON payments(family_id);
 CREATE INDEX idx_payments_status ON payments(status);
 CREATE INDEX idx_payments_payment_date ON payments(payment_date);
+CREATE INDEX idx_payments_membership_fee_id ON payments(membership_fee_id);
 CREATE INDEX idx_payments_deleted_at ON payments(deleted_at);
+
+-- Membership fee indexes
+CREATE INDEX idx_membership_fees_year ON membership_fees(year);
+CREATE INDEX idx_membership_fees_status ON membership_fees(status);
+CREATE INDEX idx_membership_fees_due_date ON membership_fees(due_date);
 
 -- Cash flow indexes
 CREATE INDEX idx_cash_flows_member_id ON cash_flows(member_id);
@@ -367,7 +374,7 @@ COMMENT ON TABLE members IS 'Individual members of the association';
 COMMENT ON TABLE families IS 'Family groups with mixed Spanish field names per existing model';
 COMMENT ON TABLE familiars IS 'Family relatives with Spanish field names per existing model';
 COMMENT ON TABLE telephones IS 'Polymorphic phone numbers with Spanish field name per existing model';
-COMMENT ON TABLE membership_fees IS 'Monthly membership fee definitions';
+COMMENT ON TABLE membership_fees IS 'Annual membership fee definitions. One fee per year, due date is always December 31st';
 COMMENT ON TABLE payments IS 'Payment records from members and families';
 COMMENT ON TABLE cash_flows IS 'Financial movements and transaction tracking';
 COMMENT ON TABLE users IS 'System users with authentication and email verification';
@@ -375,6 +382,8 @@ COMMENT ON TABLE refresh_tokens IS 'JWT refresh token management for secure auth
 COMMENT ON TABLE verification_tokens IS 'Email verification and password reset tokens';
 
 -- Key column comments
+COMMENT ON COLUMN membership_fees.year IS 'Year of the membership fee. UNIQUE constraint ensures only one fee per year';
+COMMENT ON COLUMN membership_fees.due_date IS 'Due date for the fee payment. Always set to December 31st of the year';
 COMMENT ON COLUMN users.email IS 'User email address, required for notifications and authentication';
 COMMENT ON COLUMN users.email_verified_at IS 'Timestamp when email was verified, NULL if not verified';
 COMMENT ON COLUMN users.email_verification_sent_at IS 'Last time verification email was sent';
@@ -402,4 +411,4 @@ COMMENT ON COLUMN cash_flows.operation_type IS 'Type of operation: income, expen
 -- =============================================================================
 
 -- Schema version for reference
-COMMENT ON EXTENSION "uuid-ossp" IS 'ASAM Schema v1.0 - Complete consolidated schema for development phase';
+COMMENT ON EXTENSION "uuid-ossp" IS 'ASAM Schema v1.1 - Annual membership fee system (without month field)';

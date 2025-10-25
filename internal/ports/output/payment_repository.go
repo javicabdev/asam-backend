@@ -22,6 +22,7 @@ type MembershipFeeRepository interface {
 	Create(ctx context.Context, fee *models.MembershipFee) error
 	Update(ctx context.Context, fee *models.MembershipFee) error
 	FindByID(ctx context.Context, id uint) (*models.MembershipFee, error)
-	FindByYearMonth(ctx context.Context, year, month int) (*models.MembershipFee, error)
+	FindByYear(ctx context.Context, year int) (*models.MembershipFee, error)
+	FindByYearMonth(ctx context.Context, year, month int) (*models.MembershipFee, error) // DEPRECATED - mantener por compatibilidad
 	FindPendingByMember(ctx context.Context, memberID uint) ([]models.MembershipFee, error)
 }

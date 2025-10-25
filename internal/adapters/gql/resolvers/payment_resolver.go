@@ -197,4 +197,22 @@ func (r *paymentResolver) updatePayment(ctx context.Context, payment *models.Pay
 	return payment, nil
 }
 
+// MembershipFee resolver para el campo membership_fee en Payment
+func (r *paymentResolver) MembershipFee(ctx context.Context, obj *models.Payment) (*models.MembershipFee, error) {
+	// Si no hay ID de cuota, retornar nil (es opcional)
+	if obj.MembershipFeeID == nil {
+		return nil, nil
+	}
+
+	// Si ya está cargado por GORM (eager loading), devolverlo
+	if obj.MembershipFee != nil {
+		return obj.MembershipFee, nil
+	}
+
+	// Si no está cargado, devolverlo como nil
+	// El frontend debería hacer eager loading si necesita este campo
+	// O podríamos cargar desde el servicio, pero por simplicidad devolvemos nil
+	return nil, nil
+}
+
 // Helper methods for handling specific payment operations

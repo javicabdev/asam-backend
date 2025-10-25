@@ -158,21 +158,28 @@ func (r *membershipFeeRepository) Update(ctx context.Context, fee *models.Member
 	return nil
 }
 
-func (r *membershipFeeRepository) FindByYearMonth(ctx context.Context, year, month int) (*models.MembershipFee, error) {
+func (r *membershipFeeRepository) FindByYear(ctx context.Context, year int) (*models.MembershipFee, error) {
 	var fee models.MembershipFee
 
 	result := r.db.WithContext(ctx).
-		Where("year = ? AND month = ?", year, month).
+		Where("year = ?", year).
 		First(&fee)
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, nil // Patrón consistente: nil, nil para "no encontrado"
+			return nil, nil
 		}
-		return nil, appErrors.DB(result.Error, "error finding membership fee")
+		return nil, appErrors.DB(result.Error, "error finding annual membership fee")
 	}
 
 	return &fee, nil
+}
+
+// FindByYearMonth - DEPRECATED: mantener por compatibilidad temporal
+// Las cuotas ahora son anuales, esta función ignorará el parámetro month
+func (r *membershipFeeRepository) FindByYearMonth(ctx context.Context, year, month int) (*models.MembershipFee, error) {
+	// Simplemente delegar a FindByYear ya que las cuotas son anuales
+	return r.FindByYear(ctx, year)
 }
 
 func (r *membershipFeeRepository) FindPendingByMember(ctx context.Context, memberID uint) ([]models.MembershipFee, error) {

@@ -8,8 +8,25 @@ Clean, simple database schema for the ASAM (Asociación de Senegaleses y Amigos 
 
 ## 📁 Active Migrations
 
-- **`000001_complete_schema.up.sql`** - Complete database schema with all features
+- **`000001_complete_schema.up.sql`** - Complete database schema with all features (v1.1 - Annual fee system)
 - **`000001_complete_schema.down.sql`** - Complete schema rollback
+
+## 📦 Version History
+
+### v1.1 (Current) - Annual Membership Fee System
+- ✅ **BREAKING CHANGE**: `membership_fees` table migrated from monthly to annual system
+- ✅ Field `month` **removed** from `membership_fees`
+- ✅ Field `year` now has **UNIQUE constraint** (one fee per year)
+- ✅ Due date always set to **December 31st** of the year
+- ✅ Simplified fee management and payment tracking
+
+**Migration from v1.0:**
+- If you have an existing database with monthly fees, see `POST_IMPLEMENTATION.md` for migration instructions
+- For fresh installations, simply run the current schema
+
+### v1.0 - Initial Monthly System
+- ⚠️ **DEPRECATED**: Monthly fee system with `year` + `month` fields
+- See `001_convert_to_annual_fees.sql.OBSOLETE` for reference
 
 ## 🗂️ Database Tables
 
@@ -21,7 +38,7 @@ Clean, simple database schema for the ASAM (Asociación de Senegaleses y Amigos 
 
 ### Financial
 - **`payments`** - Payment records
-- **`membership_fees`** - Monthly fee definitions  
+- **`membership_fees`** - **Annual fee definitions** ⭐ (one per year)
 - **`cash_flows`** - Financial movement tracking
 
 ### Authentication & Users
@@ -50,7 +67,24 @@ go run cmd/migrate/main.go -cmd drop
 go run cmd/migrate/main.go -cmd up
 ```
 
-### Using Helper Scripts
+### Reset Database (Production) ⚠️
+
+**CRITICAL: Only use if you have NO valuable data in production.**
+
+See `POST_IMPLEMENTATION.md` for detailed instructions, or use:
+
+```bash
+# Linux/macOS
+./scripts/db/reset_production_db.sh
+
+# Windows PowerShell
+.\scripts\db\reset_production_db.ps1
+
+# SQL script (manual)
+psql -U postgres -f scripts/db/reset_production_db.sql
+```
+
+### Using Helper Scripts (Development)
 ```bash
 # Linux/macOS
 ./scripts/dev/fresh-database-setup.sh
@@ -71,6 +105,7 @@ The single migration includes **all** functionality:
 - ✅ Soft deletes with `deleted_at` columns
 - ✅ Foreign key constraints with proper CASCADE/RESTRICT rules
 - ✅ Comprehensive commenting for documentation
+- ✅ **Annual membership fee system** (one fee per year)
 
 ## 📋 Technical Details
 
@@ -80,10 +115,28 @@ The single migration includes **all** functionality:
 - **Soft Deletes**: Implemented via `deleted_at` timestamp columns
 - **Auto Timestamps**: `created_at`/`updated_at` with triggers
 - **Indexing**: Optimized indexes for queries and foreign keys
+- **Fee System**: Annual fees with UNIQUE constraint on `year`
+
+## 💰 Membership Fee System
+
+The system uses an **annual fee model**:
+
+- ✅ **One fee per year** (enforced by UNIQUE constraint on `year`)
+- ✅ Due date is always **December 31st** at 23:59:59
+- ✅ Base fee amount configurable per year
+- ✅ Extra fee for family members configurable per year
+- ✅ Status tracking: `PENDING`, `PAID`, `OVERDUE`
+
+**Important Notes:**
+- Initial payments automatically create the annual fee for the current year
+- The GraphQL mutation `registerFee` only accepts `year` (no `month` parameter)
+- Historical migration from monthly system available as reference (`001_convert_to_annual_fees.sql.OBSOLETE`)
 
 ## 🔄 Migration History
 
-Previous migration files (development artifacts) have been moved to `old_migrations/` for reference.
+- **v1.1 (2025-10-19)**: Annual fee system (current)
+- **v1.0**: Monthly fee system (deprecated)
+- Previous migration files (development artifacts) have been moved to `old_migrations/` for reference
 
 ## 🔢 Membership Numbering Convention
 
@@ -112,4 +165,4 @@ When transitioning to production with real users, consider:
 
 ---
 
-> **Current Status**: ✅ **Development Phase** - Single comprehensive migration approach
+> **Current Status**: ✅ **Development Phase** - Single comprehensive migration approach (v1.1 - Annual fee system)

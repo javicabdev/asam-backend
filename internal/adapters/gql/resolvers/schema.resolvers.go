@@ -151,6 +151,11 @@ func (r *memberResolver) Observaciones(ctx context.Context, obj *models.Member) 
 	return obj.Remarks, nil
 }
 
+// ID is the resolver for the id field.
+func (r *membershipFeeResolver) ID(ctx context.Context, obj *models.MembershipFee) (string, error) {
+	return fmt.Sprintf("%d", obj.ID), nil
+}
+
 // CreateMember is the resolver for the createMember field.
 func (r *mutationResolver) CreateMember(ctx context.Context, input model.CreateMemberInput) (*models.Member, error) {
 	// Solo ADMIN puede crear miembros
@@ -449,16 +454,16 @@ func (r *mutationResolver) CancelPayment(ctx context.Context, id string, reason 
 }
 
 // RegisterFee is the resolver for the registerFee field.
-func (r *mutationResolver) RegisterFee(ctx context.Context, year int, month int, baseAmount float64) (*model.MutationResponse, error) {
+func (r *mutationResolver) RegisterFee(ctx context.Context, year int, baseAmount float64) (*model.MutationResponse, error) {
 	// Solo ADMIN puede registrar cuotas
 	if err := middleware.MustBeAdmin(ctx); err != nil {
 		return nil, err
 	}
 	// Validación básica de los parámetros
-	if month < 1 || month > 12 {
+	if year < 2000 || year > 2100 {
 		return nil, appErrors.NewValidationError(
-			"Invalid month",
-			map[string]string{"month": "Month must be between 1 and 12"},
+			"Invalid year",
+			map[string]string{"year": "Year must be between 2000 and 2100"},
 		)
 	}
 
@@ -469,14 +474,14 @@ func (r *mutationResolver) RegisterFee(ctx context.Context, year int, month int,
 		)
 	}
 
-	// 1) Crear la cuota de membresía para ese mes/año en la BD
-	err := r.paymentService.GenerateMonthlyFees(ctx, year, month, baseAmount)
+	// 1) Crear la cuota de membresía anual para ese año en la BD
+	err := r.paymentService.GenerateAnnualFee(ctx, year, baseAmount)
 	if err != nil {
 		return nil, err
 	}
 
 	// 2) Devolver un mensaje confirmando la operación
-	msg := fmt.Sprintf("Membership fee for %d-%02d has been generated successfully", year, month)
+	msg := fmt.Sprintf("Membership fee for year %d has been generated successfully", year)
 	return &model.MutationResponse{
 		Success: true,
 		Message: &msg,
@@ -1060,6 +1065,41 @@ func (r *queryResolver) GetPaymentStatus(ctx context.Context, id string) (models
 	return payment.Status, nil
 }
 
+// GetMembershipFee is the resolver for the getMembershipFee field.
+func (r *queryResolver) GetMembershipFee(ctx context.Context, year int) (*models.MembershipFee, error) {
+	// Solo ADMIN puede consultar cuotas
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+
+	// Llamar al servicio de pagos (month = 0, ignorado en cuotas anuales)
+	return r.paymentService.GetMembershipFee(ctx, year, 0)
+}
+
+// ListMembershipFees is the resolver for the listMembershipFees field.
+func (r *queryResolver) ListMembershipFees(ctx context.Context, page *int, pageSize *int) ([]*models.MembershipFee, error) {
+	// Solo ADMIN puede listar cuotas
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+
+	// TODO: Implementar método FindAll en el repositorio cuando sea necesario
+	// Por ahora retornamos un error de operación inválida
+	return nil, appErrors.New(appErrors.ErrInvalidOperation, "listMembershipFees no implementado aún")
+}
+
+// GetPendingFees is the resolver for the getPendingFees field.
+func (r *queryResolver) GetPendingFees(ctx context.Context) ([]*models.MembershipFee, error) {
+	// Solo ADMIN puede consultar cuotas pendientes
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+
+	// TODO: Implementar método GetAllPendingFees en el servicio
+	// Por ahora retornamos un error de operación inválida
+	return nil, appErrors.New(appErrors.ErrInvalidOperation, "getPendingFees no implementado aún")
+}
+
 // GetCashFlow is the resolver for the getCashFlow field.
 func (r *queryResolver) GetCashFlow(ctx context.Context, id string) (*models.CashFlow, error) {
 	// Solo ADMIN puede ver transacciones individuales
@@ -1268,6 +1308,9 @@ func (r *Resolver) Family() generated.FamilyResolver { return &familyResolver{r}
 // Member returns generated.MemberResolver implementation.
 func (r *Resolver) Member() generated.MemberResolver { return &memberResolver{r} }
 
+// MembershipFee returns generated.MembershipFeeResolver implementation.
+func (r *Resolver) MembershipFee() generated.MembershipFeeResolver { return &membershipFeeResolver{r} }
+
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
 
@@ -1284,6 +1327,7 @@ type cashFlowResolver struct{ *Resolver }
 type familiarResolver struct{ *Resolver }
 type familyResolver struct{ *Resolver }
 type memberResolver struct{ *Resolver }
+type membershipFeeResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type paymentResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }

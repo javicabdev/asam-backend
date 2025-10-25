@@ -44,6 +44,8 @@ models:
     model: github.com/javicabdev/asam-backend/internal/domain/models.Familiar
   Payment:
     model: github.com/javicabdev/asam-backend/internal/domain/models.Payment
+  MembershipFee:
+    model: github.com/javicabdev/asam-backend/internal/domain/models.MembershipFee
   CashFlow:
     model: github.com/javicabdev/asam-backend/internal/domain/models.CashFlow
   RefreshToken:

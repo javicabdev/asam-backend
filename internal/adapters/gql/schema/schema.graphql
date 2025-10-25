@@ -134,6 +134,17 @@ type Payment {
     status: PaymentStatus!
     payment_method: String!
     notes: String
+    membership_fee: MembershipFee
+}
+
+type MembershipFee {
+    id: ID!
+    year: Int!
+    base_fee_amount: Float!
+    family_fee_extra: Float!
+    status: PaymentStatus!
+    due_date: Time!
+    payment: Payment
 }
 
 type CashFlow {
@@ -163,13 +174,13 @@ input MemberFilter {
     tipo_membresia: MembershipType
     search_term: String
     pagination: PaginationInput
-    sort: SortInput     # Añadido
+    sort: SortInput
 }
 
 input FamilyFilter {
     search_term: String
     pagination: PaginationInput
-    sort: SortInput     # Añadido
+    sort: SortInput
 }
 
 input TransactionFilter {
@@ -177,7 +188,7 @@ input TransactionFilter {
     end_date: Time
     operation_type: OperationType
     pagination: PaginationInput
-    sort: SortInput     # Añadido
+    sort: SortInput
 }
 
 # Tipos para paginación
@@ -229,6 +240,11 @@ type Query {
     getMemberPayments(memberId: ID!): [Payment!]!
     getFamilyPayments(familyId: ID!): [Payment!]!
     getPaymentStatus(id: ID!): PaymentStatus!
+    
+    # MembershipFee Queries
+    getMembershipFee(year: Int!): MembershipFee
+    listMembershipFees(page: Int = 1, pageSize: Int = 10): [MembershipFee!]!
+    getPendingFees: [MembershipFee!]!
 
     # CashFlow Queries
     getCashFlow(id: ID!): CashFlow
@@ -460,7 +476,7 @@ type Mutation {
     registerPayment(input: PaymentInput!): Payment!
     updatePayment(id: ID!, input: PaymentInput!): Payment!
     cancelPayment(id: ID!, reason: String!): MutationResponse!
-    registerFee(year: Int!, month: Int!, base_amount: Float!): MutationResponse!
+    registerFee(year: Int!, base_amount: Float!): MutationResponse!
 
     # CashFlow Mutations
     registerTransaction(input: TransactionInput!): CashFlow!
