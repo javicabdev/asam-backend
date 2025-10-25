@@ -327,14 +327,14 @@ func (s *paymentService) GenerateAnnualFee(ctx context.Context, year int, baseAm
 	return s.membershipFeeRepo.Create(ctx, fee)
 }
 
-// DEPRECATED: GenerateMonthlyFees - mantener por compatibilidad
-// Las cuotas ahora son anuales
-func (s *paymentService) GenerateMonthlyFees(ctx context.Context, year, month int, baseAmount float64) error {
+// Deprecated: GenerateMonthlyFees - mantener por compatibilidad.
+// Las cuotas ahora son anuales. Use GenerateAnnualFee en su lugar.
+func (s *paymentService) GenerateMonthlyFees(ctx context.Context, year, _ int, baseAmount float64) error {
 	// Simplemente delegar a GenerateAnnualFee ignorando el mes
 	return s.GenerateAnnualFee(ctx, year, baseAmount)
 }
 
-func (s *paymentService) GetMembershipFee(ctx context.Context, year, month int) (*models.MembershipFee, error) {
+func (s *paymentService) GetMembershipFee(ctx context.Context, year, _ int) (*models.MembershipFee, error) {
 	// Las cuotas ahora son anuales, ignorar el mes
 	fee, err := s.membershipFeeRepo.FindByYear(ctx, year)
 	if err != nil {
