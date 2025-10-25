@@ -207,6 +207,13 @@ func (s *emailVerificationService) VerifyPasswordResetToken(ctx context.Context,
 
 // SendVerificationEmailToUser generates a token and sends verification email
 func (s *emailVerificationService) SendVerificationEmailToUser(ctx context.Context, user *models.User) error {
+	// DEBUG: Log para rastrear llamadas duplicadas
+	s.logger.Info("[VERIFICATION-EMAIL] SendVerificationEmailToUser called",
+		zap.Uint("userID", user.ID),
+		zap.String("email", user.Email),
+		zap.Stack("stacktrace"),
+	)
+
 	// Check if email was sent recently (anti-spam protection)
 	if user.EmailVerificationSentAt != nil {
 		timeSinceLastEmail := time.Since(*user.EmailVerificationSentAt)

@@ -141,6 +141,65 @@ func (r *memberRepository) List(ctx context.Context, filters output.MemberFilter
 	return members, nil
 }
 
+// Transaction support methods
+
+// CreateWithTx creates a member within a transaction
+func (r *memberRepository) CreateWithTx(ctx context.Context, tx output.Transaction, member *models.Member) error {
+	gormTx, ok := tx.(*gormTransaction)
+	if !ok {
+		return appErrors.New(appErrors.ErrInternalError, "invalid transaction type")
+	}
+
+	result := gormTx.tx.WithContext(ctx).Create(member)
+	if result.Error != nil {
+		if IsDuplicateKeyError(result.Error) {
+			return appErrors.New(appErrors.ErrDuplicateEntry, "member with the same key already exists")
+		}
+		return appErrors.DB(result.Error, "error creating member")
+	}
+	return nil
+}
+
+// GetByIDWithTx gets a member by ID within a transaction
+func (r *memberRepository) GetByIDWithTx(ctx context.Context, tx output.Transaction, id uint) (*models.Member, error) {
+	gormTx, ok := tx.(*gormTransaction)
+	if !ok {
+		return nil, appErrors.New(appErrors.ErrInternalError, "invalid transaction type")
+	}
+
+	var member models.Member
+	result := gormTx.tx.WithContext(ctx).First(&member, id)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, appErrors.DB(result.Error, "error getting member by ID")
+	}
+
+	return &member, nil
+}
+
+// GetByNumeroSocioWithTx gets a member by numero socio within a transaction
+func (r *memberRepository) GetByNumeroSocioWithTx(ctx context.Context, tx output.Transaction, numeroSocio string) (*models.Member, error) {
+	gormTx, ok := tx.(*gormTransaction)
+	if !ok {
+		return nil, appErrors.New(appErrors.ErrInternalError, "invalid transaction type")
+	}
+
+	var member models.Member
+	result := gormTx.tx.WithContext(ctx).Where("membership_number = ?", numeroSocio).First(&member)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, appErrors.DB(result.Error, "error getting member by numero socio")
+	}
+
+	return &member, nil
+}
+
 // GetLastMemberNumberByPrefix obtiene el último número de socio con un prefijo específico
 func (r *memberRepository) GetLastMemberNumberByPrefix(ctx context.Context, prefix string) (string, error) {
 	var lastNumber string

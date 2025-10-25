@@ -6,8 +6,17 @@ import (
 
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/pkg/errors"
 )
+
+// safeStringDeref safely dereferences a string pointer, returning empty string if nil
+func safeStringDeref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
 
 func (r *familyResolver) mapCreateInputToFamily(input *model.CreateFamilyInput) *models.Family {
 	var miembroOrigenID *uint
@@ -24,14 +33,14 @@ func (r *familyResolver) mapCreateInputToFamily(input *model.CreateFamilyInput) 
 		MiembroOrigenID:          miembroOrigenID,
 		EsposoNombre:             input.EsposoNombre,
 		EsposoApellidos:          input.EsposoApellidos,
-		EsposaNombre:             input.EsposaNombre,
-		EsposaApellidos:          input.EsposaApellidos,
+		EsposaNombre:             safeStringDeref(input.EsposaNombre),
+		EsposaApellidos:          safeStringDeref(input.EsposaApellidos),
 		EsposoFechaNacimiento:    input.EsposoFechaNacimiento,
-		EsposoDocumentoIdentidad: *input.EsposoDocumentoIdentidad,
-		EsposoCorreoElectronico:  *input.EsposoCorreoElectronico,
+		EsposoDocumentoIdentidad: safeStringDeref(input.EsposoDocumentoIdentidad),
+		EsposoCorreoElectronico:  safeStringDeref(input.EsposoCorreoElectronico),
 		EsposaFechaNacimiento:    input.EsposaFechaNacimiento,
-		EsposaDocumentoIdentidad: *input.EsposaDocumentoIdentidad,
-		EsposaCorreoElectronico:  *input.EsposaCorreoElectronico,
+		EsposaDocumentoIdentidad: safeStringDeref(input.EsposaDocumentoIdentidad),
+		EsposaCorreoElectronico:  safeStringDeref(input.EsposaCorreoElectronico),
 	}
 }
 
@@ -122,6 +131,42 @@ func (r *familyResolver) handleFamilyMutation(ctx context.Context, family *model
 	return family, nil
 }
 
+func (r *familyResolver) mapCreateInputToAtomicRequest(
+	familyInput *model.CreateFamilyInput,
+) *input.CreateFamilyAtomicRequest {
+	family := r.mapCreateInputToFamily(familyInput)
+
+	// Preparar datos del member si no se proporcionó miembro_origen_id
+	var memberData *input.CreateMemberData
+	createMember := familyInput.MiembroOrigenID == nil
+
+	if createMember {
+		memberData = &input.CreateMemberData{
+			Address:  safeStringDeref(familyInput.Direccion),
+			Postcode: safeStringDeref(familyInput.CodigoPostal),
+			City:     safeStringDeref(familyInput.Poblacion),
+			Province: safeStringDeref(familyInput.Provincia),
+			Country:  safeStringDeref(familyInput.Pais),
+		}
+	}
+
+	// Mapear familiares
+	var familiares []*models.Familiar
+	if familyInput.Familiares != nil {
+		familiares = make([]*models.Familiar, len(familyInput.Familiares))
+		for i, famInput := range familyInput.Familiares {
+			familiares[i] = r.mapFamiliarInputToModel(famInput)
+		}
+	}
+
+	return &input.CreateFamilyAtomicRequest{
+		Family:                  family,
+		CreateMemberIfNotExists: createMember,
+		MemberData:              memberData,
+		Familiares:              familiares,
+	}
+}
+
 func (r *familyResolver) validateCreateFamilyInput(input *model.CreateFamilyInput) error {
 	fields := make(map[string]string)
 
@@ -137,20 +182,15 @@ func (r *familyResolver) validateCreateFamilyInput(input *model.CreateFamilyInpu
 		fields["esposoApellidos"] = "Los apellidos del esposo son obligatorios"
 	}
 
-	if input.EsposaNombre == "" {
-		fields["esposaNombre"] = "El nombre de la esposa es obligatorio"
+	// Esposa opcional, pero si hay nombre, debe haber apellidos y viceversa
+	if input.EsposaNombre != nil && *input.EsposaNombre != "" &&
+		(input.EsposaApellidos == nil || *input.EsposaApellidos == "") {
+		fields["esposaApellidos"] = "Si proporciona nombre de esposa, los apellidos son obligatorios"
 	}
 
-	if input.EsposaApellidos == "" {
-		fields["esposaApellidos"] = "Los apellidos de la esposa son obligatorios"
-	}
-
-	if input.EsposoDocumentoIdentidad == nil {
-		fields["esposoDocumentoIdentidad"] = "El documento de identidad del esposo es obligatorio"
-	}
-
-	if input.EsposaDocumentoIdentidad == nil {
-		fields["esposaDocumentoIdentidad"] = "El documento de identidad de la esposa es obligatorio"
+	if input.EsposaApellidos != nil && *input.EsposaApellidos != "" &&
+		(input.EsposaNombre == nil || *input.EsposaNombre == "") {
+		fields["esposaNombre"] = "Si proporciona apellidos de esposa, el nombre es obligatorio"
 	}
 
 	if len(fields) > 0 {

@@ -16,6 +16,11 @@ type MemberRepository interface {
 	List(ctx context.Context, filters MemberFilters) ([]models.Member, error)
 	GetLastMemberNumberByPrefix(ctx context.Context, prefix string) (string, error)
 	SearchWithoutUser(ctx context.Context, criteria string) ([]models.Member, error)
+
+	// Transaction support
+	CreateWithTx(ctx context.Context, tx Transaction, member *models.Member) error
+	GetByIDWithTx(ctx context.Context, tx Transaction, id uint) (*models.Member, error)
+	GetByNumeroSocioWithTx(ctx context.Context, tx Transaction, numeroSocio string) (*models.Member, error)
 }
 
 // MemberFilters define los filtros disponibles para buscar miembros

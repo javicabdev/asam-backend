@@ -25,18 +25,24 @@ type ChangePasswordInput struct {
 }
 
 type CreateFamilyInput struct {
-	NumeroSocio              string     `json:"numero_socio"`
-	MiembroOrigenID          *string    `json:"miembro_origen_id,omitempty"`
-	EsposoNombre             string     `json:"esposo_nombre"`
-	EsposoApellidos          string     `json:"esposo_apellidos"`
-	EsposaNombre             string     `json:"esposa_nombre"`
-	EsposaApellidos          string     `json:"esposa_apellidos"`
-	EsposoFechaNacimiento    *time.Time `json:"esposo_fecha_nacimiento,omitempty"`
-	EsposoDocumentoIdentidad *string    `json:"esposo_documento_identidad,omitempty"`
-	EsposoCorreoElectronico  *string    `json:"esposo_correo_electronico,omitempty"`
-	EsposaFechaNacimiento    *time.Time `json:"esposa_fecha_nacimiento,omitempty"`
-	EsposaDocumentoIdentidad *string    `json:"esposa_documento_identidad,omitempty"`
-	EsposaCorreoElectronico  *string    `json:"esposa_correo_electronico,omitempty"`
+	NumeroSocio              string           `json:"numero_socio"`
+	MiembroOrigenID          *string          `json:"miembro_origen_id,omitempty"`
+	EsposoNombre             string           `json:"esposo_nombre"`
+	EsposoApellidos          string           `json:"esposo_apellidos"`
+	EsposoFechaNacimiento    *time.Time       `json:"esposo_fecha_nacimiento,omitempty"`
+	EsposoDocumentoIdentidad *string          `json:"esposo_documento_identidad,omitempty"`
+	EsposoCorreoElectronico  *string          `json:"esposo_correo_electronico,omitempty"`
+	EsposaNombre             *string          `json:"esposa_nombre,omitempty"`
+	EsposaApellidos          *string          `json:"esposa_apellidos,omitempty"`
+	EsposaFechaNacimiento    *time.Time       `json:"esposa_fecha_nacimiento,omitempty"`
+	EsposaDocumentoIdentidad *string          `json:"esposa_documento_identidad,omitempty"`
+	EsposaCorreoElectronico  *string          `json:"esposa_correo_electronico,omitempty"`
+	Familiares               []*FamiliarInput `json:"familiares,omitempty"`
+	Direccion                *string          `json:"direccion,omitempty"`
+	CodigoPostal             *string          `json:"codigo_postal,omitempty"`
+	Poblacion                *string          `json:"poblacion,omitempty"`
+	Provincia                *string          `json:"provincia,omitempty"`
+	Pais                     *string          `json:"pais,omitempty"`
 }
 
 type CreateMemberInput struct {

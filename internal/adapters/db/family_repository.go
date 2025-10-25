@@ -11,6 +11,19 @@ import (
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 )
 
+// gormTransaction wraps *gorm.DB to implement output.Transaction interface
+type gormTransaction struct {
+	tx *gorm.DB
+}
+
+func (t *gormTransaction) Commit() error {
+	return t.tx.Commit().Error
+}
+
+func (t *gormTransaction) Rollback() error {
+	return t.tx.Rollback().Error
+}
+
 type familyRepository struct {
 	db *gorm.DB
 }
@@ -66,6 +79,24 @@ func (r *familyRepository) GetByNumeroSocio(ctx context.Context, numeroSocio str
 			return nil, nil // Consistent pattern: nil, nil for "not found"
 		}
 		return nil, appErrors.DB(result.Error, "error getting family by numero socio")
+	}
+	return &family, nil
+}
+
+// GetByOriginMemberID gets a family by the origin member ID
+func (r *familyRepository) GetByOriginMemberID(ctx context.Context, memberID uint) (*models.Family, error) {
+	var family models.Family
+	result := r.db.WithContext(ctx).
+		Preload("Familiares").
+		Preload("Telefonos").
+		Where("miembro_origen_id = ?", memberID).
+		First(&family)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil // Consistent pattern: nil, nil for "not found"
+		}
+		return nil, appErrors.DB(result.Error, "error getting family by origin member ID")
 	}
 	return &family, nil
 }
@@ -210,4 +241,72 @@ func (r *familyRepository) GetFamiliares(ctx context.Context, familyID uint) ([]
 		return nil, appErrors.DB(result.Error, "error getting familiares")
 	}
 	return familiares, nil
+}
+
+// Transaction support methods
+
+// BeginTransaction starts a new database transaction
+func (r *familyRepository) BeginTransaction(ctx context.Context) (output.Transaction, error) {
+	tx := r.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return nil, appErrors.DB(tx.Error, "error beginning transaction")
+	}
+	return &gormTransaction{tx: tx}, nil
+}
+
+// CreateWithTx creates a family within a transaction
+func (r *familyRepository) CreateWithTx(ctx context.Context, tx output.Transaction, family *models.Family) error {
+	gormTx, ok := tx.(*gormTransaction)
+	if !ok {
+		return appErrors.New(appErrors.ErrInternalError, "invalid transaction type")
+	}
+
+	result := gormTx.tx.WithContext(ctx).Create(family)
+	if result.Error != nil {
+		if IsDuplicateKeyError(result.Error) {
+			return appErrors.New(appErrors.ErrDuplicateEntry, "family with the same number already exists")
+		}
+		return appErrors.DB(result.Error, "error creating family")
+	}
+	return nil
+}
+
+// GetByIDWithTx gets a family by ID within a transaction
+func (r *familyRepository) GetByIDWithTx(ctx context.Context, tx output.Transaction, id uint) (*models.Family, error) {
+	gormTx, ok := tx.(*gormTransaction)
+	if !ok {
+		return nil, appErrors.New(appErrors.ErrInternalError, "invalid transaction type")
+	}
+
+	var family models.Family
+	result := gormTx.tx.WithContext(ctx).
+		Preload("Familiares").
+		Preload("Telefonos").
+		First(&family, id)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, appErrors.DB(result.Error, "error getting family by ID")
+	}
+	return &family, nil
+}
+
+// AddFamiliarWithTx adds a familiar within a transaction
+func (r *familyRepository) AddFamiliarWithTx(ctx context.Context, tx output.Transaction, familyID uint, familiar *models.Familiar) error {
+	gormTx, ok := tx.(*gormTransaction)
+	if !ok {
+		return appErrors.New(appErrors.ErrInternalError, "invalid transaction type")
+	}
+
+	familiar.FamiliaID = familyID
+	result := gormTx.tx.WithContext(ctx).Create(familiar)
+	if result.Error != nil {
+		if IsDuplicateKeyError(result.Error) {
+			return appErrors.New(appErrors.ErrDuplicateEntry, "duplicate family member")
+		}
+		return appErrors.DB(result.Error, "error adding familiar")
+	}
+	return nil
 }

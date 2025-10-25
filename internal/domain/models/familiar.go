@@ -31,9 +31,8 @@ type Familiar struct {
 
 // Validate verifica la validez de los datos del familiar
 func (f *Familiar) Validate() error {
-	if f.FamiliaID == 0 {
-		return errors.New("ID de familia es requerido")
-	}
+	// FamiliaID puede ser 0 durante validación previa a asignación
+	// Solo se valida como requerido en BeforeCreate/BeforeSave hooks
 
 	if f.Nombre == "" {
 		return errors.New("nombre es requerido")
@@ -59,6 +58,11 @@ func (f *Familiar) Validate() error {
 
 // BeforeCreate hook de GORM para validaciones antes de crear
 func (f *Familiar) BeforeCreate(_ *gorm.DB) error {
+	// Validar que FamiliaID esté asignado antes de persistir
+	if f.FamiliaID == 0 {
+		return errors.New("ID de familia es requerido")
+	}
+
 	// Normalizar DNI/NIE si se proporciona
 	if f.DNINIE != "" {
 		f.DNINIE = validation.NormalizarNIF(f.DNINIE)

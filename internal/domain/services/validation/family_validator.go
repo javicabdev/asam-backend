@@ -14,6 +14,7 @@ import (
 type FamilyValidator interface {
 	ValidateNumeroSocio(numeroSocio string) error
 	ValidateConyuges(esposoNombre, esposoApellidos, esposaNombre, esposaApellidos string) error
+	ValidateConyugesFlexible(esposoNombre, esposoApellidos, esposaNombre, esposaApellidos string) error
 	ValidateDocumentIDs(esposoDoc, esposaDoc string) error
 	ValidateContactInfo(esposoEmail, esposaEmail string) error
 	ValidateDates(esposoFechaNac, esposaFechaNac *time.Time) error
@@ -81,7 +82,44 @@ func (v *DefaultFamilyValidator) ValidateConyuges(
 	return nil
 }
 
+// ValidateConyugesFlexible valida los datos de los cónyuges de forma flexible:
+// - Esposo: siempre obligatorio (nombre y apellidos)
+// - Esposa: opcional, pero si se proporciona nombre debe incluir apellidos y viceversa
+func (v *DefaultFamilyValidator) ValidateConyugesFlexible(
+	esposoNombre, esposoApellidos,
+	esposaNombre, esposaApellidos string,
+) error {
+	errDetails := make(map[string]string)
+
+	// Esposo es obligatorio
+	if esposoNombre == "" {
+		errDetails["esposoNombre"] = "El nombre del esposo es obligatorio"
+	}
+	if esposoApellidos == "" {
+		errDetails["esposoApellidos"] = "Los apellidos del esposo son obligatorios"
+	}
+
+	// Esposa es opcional, pero si se proporciona nombre, apellidos también es obligatorio y viceversa
+	if esposaNombre != "" && esposaApellidos == "" {
+		errDetails["esposaApellidos"] = "Si proporciona nombre de esposa, los apellidos son obligatorios"
+	}
+	if esposaApellidos != "" && esposaNombre == "" {
+		errDetails["esposaNombre"] = "Si proporciona apellidos de esposa, el nombre es obligatorio"
+	}
+
+	if len(errDetails) > 0 {
+		return appErrors.NewValidationError(
+			"Datos de cónyuges inválidos",
+			errDetails,
+		)
+	}
+
+	return nil
+}
+
 // ValidateDocumentIDs valida el formato de los documentos de identidad.
+// Esposo: documento obligatorio si se proporciona
+// Esposa: documento opcional, pero si se proporciona debe ser válido
 func (v *DefaultFamilyValidator) ValidateDocumentIDs(esposoDoc, esposaDoc string) error {
 	errDetails := make(map[string]string)
 
@@ -94,16 +132,20 @@ func (v *DefaultFamilyValidator) ValidateDocumentIDs(esposoDoc, esposaDoc string
 		)
 	}
 
-	if esposoDoc == "" {
-		errDetails["esposoDocumentoIdentidad"] = "El documento de identidad del esposo es obligatorio"
-	} else if err := memberValidator.ValidateDocumentID(esposoDoc); err != nil {
-		errDetails["esposoDocumentoIdentidad"] = "Documento de identidad del esposo inválido"
+	// Validar documento del esposo (opcional pero recomendado)
+	// Si se proporciona, debe ser válido
+	if esposoDoc != "" {
+		if err := memberValidator.ValidateDocumentID(esposoDoc); err != nil {
+			errDetails["esposoDocumentoIdentidad"] = "Documento de identidad del esposo inválido"
+		}
 	}
 
-	if esposaDoc == "" {
-		errDetails["esposaDocumentoIdentidad"] = "El documento de identidad de la esposa es obligatorio"
-	} else if err := memberValidator.ValidateDocumentID(esposaDoc); err != nil {
-		errDetails["esposaDocumentoIdentidad"] = "Documento de identidad de la esposa inválido"
+	// Validar documento de la esposa (opcional)
+	// Solo validar si se proporciona
+	if esposaDoc != "" {
+		if err := memberValidator.ValidateDocumentID(esposaDoc); err != nil {
+			errDetails["esposaDocumentoIdentidad"] = "Documento de identidad de la esposa inválido"
+		}
 	}
 
 	if len(errDetails) > 0 {

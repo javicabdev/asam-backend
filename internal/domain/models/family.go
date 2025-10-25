@@ -52,8 +52,8 @@ func (f *Family) Validate() error {
 		return err
 	}
 
-	// Validar datos de cónyuges
-	if err := validator.ValidateConyuges(
+	// Validar datos de cónyuges (flexible: esposa opcional)
+	if err := validator.ValidateConyugesFlexible(
 		f.EsposoNombre,
 		f.EsposoApellidos,
 		f.EsposaNombre,

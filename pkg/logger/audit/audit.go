@@ -162,9 +162,21 @@ func (a *loggerImpl) LogError(ctx context.Context, action ActionType, entity Ent
 		EntityID:    entityID,
 		UserID:      getUserFromContext(ctx),
 		Description: description,
-		Metadata: Metadata{
-			"error": err.Error(),
-		},
+		Metadata: func() Metadata {
+			if err != nil {
+				return Metadata{"error": err.Error()}
+			}
+			// Log warning for debugging incorrect calls
+			if zapLogger, ok := a.logger.(interface {
+				Warn(msg string, fields ...zap.Field)
+			}); ok {
+				zapLogger.Warn("LogError called with nil error",
+					zap.String("action", string(action)),
+					zap.String("entity", string(entity)),
+					zap.String("entity_id", entityID))
+			}
+			return nil
+		}(),
 		Status: "error",
 	}
 

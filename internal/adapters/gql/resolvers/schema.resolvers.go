@@ -246,11 +246,11 @@ func (r *mutationResolver) CreateFamily(ctx context.Context, input model.CreateF
 		return nil, err
 	}
 
-	// 2) Mapear el input a la entidad del dominio
-	family := familyResolver.mapCreateInputToFamily(&input)
+	// 2) Mapear el input a la solicitud atómica
+	atomicRequest := familyResolver.mapCreateInputToAtomicRequest(&input)
 
-	// 3) Manejar la mutación / guardar en BD
-	return familyResolver.handleFamilyMutation(ctx, family)
+	// 3) Crear familia de forma atómica (Member + Family + Familiares en una transacción)
+	return r.familyService.CreateFamilyAtomic(ctx, atomicRequest)
 }
 
 // UpdateFamily is the resolver for the updateFamily field.
@@ -842,6 +842,30 @@ func (r *queryResolver) GetFamily(ctx context.Context, id string) (*models.Famil
 	}
 
 	// 4) retornar la familia
+	return family, nil
+}
+
+// GetFamilyByOriginMember is the resolver for the getFamilyByOriginMember field.
+func (r *queryResolver) GetFamilyByOriginMember(ctx context.Context, memberID string) (*models.Family, error) {
+	// Parse member ID from string to uint
+	id, err := parseID(memberID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid member ID: %w", err)
+	}
+
+	// Call family service to get family by origin member ID
+	family, err := r.familyService.GetByOriginMemberID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Verify access permissions if family exists
+	if family != nil {
+		if err := middleware.CanAccessFamily(ctx, family.MiembroOrigenID); err != nil {
+			return nil, err
+		}
+	}
+
 	return family, nil
 }
 

@@ -232,6 +232,7 @@ type Query {
 
     # Family Queries
     getFamily(id: ID!): Family
+    getFamilyByOriginMember(memberId: ID!): Family
     listFamilies(filter: FamilyFilter): FamilyConnection!
     getFamilyMembers(familyId: ID!): [Familiar!]!
 
@@ -368,16 +369,30 @@ input UpdateMemberInput {
 input CreateFamilyInput {
     numero_socio: String!
     miembro_origen_id: ID
+    
+    # Datos del esposo (obligatorios)
     esposo_nombre: String!
     esposo_apellidos: String!
-    esposa_nombre: String!
-    esposa_apellidos: String!
     esposo_fecha_nacimiento: Time
     esposo_documento_identidad: String
     esposo_correo_electronico: String
+    
+    # Datos de la esposa (opcionales)
+    esposa_nombre: String
+    esposa_apellidos: String
     esposa_fecha_nacimiento: Time
     esposa_documento_identidad: String
     esposa_correo_electronico: String
+    
+    # Familiares adicionales (opcionales)
+    familiares: [FamiliarInput!]
+    
+    # Datos del miembro principal (para creación automática si no se proporciona miembro_origen_id)
+    direccion: String
+    codigo_postal: String
+    poblacion: String
+    provincia: String
+    pais: String
 }
 
 input UpdateFamilyInput {

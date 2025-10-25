@@ -6,6 +6,12 @@ import (
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 )
 
+// Transaction represents a database transaction
+type Transaction interface {
+	Commit() error
+	Rollback() error
+}
+
 // FamilyRepository defines the operations available for family persistence
 type FamilyRepository interface {
 	Create(ctx context.Context, family *models.Family) error
@@ -14,12 +20,19 @@ type FamilyRepository interface {
 	Delete(ctx context.Context, id uint) error
 
 	GetByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Family, error)
+	GetByOriginMemberID(ctx context.Context, memberID uint) (*models.Family, error)
 	List(ctx context.Context, page, pageSize int, searchTerm *string, orderBy string) ([]*models.Family, int, error)
 
 	AddFamiliar(ctx context.Context, familyID uint, familiar *models.Familiar) error
 	UpdateFamiliar(ctx context.Context, familiar *models.Familiar) error
 	RemoveFamiliar(ctx context.Context, familiarID uint) error
 	GetFamiliares(ctx context.Context, familyID uint) ([]*models.Familiar, error)
+
+	// Transaction support
+	BeginTransaction(ctx context.Context) (Transaction, error)
+	CreateWithTx(ctx context.Context, tx Transaction, family *models.Family) error
+	GetByIDWithTx(ctx context.Context, tx Transaction, id uint) (*models.Family, error)
+	AddFamiliarWithTx(ctx context.Context, tx Transaction, familyID uint, familiar *models.Familiar) error
 }
 
 // FamilyFilters define los filtros para consultar familias

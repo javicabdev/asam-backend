@@ -2,7 +2,9 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
@@ -137,6 +139,18 @@ func (s *familyService) GetByNumeroSocio(ctx context.Context, numeroSocio string
 	return family, nil
 }
 
+// GetByOriginMemberID obtiene una familia por el ID del miembro origen
+func (s *familyService) GetByOriginMemberID(ctx context.Context, memberID uint) (*models.Family, error) {
+	family, err := s.familyRepo.GetByOriginMemberID(ctx, memberID)
+	if err != nil {
+		return nil, errors.DB(err, "error obteniendo familia por ID de miembro origen")
+	}
+	if family == nil {
+		return nil, errors.NotFound(msgFamilyNotFound, nil)
+	}
+	return family, nil
+}
+
 // List obtiene una lista paginada de familias
 func (s *familyService) List(ctx context.Context, page, pageSize int, searchTerm *string, orderBy string) ([]*models.Family, int, error) {
 	// Validaciones básicas
@@ -238,4 +252,172 @@ func (s *familyService) GetFamiliares(ctx context.Context, familyID uint) ([]*mo
 	}
 
 	return familiares, nil
+}
+
+// CreateFamilyAtomic creates a family with optional member and familiares in a single atomic transaction
+func (s *familyService) CreateFamilyAtomic(ctx context.Context, req *input.CreateFamilyAtomicRequest) (*models.Family, error) {
+	// 1. Validación previa a transacción
+
+	// Validar que el DNI del esposo sea obligatorio para el miembro origen
+	if req.CreateMemberIfNotExists && req.Family.EsposoDocumentoIdentidad == "" {
+		return nil, errors.NewValidationError(
+			"El documento de identidad del esposo es obligatorio",
+			map[string]string{"esposoDocumentoIdentidad": "El documento de identidad es obligatorio para el miembro principal"},
+		)
+	}
+
+	if err := req.Family.Validate(); err != nil {
+		return nil, err
+	}
+
+	for i, fam := range req.Familiares {
+		if err := fam.Validate(); err != nil {
+			return nil, errors.Wrap(err, errors.ErrValidationFailed,
+				fmt.Sprintf("Familiar at index %d is invalid", i))
+		}
+	}
+
+	// 2. Iniciar transacción
+	tx, err := s.familyRepo.BeginTransaction(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, errors.ErrDatabaseError, "Failed to begin transaction")
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			_ = tx.Rollback()
+			panic(r)
+		}
+	}()
+
+	// 3. Manejar Member origen
+	var originMemberID uint
+	if req.Family.MiembroOrigenID != nil {
+		originMemberID = *req.Family.MiembroOrigenID
+		// Verificar que existe y es válido
+		member, err := s.memberRepo.GetByIDWithTx(ctx, tx, originMemberID)
+		if err != nil || member == nil {
+			_ = tx.Rollback()
+			return nil, errors.New(errors.ErrNotFound, "Origin member not found")
+		}
+		if member.MembershipType != models.TipoMembresiaPFamiliar {
+			_ = tx.Rollback()
+			return nil, errors.New(errors.ErrInvalidOperation,
+				"Origin member must be of type 'familiar'")
+		}
+	} else if req.CreateMemberIfNotExists {
+		// Verificar si ya existe un miembro con este numero_socio
+		existingMember, err := s.memberRepo.GetByNumeroSocioWithTx(ctx, tx, req.Family.NumeroSocio)
+		if err == nil && existingMember != nil {
+			// Ya existe un miembro con este número
+			if existingMember.MembershipType != models.TipoMembresiaPFamiliar {
+				_ = tx.Rollback()
+				return nil, errors.New(errors.ErrInvalidOperation,
+					"Existing member with this number is not of type 'familiar'")
+			}
+			// Verificar que no tenga ya una familia asociada
+			existingFamily, _ := s.familyRepo.GetByOriginMemberID(ctx, existingMember.ID)
+			if existingFamily != nil {
+				_ = tx.Rollback()
+				return nil, errors.New(errors.ErrDuplicateEntry,
+					"Member already has a family associated")
+			}
+			originMemberID = existingMember.ID
+		} else {
+			// Verificar que no exista otro miembro con el mismo DNI
+			if req.Family.EsposoDocumentoIdentidad != "" {
+				// Buscar si existe un miembro con este DNI
+				// Nota: Necesitaríamos añadir un método GetByIdentityCardWithTx al repositorio
+				// Por ahora, usamos la validación de constraint UNIQUE en la BD
+			}
+
+			// Crear nuevo Member con DNI
+			member := &models.Member{
+				MembershipNumber: req.Family.NumeroSocio,
+				MembershipType:   models.TipoMembresiaPFamiliar,
+				Name:             req.Family.EsposoNombre,
+				Surnames:         req.Family.EsposoApellidos,
+				State:            models.EstadoActivo,
+				RegistrationDate: time.Now(),
+			}
+
+			// Añadir documento de identidad (obligatorio)
+			if req.Family.EsposoDocumentoIdentidad != "" {
+				dni := req.Family.EsposoDocumentoIdentidad
+				member.IdentityCard = &dni
+			}
+
+			// Añadir email si está disponible
+			if req.Family.EsposoCorreoElectronico != "" {
+				email := req.Family.EsposoCorreoElectronico
+				member.Email = &email
+			}
+
+			// Añadir fecha de nacimiento si está disponible
+			if req.Family.EsposoFechaNacimiento != nil {
+				member.BirthDate = req.Family.EsposoFechaNacimiento
+			}
+
+			if req.MemberData != nil {
+				member.Address = req.MemberData.Address
+				member.Postcode = req.MemberData.Postcode
+				member.City = req.MemberData.City
+				member.Province = req.MemberData.Province
+				if req.MemberData.Province == "" {
+					member.Province = "Barcelona"
+				}
+				member.Country = req.MemberData.Country
+				if req.MemberData.Country == "" {
+					member.Country = "España"
+				}
+			}
+
+			if err := s.memberRepo.CreateWithTx(ctx, tx, member); err != nil {
+				_ = tx.Rollback()
+				// Si es error de duplicado, dar mensaje claro
+				appErr, isAppErr := errors.AsAppError(err)
+				if isAppErr && appErr.Code == errors.ErrDuplicateEntry {
+					return nil, errors.NewValidationError(
+						"El documento de identidad ya está registrado",
+						map[string]string{"esposoDocumentoIdentidad": "Ya existe un miembro con este documento de identidad"},
+					)
+				}
+				return nil, errors.Wrap(err, errors.ErrDatabaseError, "Failed to create origin member")
+			}
+
+			originMemberID = member.ID
+		}
+
+		req.Family.MiembroOrigenID = &originMemberID
+	}
+
+	// 4. Crear Family
+	if err := s.familyRepo.CreateWithTx(ctx, tx, req.Family); err != nil {
+		_ = tx.Rollback()
+		return nil, errors.Wrap(err, errors.ErrDatabaseError, "Failed to create family")
+	}
+
+	// 5. Crear Familiares
+	for i, fam := range req.Familiares {
+		fam.FamiliaID = req.Family.ID
+		if err := s.familyRepo.AddFamiliarWithTx(ctx, tx, req.Family.ID, fam); err != nil {
+			_ = tx.Rollback()
+			return nil, errors.Wrap(err, errors.ErrDatabaseError,
+				fmt.Sprintf("Failed to create familiar at index %d", i))
+		}
+	}
+
+	// 6. Commit
+	if err := tx.Commit(); err != nil {
+		_ = tx.Rollback()
+		return nil, errors.Wrap(err, errors.ErrDatabaseError, "Failed to commit transaction")
+	}
+
+	// 7. Recargar con relaciones
+	family, err := s.familyRepo.GetByID(ctx, req.Family.ID)
+	if err != nil {
+		// No fallamos si falla la recarga, retornamos la familia creada
+		return req.Family, nil
+	}
+
+	return family, nil
 }

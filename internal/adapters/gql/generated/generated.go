@@ -233,6 +233,7 @@ type ComplexityRoot struct {
 		GetCurrentUser           func(childComplexity int) int
 		GetDashboardStats        func(childComplexity int) int
 		GetFamily                func(childComplexity int, id string) int
+		GetFamilyByOriginMember  func(childComplexity int, memberID string) int
 		GetFamilyMembers         func(childComplexity int, familyID string) int
 		GetFamilyPayments        func(childComplexity int, familyID string) int
 		GetMember                func(childComplexity int, id string) int
@@ -372,6 +373,7 @@ type QueryResolver interface {
 	SearchMembers(ctx context.Context, criteria string) ([]*models.Member, error)
 	SearchMembersWithoutUser(ctx context.Context, criteria string) ([]*models.Member, error)
 	GetFamily(ctx context.Context, id string) (*models.Family, error)
+	GetFamilyByOriginMember(ctx context.Context, memberID string) (*models.Family, error)
 	ListFamilies(ctx context.Context, filter *model.FamilyFilter) (*model.FamilyConnection, error)
 	GetFamilyMembers(ctx context.Context, familyID string) ([]*models.Familiar, error)
 	GetPayment(ctx context.Context, id string) (*models.Payment, error)
@@ -1489,6 +1491,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Query.GetFamily(childComplexity, args["id"].(string)), true
 
+	case "Query.getFamilyByOriginMember":
+		if e.complexity.Query.GetFamilyByOriginMember == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getFamilyByOriginMember_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetFamilyByOriginMember(childComplexity, args["memberId"].(string)), true
+
 	case "Query.getFamilyMembers":
 		if e.complexity.Query.GetFamilyMembers == nil {
 			break
@@ -2238,6 +2252,7 @@ type Query {
 
     # Family Queries
     getFamily(id: ID!): Family
+    getFamilyByOriginMember(memberId: ID!): Family
     listFamilies(filter: FamilyFilter): FamilyConnection!
     getFamilyMembers(familyId: ID!): [Familiar!]!
 
@@ -2374,16 +2389,30 @@ input UpdateMemberInput {
 input CreateFamilyInput {
     numero_socio: String!
     miembro_origen_id: ID
+    
+    # Datos del esposo (obligatorios)
     esposo_nombre: String!
     esposo_apellidos: String!
-    esposa_nombre: String!
-    esposa_apellidos: String!
     esposo_fecha_nacimiento: Time
     esposo_documento_identidad: String
     esposo_correo_electronico: String
+    
+    # Datos de la esposa (opcionales)
+    esposa_nombre: String
+    esposa_apellidos: String
     esposa_fecha_nacimiento: Time
     esposa_documento_identidad: String
     esposa_correo_electronico: String
+    
+    # Familiares adicionales (opcionales)
+    familiares: [FamiliarInput!]
+    
+    # Datos del miembro principal (para creación automática si no se proporciona miembro_origen_id)
+    direccion: String
+    codigo_postal: String
+    poblacion: String
+    provincia: String
+    pais: String
 }
 
 input UpdateFamilyInput {
@@ -3558,6 +3587,34 @@ func (ec *executionContext) field_Query_getCashFlow_argsID(
 
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
 	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getFamilyByOriginMember_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getFamilyByOriginMember_argsMemberID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["memberId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_getFamilyByOriginMember_argsMemberID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["memberId"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("memberId"))
+	if tmp, ok := rawArgs["memberId"]; ok {
 		return ec.unmarshalNID2string(ctx, tmp)
 	}
 
@@ -11417,6 +11474,76 @@ func (ec *executionContext) fieldContext_Query_getFamily(ctx context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_getFamilyByOriginMember(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getFamilyByOriginMember(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetFamilyByOriginMember(rctx, fc.Args["memberId"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*models.Family)
+	fc.Result = res
+	return ec.marshalOFamily2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐFamily(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getFamilyByOriginMember(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Family_id(ctx, field)
+			case "numero_socio":
+				return ec.fieldContext_Family_numero_socio(ctx, field)
+			case "miembro_origen":
+				return ec.fieldContext_Family_miembro_origen(ctx, field)
+			case "esposo_nombre":
+				return ec.fieldContext_Family_esposo_nombre(ctx, field)
+			case "esposo_apellidos":
+				return ec.fieldContext_Family_esposo_apellidos(ctx, field)
+			case "esposa_nombre":
+				return ec.fieldContext_Family_esposa_nombre(ctx, field)
+			case "esposa_apellidos":
+				return ec.fieldContext_Family_esposa_apellidos(ctx, field)
+			case "familiares":
+				return ec.fieldContext_Family_familiares(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Family", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getFamilyByOriginMember_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_listFamilies(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query_listFamilies(ctx, field)
 	if err != nil {
@@ -15813,7 +15940,7 @@ func (ec *executionContext) unmarshalInputCreateFamilyInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"numero_socio", "miembro_origen_id", "esposo_nombre", "esposo_apellidos", "esposa_nombre", "esposa_apellidos", "esposo_fecha_nacimiento", "esposo_documento_identidad", "esposo_correo_electronico", "esposa_fecha_nacimiento", "esposa_documento_identidad", "esposa_correo_electronico"}
+	fieldsInOrder := [...]string{"numero_socio", "miembro_origen_id", "esposo_nombre", "esposo_apellidos", "esposo_fecha_nacimiento", "esposo_documento_identidad", "esposo_correo_electronico", "esposa_nombre", "esposa_apellidos", "esposa_fecha_nacimiento", "esposa_documento_identidad", "esposa_correo_electronico", "familiares", "direccion", "codigo_postal", "poblacion", "provincia", "pais"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -15848,20 +15975,6 @@ func (ec *executionContext) unmarshalInputCreateFamilyInput(ctx context.Context,
 				return it, err
 			}
 			it.EsposoApellidos = data
-		case "esposa_nombre":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("esposa_nombre"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.EsposaNombre = data
-		case "esposa_apellidos":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("esposa_apellidos"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.EsposaApellidos = data
 		case "esposo_fecha_nacimiento":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("esposo_fecha_nacimiento"))
 			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
@@ -15883,6 +15996,20 @@ func (ec *executionContext) unmarshalInputCreateFamilyInput(ctx context.Context,
 				return it, err
 			}
 			it.EsposoCorreoElectronico = data
+		case "esposa_nombre":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("esposa_nombre"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.EsposaNombre = data
+		case "esposa_apellidos":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("esposa_apellidos"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.EsposaApellidos = data
 		case "esposa_fecha_nacimiento":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("esposa_fecha_nacimiento"))
 			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
@@ -15904,6 +16031,48 @@ func (ec *executionContext) unmarshalInputCreateFamilyInput(ctx context.Context,
 				return it, err
 			}
 			it.EsposaCorreoElectronico = data
+		case "familiares":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("familiares"))
+			data, err := ec.unmarshalOFamiliarInput2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐFamiliarInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Familiares = data
+		case "direccion":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("direccion"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Direccion = data
+		case "codigo_postal":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("codigo_postal"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CodigoPostal = data
+		case "poblacion":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("poblacion"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Poblacion = data
+		case "provincia":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("provincia"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Provincia = data
+		case "pais":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("pais"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Pais = data
 		}
 	}
 
@@ -18907,6 +19076,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getFamilyByOriginMember":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getFamilyByOriginMember(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "listFamilies":
 			field := field
 
@@ -20181,6 +20369,11 @@ func (ec *executionContext) unmarshalNFamiliarInput2githubᚗcomᚋjavicabdevᚋ
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNFamiliarInput2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐFamiliarInput(ctx context.Context, v any) (*model.FamiliarInput, error) {
+	res, err := ec.unmarshalInputFamiliarInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNFamily2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐFamily(ctx context.Context, sel ast.SelectionSet, v models.Family) graphql.Marshaler {
 	return ec._Family(ctx, sel, &v)
 }
@@ -21271,6 +21464,24 @@ func (ec *executionContext) marshalOFamiliar2ᚕgithubᚗcomᚋjavicabdevᚋasam
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalOFamiliarInput2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐFamiliarInputᚄ(ctx context.Context, v any) ([]*model.FamiliarInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.FamiliarInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNFamiliarInput2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐFamiliarInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) marshalOFamily2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐFamily(ctx context.Context, sel ast.SelectionSet, v *models.Family) graphql.Marshaler {
