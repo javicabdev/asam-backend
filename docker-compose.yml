@@ -16,6 +16,7 @@ services:
     networks:
       - asam-network
     env_file:
+      - .env.development
       - .env
     environment:
       - DB_HOST=postgres
