@@ -1,6 +1,6 @@
 --!postgresql
 -- Migration: Prevent Duplicate Initial Payments
--- VERSION: 1.1
+-- VERSION: 1.2
 -- PURPOSE: Add database constraints to prevent duplicate initial payments for members and families
 -- IDEMPOTENT: Safe to run multiple times without errors
 
@@ -77,44 +77,48 @@ BEGIN
 END $$;
 
 -- =============================================================================
--- STEP 2: Add unique constraints for initial payments - IDEMPOTENT
+-- STEP 2: Add partial unique indexes for initial payments - IDEMPOTENT
 -- =============================================================================
 
--- Constraint: Only one initial payment per member
--- Check if constraint already exists before creating
+-- Index: Only one initial payment per member
+-- Check if index already exists before creating
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint 
-        WHERE conname = 'unique_initial_payment_per_member'
+        SELECT 1 
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE c.relname = 'unique_initial_payment_per_member'
+          AND n.nspname = 'public'
     ) THEN
-        ALTER TABLE payments
-        ADD CONSTRAINT unique_initial_payment_per_member
-        UNIQUE (member_id)
+        CREATE UNIQUE INDEX unique_initial_payment_per_member 
+        ON payments (member_id)
         WHERE membership_fee_id IS NOT NULL AND member_id IS NOT NULL;
         
-        RAISE NOTICE 'Created constraint: unique_initial_payment_per_member';
+        RAISE NOTICE 'Created index: unique_initial_payment_per_member';
     ELSE
-        RAISE NOTICE 'Constraint already exists: unique_initial_payment_per_member';
+        RAISE NOTICE 'Index already exists: unique_initial_payment_per_member';
     END IF;
 END $$;
 
--- Constraint: Only one initial payment per family
--- Check if constraint already exists before creating
+-- Index: Only one initial payment per family
+-- Check if index already exists before creating
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint 
-        WHERE conname = 'unique_initial_payment_per_family'
+        SELECT 1 
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE c.relname = 'unique_initial_payment_per_family'
+          AND n.nspname = 'public'
     ) THEN
-        ALTER TABLE payments
-        ADD CONSTRAINT unique_initial_payment_per_family
-        UNIQUE (family_id)
+        CREATE UNIQUE INDEX unique_initial_payment_per_family 
+        ON payments (family_id)
         WHERE membership_fee_id IS NOT NULL AND family_id IS NOT NULL;
         
-        RAISE NOTICE 'Created constraint: unique_initial_payment_per_family';
+        RAISE NOTICE 'Created index: unique_initial_payment_per_family';
     ELSE
-        RAISE NOTICE 'Constraint already exists: unique_initial_payment_per_family';
+        RAISE NOTICE 'Index already exists: unique_initial_payment_per_family';
     END IF;
 END $$;
 
@@ -135,7 +139,7 @@ END $$;
 -- GROUP BY family_id 
 -- HAVING COUNT(*) > 1;
 
--- Verify constraints exist:
--- SELECT conname, contype, pg_get_constraintdef(oid) 
--- FROM pg_constraint 
--- WHERE conname IN ('unique_initial_payment_per_member', 'unique_initial_payment_per_family');
+-- Verify indexes exist:
+-- SELECT schemaname, tablename, indexname, indexdef
+-- FROM pg_indexes
+-- WHERE indexname IN ('unique_initial_payment_per_member', 'unique_initial_payment_per_family');
