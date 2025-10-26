@@ -134,11 +134,12 @@ func (r *paymentRepository) HasInitialPayment(ctx context.Context, memberID *uin
 		Where("membership_fee_id IS NOT NULL")
 
 	// Add condition for member or family
-	if memberID != nil && *memberID != 0 {
+	switch {
+	case memberID != nil && *memberID != 0:
 		query = query.Where("member_id = ?", *memberID)
-	} else if familyID != nil && *familyID != 0 {
+	case familyID != nil && *familyID != 0:
 		query = query.Where("family_id = ?", *familyID)
-	} else {
+	default:
 		// Neither memberID nor familyID provided
 		return false, appErrors.NewValidationError(
 			"either memberID or familyID must be provided",
@@ -212,13 +213,6 @@ func (r *membershipFeeRepository) FindByYear(ctx context.Context, year int) (*mo
 	}
 
 	return &fee, nil
-}
-
-// FindByYearMonth - DEPRECATED: mantener por compatibilidad temporal
-// Las cuotas ahora son anuales, esta función ignorará el parámetro month
-func (r *membershipFeeRepository) FindByYearMonth(ctx context.Context, year, month int) (*models.MembershipFee, error) {
-	// Simplemente delegar a FindByYear ya que las cuotas son anuales
-	return r.FindByYear(ctx, year)
 }
 
 func (r *membershipFeeRepository) FindPendingByMember(ctx context.Context, memberID uint) ([]models.MembershipFee, error) {
