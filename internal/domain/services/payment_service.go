@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"log"
-	"strconv"
 	"time"
 
 	"github.com/javicabdev/asam-backend/internal/domain/models"
@@ -14,12 +13,11 @@ import (
 )
 
 type paymentService struct {
-	paymentRepo         output.PaymentRepository
-	membershipFeeRepo   output.MembershipFeeRepository
-	memberRepo          output.MemberRepository
-	familyRepo          output.FamilyRepository
-	notificationService input.NotificationService
-	feeCalculator       input.FeeCalculator
+	paymentRepo       output.PaymentRepository
+	membershipFeeRepo output.MembershipFeeRepository
+	memberRepo        output.MemberRepository
+	familyRepo        output.FamilyRepository
+	feeCalculator     input.FeeCalculator
 }
 
 // NewPaymentService crea una nueva instancia del servicio de pagos
@@ -29,16 +27,14 @@ func NewPaymentService(
 	membershipFeeRepo output.MembershipFeeRepository,
 	memberRepo output.MemberRepository,
 	familyRepo output.FamilyRepository,
-	notificationService input.NotificationService,
 	feeCalculator input.FeeCalculator,
 ) input.PaymentService {
 	return &paymentService{
-		paymentRepo:         paymentRepo,
-		membershipFeeRepo:   membershipFeeRepo,
-		memberRepo:          memberRepo,
-		familyRepo:          familyRepo,
-		notificationService: notificationService,
-		feeCalculator:       feeCalculator,
+		paymentRepo:       paymentRepo,
+		membershipFeeRepo: membershipFeeRepo,
+		memberRepo:        memberRepo,
+		familyRepo:        familyRepo,
+		feeCalculator:     feeCalculator,
 	}
 }
 
@@ -520,86 +516,19 @@ func (s *paymentService) GetDefaulters(ctx context.Context) ([]input.AccountStat
 }
 
 func (s *paymentService) SendPaymentReminder(ctx context.Context, memberID uint) error {
-	// Verificar que el miembro existe
-	member, err := s.memberRepo.GetByID(ctx, memberID)
-	if err != nil {
-		return errors.DB(err, "error obteniendo miembro")
-	}
-
-	if member == nil {
-		return errors.NotFound("member", nil)
-	}
-
-	// Enviar notificación usando el servicio de notificaciones
-	if member.Email != nil {
-		return s.notificationService.SendEmail(
-			ctx,
-			*member.Email,
-			"Recordatorio de Pago ASAM",
-			"Este es un recordatorio para realizar su pago pendiente.",
-		)
-	}
-	return nil
+	// Payment reminders are not implemented
+	// If needed in the future, implement using EmailNotificationService (MailerSend)
+	return errors.New(errors.ErrInvalidOperation, "payment reminders are not currently implemented")
 }
 
 func (s *paymentService) SendPaymentConfirmation(ctx context.Context, paymentID uint) error {
-	// Obtener información del pago y miembro
-	payment, err := s.paymentRepo.FindByID(ctx, paymentID)
-	if err != nil {
-		return errors.DB(err, "error obteniendo pago")
-	}
-
-	if payment == nil {
-		return errors.NotFound("payment", nil)
-	}
-
-	// If payment has no member (family-only payment), we cannot send confirmation
-	if payment.MemberID == nil {
-		return nil // Silently return, as family payments don't have individual email
-	}
-
-	member, err := s.memberRepo.GetByID(ctx, *payment.MemberID)
-	if err != nil {
-		return errors.DB(err, "error obteniendo miembro")
-	}
-
-	if member == nil {
-		return errors.NotFound("member", nil)
-	}
-
-	// Enviar confirmación por email
-	if member.Email != nil {
-		amountStr := strconv.FormatFloat(payment.Amount, 'f', 2, 64)
-		return s.notificationService.SendEmail(
-			ctx,
-			*member.Email,
-			"Confirmación de Pago ASAM",
-			"Se ha registrado su pago por "+amountStr+"€",
-		)
-	}
-	return nil
+	// Payment confirmations are not implemented
+	// If needed in the future, implement using EmailNotificationService (MailerSend)
+	return errors.New(errors.ErrInvalidOperation, "payment confirmations are not currently implemented")
 }
 
 func (s *paymentService) SendDefaulterNotification(ctx context.Context, memberID uint, days int) error {
-	// Verificar que el miembro existe
-	member, err := s.memberRepo.GetByID(ctx, memberID)
-	if err != nil {
-		return errors.DB(err, "error obteniendo miembro")
-	}
-
-	if member == nil {
-		return errors.NotFound("member", nil)
-	}
-
-	// Enviar notificación con días de retraso
-	if member.Email != nil {
-		daysStr := strconv.Itoa(days)
-		return s.notificationService.SendEmail(
-			ctx,
-			*member.Email,
-			"Aviso de Pago Atrasado ASAM",
-			"Su pago está atrasado "+daysStr+" días. Por favor, regularice su situación.",
-		)
-	}
-	return nil
+	// Defaulter notifications are not implemented
+	// If needed in the future, implement using EmailNotificationService (MailerSend)
+	return errors.New(errors.ErrInvalidOperation, "defaulter notifications are not currently implemented")
 }

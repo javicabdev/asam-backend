@@ -105,9 +105,8 @@ type MemoryStats struct {
 
 // ServiceStatus tracks the availability of different services
 type ServiceStatus struct {
-	Database     atomic.Bool
-	Auth         atomic.Bool
-	Notification atomic.Bool
+	Database atomic.Bool
+	Auth     atomic.Bool
 }
 
 // appDependencies holds all major dependencies for the application.
@@ -118,7 +117,6 @@ type appDependencies struct {
 	cashFlowService          input.CashFlowService
 	authService              input.AuthService
 	userService              input.UserService
-	notificationService      input.NotificationService
 	emailVerificationService input.EmailVerificationService
 	emailNotificationService input.EmailNotificationService
 	dashboardService         input.DashboardService
@@ -376,25 +374,6 @@ func updateMetricsPeriodically(ctx context.Context, log logger.Logger, deps *app
 	}
 }
 
-// createNotificationService creates a notification service based on the environment configuration.
-func createNotificationService(cfg *config.Config, log logger.Logger) input.NotificationService {
-	if cfg.Environment == constants.EnvDevelopment {
-		log.Warn("Using development notification service with placeholder SMTP values")
-		// For development, use mock or placeholder values
-		return services.NewEmailNotificationService(
-			"smtp.example.com", 587, "dev-user", "dev-password", false, "noreply-dev@asam.org",
-		)
-	}
-	// For production, check if SMTP credentials are configured
-	if cfg.SMTPUser == "" || cfg.SMTPPassword == "" {
-		log.Warn("SMTP credentials not configured - notification service will be disabled")
-		return nil // Return nil service
-	}
-	return services.NewEmailNotificationService(
-		cfg.SMTPServer, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPassword, cfg.SMTPUseTLS, cfg.SMTPFromEmail,
-	)
-}
-
 // setupConfigurationAndLogger initializes logging and loads application configuration.
 // It returns the loaded configuration, application logger, audit logger, or an error.
 func setupConfigurationAndLogger() (cfg *config.Config, appLogger logger.Logger, auditLogger audit.Logger, err error) {
@@ -545,17 +524,9 @@ func initializeServicesAndDependencies(ctx context.Context, cfg *config.Config, 
 		cfg.BaseURL,
 	)
 
-	notificationService := createNotificationService(cfg, appLogger)
-	if notificationService != nil {
-		serviceStatus.Notification.Store(true)
-	} else {
-		serviceStatus.Notification.Store(false)
-		appLogger.Warn("Notification service is disabled")
-	}
-
 	// Initialize fee calculator (consider moving magic numbers to config)
 	feeCalculator := services.NewFeeCalculator(30.0, 10.0, 1.0, 1.0)
-	paymentService := services.NewPaymentService(paymentRepo, membershipFeeRepo, memberRepo, familyRepo, notificationService, feeCalculator)
+	paymentService := services.NewPaymentService(paymentRepo, membershipFeeRepo, memberRepo, familyRepo, feeCalculator)
 	cashFlowService := services.NewCashFlowService(cashFlowRepo)
 	authService := services.NewAuthService(userRepo, memberRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, appLogger)
 	serviceStatus.Auth.Store(true)
@@ -630,7 +601,6 @@ func initializeServicesAndDependencies(ctx context.Context, cfg *config.Config, 
 		cashFlowService:          cashFlowService,
 		authService:              authService,
 		userService:              userService,
-		notificationService:      notificationService,
 		emailVerificationService: emailVerificationService,
 		emailNotificationService: emailNotificationService,
 		dashboardService:         dashboardService,
@@ -729,12 +699,6 @@ func healthHandler(cfg *config.Config, state *appState) http.HandlerFunc {
 				health.Services["auth"] = constants.HealthStatusHealthy
 			} else {
 				health.Services["auth"] = constants.HealthStatusUnhealthy
-			}
-
-			if deps.serviceStatus.Notification.Load() {
-				health.Services["notification"] = constants.HealthStatusHealthy
-			} else {
-				health.Services["notification"] = constants.HealthStatusUnhealthy
 			}
 		}
 
@@ -1268,14 +1232,14 @@ type emailServiceAdapter struct {
 }
 
 // SendEmail implements output.EmailService
-func (a *emailServiceAdapter) SendEmail(ctx context.Context, to, subject, body string) error {
+func (a *emailServiceAdapter) SendEmail(_ context.Context, _, _, _ string) error {
 	// Since the EmailNotificationService doesn't have a generic SendEmail method,
 	// we'll return an error indicating this should use specific methods
 	return fmt.Errorf("please use specific email methods (SendVerificationEmail, SendPasswordResetEmail, etc.)")
 }
 
 // SendHTMLEmail implements output.EmailService
-func (a *emailServiceAdapter) SendHTMLEmail(ctx context.Context, to, subject, htmlBody string) error {
+func (a *emailServiceAdapter) SendHTMLEmail(_ context.Context, _, _, _ string) error {
 	// Since the EmailNotificationService doesn't have a generic SendHTMLEmail method,
 	// we'll return an error indicating this should use specific methods
 	return fmt.Errorf("please use specific email methods (SendVerificationEmail, SendPasswordResetEmail, etc.)")
