@@ -46,6 +46,25 @@ func (s *paymentService) RegisterPayment(ctx context.Context, payment *models.Pa
 
 	// Si es un pago inicial (no tiene MembershipFeeID), asociar con cuota anual
 	if payment.MembershipFeeID == nil {
+		// Verificar que no exista ya un pago inicial para este member/family
+		hasInitial, err := s.paymentRepo.HasInitialPayment(ctx, payment.MemberID, payment.FamilyID)
+		if err != nil {
+			return errors.DB(err, "error verificando pagos existentes")
+		}
+
+		if hasInitial {
+			entityType := "socio"
+			if payment.FamilyID != nil && *payment.FamilyID != 0 {
+				entityType = "familia"
+			}
+			return errors.NewValidationError(
+				"Ya existe un pago inicial registrado para este "+entityType,
+				map[string]string{
+					"duplicate": "initial_payment_already_exists",
+				},
+			)
+		}
+
 		if err := s.ensureAnnualFee(ctx, payment); err != nil {
 			return err
 		}

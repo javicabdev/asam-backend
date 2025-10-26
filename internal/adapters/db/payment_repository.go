@@ -123,6 +123,45 @@ func (r *paymentRepository) FindByFamily(ctx context.Context, familyID uint, fro
 	return payments, nil
 }
 
+// HasInitialPayment checks if an initial payment already exists for the given member or family
+func (r *paymentRepository) HasInitialPayment(ctx context.Context, memberID *uint, familyID *uint) (bool, error) {
+	var exists bool
+
+	// Build query to check for existing initial payment
+	query := r.db.WithContext(ctx).
+		Model(&models.Payment{}).
+		Select("1").
+		Where("membership_fee_id IS NOT NULL")
+
+	// Add condition for member or family
+	if memberID != nil && *memberID != 0 {
+		query = query.Where("member_id = ?", *memberID)
+	} else if familyID != nil && *familyID != 0 {
+		query = query.Where("family_id = ?", *familyID)
+	} else {
+		// Neither memberID nor familyID provided
+		return false, appErrors.NewValidationError(
+			"either memberID or familyID must be provided",
+			map[string]string{
+				"memberID": "required if familyID not provided",
+				"familyID": "required if memberID not provided",
+			},
+		)
+	}
+
+	// Use SELECT EXISTS for optimal performance
+	result := r.db.WithContext(ctx).Raw(
+		"SELECT EXISTS(?)",
+		query,
+	).Scan(&exists)
+
+	if result.Error != nil {
+		return false, appErrors.DB(result.Error, "error checking for existing initial payment")
+	}
+
+	return exists, nil
+}
+
 // MembershipFeeRepository
 type membershipFeeRepository struct {
 	db *gorm.DB

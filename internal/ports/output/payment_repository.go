@@ -15,6 +15,7 @@ type PaymentRepository interface {
 	FindByID(ctx context.Context, id uint) (*models.Payment, error)
 	FindByMember(ctx context.Context, memberID uint, from, to time.Time) ([]models.Payment, error)
 	FindByFamily(ctx context.Context, familyID uint, from, to time.Time) ([]models.Payment, error)
+	HasInitialPayment(ctx context.Context, memberID *uint, familyID *uint) (bool, error)
 }
 
 // MembershipFeeRepository define las operaciones para persistir cuotas de membresía
