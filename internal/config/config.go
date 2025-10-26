@@ -47,14 +47,6 @@ type Config struct {
 	LoginLockoutDuration time.Duration `env:"LOGIN_LOCKOUT_DURATION,default=15m"`
 	LoginWindowDuration  time.Duration `env:"LOGIN_WINDOW_DURATION,default=5m"`
 
-	// Configuraciones de notificación por email - SMTP (DEPRECATED - usar MailerSend)
-	SMTPServer    string `env:"SMTP_SERVER,default=localhost"`
-	SMTPPort      int    `env:"SMTP_PORT,default=587"`
-	SMTPUser      string `env:"SMTP_USER"`
-	SMTPPassword  string `env:"SMTP_PASSWORD"`
-	SMTPUseTLS    bool   `env:"SMTP_USE_TLS,default=true"`
-	SMTPFromEmail string `env:"SMTP_FROM_EMAIL,default=noreply@asam.org"`
-
 	// Configuraciones de MailerSend (nuevo servicio de email)
 	MailerSendAPIKey    string `env:"MAILERSEND_API_KEY,required"`
 	MailerSendFromEmail string `env:"MAILERSEND_FROM_EMAIL,default=noreply@asam.org"`
