@@ -47,23 +47,36 @@ func (m *ErrorMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // HandleError processes an error and transforms it for GraphQL
 func (m *ErrorMiddleware) HandleError(ctx context.Context, err error) *gqlerror.Error {
+	// Si ya es un gqlerror.Error, intentar extraer el AppError subyacente
 	var gqlErr *gqlerror.Error
 	if errors.As(err, &gqlErr) {
+		// Intentar extraer el AppError del error original de gqlErr
+		if gqlErr.Err != nil {
+			var appErr *appErrors.AppError
+			if errors.As(gqlErr.Err, &appErr) {
+				// Encontramos el AppError original, procesarlo
+				return m.handleAppError(ctx, appErr)
+			}
+		}
+		// Si no hay AppError subyacente, loggear y retornar el gqlErr tal cual
 		if m.logger != nil {
 			m.logError(ctx, "GraphQL error", gqlErr.Message, "graphql_error", gqlErr.Extensions["code"], gqlErr.Path)
 		}
 		return gqlErr
 	}
 
+	// Intentar como AppError directamente
 	var appErr *appErrors.AppError
 	if errors.As(err, &appErr) {
 		return m.handleAppError(ctx, appErr)
 	}
 
+	// Error de GORM (registro no encontrado)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return m.createNotFoundError(ctx)
 	}
 
+	// Error genérico/desconocido
 	return m.createInternalError(ctx, err)
 }
 

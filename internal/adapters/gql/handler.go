@@ -157,18 +157,7 @@ func NewHandler(
 		ctx = context.WithValue(ctx, middleware.ErrorHandlerKey{}, errorHandler)
 
 		// Procesar el error
-		gqlErr := errorHandler.HandleError(ctx, err)
-
-		// Log del error antes de retornarlo (solo si tiene extensions con fields)
-		if extensions, ok := gqlErr.Extensions["fields"]; ok && appLogger != nil {
-			appLogger.Debug("[ERROR-PRESENTER] Returning error with fields",
-				zap.String("message", gqlErr.Message),
-				zap.Any("extensions", gqlErr.Extensions),
-				zap.Any("fields", extensions),
-			)
-		}
-
-		return gqlErr
+		return errorHandler.HandleError(ctx, err)
 	})
 
 	// Configurar función de recuperación que también usa el errorHandler

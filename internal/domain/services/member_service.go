@@ -52,12 +52,17 @@ func (s *memberService) CreateMember(ctx context.Context, member *models.Member)
 	}
 
 	if existing != nil {
+		validationErr := errors.NewValidationError(
+			"El número de socio ya está registrado",
+			map[string]string{
+				"numero_socio": fmt.Sprintf("Ya existe un miembro con el número de socio %s", member.MembershipNumber),
+			},
+		)
 		s.appLogger.Warn("Attempted to create duplicate member",
 			zap.String("numero_socio", member.MembershipNumber))
 		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
-			"Intento de crear miembro duplicado", nil)
-		return errors.New(errors.ErrDuplicateEntry,
-			"ya existe un miembro con el número de socio "+member.MembershipNumber)
+			"Intento de crear miembro duplicado", validationErr)
+		return validationErr
 	}
 
 	// Verificar si ya existe un miembro con el mismo documento de identidad
