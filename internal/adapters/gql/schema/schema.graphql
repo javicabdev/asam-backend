@@ -191,6 +191,19 @@ input TransactionFilter {
     sort: SortInput
 }
 
+input PaymentFilter {
+    status: PaymentStatus
+    payment_method: String
+    start_date: Time
+    end_date: Time
+    min_amount: Float
+    max_amount: Float
+    member_id: ID
+    family_id: ID
+    pagination: PaginationInput
+    sort: SortInput
+}
+
 # Tipos para paginación
 type PageInfo {
     hasNextPage: Boolean!
@@ -210,6 +223,11 @@ type FamilyConnection {
 
 type TransactionConnection {
     nodes: [CashFlow!]!
+    pageInfo: PageInfo!
+}
+
+type PaymentConnection {
+    nodes: [Payment!]!
     pageInfo: PageInfo!
 }
 
@@ -241,6 +259,7 @@ type Query {
     getMemberPayments(memberId: ID!): [Payment!]!
     getFamilyPayments(familyId: ID!): [Payment!]!
     getPaymentStatus(id: ID!): PaymentStatus!
+    listPayments(filter: PaymentFilter): PaymentConnection!
     
     # MembershipFee Queries
     getMembershipFee(year: Int!): MembershipFee

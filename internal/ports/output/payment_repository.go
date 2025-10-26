@@ -16,6 +16,23 @@ type PaymentRepository interface {
 	FindByMember(ctx context.Context, memberID uint, from, to time.Time) ([]models.Payment, error)
 	FindByFamily(ctx context.Context, familyID uint, from, to time.Time) ([]models.Payment, error)
 	HasInitialPayment(ctx context.Context, memberID *uint, familyID *uint) (bool, error)
+	FindAll(ctx context.Context, filters *PaymentRepositoryFilters) ([]models.Payment, error)
+	CountAll(ctx context.Context, filters *PaymentRepositoryFilters) (int64, error)
+}
+
+// PaymentRepositoryFilters defines database-level filters for payment queries
+type PaymentRepositoryFilters struct {
+	Status        *models.PaymentStatus
+	PaymentMethod *string
+	StartDate     *time.Time
+	EndDate       *time.Time
+	MinAmount     *float64
+	MaxAmount     *float64
+	MemberID      *uint
+	FamilyID      *uint
+	Offset        int
+	Limit         int
+	OrderBy       string
 }
 
 // MembershipFeeRepository define las operaciones para persistir cuotas de membresía

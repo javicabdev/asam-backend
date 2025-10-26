@@ -40,6 +40,24 @@ type PaymentService interface {
 	SendPaymentReminder(ctx context.Context, memberID uint) error
 	SendPaymentConfirmation(ctx context.Context, paymentID uint) error
 	SendDefaulterNotification(ctx context.Context, memberID uint, days int) error
+
+	// ListPayments retrieves a paginated list of payments with optional filters
+	ListPayments(ctx context.Context, filters PaymentFilters) ([]*models.Payment, int, error)
+}
+
+// PaymentFilters defines search criteria for payments
+type PaymentFilters struct {
+	Status        *models.PaymentStatus
+	PaymentMethod *string
+	StartDate     *time.Time
+	EndDate       *time.Time
+	MinAmount     *float64
+	MaxAmount     *float64
+	MemberID      *uint
+	FamilyID      *uint
+	Page          int
+	PageSize      int
+	OrderBy       string
 }
 
 // FeeCalculator defines the interface for the calculation of quotas

@@ -109,3 +109,77 @@ func (r *queryResolver) buildMemberConnection(members []*models.Member, page int
 		PageInfo: pageInfo,
 	}
 }
+
+// mapPaymentFilterToDomain converts a GraphQL PaymentFilter to domain PaymentFilters
+func (r *queryResolver) mapPaymentFilterToDomain(filter *model.PaymentFilter) (input.PaymentFilters, error) {
+	// Set default pagination
+	page := 1
+	pageSize := 10
+	var orderBy string
+
+	var filters input.PaymentFilters
+
+	if filter != nil {
+		// Pagination
+		if filter.Pagination != nil {
+			page = filter.Pagination.Page
+			pageSize = filter.Pagination.PageSize
+		}
+
+		// Sorting
+		if filter.Sort != nil {
+			orderBy = fmt.Sprintf("%s %s", filter.Sort.Field, filter.Sort.Direction)
+		}
+
+		// Status filter
+		if filter.Status != nil {
+			status := *filter.Status
+			filters.Status = &status
+		}
+
+		// Payment method filter
+		if filter.PaymentMethod != nil {
+			filters.PaymentMethod = filter.PaymentMethod
+		}
+
+		// Date range filters
+		if filter.StartDate != nil {
+			filters.StartDate = filter.StartDate
+		}
+		if filter.EndDate != nil {
+			filters.EndDate = filter.EndDate
+		}
+
+		// Amount range filters
+		if filter.MinAmount != nil {
+			filters.MinAmount = filter.MinAmount
+		}
+		if filter.MaxAmount != nil {
+			filters.MaxAmount = filter.MaxAmount
+		}
+
+		// Member filter
+		if filter.MemberID != nil {
+			memberID, err := parseID(*filter.MemberID)
+			if err != nil {
+				return input.PaymentFilters{}, err
+			}
+			filters.MemberID = &memberID
+		}
+
+		// Family filter
+		if filter.FamilyID != nil {
+			familyID, err := parseID(*filter.FamilyID)
+			if err != nil {
+				return input.PaymentFilters{}, err
+			}
+			filters.FamilyID = &familyID
+		}
+	}
+
+	filters.Page = page
+	filters.PageSize = pageSize
+	filters.OrderBy = orderBy
+
+	return filters, nil
+}

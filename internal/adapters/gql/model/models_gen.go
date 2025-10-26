@@ -164,6 +164,24 @@ type PaginationInput struct {
 	PageSize int `json:"pageSize"`
 }
 
+type PaymentConnection struct {
+	Nodes    []*models.Payment `json:"nodes"`
+	PageInfo *PageInfo         `json:"pageInfo"`
+}
+
+type PaymentFilter struct {
+	Status        *models.PaymentStatus `json:"status,omitempty"`
+	PaymentMethod *string               `json:"payment_method,omitempty"`
+	StartDate     *time.Time            `json:"start_date,omitempty"`
+	EndDate       *time.Time            `json:"end_date,omitempty"`
+	MinAmount     *float64              `json:"min_amount,omitempty"`
+	MaxAmount     *float64              `json:"max_amount,omitempty"`
+	MemberID      *string               `json:"member_id,omitempty"`
+	FamilyID      *string               `json:"family_id,omitempty"`
+	Pagination    *PaginationInput      `json:"pagination,omitempty"`
+	Sort          *SortInput            `json:"sort,omitempty"`
+}
+
 type PaymentInput struct {
 	MemberID      *string `json:"member_id,omitempty"`
 	FamilyID      *string `json:"family_id,omitempty"`

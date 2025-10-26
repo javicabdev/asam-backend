@@ -551,3 +551,61 @@ func (s *paymentService) SendDefaulterNotification(ctx context.Context, memberID
 	// If needed in the future, implement using EmailNotificationService (MailerSend)
 	return errors.New(errors.ErrInvalidOperation, "defaulter notifications are not currently implemented")
 }
+
+// ListPayments retrieves a paginated and filtered list of payments
+func (s *paymentService) ListPayments(ctx context.Context, filters input.PaymentFilters) ([]*models.Payment, int, error) {
+	// Validate pagination
+	page := filters.Page
+	if page < 1 {
+		page = 1
+	}
+
+	pageSize := filters.PageSize
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100 // Maximum page size
+	}
+
+	// Set default ordering if not provided
+	orderBy := filters.OrderBy
+	if orderBy == "" {
+		orderBy = "payment_date DESC"
+	}
+
+	// Convert service filters to repository filters
+	repoFilters := &output.PaymentRepositoryFilters{
+		Status:        filters.Status,
+		PaymentMethod: filters.PaymentMethod,
+		StartDate:     filters.StartDate,
+		EndDate:       filters.EndDate,
+		MinAmount:     filters.MinAmount,
+		MaxAmount:     filters.MaxAmount,
+		MemberID:      filters.MemberID,
+		FamilyID:      filters.FamilyID,
+		Offset:        (page - 1) * pageSize,
+		Limit:         pageSize,
+		OrderBy:       orderBy,
+	}
+
+	// Get payments from repository
+	payments, err := s.paymentRepo.FindAll(ctx, repoFilters)
+	if err != nil {
+		return nil, 0, errors.DB(err, "failed to list payments")
+	}
+
+	// Get total count for pagination
+	total, err := s.paymentRepo.CountAll(ctx, repoFilters)
+	if err != nil {
+		return nil, 0, errors.DB(err, "failed to count payments")
+	}
+
+	// Convert to pointers
+	result := make([]*models.Payment, len(payments))
+	for i := range payments {
+		result[i] = &payments[i]
+	}
+
+	return result, int(total), nil
+}

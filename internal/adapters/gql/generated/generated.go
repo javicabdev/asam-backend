@@ -225,6 +225,11 @@ type ComplexityRoot struct {
 		Status        func(childComplexity int) int
 	}
 
+	PaymentConnection struct {
+		Nodes    func(childComplexity int) int
+		PageInfo func(childComplexity int) int
+	}
+
 	Query struct {
 		CheckDocumentValidity    func(childComplexity int, documentNumber string) int
 		CheckMemberNumberExists  func(childComplexity int, memberNumber string) int
@@ -250,6 +255,7 @@ type ComplexityRoot struct {
 		ListFamilies             func(childComplexity int, filter *model.FamilyFilter) int
 		ListMembers              func(childComplexity int, filter *model.MemberFilter) int
 		ListMembershipFees       func(childComplexity int, page *int, pageSize *int) int
+		ListPayments             func(childComplexity int, filter *model.PaymentFilter) int
 		ListUsers                func(childComplexity int, page *int, pageSize *int) int
 		Ping                     func(childComplexity int) int
 		SearchMembers            func(childComplexity int, criteria string) int
@@ -380,6 +386,7 @@ type QueryResolver interface {
 	GetMemberPayments(ctx context.Context, memberID string) ([]*models.Payment, error)
 	GetFamilyPayments(ctx context.Context, familyID string) ([]*models.Payment, error)
 	GetPaymentStatus(ctx context.Context, id string) (models.PaymentStatus, error)
+	ListPayments(ctx context.Context, filter *model.PaymentFilter) (*model.PaymentConnection, error)
 	GetMembershipFee(ctx context.Context, year int) (*models.MembershipFee, error)
 	ListMembershipFees(ctx context.Context, page *int, pageSize *int) ([]*models.MembershipFee, error)
 	GetPendingFees(ctx context.Context) ([]*models.MembershipFee, error)
@@ -1312,6 +1319,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Payment.Status(childComplexity), true
 
+	case "PaymentConnection.nodes":
+		if e.complexity.PaymentConnection.Nodes == nil {
+			break
+		}
+
+		return e.complexity.PaymentConnection.Nodes(childComplexity), true
+	case "PaymentConnection.pageInfo":
+		if e.complexity.PaymentConnection.PageInfo == nil {
+			break
+		}
+
+		return e.complexity.PaymentConnection.PageInfo(childComplexity), true
+
 	case "Query.checkDocumentValidity":
 		if e.complexity.Query.CheckDocumentValidity == nil {
 			break
@@ -1551,6 +1571,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.ListMembershipFees(childComplexity, args["page"].(*int), args["pageSize"].(*int)), true
+	case "Query.listPayments":
+		if e.complexity.Query.ListPayments == nil {
+			break
+		}
+
+		args, err := ec.field_Query_listPayments_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ListPayments(childComplexity, args["filter"].(*model.PaymentFilter)), true
 	case "Query.listUsers":
 		if e.complexity.Query.ListUsers == nil {
 			break
@@ -1757,6 +1788,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputLoginInput,
 		ec.unmarshalInputMemberFilter,
 		ec.unmarshalInputPaginationInput,
+		ec.unmarshalInputPaymentFilter,
 		ec.unmarshalInputPaymentInput,
 		ec.unmarshalInputRefreshTokenInput,
 		ec.unmarshalInputSortInput,
@@ -2055,6 +2087,19 @@ input TransactionFilter {
     sort: SortInput
 }
 
+input PaymentFilter {
+    status: PaymentStatus
+    payment_method: String
+    start_date: Time
+    end_date: Time
+    min_amount: Float
+    max_amount: Float
+    member_id: ID
+    family_id: ID
+    pagination: PaginationInput
+    sort: SortInput
+}
+
 # Tipos para paginación
 type PageInfo {
     hasNextPage: Boolean!
@@ -2074,6 +2119,11 @@ type FamilyConnection {
 
 type TransactionConnection {
     nodes: [CashFlow!]!
+    pageInfo: PageInfo!
+}
+
+type PaymentConnection {
+    nodes: [Payment!]!
     pageInfo: PageInfo!
 }
 
@@ -2105,6 +2155,7 @@ type Query {
     getMemberPayments(memberId: ID!): [Payment!]!
     getFamilyPayments(familyId: ID!): [Payment!]!
     getPaymentStatus(id: ID!): PaymentStatus!
+    listPayments(filter: PaymentFilter): PaymentConnection!
     
     # MembershipFee Queries
     getMembershipFee(year: Int!): MembershipFee
@@ -2948,6 +2999,17 @@ func (ec *executionContext) field_Query_listMembershipFees_args(ctx context.Cont
 		return nil, err
 	}
 	args["pageSize"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_listPayments_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "filter", ec.unmarshalOPaymentFilter2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPaymentFilter)
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg0
 	return args, nil
 }
 
@@ -7734,6 +7796,92 @@ func (ec *executionContext) fieldContext_Payment_membership_fee(_ context.Contex
 	return fc, nil
 }
 
+func (ec *executionContext) _PaymentConnection_nodes(ctx context.Context, field graphql.CollectedField, obj *model.PaymentConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PaymentConnection_nodes,
+		func(ctx context.Context) (any, error) {
+			return obj.Nodes, nil
+		},
+		nil,
+		ec.marshalNPayment2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐPaymentᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PaymentConnection_nodes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PaymentConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Payment_id(ctx, field)
+			case "member":
+				return ec.fieldContext_Payment_member(ctx, field)
+			case "family":
+				return ec.fieldContext_Payment_family(ctx, field)
+			case "amount":
+				return ec.fieldContext_Payment_amount(ctx, field)
+			case "payment_date":
+				return ec.fieldContext_Payment_payment_date(ctx, field)
+			case "status":
+				return ec.fieldContext_Payment_status(ctx, field)
+			case "payment_method":
+				return ec.fieldContext_Payment_payment_method(ctx, field)
+			case "notes":
+				return ec.fieldContext_Payment_notes(ctx, field)
+			case "membership_fee":
+				return ec.fieldContext_Payment_membership_fee(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Payment", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PaymentConnection_pageInfo(ctx context.Context, field graphql.CollectedField, obj *model.PaymentConnection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PaymentConnection_pageInfo,
+		func(ctx context.Context) (any, error) {
+			return obj.PageInfo, nil
+		},
+		nil,
+		ec.marshalNPageInfo2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPageInfo,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PaymentConnection_pageInfo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PaymentConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "hasNextPage":
+				return ec.fieldContext_PageInfo_hasNextPage(ctx, field)
+			case "hasPreviousPage":
+				return ec.fieldContext_PageInfo_hasPreviousPage(ctx, field)
+			case "totalCount":
+				return ec.fieldContext_PageInfo_totalCount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PageInfo", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_health(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -8691,6 +8839,53 @@ func (ec *executionContext) fieldContext_Query_getPaymentStatus(ctx context.Cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_getPaymentStatus_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_listPayments(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_listPayments,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ListPayments(ctx, fc.Args["filter"].(*model.PaymentFilter))
+		},
+		nil,
+		ec.marshalNPaymentConnection2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPaymentConnection,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_listPayments(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "nodes":
+				return ec.fieldContext_PaymentConnection_nodes(ctx, field)
+			case "pageInfo":
+				return ec.fieldContext_PaymentConnection_pageInfo(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PaymentConnection", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_listPayments_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -12217,6 +12412,96 @@ func (ec *executionContext) unmarshalInputPaginationInput(ctx context.Context, o
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputPaymentFilter(ctx context.Context, obj any) (model.PaymentFilter, error) {
+	var it model.PaymentFilter
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"status", "payment_method", "start_date", "end_date", "min_amount", "max_amount", "member_id", "family_id", "pagination", "sort"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "status":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("status"))
+			data, err := ec.unmarshalOPaymentStatus2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐPaymentStatus(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Status = data
+		case "payment_method":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("payment_method"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PaymentMethod = data
+		case "start_date":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("start_date"))
+			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.StartDate = data
+		case "end_date":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("end_date"))
+			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.EndDate = data
+		case "min_amount":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("min_amount"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MinAmount = data
+		case "max_amount":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("max_amount"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MaxAmount = data
+		case "member_id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("member_id"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MemberID = data
+		case "family_id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("family_id"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.FamilyID = data
+		case "pagination":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("pagination"))
+			data, err := ec.unmarshalOPaginationInput2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPaginationInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Pagination = data
+		case "sort":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sort"))
+			data, err := ec.unmarshalOSortInput2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐSortInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Sort = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputPaymentInput(ctx context.Context, obj any) (model.PaymentInput, error) {
 	var it model.PaymentInput
 	asMap := map[string]any{}
@@ -14599,6 +14884,50 @@ func (ec *executionContext) _Payment(ctx context.Context, sel ast.SelectionSet, 
 	return out
 }
 
+var paymentConnectionImplementors = []string{"PaymentConnection"}
+
+func (ec *executionContext) _PaymentConnection(ctx context.Context, sel ast.SelectionSet, obj *model.PaymentConnection) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, paymentConnectionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PaymentConnection")
+		case "nodes":
+			out.Values[i] = ec._PaymentConnection_nodes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "pageInfo":
+			out.Values[i] = ec._PaymentConnection_pageInfo(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var queryImplementors = []string{"Query"}
 
 func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -14965,6 +15294,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getPaymentStatus(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "listPayments":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_listPayments(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -16567,6 +16918,20 @@ func (ec *executionContext) marshalNPayment2ᚖgithubᚗcomᚋjavicabdevᚋasam�
 	return ec._Payment(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNPaymentConnection2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPaymentConnection(ctx context.Context, sel ast.SelectionSet, v model.PaymentConnection) graphql.Marshaler {
+	return ec._PaymentConnection(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNPaymentConnection2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPaymentConnection(ctx context.Context, sel ast.SelectionSet, v *model.PaymentConnection) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._PaymentConnection(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNPaymentInput2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPaymentInput(ctx context.Context, v any) (model.PaymentInput, error) {
 	res, err := ec.unmarshalInputPaymentInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -17391,6 +17756,33 @@ func (ec *executionContext) marshalOPayment2ᚖgithubᚗcomᚋjavicabdevᚋasam�
 		return graphql.Null
 	}
 	return ec._Payment(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOPaymentFilter2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPaymentFilter(ctx context.Context, v any) (*model.PaymentFilter, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputPaymentFilter(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOPaymentStatus2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐPaymentStatus(ctx context.Context, v any) (*models.PaymentStatus, error) {
+	if v == nil {
+		return nil, nil
+	}
+	tmp, err := graphql.UnmarshalString(v)
+	res := models.PaymentStatus(tmp)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOPaymentStatus2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐPaymentStatus(ctx context.Context, sel ast.SelectionSet, v *models.PaymentStatus) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalString(string(*v))
+	return res
 }
 
 func (ec *executionContext) unmarshalOSortInput2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐSortInput(ctx context.Context, v any) (*model.SortInput, error) {

@@ -1089,6 +1089,43 @@ func (r *queryResolver) GetPaymentStatus(ctx context.Context, id string) (models
 	return payment.Status, nil
 }
 
+// ListPayments is the resolver for the listPayments field.
+func (r *queryResolver) ListPayments(ctx context.Context, filter *model.PaymentFilter) (*model.PaymentConnection, error) {
+	// Only ADMIN can list all payments
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+
+	// Map GraphQL filter to domain filter
+	filters, err := r.mapPaymentFilterToDomain(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	// Call service
+	payments, total, err := r.paymentService.ListPayments(ctx, filters)
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate pagination info
+	totalPages := (total + filters.PageSize - 1) / filters.PageSize
+	hasNextPage := filters.Page < totalPages
+	hasPreviousPage := filters.Page > 1
+
+	// Build PageInfo
+	pageInfo := &model.PageInfo{
+		HasNextPage:     hasNextPage,
+		HasPreviousPage: hasPreviousPage,
+		TotalCount:      total,
+	}
+
+	return &model.PaymentConnection{
+		Nodes:    payments,
+		PageInfo: pageInfo,
+	}, nil
+}
+
 // GetMembershipFee is the resolver for the getMembershipFee field.
 func (r *queryResolver) GetMembershipFee(ctx context.Context, year int) (*models.MembershipFee, error) {
 	// Solo ADMIN puede consultar cuotas

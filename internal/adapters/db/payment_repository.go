@@ -163,6 +163,114 @@ func (r *paymentRepository) HasInitialPayment(ctx context.Context, memberID *uin
 	return exists, nil
 }
 
+// FindAll retrieves all payments matching the given filters
+func (r *paymentRepository) FindAll(ctx context.Context, filters *output.PaymentRepositoryFilters) ([]models.Payment, error) {
+	var payments []models.Payment
+
+	query := r.db.WithContext(ctx).
+		Preload("Member").
+		Preload("Family").
+		Preload("MembershipFee")
+
+	if filters != nil {
+		// Apply status filter
+		if filters.Status != nil {
+			query = query.Where("status = ?", *filters.Status)
+		}
+
+		// Apply payment method filter (case-insensitive partial match)
+		if filters.PaymentMethod != nil && *filters.PaymentMethod != "" {
+			query = query.Where("LOWER(payment_method) LIKE LOWER(?)", "%"+*filters.PaymentMethod+"%")
+		}
+
+		// Apply date range filters
+		if filters.StartDate != nil {
+			query = query.Where("payment_date >= ?", *filters.StartDate)
+		}
+		if filters.EndDate != nil {
+			query = query.Where("payment_date <= ?", *filters.EndDate)
+		}
+
+		// Apply amount range filters
+		if filters.MinAmount != nil {
+			query = query.Where("amount >= ?", *filters.MinAmount)
+		}
+		if filters.MaxAmount != nil {
+			query = query.Where("amount <= ?", *filters.MaxAmount)
+		}
+
+		// Apply member filter
+		if filters.MemberID != nil {
+			query = query.Where("member_id = ?", *filters.MemberID)
+		}
+
+		// Apply family filter
+		if filters.FamilyID != nil {
+			query = query.Where("family_id = ?", *filters.FamilyID)
+		}
+
+		// Apply ordering
+		if filters.OrderBy != "" {
+			query = query.Order(filters.OrderBy)
+		}
+
+		// Apply pagination
+		if filters.Limit > 0 {
+			query = query.Limit(filters.Limit)
+		}
+		if filters.Offset > 0 {
+			query = query.Offset(filters.Offset)
+		}
+	}
+
+	if err := query.Find(&payments).Error; err != nil {
+		return nil, appErrors.DB(err, "error finding payments")
+	}
+
+	return payments, nil
+}
+
+// CountAll returns the total count of payments matching the given filters
+func (r *paymentRepository) CountAll(ctx context.Context, filters *output.PaymentRepositoryFilters) (int64, error) {
+	var count int64
+
+	query := r.db.WithContext(ctx).Model(&models.Payment{})
+
+	if filters != nil {
+		// Apply the same filters as FindAll (excluding pagination)
+		if filters.Status != nil {
+			query = query.Where("status = ?", *filters.Status)
+		}
+		if filters.PaymentMethod != nil && *filters.PaymentMethod != "" {
+			query = query.Where("LOWER(payment_method) LIKE LOWER(?)", "%"+*filters.PaymentMethod+"%")
+		}
+		if filters.StartDate != nil {
+			query = query.Where("payment_date >= ?", *filters.StartDate)
+		}
+		if filters.EndDate != nil {
+			query = query.Where("payment_date <= ?", *filters.EndDate)
+		}
+		if filters.MinAmount != nil {
+			query = query.Where("amount >= ?", *filters.MinAmount)
+		}
+		if filters.MaxAmount != nil {
+			query = query.Where("amount <= ?", *filters.MaxAmount)
+		}
+		if filters.MemberID != nil {
+			query = query.Where("member_id = ?", *filters.MemberID)
+		}
+		if filters.FamilyID != nil {
+			query = query.Where("family_id = ?", *filters.FamilyID)
+		}
+	}
+
+	if err := query.Count(&count).Error; err != nil {
+		return 0, appErrors.DB(err, "error counting payments")
+	}
+
+	return count, nil
+}
+
 // MembershipFeeRepository
 type membershipFeeRepository struct {
 	db *gorm.DB
