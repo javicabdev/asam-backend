@@ -110,7 +110,7 @@ jobs:
             --set-env-vars="DB_SSL_MODE=require" \
             --set-env-vars="JWT_ACCESS_TTL=15m" \
             --set-env-vars="JWT_REFRESH_TTL=168h" \
-            --set-env-vars="MAILERSEND_FROM_EMAIL=admin@mutuaasam.org" \
+            --set-env-vars="MAILERSEND_FROM_EMAIL=noreply@mutuaasam.org" \
             --set-env-vars="MAILERSEND_FROM_NAME=ASAM" \
             --set-env-vars="RATE_LIMIT_RPS=10" \
             --set-env-vars="RATE_LIMIT_BURST=20" \
