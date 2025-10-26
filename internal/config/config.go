@@ -71,10 +71,6 @@ type Config struct {
 	MemAlertThreshold     uint64        `env:"MEM_ALERT_THRESHOLD,default=200"`    // MB
 	MemCriticalThreshold  uint64        `env:"MEM_CRITICAL_THRESHOLD,default=500"` // MB
 
-	// Configuración de seguridad admin
-	AdminUser     string `env:"ADMIN_USER"`
-	AdminPassword string `env:"ADMIN_PASSWORD"`
-
 	// Configuración de GraphQL
 	GQLComplexityLimit     int `env:"GQL_COMPLEXITY_LIMIT,default=1000"`
 	GQLConcurrentResolvers int `env:"GQL_CONCURRENT_RESOLVERS,default=10"`
@@ -89,16 +85,14 @@ type Config struct {
 }
 
 // LoadConfig carga las variables de entorno y las mapea a la estructura Config.
+// Sigue el patrón 12-Factor App:
+// - En desarrollo local: lee de .env (si existe) vía godotenv
+// - En Docker: las variables vienen del .env cargado por Docker Compose
+// - En producción: lee directamente de las variables de entorno del sistema
 func LoadConfig() (*Config, error) {
-	// Cargar .env.production en entorno de producción
-	if env := getenv("ENVIRONMENT"); env == "production" {
-		_ = godotenv.Load(".env.production")
-	} else {
-		// Intentar cargar .env.development, luego .env.local, luego .env
-		_ = godotenv.Load(".env.development")
-		_ = godotenv.Load(".env.local")
-		_ = godotenv.Load()
-	}
+	// Intentar cargar .env si existe (principalmente para desarrollo local)
+	// godotenv.Load() busca .env por defecto y falla silenciosamente si no existe
+	_ = godotenv.Load()
 
 	ctx := context.Background()
 	var c Config
@@ -115,20 +109,7 @@ func LoadConfig() (*Config, error) {
 		if c.MailerSendAPIKey == "" {
 			return nil, errors.InternalError("MailerSend API key must be set for production", nil)
 		}
-
-		if c.AdminUser == "" || c.AdminPassword == "" {
-			return nil, errors.InternalError("admin credentials must be set for production", nil)
-		}
 	}
 
 	return &c, nil
-}
-
-// getenv returns the environment variable or fallback if not set
-func getenv(key string) string {
-	value, exists := context.Background().Value(key).(string)
-	if exists {
-		return value
-	}
-	return ""
 }

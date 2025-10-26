@@ -60,9 +60,9 @@ if [[ " $* " == *" --clean "* ]]; then
     echo -e "${GRAY}   Limpiando redes no utilizadas...${NC}"
     docker network prune -f 2>/dev/null
 
-    # Eliminar el archivo .env para empezar limpio
+    # Eliminar archivo de configuración para empezar limpio
     if [ -f ".env" ]; then
-        echo -e "${GRAY}   Eliminando archivo .env existente...${NC}"
+        echo -e "${GRAY}   Eliminando archivo .env...${NC}"
         rm -f ".env"
     fi
 
@@ -70,100 +70,22 @@ if [[ " $* " == *" --clean "* ]]; then
     sleep 2
 fi
 
-# Siempre verificar/crear archivo de entorno (especialmente después de --clean)
-echo -e "\n${YELLOW}📋 Configurando archivo de entorno...${NC}"
+# Verificar que existe el archivo de configuración
+echo -e "\n${YELLOW}📋 Verificando archivo de configuración...${NC}"
 if [ ! -f ".env" ]; then
-    if [ -f ".env.development.example" ]; then
-        cp ".env.development.example" ".env"
-        echo -e "${GREEN}✅ Archivo .env creado desde .env.development.example${NC}"
-    elif [ -f ".env.development" ]; then
-        cp ".env.development" ".env"
-        echo -e "${GREEN}✅ Archivo .env creado desde .env.development${NC}"
-    else
-        echo -e "${RED}❌ No se encontró archivo de configuración de ejemplo${NC}"
-        echo -e "${YELLOW}   Creando archivo .env mínimo...${NC}"
-
-        # Crear un .env mínimo para desarrollo
-        cat > .env << 'ENVFILE'
-# Database configuration
-DB_HOST=postgres
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=postgres
-DB_NAME=asam_db
-
-# API configuration
-API_PORT=8080
-ENVIRONMENT=development
-
-# JWT configuration
-JWT_ACCESS_SECRET=dev-access-secret-change-in-production
-JWT_REFRESH_SECRET=dev-refresh-secret-change-in-production
-JWT_ACCESS_TTL=15m
-JWT_REFRESH_TTL=168h
-
-# Admin user (for monitoring endpoints)
-ADMIN_USER=admin
-ADMIN_PASSWORD=AsamAdmin2025!
-ENVFILE
-        echo -e "${GREEN}✅ Archivo .env creado con configuración mínima${NC}"
-    fi
-else
-    echo -e "${GREEN}✅ Archivo .env ya existe${NC}"
+    echo -e "${RED}❌ Error: No se encontró el archivo .env${NC}"
+    echo -e "${YELLOW}\n⚠️  El archivo .env es requerido para arrancar el proyecto.${NC}"
+    echo -e "\n${CYAN}Para crear el archivo de configuración:${NC}"
+    echo -e "${GRAY}1. Copia el archivo de ejemplo:${NC}"
+    echo -e "   ${GREEN}cp .env.example .env${NC}"
+    echo -e "\n${GRAY}2. Edita .env y configura:${NC}"
+    echo -e "   - ${GREEN}MAILERSEND_API_KEY${NC} con tu API key real de MailerSend"
+    echo -e "   - Otras variables según necesites"
+    echo -e "\n${GRAY}3. Vuelve a ejecutar este script${NC}\n"
+    exit 1
 fi
 
-# Verificar y corregir DB_HOST para Docker
-echo -e "\n${YELLOW}🔧 Verificando configuración de base de datos...${NC}"
-if grep -q "DB_HOST=localhost" .env; then
-    echo -e "${GRAY}   Corrigiendo DB_HOST de localhost a postgres para Docker...${NC}"
-    sed -i.bak 's/DB_HOST=localhost/DB_HOST=postgres/' .env
-    rm -f .env.bak
-    echo -e "${GREEN}✅ DB_HOST actualizado para Docker${NC}"
-elif grep -q "DB_HOST=postgres" .env; then
-    echo -e "${GREEN}✅ DB_HOST ya configurado correctamente para Docker${NC}"
-else
-    echo -e "${YELLOW}⚠️  DB_HOST tiene un valor personalizado, verificar configuración${NC}"
-fi
-
-# Verificar y agregar variables JWT si no existen
-echo -e "\n${YELLOW}🔐 Verificando configuración de JWT...${NC}"
-JWT_CONFIG_ADDED=false
-
-if ! grep -q "JWT_ACCESS_SECRET" .env; then
-    echo -e "${GRAY}   Agregando JWT_ACCESS_SECRET...${NC}"
-    echo "" >> .env
-    echo "# JWT Configuration (added by start-docker.sh)" >> .env
-    echo "JWT_ACCESS_SECRET=dev-access-secret-change-in-production" >> .env
-    JWT_CONFIG_ADDED=true
-fi
-
-if ! grep -q "JWT_REFRESH_SECRET" .env; then
-    echo -e "${GRAY}   Agregando JWT_REFRESH_SECRET...${NC}"
-    if [ "$JWT_CONFIG_ADDED" = false ]; then
-        echo "" >> .env
-        echo "# JWT Configuration (added by start-docker.sh)" >> .env
-    fi
-    echo "JWT_REFRESH_SECRET=dev-refresh-secret-change-in-production" >> .env
-    JWT_CONFIG_ADDED=true
-fi
-
-if ! grep -q "JWT_ACCESS_TTL" .env; then
-    echo -e "${GRAY}   Agregando JWT_ACCESS_TTL...${NC}"
-    echo "JWT_ACCESS_TTL=15m" >> .env
-    JWT_CONFIG_ADDED=true
-fi
-
-if ! grep -q "JWT_REFRESH_TTL" .env; then
-    echo -e "${GRAY}   Agregando JWT_REFRESH_TTL...${NC}"
-    echo "JWT_REFRESH_TTL=168h" >> .env
-    JWT_CONFIG_ADDED=true
-fi
-
-if [ "$JWT_CONFIG_ADDED" = true ]; then
-    echo -e "${GREEN}✅ Configuración JWT agregada al archivo .env${NC}"
-else
-    echo -e "${GREEN}✅ Configuración JWT ya existe${NC}"
-fi
+echo -e "${GREEN}✅ Archivo .env encontrado${NC}"
 
 # Verificar si hay problemas con contenedores existentes
 echo -e "\n${YELLOW}🔍 Verificando estado de contenedores...${NC}"
@@ -191,13 +113,6 @@ if [ -z "$API_STATUS" ] || [ -z "$DB_STATUS" ]; then
     echo -e "${YELLOW}   Intenta ejecutar: ./scripts/reset-emergency.sh${NC}"
     echo -e "${YELLOW}   Y luego: ./start-docker.sh${NC}"
     exit 1
-fi
-
-# Si agregamos configuración JWT, reiniciar el contenedor API para cargar los cambios
-if [ "$JWT_CONFIG_ADDED" = true ]; then
-    echo -e "\n${YELLOW}🔄 Reiniciando API para aplicar cambios de configuración...${NC}"
-    docker-compose restart api
-    sleep 3
 fi
 
 # Esperar a que PostgreSQL esté listo
@@ -229,9 +144,6 @@ fi
 echo -e "\n${YELLOW}🔄 Ejecutando migraciones...${NC}"
 # Esperar un poco más para asegurar que el API esté lista
 sleep 3
-
-# Primero copiar .env a .env.development para que el comando de migración lo encuentre
-docker-compose exec -T api sh -c "cp .env .env.development" 2>/dev/null
 
 # Siempre ejecutar migraciones para asegurar que todas estén aplicadas
 echo -e "${GRAY}   Verificando y aplicando todas las migraciones...${NC}"

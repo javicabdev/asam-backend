@@ -6,6 +6,7 @@
 
 ## Documentación
 
+- [Guía de Configuración](docs/CONFIGURATION.md) - Cómo manejar variables de entorno y configuración (12-Factor App)
 - [Descripción General de la API](docs/frontend/api-overview.md) - Visión general de la arquitectura y API del backend
 - [Guía para Frontend](docs/frontend/guia-frontend.md) - Documentación detallada para desarrolladores frontend
 - [Autenticación](docs/auth.md) - Información sobre el sistema de autenticación
