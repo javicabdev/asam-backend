@@ -6,19 +6,61 @@ Clean, simple database schema for the ASAM (Asociación de Senegaleses y Amigos 
 
 **One Migration, Complete Schema** - Since we're in development phase with no production users, we maintain a single, comprehensive migration that includes all functionality.
 
+**Idempotent Migrations** - All migrations are designed to be safely executed multiple times without errors, ensuring CI/CD stability and allowing for easy recovery from migration failures.
+
 ## 📁 Active Migrations
 
-- **`000001_complete_schema.up.sql`** - Complete database schema with all features (v1.1 - Annual fee system)
-- **`000001_complete_schema.down.sql`** - Complete schema rollback
+### Core Schema
+- **`000001_complete_schema.up.sql`** - Complete database schema with all features (v1.1 - Annual fee system) ✅ IDEMPOTENT
+- **`000001_complete_schema.down.sql`** - Complete schema rollback ✅ IDEMPOTENT
+
+### Additional Migrations
+- **`000002_add_unique_identity_card.up.sql`** - Add unique constraint to identity_card field ✅ IDEMPOTENT
+- **`000002_add_unique_identity_card.down.sql`** - Rollback unique constraint ✅ IDEMPOTENT
+- **`000003_allow_null_member_id_in_payments.up.sql`** - Allow NULL member_id for family-only payments ✅ IDEMPOTENT
+- **`000003_allow_null_member_id_in_payments.down.sql`** - Restore NOT NULL constraint ✅ IDEMPOTENT
+
+## 🔄 Idempotent Migrations
+
+All migration files are **idempotent**, meaning they can be run multiple times without causing errors. This is critical for:
+
+- **CI/CD Pipelines**: Avoids failures due to residual database state
+- **Development**: Allows developers to reset and re-run migrations easily
+- **Production Safety**: Enables recovery from partial migration failures
+
+### Idempotency Techniques Used
+
+1. **Tables**: `CREATE TABLE IF NOT EXISTS`
+2. **Indexes**: `CREATE INDEX IF NOT EXISTS`
+3. **Constraints**: PostgreSQL `DO` blocks with `pg_constraint` checks
+4. **Triggers**: `DROP TRIGGER IF EXISTS` before `CREATE TRIGGER`
+5. **Extensions**: `CREATE EXTENSION IF NOT EXISTS`
+6. **Functions**: `CREATE OR REPLACE FUNCTION`
+
+### Example: Idempotent Constraint
+
+```sql
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'my_constraint_name'
+    ) THEN
+        ALTER TABLE my_table 
+        ADD CONSTRAINT my_constraint_name ...;
+    END IF;
+END $$;
+```
 
 ## 📦 Version History
 
-### v1.1 (Current) - Annual Membership Fee System
+### v1.1 (Current) - Annual Membership Fee System + Idempotency
 - ✅ **BREAKING CHANGE**: `membership_fees` table migrated from monthly to annual system
 - ✅ Field `month` **removed** from `membership_fees`
 - ✅ Field `year` now has **UNIQUE constraint** (one fee per year)
 - ✅ Due date always set to **December 31st** of the year
 - ✅ Simplified fee management and payment tracking
+- ✅ **NEW**: All migrations made idempotent for CI/CD stability
 
 **Migration from v1.0:**
 - If you have an existing database with monthly fees, see `POST_IMPLEMENTATION.md` for migration instructions
@@ -58,6 +100,14 @@ go run cmd/migrate/main.go -cmd version
 
 # Add test data
 go run cmd/seed/main.go
+```
+
+### Re-running Migrations (Safe - Idempotent)
+```bash
+# Safe to run multiple times - no errors will occur
+go run cmd/migrate/main.go -cmd up
+
+# This is now safe even if migrations were partially applied
 ```
 
 ### Reset Database (Development)
@@ -106,6 +156,7 @@ The single migration includes **all** functionality:
 - ✅ Foreign key constraints with proper CASCADE/RESTRICT rules
 - ✅ Comprehensive commenting for documentation
 - ✅ **Annual membership fee system** (one fee per year)
+- ✅ **Idempotent migrations** for CI/CD stability
 
 ## 📋 Technical Details
 
@@ -116,6 +167,7 @@ The single migration includes **all** functionality:
 - **Auto Timestamps**: `created_at`/`updated_at` with triggers
 - **Indexing**: Optimized indexes for queries and foreign keys
 - **Fee System**: Annual fees with UNIQUE constraint on `year`
+- **Idempotency**: All DDL operations are safely re-runnable
 
 ## 💰 Membership Fee System
 
@@ -134,6 +186,7 @@ The system uses an **annual fee model**:
 
 ## 🔄 Migration History
 
+- **v1.1.1 (2025-10-26)**: Made all migrations idempotent for CI/CD stability
 - **v1.1 (2025-10-19)**: Annual fee system (current)
 - **v1.0**: Monthly fee system (deprecated)
 - Previous migration files (development artifacts) have been moved to `old_migrations/` for reference
@@ -155,6 +208,28 @@ docker-compose down -v
 ./start-docker.ps1  # or ./scripts/dev/fresh-database-setup.sh
 ```
 
+## 🧪 CI/CD Considerations
+
+### Why Idempotent Migrations Matter
+
+In CI/CD pipelines, databases may have residual state from previous test runs. Idempotent migrations ensure:
+
+1. **No false negatives**: Tests don't fail due to "already exists" errors
+2. **Faster debugging**: Focus on real issues, not migration quirks
+3. **Reliable deployments**: Same migration can be safely retried if interrupted
+4. **Cleaner workflows**: No need for complex pre-migration cleanup scripts
+
+### Testing Idempotency Locally
+
+```bash
+# Run migrations twice - should succeed both times
+go run cmd/migrate/main.go -cmd up
+go run cmd/migrate/main.go -cmd up
+
+# Verify database state
+go run cmd/migrate/main.go -cmd version
+```
+
 ## 🌱 Production Considerations
 
 When transitioning to production with real users, consider:
@@ -162,7 +237,8 @@ When transitioning to production with real users, consider:
 - Proper backup/rollback procedures  
 - Migration testing in staging environment
 - Zero-downtime deployment strategies
+- The idempotent nature of migrations allows for safer retry mechanisms
 
 ---
 
-> **Current Status**: ✅ **Development Phase** - Single comprehensive migration approach (v1.1 - Annual fee system)
+> **Current Status**: ✅ **Development Phase** - Single comprehensive migration approach (v1.1.1 - Annual fee system with idempotent migrations)

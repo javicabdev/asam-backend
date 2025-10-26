@@ -1,8 +1,10 @@
 -- Añadir constraint UNIQUE al campo identity_card de members
 -- Esto evita que se registren dos miembros con el mismo documento de identidad
+-- IDEMPOTENT: Safe to run multiple times
 
 -- Primero, eliminar cualquier duplicado existente (si los hay)
 -- Mantener solo el registro más antiguo de cada DNI duplicado
+-- Esta operación es idempotente: solo elimina duplicados si existen
 WITH duplicates AS (
     SELECT 
         identity_card,
@@ -16,12 +18,20 @@ DELETE FROM members m
 WHERE m.identity_card IN (SELECT identity_card FROM duplicates)
   AND m.id NOT IN (SELECT keep_id FROM duplicates);
 
--- Añadir el constraint UNIQUE
-ALTER TABLE members 
-ADD CONSTRAINT members_identity_card_unique 
-UNIQUE (identity_card);
+-- Añadir el constraint UNIQUE (idempotente)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'members_identity_card_unique'
+    ) THEN
+        ALTER TABLE members 
+        ADD CONSTRAINT members_identity_card_unique 
+        UNIQUE (identity_card);
+    END IF;
+END $$;
 
--- Crear índice para mejorar performance de búsquedas por DNI
-CREATE INDEX idx_members_identity_card 
+-- Crear índice para mejorar performance de búsquedas por DNI (idempotente)
+CREATE INDEX IF NOT EXISTS idx_members_identity_card 
 ON members(identity_card) 
 WHERE identity_card IS NOT NULL;

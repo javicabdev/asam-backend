@@ -3,6 +3,7 @@
 -- Single migration containing the complete final schema for development phase
 -- Includes all features: members, families, users, authentication, email verification, payments, etc.
 -- VERSION: 1.1 - Annual membership fee system (without month field)
+-- IDEMPOTENT: Safe to run multiple times
 
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -22,7 +23,7 @@ $$ language 'plpgsql';
 -- =============================================================================
 
 -- Members table - Individual members of the association
-CREATE TABLE members (
+CREATE TABLE IF NOT EXISTS members (
     id SERIAL PRIMARY KEY,
     membership_number VARCHAR(255) UNIQUE NOT NULL,
     membership_type VARCHAR(255) NOT NULL,
@@ -47,7 +48,7 @@ CREATE TABLE members (
 );
 
 -- Families table - Family groups (Spanish field names per existing model)
-CREATE TABLE families (
+CREATE TABLE IF NOT EXISTS families (
     id SERIAL PRIMARY KEY,
     numero_socio VARCHAR(255) UNIQUE NOT NULL,
     miembro_origen_id INTEGER,
@@ -67,7 +68,7 @@ CREATE TABLE families (
 );
 
 -- Familiars table - Family relatives (Spanish field names per existing model)
-CREATE TABLE familiars (
+CREATE TABLE IF NOT EXISTS familiars (
     id SERIAL PRIMARY KEY,
     familia_id INTEGER NOT NULL,
     nombre VARCHAR(100) NOT NULL,
@@ -82,7 +83,7 @@ CREATE TABLE familiars (
 );
 
 -- Telephones table - Polymorphic phone numbers (Spanish field name per model)
-CREATE TABLE telephones (
+CREATE TABLE IF NOT EXISTS telephones (
     id SERIAL PRIMARY KEY,
     numero_telefono VARCHAR(20) NOT NULL,
     contactable_id INTEGER NOT NULL,
@@ -98,7 +99,7 @@ CREATE TABLE telephones (
 
 -- Membership fees table - Annual fee definitions
 -- IMPORTANT: This is an ANNUAL system. One fee per year, due date is always December 31st
-CREATE TABLE membership_fees (
+CREATE TABLE IF NOT EXISTS membership_fees (
     id SERIAL PRIMARY KEY,
     year INTEGER NOT NULL UNIQUE,  -- UNIQUE constraint ensures one fee per year
     base_fee_amount DECIMAL(10,2) NOT NULL,
@@ -112,7 +113,7 @@ CREATE TABLE membership_fees (
 );
 
 -- Payments table - Payment records
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
     id SERIAL PRIMARY KEY,
     member_id INTEGER NOT NULL,
     family_id INTEGER,
@@ -128,7 +129,7 @@ CREATE TABLE payments (
 );
 
 -- Cash flows table - Financial movements tracking
-CREATE TABLE cash_flows (
+CREATE TABLE IF NOT EXISTS cash_flows (
     id SERIAL PRIMARY KEY,
     member_id INTEGER,
     family_id INTEGER,
@@ -147,7 +148,7 @@ CREATE TABLE cash_flows (
 -- =============================================================================
 
 -- Users table - System users with email authentication
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(255) NOT NULL UNIQUE,
     email VARCHAR(255) NOT NULL UNIQUE,
@@ -166,7 +167,7 @@ CREATE TABLE users (
 );
 
 -- Refresh tokens table - JWT refresh token management
-CREATE TABLE refresh_tokens (
+CREATE TABLE IF NOT EXISTS refresh_tokens (
     id SERIAL PRIMARY KEY,
     uuid VARCHAR(255) NOT NULL UNIQUE,
     user_id INTEGER NOT NULL,
@@ -179,7 +180,7 @@ CREATE TABLE refresh_tokens (
 );
 
 -- Verification tokens table - Email verification and password reset
-CREATE TABLE verification_tokens (
+CREATE TABLE IF NOT EXISTS verification_tokens (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     token VARCHAR(64) NOT NULL UNIQUE,
@@ -194,170 +195,263 @@ CREATE TABLE verification_tokens (
 );
 
 -- =============================================================================
--- FOREIGN KEY CONSTRAINTS
+-- FOREIGN KEY CONSTRAINTS (Idempotent)
 -- =============================================================================
 
 -- Family relationships
-ALTER TABLE families 
-    ADD CONSTRAINT families_miembro_origen_id_fkey 
-    FOREIGN KEY (miembro_origen_id) REFERENCES members(id) ON DELETE SET NULL;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'families_miembro_origen_id_fkey'
+    ) THEN
+        ALTER TABLE families 
+            ADD CONSTRAINT families_miembro_origen_id_fkey 
+            FOREIGN KEY (miembro_origen_id) REFERENCES members(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
-ALTER TABLE familiars 
-    ADD CONSTRAINT familiars_familia_id_fkey 
-    FOREIGN KEY (familia_id) REFERENCES families(id) ON DELETE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'familiars_familia_id_fkey'
+    ) THEN
+        ALTER TABLE familiars 
+            ADD CONSTRAINT familiars_familia_id_fkey 
+            FOREIGN KEY (familia_id) REFERENCES families(id) ON DELETE CASCADE;
+    END IF;
+END $$;
 
 -- Payment relationships
-ALTER TABLE payments 
-    ADD CONSTRAINT payments_member_id_fkey 
-    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE RESTRICT;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'payments_member_id_fkey'
+    ) THEN
+        ALTER TABLE payments 
+            ADD CONSTRAINT payments_member_id_fkey 
+            FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE RESTRICT;
+    END IF;
+END $$;
 
-ALTER TABLE payments 
-    ADD CONSTRAINT payments_family_id_fkey 
-    FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE RESTRICT;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'payments_family_id_fkey'
+    ) THEN
+        ALTER TABLE payments 
+            ADD CONSTRAINT payments_family_id_fkey 
+            FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE RESTRICT;
+    END IF;
+END $$;
 
-ALTER TABLE payments 
-    ADD CONSTRAINT payments_membership_fee_id_fkey 
-    FOREIGN KEY (membership_fee_id) REFERENCES membership_fees(id) ON DELETE SET NULL;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'payments_membership_fee_id_fkey'
+    ) THEN
+        ALTER TABLE payments 
+            ADD CONSTRAINT payments_membership_fee_id_fkey 
+            FOREIGN KEY (membership_fee_id) REFERENCES membership_fees(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
-ALTER TABLE membership_fees 
-    ADD CONSTRAINT membership_fees_payment_id_fkey 
-    FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE SET NULL;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'membership_fees_payment_id_fkey'
+    ) THEN
+        ALTER TABLE membership_fees 
+            ADD CONSTRAINT membership_fees_payment_id_fkey 
+            FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- Cash flow relationships
-ALTER TABLE cash_flows 
-    ADD CONSTRAINT cash_flows_member_id_fkey 
-    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE SET NULL;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'cash_flows_member_id_fkey'
+    ) THEN
+        ALTER TABLE cash_flows 
+            ADD CONSTRAINT cash_flows_member_id_fkey 
+            FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
-ALTER TABLE cash_flows 
-    ADD CONSTRAINT cash_flows_family_id_fkey 
-    FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET NULL;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'cash_flows_family_id_fkey'
+    ) THEN
+        ALTER TABLE cash_flows 
+            ADD CONSTRAINT cash_flows_family_id_fkey 
+            FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
-ALTER TABLE cash_flows 
-    ADD CONSTRAINT cash_flows_payment_id_fkey 
-    FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE SET NULL;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'cash_flows_payment_id_fkey'
+    ) THEN
+        ALTER TABLE cash_flows 
+            ADD CONSTRAINT cash_flows_payment_id_fkey 
+            FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- Authentication relationships
-ALTER TABLE users 
-    ADD CONSTRAINT users_member_id_fkey 
-    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE SET NULL;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'users_member_id_fkey'
+    ) THEN
+        ALTER TABLE users 
+            ADD CONSTRAINT users_member_id_fkey 
+            FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
-ALTER TABLE refresh_tokens 
-    ADD CONSTRAINT refresh_tokens_user_id_fkey 
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'refresh_tokens_user_id_fkey'
+    ) THEN
+        ALTER TABLE refresh_tokens 
+            ADD CONSTRAINT refresh_tokens_user_id_fkey 
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+    END IF;
+END $$;
 
-ALTER TABLE verification_tokens 
-    ADD CONSTRAINT verification_tokens_user_id_fkey 
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'verification_tokens_user_id_fkey'
+    ) THEN
+        ALTER TABLE verification_tokens 
+            ADD CONSTRAINT verification_tokens_user_id_fkey 
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+    END IF;
+END $$;
 
 -- =============================================================================
--- INDEXES FOR PERFORMANCE
+-- INDEXES FOR PERFORMANCE (Idempotent)
 -- =============================================================================
 
 -- Member indexes
-CREATE INDEX idx_members_membership_number ON members(membership_number);
-CREATE INDEX idx_members_state ON members(state);
-CREATE INDEX idx_members_identity_card ON members(identity_card);
-CREATE INDEX idx_members_email ON members(email);
+CREATE INDEX IF NOT EXISTS idx_members_membership_number ON members(membership_number);
+CREATE INDEX IF NOT EXISTS idx_members_state ON members(state);
+CREATE INDEX IF NOT EXISTS idx_members_identity_card ON members(identity_card);
+CREATE INDEX IF NOT EXISTS idx_members_email ON members(email);
 
 -- Family indexes  
-CREATE INDEX idx_families_numero_socio ON families(numero_socio);
-CREATE INDEX idx_families_miembro_origen_id ON families(miembro_origen_id);
-CREATE INDEX idx_families_deleted_at ON families(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_families_numero_socio ON families(numero_socio);
+CREATE INDEX IF NOT EXISTS idx_families_miembro_origen_id ON families(miembro_origen_id);
+CREATE INDEX IF NOT EXISTS idx_families_deleted_at ON families(deleted_at);
 
 -- Familiar indexes
-CREATE INDEX idx_familiars_familia_id ON familiars(familia_id);
-CREATE INDEX idx_familiars_deleted_at ON familiars(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_familiars_familia_id ON familiars(familia_id);
+CREATE INDEX IF NOT EXISTS idx_familiars_deleted_at ON familiars(deleted_at);
 
 -- Telephone indexes
-CREATE INDEX idx_telephones_contactable ON telephones(contactable_id, contactable_type);
-CREATE INDEX idx_telephones_deleted_at ON telephones(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_telephones_contactable ON telephones(contactable_id, contactable_type);
+CREATE INDEX IF NOT EXISTS idx_telephones_deleted_at ON telephones(deleted_at);
 
 -- Payment indexes
-CREATE INDEX idx_payments_member_id ON payments(member_id);
-CREATE INDEX idx_payments_family_id ON payments(family_id);
-CREATE INDEX idx_payments_status ON payments(status);
-CREATE INDEX idx_payments_payment_date ON payments(payment_date);
-CREATE INDEX idx_payments_membership_fee_id ON payments(membership_fee_id);
-CREATE INDEX idx_payments_deleted_at ON payments(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_payments_member_id ON payments(member_id);
+CREATE INDEX IF NOT EXISTS idx_payments_family_id ON payments(family_id);
+CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
+CREATE INDEX IF NOT EXISTS idx_payments_payment_date ON payments(payment_date);
+CREATE INDEX IF NOT EXISTS idx_payments_membership_fee_id ON payments(membership_fee_id);
+CREATE INDEX IF NOT EXISTS idx_payments_deleted_at ON payments(deleted_at);
 
 -- Membership fee indexes
-CREATE INDEX idx_membership_fees_year ON membership_fees(year);
-CREATE INDEX idx_membership_fees_status ON membership_fees(status);
-CREATE INDEX idx_membership_fees_due_date ON membership_fees(due_date);
+CREATE INDEX IF NOT EXISTS idx_membership_fees_year ON membership_fees(year);
+CREATE INDEX IF NOT EXISTS idx_membership_fees_status ON membership_fees(status);
+CREATE INDEX IF NOT EXISTS idx_membership_fees_due_date ON membership_fees(due_date);
 
 -- Cash flow indexes
-CREATE INDEX idx_cash_flows_member_id ON cash_flows(member_id);
-CREATE INDEX idx_cash_flows_family_id ON cash_flows(family_id);
-CREATE INDEX idx_cash_flows_payment_id ON cash_flows(payment_id);
-CREATE INDEX idx_cash_flows_operation_type ON cash_flows(operation_type);
-CREATE INDEX idx_cash_flows_date ON cash_flows(date);
-CREATE INDEX idx_cash_flows_deleted_at ON cash_flows(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_cash_flows_member_id ON cash_flows(member_id);
+CREATE INDEX IF NOT EXISTS idx_cash_flows_family_id ON cash_flows(family_id);
+CREATE INDEX IF NOT EXISTS idx_cash_flows_payment_id ON cash_flows(payment_id);
+CREATE INDEX IF NOT EXISTS idx_cash_flows_operation_type ON cash_flows(operation_type);
+CREATE INDEX IF NOT EXISTS idx_cash_flows_date ON cash_flows(date);
+CREATE INDEX IF NOT EXISTS idx_cash_flows_deleted_at ON cash_flows(deleted_at);
 
 -- User and authentication indexes
-CREATE INDEX idx_users_username ON users(username);
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_member_id ON users(member_id);
-CREATE INDEX idx_users_deleted_at ON users(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_member_id ON users(member_id);
+CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON users(deleted_at);
 
 -- Refresh token indexes (including cleanup optimization)
-CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
-CREATE INDEX idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
-CREATE INDEX idx_refresh_tokens_uuid ON refresh_tokens(uuid);
-CREATE INDEX idx_refresh_tokens_last_used_at ON refresh_tokens(last_used_at);
-CREATE INDEX idx_refresh_tokens_created_at ON refresh_tokens(created_at);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_uuid ON refresh_tokens(uuid);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_last_used_at ON refresh_tokens(last_used_at);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_created_at ON refresh_tokens(created_at);
 
 -- Verification token indexes
-CREATE INDEX idx_verification_tokens_user_id ON verification_tokens(user_id);
-CREATE INDEX idx_verification_tokens_token ON verification_tokens(token);
-CREATE INDEX idx_verification_tokens_expires_at ON verification_tokens(expires_at);
-CREATE INDEX idx_verification_tokens_type ON verification_tokens(type);
-CREATE INDEX idx_verification_tokens_used ON verification_tokens(used);
-CREATE INDEX idx_verification_tokens_deleted_at ON verification_tokens(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_verification_tokens_user_id ON verification_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_verification_tokens_token ON verification_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_verification_tokens_expires_at ON verification_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_verification_tokens_type ON verification_tokens(type);
+CREATE INDEX IF NOT EXISTS idx_verification_tokens_used ON verification_tokens(used);
+CREATE INDEX IF NOT EXISTS idx_verification_tokens_deleted_at ON verification_tokens(deleted_at);
 
 -- =============================================================================
--- TRIGGERS FOR AUTOMATIC TIMESTAMP UPDATES
+-- TRIGGERS FOR AUTOMATIC TIMESTAMP UPDATES (Idempotent)
 -- =============================================================================
 
+DROP TRIGGER IF EXISTS update_members_updated_at ON members;
 CREATE TRIGGER update_members_updated_at
     BEFORE UPDATE ON members
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_families_updated_at ON families;
 CREATE TRIGGER update_families_updated_at
     BEFORE UPDATE ON families
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_familiars_updated_at ON familiars;
 CREATE TRIGGER update_familiars_updated_at
     BEFORE UPDATE ON familiars
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_telephones_updated_at ON telephones;
 CREATE TRIGGER update_telephones_updated_at
     BEFORE UPDATE ON telephones
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_membership_fees_updated_at ON membership_fees;
 CREATE TRIGGER update_membership_fees_updated_at
     BEFORE UPDATE ON membership_fees
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_payments_updated_at ON payments;
 CREATE TRIGGER update_payments_updated_at
     BEFORE UPDATE ON payments
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_cash_flows_updated_at ON cash_flows;
 CREATE TRIGGER update_cash_flows_updated_at
     BEFORE UPDATE ON cash_flows
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_verification_tokens_updated_at ON verification_tokens;
 CREATE TRIGGER update_verification_tokens_updated_at
     BEFORE UPDATE ON verification_tokens
     FOR EACH ROW
@@ -411,4 +505,4 @@ COMMENT ON COLUMN cash_flows.operation_type IS 'Type of operation: income, expen
 -- =============================================================================
 
 -- Schema version for reference
-COMMENT ON EXTENSION "uuid-ossp" IS 'ASAM Schema v1.1 - Annual membership fee system (without month field)';
+COMMENT ON EXTENSION "uuid-ossp" IS 'ASAM Schema v1.1 - Annual membership fee system (without month field) - IDEMPOTENT';

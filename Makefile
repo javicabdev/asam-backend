@@ -197,6 +197,11 @@ test-unit-coverage:
 	@$(GO) tool cover -html=coverage-unit.out -o coverage-unit.html
 	@echo "✅ Unit test coverage report: coverage-unit.html"
 
+## test-ci: Run tests like CI does (unit + integration)
+.PHONY: test-ci
+test-ci: test-unit-coverage test-integration
+	@echo "✅ All CI tests complete"
+
 ## test-coverage-view: View coverage report in browser
 .PHONY: test-coverage-view
 test-coverage-view: test-coverage
