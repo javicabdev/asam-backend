@@ -288,6 +288,40 @@ func (s *paymentService) CancelPayment(ctx context.Context, paymentID uint, reas
 	return s.paymentRepo.Update(ctx, payment)
 }
 
+// ConfirmPayment confirms a pending payment by changing its status to PAID
+func (s *paymentService) ConfirmPayment(ctx context.Context, paymentID uint) (*models.Payment, error) {
+	// Get existing payment
+	payment, err := s.paymentRepo.FindByID(ctx, paymentID)
+	if err != nil {
+		return nil, errors.DB(err, "failed to retrieve payment")
+	}
+
+	if payment == nil {
+		return nil, errors.NotFound("payment", nil)
+	}
+
+	// Validate current status - can only confirm PENDING payments
+	if payment.Status != models.PaymentStatusPending {
+		return nil, errors.Validation(
+			"Cannot confirm payment with status "+string(payment.Status)+", only PENDING payments can be confirmed",
+			"status",
+			string(payment.Status),
+		)
+	}
+
+	// Update payment status and date
+	payment.Status = models.PaymentStatusPaid
+	payment.PaymentDate = time.Now()
+
+	// Save to database
+	err = s.paymentRepo.Update(ctx, payment)
+	if err != nil {
+		return nil, errors.DB(err, "failed to confirm payment")
+	}
+
+	return payment, nil
+}
+
 func (s *paymentService) GetPayment(ctx context.Context, paymentID uint) (*models.Payment, error) {
 	payment, err := s.paymentRepo.FindByID(ctx, paymentID)
 	if err != nil {

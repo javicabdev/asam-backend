@@ -453,6 +453,28 @@ func (r *mutationResolver) CancelPayment(ctx context.Context, id string, reason 
 	return &model.MutationResponse{Success: true, Message: &msg}, nil
 }
 
+// ConfirmPayment is the resolver for the confirmPayment field.
+func (r *mutationResolver) ConfirmPayment(ctx context.Context, id string) (*models.Payment, error) {
+	// Solo ADMIN puede confirmar pagos
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+
+	// Parsear el ID de string a uint
+	paymentID, err := parseID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Llamar al servicio de dominio para confirmar el pago
+	payment, err := r.paymentService.ConfirmPayment(ctx, paymentID)
+	if err != nil {
+		return nil, err
+	}
+
+	return payment, nil
+}
+
 // RegisterFee is the resolver for the registerFee field.
 func (r *mutationResolver) RegisterFee(ctx context.Context, year int, baseAmount float64) (*model.MutationResponse, error) {
 	// Solo ADMIN puede registrar cuotas
