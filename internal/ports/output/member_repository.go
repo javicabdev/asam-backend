@@ -11,6 +11,7 @@ type MemberRepository interface {
 	Create(ctx context.Context, member *models.Member) error
 	GetByID(ctx context.Context, id uint) (*models.Member, error)
 	GetByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Member, error)
+	GetByIdentityCard(ctx context.Context, identityCard string) (*models.Member, error)
 	Update(ctx context.Context, member *models.Member) error
 	Delete(ctx context.Context, id uint) error
 	List(ctx context.Context, filters MemberFilters) ([]models.Member, error)
@@ -21,6 +22,7 @@ type MemberRepository interface {
 	CreateWithTx(ctx context.Context, tx Transaction, member *models.Member) error
 	GetByIDWithTx(ctx context.Context, tx Transaction, id uint) (*models.Member, error)
 	GetByNumeroSocioWithTx(ctx context.Context, tx Transaction, numeroSocio string) (*models.Member, error)
+	GetByIdentityCardWithTx(ctx context.Context, tx Transaction, identityCard string) (*models.Member, error)
 }
 
 // MemberFilters define los filtros disponibles para buscar miembros

@@ -324,8 +324,22 @@ func (s *familyService) CreateFamilyAtomic(ctx context.Context, req *input.Creat
 			originMemberID = existingMember.ID
 		} else {
 			// Verificar que no exista otro miembro con el mismo DNI
-			// Nota: La validación de DNI duplicado se maneja mediante la constraint UNIQUE en la BD.
-			// Si se requiere validación previa, añadir función GetByIdentityCardWithTx al repositorio.
+			if req.Family.EsposoDocumentoIdentidad != "" {
+				existingByDNI, err := s.memberRepo.GetByIdentityCardWithTx(ctx, tx, req.Family.EsposoDocumentoIdentidad)
+				if err != nil {
+					_ = tx.Rollback()
+					return nil, errors.DB(err, "error verificando documento de identidad")
+				}
+				if existingByDNI != nil {
+					_ = tx.Rollback()
+					return nil, errors.NewValidationError(
+						"El documento de identidad ya está registrado",
+						map[string]string{
+							"esposoDocumentoIdentidad": fmt.Sprintf("Ya existe un miembro (%s) con este documento de identidad", existingByDNI.MembershipNumber),
+						},
+					)
+				}
+			}
 
 			// Crear nuevo Member con DNI
 			member := &models.Member{

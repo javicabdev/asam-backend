@@ -65,6 +65,22 @@ func (r *memberRepository) GetByNumeroSocio(ctx context.Context, numeroSocio str
 	return &member, nil
 }
 
+// GetByIdentityCard busca un miembro por su documento de identidad
+func (r *memberRepository) GetByIdentityCard(ctx context.Context, identityCard string) (*models.Member, error) {
+	var member models.Member
+	result := r.db.WithContext(ctx).Where("identity_card = ?", identityCard).First(&member)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			// Consistently return nil, nil for not found
+			return nil, nil
+		}
+		return nil, appErrors.DB(result.Error, "error getting member by identity card")
+	}
+
+	return &member, nil
+}
+
 // Update actualiza un miembro existente
 func (r *memberRepository) Update(ctx context.Context, member *models.Member) error {
 	result := r.db.WithContext(ctx).Save(member)
@@ -195,6 +211,26 @@ func (r *memberRepository) GetByNumeroSocioWithTx(ctx context.Context, tx output
 			return nil, nil
 		}
 		return nil, appErrors.DB(result.Error, "error getting member by numero socio")
+	}
+
+	return &member, nil
+}
+
+// GetByIdentityCardWithTx gets a member by identity card within a transaction
+func (r *memberRepository) GetByIdentityCardWithTx(ctx context.Context, tx output.Transaction, identityCard string) (*models.Member, error) {
+	gormTx, ok := tx.(*gormTransaction)
+	if !ok {
+		return nil, appErrors.New(appErrors.ErrInternalError, "invalid transaction type")
+	}
+
+	var member models.Member
+	result := gormTx.tx.WithContext(ctx).Where("identity_card = ?", identityCard).First(&member)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, appErrors.DB(result.Error, "error getting member by identity card")
 	}
 
 	return &member, nil

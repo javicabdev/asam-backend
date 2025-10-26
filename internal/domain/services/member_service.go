@@ -60,6 +60,34 @@ func (s *memberService) CreateMember(ctx context.Context, member *models.Member)
 			"ya existe un miembro con el número de socio "+member.MembershipNumber)
 	}
 
+	// Verificar si ya existe un miembro con el mismo documento de identidad
+	if member.IdentityCard != nil && *member.IdentityCard != "" {
+		existingByDNI, err := s.repository.GetByIdentityCard(ctx, *member.IdentityCard)
+		if err != nil {
+			s.appLogger.Error("Error checking existing member by identity card",
+				zap.String("identity_card", *member.IdentityCard),
+				zap.Error(err))
+			s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
+				"Error al verificar documento de identidad", err)
+			return errors.DB(err, "error verificando documento de identidad")
+		}
+
+		if existingByDNI != nil {
+			validationErr := errors.NewValidationError(
+				"El documento de identidad ya está registrado",
+				map[string]string{
+					"documento_identidad": fmt.Sprintf("Ya existe un miembro (%s) con este documento de identidad", existingByDNI.MembershipNumber),
+				},
+			)
+			s.appLogger.Warn("Attempted to create member with duplicate identity card",
+				zap.String("identity_card", *member.IdentityCard),
+				zap.String("existing_member", existingByDNI.MembershipNumber))
+			s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
+				"Intento de crear miembro con documento de identidad duplicado", validationErr)
+			return validationErr
+		}
+	}
+
 	// Establecer valores por defecto
 	if member.State == "" {
 		member.State = models.EstadoActivo
