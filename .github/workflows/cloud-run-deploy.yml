@@ -237,7 +237,7 @@ jobs:
 
           echo "✅ Database secrets loaded"
 
-      - name: Run production migrations (with dirty state handling)
+      - name: Run production migrations (SAFE - no data loss)
         run: |
           echo "🚀 Running production migrations..."
 
@@ -246,19 +246,22 @@ jobs:
           MIGRATION_STATUS=$(go run cmd/migrate/main.go -cmd version 2>&1) || echo "No migrations applied yet"
           echo "$MIGRATION_STATUS"
 
-          # Check if database is in dirty state or has old migrations
-          if echo "$MIGRATION_STATUS" | grep -q "dirty: true" || echo "$MIGRATION_STATUS" | grep -q "version: [2-9]"; then
-            echo "⚠️  Database has dirty state or old migrations - performing clean slate reset"
-            echo "🧝 Development phase: Safe to drop and recreate schema"
-
-            # Drop all tables and reset to clean state
-            echo "🗑️ Dropping all existing schema..."
-            go run cmd/migrate/main.go -cmd drop || echo "No existing schema to drop"
-
-            echo "✅ Clean slate achieved"
+          # Check if database is in dirty state
+          if echo "$MIGRATION_STATUS" | grep -q "dirty: true"; then
+            echo "❌ ERROR: Database is in dirty state!"
+            echo "⚠️  Manual intervention required."
+            echo ""
+            echo "Options:"
+            echo "1. Fix the failed migration manually"
+            echo "2. Force the migration version: go run cmd/migrate/main.go -cmd force <version>"
+            echo "3. Contact database administrator"
+            echo ""
+            echo "DO NOT proceed with automatic migration in dirty state."
+            exit 1
           fi
 
-          echo "🔄 Applying all migrations from scratch..."
+          # Apply migrations normally (UP only, never DROP)
+          echo "🔄 Applying pending migrations..."
           go run cmd/migrate/main.go -cmd up
 
           echo "📊 Final migration status:"
