@@ -60,20 +60,6 @@ func (b *TestDataBuilder) randomEmail() string {
 	return fmt.Sprintf("%s.%s@%s", firstName, lastName, domain)
 }
 
-// NewTestDataBuilder creates a new test data builder with a fixed seed for reproducibility
-func NewTestDataBuilder() *TestDataBuilder {
-	return &TestDataBuilder{
-		rand: rand.New(rand.NewSource(1234)), //nolint:gosec // Intentionally using math/rand for deterministic test data
-	}
-}
-
-// NewTestDataBuilderWithSeed creates a new test data builder with a custom seed
-func NewTestDataBuilderWithSeed(seed int64) *TestDataBuilder {
-	return &TestDataBuilder{
-		rand: rand.New(rand.NewSource(seed)), //nolint:gosec // Intentionally using math/rand for deterministic test data
-	}
-}
-
 // BuildValidMember creates a valid member with all required fields
 func (b *TestDataBuilder) BuildValidMember() *models.Member {
 	memberType := models.TipoMembresiaPIndividual
@@ -146,7 +132,7 @@ func (b *TestDataBuilder) BuildValidFamily() *models.Family {
 // BuildValidPayment creates a valid payment
 func (b *TestDataBuilder) BuildValidPayment(memberID uint) *models.Payment {
 	return &models.Payment{
-		MemberID:      memberID,
+		MemberID:      &memberID,
 		Amount:        30.0 + float64(b.rand.Intn(20)), // Between 30 and 50
 		PaymentDate:   time.Now(),
 		Status:        models.PaymentStatusPaid,
@@ -179,7 +165,7 @@ func (b *TestDataBuilder) BuildValidCashFlow() *models.CashFlow {
 // BuildCashFlowFromPayment creates a cash flow entry from a payment
 func (b *TestDataBuilder) BuildCashFlowFromPayment(payment *models.Payment) *models.CashFlow {
 	return &models.CashFlow{
-		MemberID:      &payment.MemberID,
+		MemberID:      payment.MemberID,
 		FamilyID:      payment.FamilyID,
 		PaymentID:     &payment.ID,
 		OperationType: models.OperationTypeMembershipFee,
@@ -200,12 +186,6 @@ func (b *TestDataBuilder) BuildValidFamiliar(familiaID uint) *models.Familiar {
 		CorreoElectronico: b.randomEmail(),
 		Parentesco:        "Hijo",
 	}
-}
-
-// BuildMembershipFee creates a valid annual membership fee
-// The month parameter is ignored (kept for backward compatibility)
-func (b *TestDataBuilder) BuildMembershipFee(year, month int) *models.MembershipFee {
-	return models.NewAnnualFee(year, 30.0)
 }
 
 // BuildAnnualMembershipFee creates a valid annual membership fee
