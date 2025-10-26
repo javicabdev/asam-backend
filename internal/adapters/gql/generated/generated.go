@@ -176,6 +176,7 @@ type ComplexityRoot struct {
 		CancelPayment           func(childComplexity int, id string, reason string) int
 		ChangeMemberStatus      func(childComplexity int, id string, status model.MemberStatus) int
 		ChangePassword          func(childComplexity int, input model.ChangePasswordInput) int
+		ConfirmPayment          func(childComplexity int, id string) int
 		CreateFamily            func(childComplexity int, input model.CreateFamilyInput) int
 		CreateMember            func(childComplexity int, input model.CreateMemberInput) int
 		CreateUser              func(childComplexity int, input model.CreateUserInput) int
@@ -347,6 +348,7 @@ type MutationResolver interface {
 	RegisterPayment(ctx context.Context, input model.PaymentInput) (*models.Payment, error)
 	UpdatePayment(ctx context.Context, id string, input model.PaymentInput) (*models.Payment, error)
 	CancelPayment(ctx context.Context, id string, reason string) (*model.MutationResponse, error)
+	ConfirmPayment(ctx context.Context, id string) (*models.Payment, error)
 	RegisterFee(ctx context.Context, year int, baseAmount float64) (*model.MutationResponse, error)
 	RegisterTransaction(ctx context.Context, input model.TransactionInput) (*models.CashFlow, error)
 	UpdateTransaction(ctx context.Context, id string, input model.TransactionInput) (*models.CashFlow, error)
@@ -982,6 +984,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.ChangePassword(childComplexity, args["input"].(model.ChangePasswordInput)), true
+	case "Mutation.confirmPayment":
+		if e.complexity.Mutation.ConfirmPayment == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_confirmPayment_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ConfirmPayment(childComplexity, args["id"].(string)), true
 	case "Mutation.createFamily":
 		if e.complexity.Mutation.CreateFamily == nil {
 			break
@@ -2410,6 +2423,7 @@ type Mutation {
     registerPayment(input: PaymentInput!): Payment!
     updatePayment(id: ID!, input: PaymentInput!): Payment!
     cancelPayment(id: ID!, reason: String!): MutationResponse!
+    confirmPayment(id: ID!): Payment!
     registerFee(year: Int!, base_amount: Float!): MutationResponse!
 
     # CashFlow Mutations
@@ -2518,6 +2532,17 @@ func (ec *executionContext) field_Mutation_changePassword_args(ctx context.Conte
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_confirmPayment_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
 	return args, nil
 }
 
@@ -6426,6 +6451,67 @@ func (ec *executionContext) fieldContext_Mutation_cancelPayment(ctx context.Cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_cancelPayment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_confirmPayment(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_confirmPayment,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().ConfirmPayment(ctx, fc.Args["id"].(string))
+		},
+		nil,
+		ec.marshalNPayment2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐPayment,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_confirmPayment(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Payment_id(ctx, field)
+			case "member":
+				return ec.fieldContext_Payment_member(ctx, field)
+			case "family":
+				return ec.fieldContext_Payment_family(ctx, field)
+			case "amount":
+				return ec.fieldContext_Payment_amount(ctx, field)
+			case "payment_date":
+				return ec.fieldContext_Payment_payment_date(ctx, field)
+			case "status":
+				return ec.fieldContext_Payment_status(ctx, field)
+			case "payment_method":
+				return ec.fieldContext_Payment_payment_method(ctx, field)
+			case "notes":
+				return ec.fieldContext_Payment_notes(ctx, field)
+			case "membership_fee":
+				return ec.fieldContext_Payment_membership_fee(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Payment", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_confirmPayment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -14548,6 +14634,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "cancelPayment":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_cancelPayment(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "confirmPayment":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_confirmPayment(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
