@@ -115,6 +115,21 @@ func (r *memberResolver) mapUpdateInputToMember(id uint, input *model.UpdateMemb
 	member.ID = id
 
 	// Update only provided fields
+	// Basic identity fields
+	if input.Nombre != nil {
+		member.Name = *input.Nombre
+	}
+	if input.Apellidos != nil {
+		member.Surnames = *input.Apellidos
+	}
+	if input.Nacionalidad != nil {
+		member.Nationality = *input.Nacionalidad
+	}
+	if input.FechaNacimiento != nil {
+		member.BirthDate = input.FechaNacimiento
+	}
+
+	// Address fields
 	if input.CalleNumeroPiso != nil {
 		member.Address = *input.CalleNumeroPiso
 	}
@@ -130,6 +145,8 @@ func (r *memberResolver) mapUpdateInputToMember(id uint, input *model.UpdateMemb
 	if input.Pais != nil {
 		member.Country = *input.Pais
 	}
+
+	// Contact and other fields
 	if input.DocumentoIdentidad != nil {
 		member.IdentityCard = input.DocumentoIdentidad
 	}
@@ -217,7 +234,11 @@ func (r *memberResolver) validateUpdateInput(input *model.UpdateMemberInput) err
 	}
 
 	// Check if at least one field is provided for update
-	hasUpdates := input.CalleNumeroPiso != nil ||
+	hasUpdates := input.Nombre != nil ||
+		input.Apellidos != nil ||
+		input.Nacionalidad != nil ||
+		input.FechaNacimiento != nil ||
+		input.CalleNumeroPiso != nil ||
 		input.CodigoPostal != nil ||
 		input.Poblacion != nil ||
 		input.Provincia != nil ||

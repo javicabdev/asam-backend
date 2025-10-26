@@ -241,16 +241,20 @@ type UpdateFamilyInput struct {
 }
 
 type UpdateMemberInput struct {
-	MiembroID          string  `json:"miembro_id"`
-	CalleNumeroPiso    *string `json:"calle_numero_piso,omitempty"`
-	CodigoPostal       *string `json:"codigo_postal,omitempty"`
-	Poblacion          *string `json:"poblacion,omitempty"`
-	Provincia          *string `json:"provincia,omitempty"`
-	Pais               *string `json:"pais,omitempty"`
-	DocumentoIdentidad *string `json:"documento_identidad,omitempty"`
-	CorreoElectronico  *string `json:"correo_electronico,omitempty"`
-	Profesion          *string `json:"profesion,omitempty"`
-	Observaciones      *string `json:"observaciones,omitempty"`
+	MiembroID          string     `json:"miembro_id"`
+	Nombre             *string    `json:"nombre,omitempty"`
+	Apellidos          *string    `json:"apellidos,omitempty"`
+	Nacionalidad       *string    `json:"nacionalidad,omitempty"`
+	FechaNacimiento    *time.Time `json:"fecha_nacimiento,omitempty"`
+	CalleNumeroPiso    *string    `json:"calle_numero_piso,omitempty"`
+	CodigoPostal       *string    `json:"codigo_postal,omitempty"`
+	Poblacion          *string    `json:"poblacion,omitempty"`
+	Provincia          *string    `json:"provincia,omitempty"`
+	Pais               *string    `json:"pais,omitempty"`
+	DocumentoIdentidad *string    `json:"documento_identidad,omitempty"`
+	CorreoElectronico  *string    `json:"correo_electronico,omitempty"`
+	Profesion          *string    `json:"profesion,omitempty"`
+	Observaciones      *string    `json:"observaciones,omitempty"`
 }
 
 type UpdateUserInput struct {

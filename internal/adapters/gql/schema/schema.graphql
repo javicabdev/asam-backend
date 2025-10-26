@@ -355,6 +355,10 @@ input CreateMemberInput {
 
 input UpdateMemberInput {
     miembro_id: ID!
+    nombre: String
+    apellidos: String
+    nacionalidad: String
+    fecha_nacimiento: Time
     calle_numero_piso: String
     codigo_postal: String
     poblacion: String
