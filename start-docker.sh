@@ -60,12 +60,6 @@ if [[ " $* " == *" --clean "* ]]; then
     echo -e "${GRAY}   Limpiando redes no utilizadas...${NC}"
     docker network prune -f 2>/dev/null
 
-    # Eliminar archivo de configuración para empezar limpio
-    if [ -f ".env" ]; then
-        echo -e "${GRAY}   Eliminando archivo .env...${NC}"
-        rm -f ".env"
-    fi
-
     echo -e "${GREEN}✅ Limpieza completa finalizada${NC}"
     sleep 2
 fi
