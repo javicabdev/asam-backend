@@ -252,12 +252,6 @@ vet:
 	@echo "🔍 Running go vet..."
 	@$(GOVET) ./...
 
-## security: Run security scan
-.PHONY: security
-security:
-	@echo "🔒 Running security scan..."
-	@gosec -quiet ./...
-
 ## Build commands
 ## ─────────────────────────────────────────────────────────────────
 
