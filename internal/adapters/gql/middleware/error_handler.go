@@ -89,21 +89,55 @@ func (m *ErrorMiddleware) getErrorLevel(code appErrors.ErrorCode) string {
 
 // handleAppError handles errors of type AppError
 func (m *ErrorMiddleware) handleAppError(ctx context.Context, err *appErrors.AppError) *gqlerror.Error {
-	if m.logger != nil {
-		level := m.getErrorLevel(err.Code)
-		m.logError(ctx, string(err.Code), err.Message, level, err.Code, graphql.GetPath(ctx))
-	}
+	// Create extensions with the error code
+	extensions := map[string]any{"code": string(err.Code)}
 
-	extensions := map[string]any{"code": err.Code}
+	// Add fields if they exist
 	if len(err.Fields) > 0 {
 		extensions["fields"] = err.Fields
 	}
 
-	return &gqlerror.Error{
-		Path:       graphql.GetPath(ctx),
+	// Detailed logging for debugging
+	if m.logger != nil {
+		level := m.getErrorLevel(err.Code)
+		logFields := []zap.Field{
+			zap.String("error_code", string(err.Code)),
+			zap.String("message", err.Message),
+			zap.Any("path", graphql.GetPath(ctx)),
+			zap.Int("fields_count", len(err.Fields)),
+		}
+
+		// Log fields if they exist
+		if len(err.Fields) > 0 {
+			logFields = append(logFields, zap.Any("error_fields", err.Fields))
+		}
+
+		switch level {
+		case levelDebug:
+			m.logger.Debug("GraphQL validation error with fields", logFields...)
+		case levelWarn:
+			m.logger.Warn("GraphQL error with fields", logFields...)
+		default:
+			m.logger.Error("GraphQL error with fields", logFields...)
+		}
+	}
+
+	// Create the GraphQL error
+	gqlError := &gqlerror.Error{
 		Message:    err.Message,
+		Path:       graphql.GetPath(ctx),
 		Extensions: extensions,
 	}
+
+	// Log the complete serialized error for verification
+	if m.logger != nil && len(err.Fields) > 0 {
+		m.logger.Debug("Created GraphQL error",
+			zap.String("message", gqlError.Message),
+			zap.Any("extensions", gqlError.Extensions),
+		)
+	}
+
+	return gqlError
 }
 
 // logError logs errors in a standardized format

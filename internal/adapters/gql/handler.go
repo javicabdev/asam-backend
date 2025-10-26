@@ -155,7 +155,20 @@ func NewHandler(
 	srv.SetErrorPresenter(func(ctx context.Context, err error) *gqlerror.Error {
 		// Asegurar que se guarde el errorHandler en el contexto para uso posterior
 		ctx = context.WithValue(ctx, middleware.ErrorHandlerKey{}, errorHandler)
-		return errorHandler.HandleError(ctx, err)
+
+		// Procesar el error
+		gqlErr := errorHandler.HandleError(ctx, err)
+
+		// Log del error antes de retornarlo (solo si tiene extensions con fields)
+		if extensions, ok := gqlErr.Extensions["fields"]; ok && appLogger != nil {
+			appLogger.Debug("[ERROR-PRESENTER] Returning error with fields",
+				zap.String("message", gqlErr.Message),
+				zap.Any("extensions", gqlErr.Extensions),
+				zap.Any("fields", extensions),
+			)
+		}
+
+		return gqlErr
 	})
 
 	// Configurar función de recuperación que también usa el errorHandler
