@@ -83,7 +83,11 @@ func (r *paymentRepository) Delete(ctx context.Context, id uint) error {
 
 func (r *paymentRepository) FindByID(ctx context.Context, id uint) (*models.Payment, error) {
 	var payment models.Payment
-	result := r.db.WithContext(ctx).First(&payment, id)
+	result := r.db.WithContext(ctx).
+		Preload("Member").
+		Preload("Family").
+		Preload("MembershipFee").
+		First(&payment, id)
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -99,6 +103,9 @@ func (r *paymentRepository) FindByMember(ctx context.Context, memberID uint, fro
 	var payments []models.Payment
 
 	result := r.db.WithContext(ctx).
+		Preload("Member").
+		Preload("Family").
+		Preload("MembershipFee").
 		Where("member_id = ? AND payment_date BETWEEN ? AND ?", memberID, from, to).
 		Find(&payments)
 
@@ -113,6 +120,9 @@ func (r *paymentRepository) FindByFamily(ctx context.Context, familyID uint, fro
 	var payments []models.Payment
 
 	result := r.db.WithContext(ctx).
+		Preload("Member").
+		Preload("Family").
+		Preload("MembershipFee").
 		Where("family_id = ? AND payment_date BETWEEN ? AND ?", familyID, from, to).
 		Find(&payments)
 
