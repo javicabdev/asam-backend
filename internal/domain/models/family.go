@@ -89,7 +89,9 @@ func (f *Family) Validate() error {
 	return nil
 }
 
-// BeforeCreate hook de GORM para validaciones antes de crear
+// BeforeCreate hook de GORM para transformaciones antes de crear
+// NOTA: Las validaciones deben ocurrir ANTES de la transacción en la capa de servicio
+// Este hook solo normaliza datos para evitar problemas durante la transacción
 func (f *Family) BeforeCreate(_ *gorm.DB) error {
 	// Normalizar DNI/NIE si se proporcionan
 	if f.EsposoDocumentoIdentidad != "" {
@@ -98,10 +100,14 @@ func (f *Family) BeforeCreate(_ *gorm.DB) error {
 	if f.EsposaDocumentoIdentidad != "" {
 		f.EsposaDocumentoIdentidad = validation.NormalizarNIF(f.EsposaDocumentoIdentidad)
 	}
-	return f.Validate()
+	// No validamos aquí para evitar fallos dentro de transacciones
+	// La validación se hace en validateFamilyAtomicRequest() antes de iniciar la transacción
+	return nil
 }
 
-// BeforeUpdate hook de GORM para validaciones antes de actualizar
+// BeforeUpdate hook de GORM para transformaciones antes de actualizar
+// NOTA: Las validaciones deben ocurrir ANTES de la transacción en la capa de servicio
+// Este hook solo normaliza datos para evitar problemas durante la transacción
 func (f *Family) BeforeUpdate(_ *gorm.DB) error {
 	// Normalizar DNI/NIE si se proporcionan
 	if f.EsposoDocumentoIdentidad != "" {
@@ -110,7 +116,9 @@ func (f *Family) BeforeUpdate(_ *gorm.DB) error {
 	if f.EsposaDocumentoIdentidad != "" {
 		f.EsposaDocumentoIdentidad = validation.NormalizarNIF(f.EsposaDocumentoIdentidad)
 	}
-	return f.Validate()
+	// No validamos aquí para evitar fallos dentro de transacciones
+	// La validación debe hacerse en la capa de servicio antes de la transacción
+	return nil
 }
 
 // NombreCompletoEsposo retorna el nombre completo del esposo
