@@ -52,6 +52,7 @@ func (r *familyRepository) Create(ctx context.Context, family *models.Family) er
 func (r *familyRepository) GetByID(ctx context.Context, id uint) (*models.Family, error) {
 	var family models.Family
 	result := r.db.WithContext(ctx).
+		Preload("MiembroOrigen").
 		Preload("Familiares").
 		Preload("Telefonos").
 		First(&family, id)
@@ -69,6 +70,7 @@ func (r *familyRepository) GetByID(ctx context.Context, id uint) (*models.Family
 func (r *familyRepository) GetByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Family, error) {
 	var family models.Family
 	result := r.db.WithContext(ctx).
+		Preload("MiembroOrigen").
 		Preload("Familiares").
 		Preload("Telefonos").
 		Where("numero_socio = ?", numeroSocio).
@@ -87,6 +89,7 @@ func (r *familyRepository) GetByNumeroSocio(ctx context.Context, numeroSocio str
 func (r *familyRepository) GetByOriginMemberID(ctx context.Context, memberID uint) (*models.Family, error) {
 	var family models.Family
 	result := r.db.WithContext(ctx).
+		Preload("MiembroOrigen").
 		Preload("Familiares").
 		Preload("Telefonos").
 		Where("miembro_origen_id = ?", memberID).
@@ -172,7 +175,8 @@ func (r *familyRepository) List(ctx context.Context, page, pageSize int, searchT
 	query = query.Offset((page - 1) * pageSize).Limit(pageSize)
 
 	// Load relationships
-	query = query.Preload("Familiares").
+	query = query.Preload("MiembroOrigen").
+		Preload("Familiares").
 		Preload("Telefonos")
 
 	// Execute the query
@@ -280,6 +284,7 @@ func (r *familyRepository) GetByIDWithTx(ctx context.Context, tx output.Transact
 
 	var family models.Family
 	result := gormTx.tx.WithContext(ctx).
+		Preload("MiembroOrigen").
 		Preload("Familiares").
 		Preload("Telefonos").
 		First(&family, id)
