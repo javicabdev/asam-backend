@@ -111,8 +111,14 @@ type Family {
     miembro_origen: Member
     esposo_nombre: String!
     esposo_apellidos: String!
+    esposo_fecha_nacimiento: Time
+    esposo_documento_identidad: String
+    esposo_correo_electronico: String
     esposa_nombre: String!
     esposa_apellidos: String!
+    esposa_fecha_nacimiento: Time
+    esposa_documento_identidad: String
+    esposa_correo_electronico: String
     familiares: [Familiar!]
 }
 
@@ -123,6 +129,7 @@ type Familiar {
     fecha_nacimiento: Time
     dni_nie: String
     correo_electronico: String
+    parentesco: String!
 }
 
 type Payment {

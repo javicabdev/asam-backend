@@ -109,17 +109,24 @@ type ComplexityRoot struct {
 		FechaNacimiento   func(childComplexity int) int
 		ID                func(childComplexity int) int
 		Nombre            func(childComplexity int) int
+		Parentesco        func(childComplexity int) int
 	}
 
 	Family struct {
-		EsposaApellidos func(childComplexity int) int
-		EsposaNombre    func(childComplexity int) int
-		EsposoApellidos func(childComplexity int) int
-		EsposoNombre    func(childComplexity int) int
-		Familiares      func(childComplexity int) int
-		ID              func(childComplexity int) int
-		MiembroOrigen   func(childComplexity int) int
-		NumeroSocio     func(childComplexity int) int
+		EsposaApellidos          func(childComplexity int) int
+		EsposaCorreoElectronico  func(childComplexity int) int
+		EsposaDocumentoIdentidad func(childComplexity int) int
+		EsposaFechaNacimiento    func(childComplexity int) int
+		EsposaNombre             func(childComplexity int) int
+		EsposoApellidos          func(childComplexity int) int
+		EsposoCorreoElectronico  func(childComplexity int) int
+		EsposoDocumentoIdentidad func(childComplexity int) int
+		EsposoFechaNacimiento    func(childComplexity int) int
+		EsposoNombre             func(childComplexity int) int
+		Familiares               func(childComplexity int) int
+		ID                       func(childComplexity int) int
+		MiembroOrigen            func(childComplexity int) int
+		NumeroSocio              func(childComplexity int) int
 	}
 
 	FamilyConnection struct {
@@ -676,6 +683,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Familiar.Nombre(childComplexity), true
+	case "Familiar.parentesco":
+		if e.complexity.Familiar.Parentesco == nil {
+			break
+		}
+
+		return e.complexity.Familiar.Parentesco(childComplexity), true
 
 	case "Family.esposa_apellidos":
 		if e.complexity.Family.EsposaApellidos == nil {
@@ -683,6 +696,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Family.EsposaApellidos(childComplexity), true
+	case "Family.esposa_correo_electronico":
+		if e.complexity.Family.EsposaCorreoElectronico == nil {
+			break
+		}
+
+		return e.complexity.Family.EsposaCorreoElectronico(childComplexity), true
+	case "Family.esposa_documento_identidad":
+		if e.complexity.Family.EsposaDocumentoIdentidad == nil {
+			break
+		}
+
+		return e.complexity.Family.EsposaDocumentoIdentidad(childComplexity), true
+	case "Family.esposa_fecha_nacimiento":
+		if e.complexity.Family.EsposaFechaNacimiento == nil {
+			break
+		}
+
+		return e.complexity.Family.EsposaFechaNacimiento(childComplexity), true
 	case "Family.esposa_nombre":
 		if e.complexity.Family.EsposaNombre == nil {
 			break
@@ -695,6 +726,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Family.EsposoApellidos(childComplexity), true
+	case "Family.esposo_correo_electronico":
+		if e.complexity.Family.EsposoCorreoElectronico == nil {
+			break
+		}
+
+		return e.complexity.Family.EsposoCorreoElectronico(childComplexity), true
+	case "Family.esposo_documento_identidad":
+		if e.complexity.Family.EsposoDocumentoIdentidad == nil {
+			break
+		}
+
+		return e.complexity.Family.EsposoDocumentoIdentidad(childComplexity), true
+	case "Family.esposo_fecha_nacimiento":
+		if e.complexity.Family.EsposoFechaNacimiento == nil {
+			break
+		}
+
+		return e.complexity.Family.EsposoFechaNacimiento(childComplexity), true
 	case "Family.esposo_nombre":
 		if e.complexity.Family.EsposoNombre == nil {
 			break
@@ -2020,8 +2069,14 @@ type Family {
     miembro_origen: Member
     esposo_nombre: String!
     esposo_apellidos: String!
+    esposo_fecha_nacimiento: Time
+    esposo_documento_identidad: String
+    esposo_correo_electronico: String
     esposa_nombre: String!
     esposa_apellidos: String!
+    esposa_fecha_nacimiento: Time
+    esposa_documento_identidad: String
+    esposa_correo_electronico: String
     familiares: [Familiar!]
 }
 
@@ -2032,6 +2087,7 @@ type Familiar {
     fecha_nacimiento: Time
     dni_nie: String
     correo_electronico: String
+    parentesco: String!
 }
 
 type Payment {
@@ -3512,10 +3568,22 @@ func (ec *executionContext) fieldContext_CashFlow_family(_ context.Context, fiel
 				return ec.fieldContext_Family_esposo_nombre(ctx, field)
 			case "esposo_apellidos":
 				return ec.fieldContext_Family_esposo_apellidos(ctx, field)
+			case "esposo_fecha_nacimiento":
+				return ec.fieldContext_Family_esposo_fecha_nacimiento(ctx, field)
+			case "esposo_documento_identidad":
+				return ec.fieldContext_Family_esposo_documento_identidad(ctx, field)
+			case "esposo_correo_electronico":
+				return ec.fieldContext_Family_esposo_correo_electronico(ctx, field)
 			case "esposa_nombre":
 				return ec.fieldContext_Family_esposa_nombre(ctx, field)
 			case "esposa_apellidos":
 				return ec.fieldContext_Family_esposa_apellidos(ctx, field)
+			case "esposa_fecha_nacimiento":
+				return ec.fieldContext_Family_esposa_fecha_nacimiento(ctx, field)
+			case "esposa_documento_identidad":
+				return ec.fieldContext_Family_esposa_documento_identidad(ctx, field)
+			case "esposa_correo_electronico":
+				return ec.fieldContext_Family_esposa_correo_electronico(ctx, field)
 			case "familiares":
 				return ec.fieldContext_Family_familiares(ctx, field)
 			}
@@ -4431,6 +4499,35 @@ func (ec *executionContext) fieldContext_Familiar_correo_electronico(_ context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _Familiar_parentesco(ctx context.Context, field graphql.CollectedField, obj *models.Familiar) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Familiar_parentesco,
+		func(ctx context.Context) (any, error) {
+			return obj.Parentesco, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Familiar_parentesco(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Familiar",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Family_id(ctx context.Context, field graphql.CollectedField, obj *models.Family) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -4616,6 +4713,93 @@ func (ec *executionContext) fieldContext_Family_esposo_apellidos(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Family_esposo_fecha_nacimiento(ctx context.Context, field graphql.CollectedField, obj *models.Family) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Family_esposo_fecha_nacimiento,
+		func(ctx context.Context) (any, error) {
+			return obj.EsposoFechaNacimiento, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Family_esposo_fecha_nacimiento(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Family",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Family_esposo_documento_identidad(ctx context.Context, field graphql.CollectedField, obj *models.Family) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Family_esposo_documento_identidad,
+		func(ctx context.Context) (any, error) {
+			return obj.EsposoDocumentoIdentidad, nil
+		},
+		nil,
+		ec.marshalOString2string,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Family_esposo_documento_identidad(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Family",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Family_esposo_correo_electronico(ctx context.Context, field graphql.CollectedField, obj *models.Family) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Family_esposo_correo_electronico,
+		func(ctx context.Context) (any, error) {
+			return obj.EsposoCorreoElectronico, nil
+		},
+		nil,
+		ec.marshalOString2string,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Family_esposo_correo_electronico(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Family",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Family_esposa_nombre(ctx context.Context, field graphql.CollectedField, obj *models.Family) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -4674,6 +4858,93 @@ func (ec *executionContext) fieldContext_Family_esposa_apellidos(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Family_esposa_fecha_nacimiento(ctx context.Context, field graphql.CollectedField, obj *models.Family) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Family_esposa_fecha_nacimiento,
+		func(ctx context.Context) (any, error) {
+			return obj.EsposaFechaNacimiento, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Family_esposa_fecha_nacimiento(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Family",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Family_esposa_documento_identidad(ctx context.Context, field graphql.CollectedField, obj *models.Family) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Family_esposa_documento_identidad,
+		func(ctx context.Context) (any, error) {
+			return obj.EsposaDocumentoIdentidad, nil
+		},
+		nil,
+		ec.marshalOString2string,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Family_esposa_documento_identidad(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Family",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Family_esposa_correo_electronico(ctx context.Context, field graphql.CollectedField, obj *models.Family) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Family_esposa_correo_electronico,
+		func(ctx context.Context) (any, error) {
+			return obj.EsposaCorreoElectronico, nil
+		},
+		nil,
+		ec.marshalOString2string,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Family_esposa_correo_electronico(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Family",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Family_familiares(ctx context.Context, field graphql.CollectedField, obj *models.Family) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -4710,6 +4981,8 @@ func (ec *executionContext) fieldContext_Family_familiares(_ context.Context, fi
 				return ec.fieldContext_Familiar_dni_nie(ctx, field)
 			case "correo_electronico":
 				return ec.fieldContext_Familiar_correo_electronico(ctx, field)
+			case "parentesco":
+				return ec.fieldContext_Familiar_parentesco(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Familiar", field.Name)
 		},
@@ -4751,10 +5024,22 @@ func (ec *executionContext) fieldContext_FamilyConnection_nodes(_ context.Contex
 				return ec.fieldContext_Family_esposo_nombre(ctx, field)
 			case "esposo_apellidos":
 				return ec.fieldContext_Family_esposo_apellidos(ctx, field)
+			case "esposo_fecha_nacimiento":
+				return ec.fieldContext_Family_esposo_fecha_nacimiento(ctx, field)
+			case "esposo_documento_identidad":
+				return ec.fieldContext_Family_esposo_documento_identidad(ctx, field)
+			case "esposo_correo_electronico":
+				return ec.fieldContext_Family_esposo_correo_electronico(ctx, field)
 			case "esposa_nombre":
 				return ec.fieldContext_Family_esposa_nombre(ctx, field)
 			case "esposa_apellidos":
 				return ec.fieldContext_Family_esposa_apellidos(ctx, field)
+			case "esposa_fecha_nacimiento":
+				return ec.fieldContext_Family_esposa_fecha_nacimiento(ctx, field)
+			case "esposa_documento_identidad":
+				return ec.fieldContext_Family_esposa_documento_identidad(ctx, field)
+			case "esposa_correo_electronico":
+				return ec.fieldContext_Family_esposa_correo_electronico(ctx, field)
 			case "familiares":
 				return ec.fieldContext_Family_familiares(ctx, field)
 			}
@@ -6095,10 +6380,22 @@ func (ec *executionContext) fieldContext_Mutation_createFamily(ctx context.Conte
 				return ec.fieldContext_Family_esposo_nombre(ctx, field)
 			case "esposo_apellidos":
 				return ec.fieldContext_Family_esposo_apellidos(ctx, field)
+			case "esposo_fecha_nacimiento":
+				return ec.fieldContext_Family_esposo_fecha_nacimiento(ctx, field)
+			case "esposo_documento_identidad":
+				return ec.fieldContext_Family_esposo_documento_identidad(ctx, field)
+			case "esposo_correo_electronico":
+				return ec.fieldContext_Family_esposo_correo_electronico(ctx, field)
 			case "esposa_nombre":
 				return ec.fieldContext_Family_esposa_nombre(ctx, field)
 			case "esposa_apellidos":
 				return ec.fieldContext_Family_esposa_apellidos(ctx, field)
+			case "esposa_fecha_nacimiento":
+				return ec.fieldContext_Family_esposa_fecha_nacimiento(ctx, field)
+			case "esposa_documento_identidad":
+				return ec.fieldContext_Family_esposa_documento_identidad(ctx, field)
+			case "esposa_correo_electronico":
+				return ec.fieldContext_Family_esposa_correo_electronico(ctx, field)
 			case "familiares":
 				return ec.fieldContext_Family_familiares(ctx, field)
 			}
@@ -6154,10 +6451,22 @@ func (ec *executionContext) fieldContext_Mutation_updateFamily(ctx context.Conte
 				return ec.fieldContext_Family_esposo_nombre(ctx, field)
 			case "esposo_apellidos":
 				return ec.fieldContext_Family_esposo_apellidos(ctx, field)
+			case "esposo_fecha_nacimiento":
+				return ec.fieldContext_Family_esposo_fecha_nacimiento(ctx, field)
+			case "esposo_documento_identidad":
+				return ec.fieldContext_Family_esposo_documento_identidad(ctx, field)
+			case "esposo_correo_electronico":
+				return ec.fieldContext_Family_esposo_correo_electronico(ctx, field)
 			case "esposa_nombre":
 				return ec.fieldContext_Family_esposa_nombre(ctx, field)
 			case "esposa_apellidos":
 				return ec.fieldContext_Family_esposa_apellidos(ctx, field)
+			case "esposa_fecha_nacimiento":
+				return ec.fieldContext_Family_esposa_fecha_nacimiento(ctx, field)
+			case "esposa_documento_identidad":
+				return ec.fieldContext_Family_esposa_documento_identidad(ctx, field)
+			case "esposa_correo_electronico":
+				return ec.fieldContext_Family_esposa_correo_electronico(ctx, field)
 			case "familiares":
 				return ec.fieldContext_Family_familiares(ctx, field)
 			}
@@ -6213,10 +6522,22 @@ func (ec *executionContext) fieldContext_Mutation_addFamilyMember(ctx context.Co
 				return ec.fieldContext_Family_esposo_nombre(ctx, field)
 			case "esposo_apellidos":
 				return ec.fieldContext_Family_esposo_apellidos(ctx, field)
+			case "esposo_fecha_nacimiento":
+				return ec.fieldContext_Family_esposo_fecha_nacimiento(ctx, field)
+			case "esposo_documento_identidad":
+				return ec.fieldContext_Family_esposo_documento_identidad(ctx, field)
+			case "esposo_correo_electronico":
+				return ec.fieldContext_Family_esposo_correo_electronico(ctx, field)
 			case "esposa_nombre":
 				return ec.fieldContext_Family_esposa_nombre(ctx, field)
 			case "esposa_apellidos":
 				return ec.fieldContext_Family_esposa_apellidos(ctx, field)
+			case "esposa_fecha_nacimiento":
+				return ec.fieldContext_Family_esposa_fecha_nacimiento(ctx, field)
+			case "esposa_documento_identidad":
+				return ec.fieldContext_Family_esposa_documento_identidad(ctx, field)
+			case "esposa_correo_electronico":
+				return ec.fieldContext_Family_esposa_correo_electronico(ctx, field)
 			case "familiares":
 				return ec.fieldContext_Family_familiares(ctx, field)
 			}
@@ -7679,10 +8000,22 @@ func (ec *executionContext) fieldContext_Payment_family(_ context.Context, field
 				return ec.fieldContext_Family_esposo_nombre(ctx, field)
 			case "esposo_apellidos":
 				return ec.fieldContext_Family_esposo_apellidos(ctx, field)
+			case "esposo_fecha_nacimiento":
+				return ec.fieldContext_Family_esposo_fecha_nacimiento(ctx, field)
+			case "esposo_documento_identidad":
+				return ec.fieldContext_Family_esposo_documento_identidad(ctx, field)
+			case "esposo_correo_electronico":
+				return ec.fieldContext_Family_esposo_correo_electronico(ctx, field)
 			case "esposa_nombre":
 				return ec.fieldContext_Family_esposa_nombre(ctx, field)
 			case "esposa_apellidos":
 				return ec.fieldContext_Family_esposa_apellidos(ctx, field)
+			case "esposa_fecha_nacimiento":
+				return ec.fieldContext_Family_esposa_fecha_nacimiento(ctx, field)
+			case "esposa_documento_identidad":
+				return ec.fieldContext_Family_esposa_documento_identidad(ctx, field)
+			case "esposa_correo_electronico":
+				return ec.fieldContext_Family_esposa_correo_electronico(ctx, field)
 			case "familiares":
 				return ec.fieldContext_Family_familiares(ctx, field)
 			}
@@ -8522,10 +8855,22 @@ func (ec *executionContext) fieldContext_Query_getFamily(ctx context.Context, fi
 				return ec.fieldContext_Family_esposo_nombre(ctx, field)
 			case "esposo_apellidos":
 				return ec.fieldContext_Family_esposo_apellidos(ctx, field)
+			case "esposo_fecha_nacimiento":
+				return ec.fieldContext_Family_esposo_fecha_nacimiento(ctx, field)
+			case "esposo_documento_identidad":
+				return ec.fieldContext_Family_esposo_documento_identidad(ctx, field)
+			case "esposo_correo_electronico":
+				return ec.fieldContext_Family_esposo_correo_electronico(ctx, field)
 			case "esposa_nombre":
 				return ec.fieldContext_Family_esposa_nombre(ctx, field)
 			case "esposa_apellidos":
 				return ec.fieldContext_Family_esposa_apellidos(ctx, field)
+			case "esposa_fecha_nacimiento":
+				return ec.fieldContext_Family_esposa_fecha_nacimiento(ctx, field)
+			case "esposa_documento_identidad":
+				return ec.fieldContext_Family_esposa_documento_identidad(ctx, field)
+			case "esposa_correo_electronico":
+				return ec.fieldContext_Family_esposa_correo_electronico(ctx, field)
 			case "familiares":
 				return ec.fieldContext_Family_familiares(ctx, field)
 			}
@@ -8581,10 +8926,22 @@ func (ec *executionContext) fieldContext_Query_getFamilyByOriginMember(ctx conte
 				return ec.fieldContext_Family_esposo_nombre(ctx, field)
 			case "esposo_apellidos":
 				return ec.fieldContext_Family_esposo_apellidos(ctx, field)
+			case "esposo_fecha_nacimiento":
+				return ec.fieldContext_Family_esposo_fecha_nacimiento(ctx, field)
+			case "esposo_documento_identidad":
+				return ec.fieldContext_Family_esposo_documento_identidad(ctx, field)
+			case "esposo_correo_electronico":
+				return ec.fieldContext_Family_esposo_correo_electronico(ctx, field)
 			case "esposa_nombre":
 				return ec.fieldContext_Family_esposa_nombre(ctx, field)
 			case "esposa_apellidos":
 				return ec.fieldContext_Family_esposa_apellidos(ctx, field)
+			case "esposa_fecha_nacimiento":
+				return ec.fieldContext_Family_esposa_fecha_nacimiento(ctx, field)
+			case "esposa_documento_identidad":
+				return ec.fieldContext_Family_esposa_documento_identidad(ctx, field)
+			case "esposa_correo_electronico":
+				return ec.fieldContext_Family_esposa_correo_electronico(ctx, field)
 			case "familiares":
 				return ec.fieldContext_Family_familiares(ctx, field)
 			}
@@ -8689,6 +9046,8 @@ func (ec *executionContext) fieldContext_Query_getFamilyMembers(ctx context.Cont
 				return ec.fieldContext_Familiar_dni_nie(ctx, field)
 			case "correo_electronico":
 				return ec.fieldContext_Familiar_correo_electronico(ctx, field)
+			case "parentesco":
+				return ec.fieldContext_Familiar_parentesco(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Familiar", field.Name)
 		},
@@ -9858,10 +10217,22 @@ func (ec *executionContext) fieldContext_RecentActivity_relatedFamily(_ context.
 				return ec.fieldContext_Family_esposo_nombre(ctx, field)
 			case "esposo_apellidos":
 				return ec.fieldContext_Family_esposo_apellidos(ctx, field)
+			case "esposo_fecha_nacimiento":
+				return ec.fieldContext_Family_esposo_fecha_nacimiento(ctx, field)
+			case "esposo_documento_identidad":
+				return ec.fieldContext_Family_esposo_documento_identidad(ctx, field)
+			case "esposo_correo_electronico":
+				return ec.fieldContext_Family_esposo_correo_electronico(ctx, field)
 			case "esposa_nombre":
 				return ec.fieldContext_Family_esposa_nombre(ctx, field)
 			case "esposa_apellidos":
 				return ec.fieldContext_Family_esposa_apellidos(ctx, field)
+			case "esposa_fecha_nacimiento":
+				return ec.fieldContext_Family_esposa_fecha_nacimiento(ctx, field)
+			case "esposa_documento_identidad":
+				return ec.fieldContext_Family_esposa_documento_identidad(ctx, field)
+			case "esposa_correo_electronico":
+				return ec.fieldContext_Family_esposa_correo_electronico(ctx, field)
 			case "familiares":
 				return ec.fieldContext_Family_familiares(ctx, field)
 			}
@@ -13489,6 +13860,11 @@ func (ec *executionContext) _Familiar(ctx context.Context, sel ast.SelectionSet,
 			out.Values[i] = ec._Familiar_dni_nie(ctx, field, obj)
 		case "correo_electronico":
 			out.Values[i] = ec._Familiar_correo_electronico(ctx, field, obj)
+		case "parentesco":
+			out.Values[i] = ec._Familiar_parentesco(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -13576,6 +13952,12 @@ func (ec *executionContext) _Family(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "esposo_fecha_nacimiento":
+			out.Values[i] = ec._Family_esposo_fecha_nacimiento(ctx, field, obj)
+		case "esposo_documento_identidad":
+			out.Values[i] = ec._Family_esposo_documento_identidad(ctx, field, obj)
+		case "esposo_correo_electronico":
+			out.Values[i] = ec._Family_esposo_correo_electronico(ctx, field, obj)
 		case "esposa_nombre":
 			out.Values[i] = ec._Family_esposa_nombre(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -13586,6 +13968,12 @@ func (ec *executionContext) _Family(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "esposa_fecha_nacimiento":
+			out.Values[i] = ec._Family_esposa_fecha_nacimiento(ctx, field, obj)
+		case "esposa_documento_identidad":
+			out.Values[i] = ec._Family_esposa_documento_identidad(ctx, field, obj)
+		case "esposa_correo_electronico":
+			out.Values[i] = ec._Family_esposa_correo_electronico(ctx, field, obj)
 		case "familiares":
 			out.Values[i] = ec._Family_familiares(ctx, field, obj)
 		default:
