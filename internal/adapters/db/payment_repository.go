@@ -106,7 +106,7 @@ func (r *paymentRepository) FindByMember(ctx context.Context, memberID uint, fro
 		Preload("Member").
 		Preload("Family").
 		Preload("MembershipFee").
-		Where("member_id = ? AND payment_date BETWEEN ? AND ?", memberID, from, to).
+		Where("member_id = ? AND (payment_date BETWEEN ? AND ? OR payment_date IS NULL)", memberID, from, to).
 		Find(&payments)
 
 	if result.Error != nil {
@@ -123,7 +123,7 @@ func (r *paymentRepository) FindByFamily(ctx context.Context, familyID uint, fro
 		Preload("Member").
 		Preload("Family").
 		Preload("MembershipFee").
-		Where("family_id = ? AND payment_date BETWEEN ? AND ?", familyID, from, to).
+		Where("family_id = ? AND (payment_date BETWEEN ? AND ? OR payment_date IS NULL)", familyID, from, to).
 		Find(&payments)
 
 	if result.Error != nil {
