@@ -552,26 +552,35 @@ func (s *paymentService) GetFamilyStatement(ctx context.Context, familyID uint) 
 func (s *paymentService) GetDefaulters(ctx context.Context) ([]input.AccountStatement, error) {
 	var defaulters []input.AccountStatement
 
-	// Obtener todas las cuotas vencidas
+	// Buscar todos los pagos pendientes (membership fees vencidas)
 	now := time.Now()
-	pendingFees, err := s.membershipFeeRepo.FindPendingByMember(ctx, 0) // 0 para obtener todos
+	pendingStatus := models.PaymentStatusPending
+	pendingPayments, err := s.paymentRepo.FindAll(ctx, &output.PaymentRepositoryFilters{
+		Status: &pendingStatus,
+	})
 	if err != nil {
-		return nil, errors.DB(err, "error buscando cuotas pendientes")
+		return nil, errors.DB(err, "error buscando pagos pendientes")
 	}
 
-	// Agrupar por miembro y calcular días de atraso
+	// Agrupar por miembro y verificar si están en mora
 	memberMap := make(map[uint]bool)
-	for _, fee := range pendingFees {
-		if !fee.DueDate.Before(now) {
+	for _, payment := range pendingPayments {
+		// Solo procesar pagos de cuotas de membresía (no otros tipos de pagos)
+		if payment.MembershipFeeID == nil {
 			continue
 		}
 
 		// Skip family-only payments (no member associated)
-		if fee.Payment.MemberID == nil {
+		if payment.MemberID == nil {
 			continue
 		}
 
-		memberID := *fee.Payment.MemberID
+		// Verificar si la cuota está vencida
+		if payment.MembershipFee != nil && !payment.MembershipFee.DueDate.Before(now) {
+			continue
+		}
+
+		memberID := *payment.MemberID
 		if !memberMap[memberID] {
 			statement, err := s.GetMemberStatement(ctx, memberID)
 			if err != nil {

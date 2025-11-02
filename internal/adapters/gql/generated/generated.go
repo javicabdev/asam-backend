@@ -166,7 +166,6 @@ type ComplexityRoot struct {
 		DueDate        func(childComplexity int) int
 		FamilyFeeExtra func(childComplexity int) int
 		ID             func(childComplexity int) int
-		Payment        func(childComplexity int) int
 		Year           func(childComplexity int) int
 	}
 
@@ -939,12 +938,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.MembershipFee.ID(childComplexity), true
-	case "MembershipFee.payment":
-		if e.complexity.MembershipFee.Payment == nil {
-			break
-		}
-
-		return e.complexity.MembershipFee.Payment(childComplexity), true
 	case "MembershipFee.year":
 		if e.complexity.MembershipFee.Year == nil {
 			break
@@ -2101,7 +2094,6 @@ type MembershipFee {
     base_fee_amount: Float!
     family_fee_extra: Float!
     due_date: Time!
-    payment: Payment
 }
 
 type CashFlow {
@@ -5895,55 +5887,6 @@ func (ec *executionContext) fieldContext_MembershipFee_due_date(_ context.Contex
 	return fc, nil
 }
 
-func (ec *executionContext) _MembershipFee_payment(ctx context.Context, field graphql.CollectedField, obj *models.MembershipFee) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MembershipFee_payment,
-		func(ctx context.Context) (any, error) {
-			return obj.Payment, nil
-		},
-		nil,
-		ec.marshalOPayment2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐPayment,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_MembershipFee_payment(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MembershipFee",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Payment_id(ctx, field)
-			case "member":
-				return ec.fieldContext_Payment_member(ctx, field)
-			case "family":
-				return ec.fieldContext_Payment_family(ctx, field)
-			case "amount":
-				return ec.fieldContext_Payment_amount(ctx, field)
-			case "payment_date":
-				return ec.fieldContext_Payment_payment_date(ctx, field)
-			case "status":
-				return ec.fieldContext_Payment_status(ctx, field)
-			case "payment_method":
-				return ec.fieldContext_Payment_payment_method(ctx, field)
-			case "notes":
-				return ec.fieldContext_Payment_notes(ctx, field)
-			case "membership_fee":
-				return ec.fieldContext_Payment_membership_fee(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Payment", field.Name)
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _MembershipTrendData_month(ctx context.Context, field graphql.CollectedField, obj *model.MembershipTrendData) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -8182,8 +8125,6 @@ func (ec *executionContext) fieldContext_Payment_membership_fee(_ context.Contex
 				return ec.fieldContext_MembershipFee_family_fee_extra(ctx, field)
 			case "due_date":
 				return ec.fieldContext_MembershipFee_due_date(ctx, field)
-			case "payment":
-				return ec.fieldContext_MembershipFee_payment(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type MembershipFee", field.Name)
 		},
@@ -9348,8 +9289,6 @@ func (ec *executionContext) fieldContext_Query_getMembershipFee(ctx context.Cont
 				return ec.fieldContext_MembershipFee_family_fee_extra(ctx, field)
 			case "due_date":
 				return ec.fieldContext_MembershipFee_due_date(ctx, field)
-			case "payment":
-				return ec.fieldContext_MembershipFee_payment(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type MembershipFee", field.Name)
 		},
@@ -9403,8 +9342,6 @@ func (ec *executionContext) fieldContext_Query_listMembershipFees(ctx context.Co
 				return ec.fieldContext_MembershipFee_family_fee_extra(ctx, field)
 			case "due_date":
 				return ec.fieldContext_MembershipFee_due_date(ctx, field)
-			case "payment":
-				return ec.fieldContext_MembershipFee_payment(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type MembershipFee", field.Name)
 		},
@@ -9457,8 +9394,6 @@ func (ec *executionContext) fieldContext_Query_getPendingFees(_ context.Context,
 				return ec.fieldContext_MembershipFee_family_fee_extra(ctx, field)
 			case "due_date":
 				return ec.fieldContext_MembershipFee_due_date(ctx, field)
-			case "payment":
-				return ec.fieldContext_MembershipFee_payment(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type MembershipFee", field.Name)
 		},
@@ -14821,8 +14756,6 @@ func (ec *executionContext) _MembershipFee(ctx context.Context, sel ast.Selectio
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "payment":
-			out.Values[i] = ec._MembershipFee_payment(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

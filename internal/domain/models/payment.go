@@ -45,8 +45,6 @@ type MembershipFee struct {
 	BaseFeeAmount  float64
 	FamilyFeeExtra float64 // Additional amount for family memberships
 	DueDate        time.Time // Siempre 31 de diciembre del año
-	PaymentID      *uint
-	Payment        *Payment `gorm:"foreignKey:PaymentID"`
 }
 
 // NewAnnualFee crea una nueva cuota anual con fecha de vencimiento al 31 de diciembre

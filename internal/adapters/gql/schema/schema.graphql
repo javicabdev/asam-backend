@@ -150,7 +150,6 @@ type MembershipFee {
     base_fee_amount: Float!
     family_fee_extra: Float!
     due_date: Time!
-    payment: Payment
 }
 
 type CashFlow {
