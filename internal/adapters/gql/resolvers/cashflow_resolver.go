@@ -35,14 +35,6 @@ func (r *cashFlowResolver) mapTransactionInputToModel(input *model.TransactionIn
 		transaction.MemberID = &memberID
 	}
 
-	if input.FamilyID != nil {
-		familyID, err := parseID(*input.FamilyID)
-		if err != nil {
-			return nil
-		}
-		transaction.FamilyID = &familyID
-	}
-
 	return transaction
 }
 
@@ -110,13 +102,6 @@ func (r *cashFlowResolver) validateTransactionAssociations(ctx context.Context, 
 		}
 	}
 
-	// Check referenced family exists
-	if transaction.FamilyID != nil {
-		if err := r.validateFamilyExists(ctx, *transaction.FamilyID); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -128,18 +113,6 @@ func (r *cashFlowResolver) validateMemberExists(ctx context.Context, memberID ui
 	}
 	if member == nil {
 		return appErrors.NotFound("member", nil)
-	}
-	return nil
-}
-
-// validateFamilyExists verifica que la familia asociada exista
-func (r *cashFlowResolver) validateFamilyExists(ctx context.Context, familyID uint) error {
-	family, err := r.familyService.GetByID(ctx, familyID)
-	if err != nil {
-		return appErrors.Wrap(err, appErrors.ErrDatabaseError, "Error verifying family")
-	}
-	if family == nil {
-		return appErrors.NotFound("family", nil)
 	}
 	return nil
 }

@@ -55,7 +55,6 @@ type PaymentFilters struct {
 	MinAmount     *float64
 	MaxAmount     *float64
 	MemberID      *uint
-	FamilyID      *uint
 	Page          int
 	PageSize      int
 	OrderBy       string

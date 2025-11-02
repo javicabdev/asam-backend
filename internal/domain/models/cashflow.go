@@ -25,7 +25,6 @@ var (
 type CashFlow struct {
 	ID            uint           `gorm:"primaryKey"`
 	MemberID      *uint          `gorm:"index"`
-	FamilyID      *uint          `gorm:"index"`
 	PaymentID     *uint          `gorm:"index"` // Referencia al pago que generó este movimiento
 	OperationType OperationType  `gorm:"type:varchar(20);not null"`
 	Amount        float64        `gorm:"type:decimal(10,2);not null"`
@@ -37,7 +36,6 @@ type CashFlow struct {
 
 	// Relaciones
 	Member  *Member  `gorm:"foreignKey:MemberID"`
-	Family  *Family  `gorm:"foreignKey:FamilyID"`
 	Payment *Payment `gorm:"foreignKey:PaymentID"` // Relación con el pago
 }
 
@@ -101,16 +99,13 @@ func NewFromPayment(payment *Payment) (*CashFlow, error) {
 	}
 
 	cashFlow := &CashFlow{
+		MemberID:      &payment.MemberID,
 		PaymentID:     &paymentID,
 		OperationType: OperationTypeMembershipFee,
 		Amount:        payment.Amount,
 		Date:          *payment.PaymentDate,
 		Detail:        detail,
 	}
-
-	// Both MemberID and FamilyID in Payment are *uint (optional)
-	cashFlow.MemberID = payment.MemberID
-	cashFlow.FamilyID = payment.FamilyID
 
 	return cashFlow, nil
 }

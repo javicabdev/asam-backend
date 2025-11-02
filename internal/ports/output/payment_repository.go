@@ -32,7 +32,6 @@ type PaymentRepositoryFilters struct {
 	MinAmount     *float64
 	MaxAmount     *float64
 	MemberID      *uint
-	FamilyID      *uint
 	Offset        int
 	Limit         int
 	OrderBy       string

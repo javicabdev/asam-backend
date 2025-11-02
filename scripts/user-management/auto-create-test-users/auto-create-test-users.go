@@ -218,7 +218,7 @@ func createOrUpdateUserWithMember(db *gorm.DB, cfg *config.Config) error {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// Crear pago pendiente para B99001
 			payment := models.Payment{
-				MemberID:        &member.ID,
+				MemberID:        member.ID,
 				Amount:          membershipFee.BaseFeeAmount,
 				Status:          models.PaymentStatusPending,
 				PaymentDate:     nil,
@@ -564,8 +564,7 @@ func createPendingPayment(db *gorm.DB, memberID, familyID *uint, amount float64,
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// Crear nuevo pago pendiente
 			payment := models.Payment{
-				MemberID:        memberID,
-				FamilyID:        familyID,
+				MemberID:        *memberID,
 				Amount:          amount,
 				Status:          models.PaymentStatusPending,
 				PaymentDate:     nil, // Sin fecha de pago porque está pendiente

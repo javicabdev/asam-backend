@@ -496,7 +496,7 @@ func (s *familyService) createPendingPaymentForFamily(ctx context.Context, tx ou
 
 	// Create the pending payment
 	payment := &models.Payment{
-		MemberID:        &memberID,
+		MemberID:        memberID,
 		Amount:          amount,
 		PaymentDate:     nil, // Nil indicates pending payment
 		Status:          models.PaymentStatusPending,

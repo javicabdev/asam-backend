@@ -119,11 +119,21 @@ func (r *paymentRepository) FindByMember(ctx context.Context, memberID uint, fro
 func (r *paymentRepository) FindByFamily(ctx context.Context, familyID uint, from, to time.Time) ([]models.Payment, error) {
 	var payments []models.Payment
 
+	// Buscar pagos del miembro origen de la familia
+	// Primero obtenemos el miembro origen
+	var family models.Family
+	if err := r.db.WithContext(ctx).First(&family, familyID).Error; err != nil {
+		return nil, appErrors.DB(err, "error finding family")
+	}
+
+	if family.MiembroOrigenID == nil {
+		return []models.Payment{}, nil // Familia sin miembro origen no tiene pagos
+	}
+
 	result := r.db.WithContext(ctx).
 		Preload("Member").
-		Preload("Family").
 		Preload("MembershipFee").
-		Where("family_id = ? AND (payment_date BETWEEN ? AND ? OR payment_date IS NULL)", familyID, from, to).
+		Where("member_id = ? AND (payment_date BETWEEN ? AND ? OR payment_date IS NULL)", *family.MiembroOrigenID, from, to).
 		Find(&payments)
 
 	if result.Error != nil {
@@ -133,24 +143,26 @@ func (r *paymentRepository) FindByFamily(ctx context.Context, familyID uint, fro
 	return payments, nil
 }
 
-// HasInitialPayment checks if an initial payment already exists for the given member or family
+// HasInitialPayment checks if an initial payment already exists for the given member
 func (r *paymentRepository) HasInitialPayment(ctx context.Context, memberID *uint, familyID *uint) (bool, error) {
 	var exists bool
 
-	// Build query to check for existing initial payment
-	query := r.db.WithContext(ctx).
-		Model(&models.Payment{}).
-		Select("1").
-		Where("membership_fee_id IS NOT NULL")
-
-	// Add condition for member or family
+	// Determine which member to check
+	var targetMemberID uint
 	switch {
 	case memberID != nil && *memberID != 0:
-		query = query.Where("member_id = ?", *memberID)
+		targetMemberID = *memberID
 	case familyID != nil && *familyID != 0:
-		query = query.Where("family_id = ?", *familyID)
+		// Get family's origin member
+		var family models.Family
+		if err := r.db.WithContext(ctx).First(&family, *familyID).Error; err != nil {
+			return false, appErrors.DB(err, "error finding family")
+		}
+		if family.MiembroOrigenID == nil {
+			return false, nil // No origin member, no payment
+		}
+		targetMemberID = *family.MiembroOrigenID
 	default:
-		// Neither memberID nor familyID provided
 		return false, appErrors.NewValidationError(
 			"either memberID or familyID must be provided",
 			map[string]string{
@@ -159,6 +171,13 @@ func (r *paymentRepository) HasInitialPayment(ctx context.Context, memberID *uin
 			},
 		)
 	}
+
+	// Build query to check for existing initial payment
+	query := r.db.WithContext(ctx).
+		Model(&models.Payment{}).
+		Select("1").
+		Where("membership_fee_id IS NOT NULL").
+		Where("member_id = ?", targetMemberID)
 
 	// Use SELECT EXISTS for optimal performance
 	result := r.db.WithContext(ctx).Raw(
@@ -214,11 +233,6 @@ func (r *paymentRepository) FindAll(ctx context.Context, filters *output.Payment
 			query = query.Where("member_id = ?", *filters.MemberID)
 		}
 
-		// Apply family filter
-		if filters.FamilyID != nil {
-			query = query.Where("family_id = ?", *filters.FamilyID)
-		}
-
 		// Apply ordering
 		if filters.OrderBy != "" {
 			query = query.Order(filters.OrderBy)
@@ -268,9 +282,6 @@ func (r *paymentRepository) CountAll(ctx context.Context, filters *output.Paymen
 		}
 		if filters.MemberID != nil {
 			query = query.Where("member_id = ?", *filters.MemberID)
-		}
-		if filters.FamilyID != nil {
-			query = query.Where("family_id = ?", *filters.FamilyID)
 		}
 	}
 

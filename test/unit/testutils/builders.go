@@ -133,7 +133,7 @@ func (b *TestDataBuilder) BuildValidFamily() *models.Family {
 func (b *TestDataBuilder) BuildValidPayment(memberID uint) *models.Payment {
 	now := time.Now()
 	return &models.Payment{
-		MemberID:      &memberID,
+		MemberID:      memberID,
 		Amount:        30.0 + float64(b.rand.Intn(20)), // Between 30 and 50
 		PaymentDate:   &now,
 		Status:        models.PaymentStatusPaid,
@@ -145,7 +145,7 @@ func (b *TestDataBuilder) BuildValidPayment(memberID uint) *models.Payment {
 // BuildPendingPayment creates a pending payment
 func (b *TestDataBuilder) BuildPendingPayment(memberID uint) *models.Payment {
 	return &models.Payment{
-		MemberID:      &memberID,
+		MemberID:      memberID,
 		Amount:        30.0 + float64(b.rand.Intn(20)), // Between 30 and 50
 		PaymentDate:   nil,                             // Pending payments have no date
 		Status:        models.PaymentStatusPending,
@@ -175,8 +175,7 @@ func (b *TestDataBuilder) BuildCashFlowFromPayment(payment *models.Payment) *mod
 		date = *payment.PaymentDate
 	}
 	return &models.CashFlow{
-		MemberID:      payment.MemberID,
-		FamilyID:      payment.FamilyID,
+		MemberID:      &payment.MemberID,
 		PaymentID:     &payment.ID,
 		OperationType: models.OperationTypeMembershipFee,
 		Amount:        payment.Amount,

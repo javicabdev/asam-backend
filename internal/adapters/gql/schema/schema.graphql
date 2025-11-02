@@ -134,8 +134,7 @@ type Familiar {
 
 type Payment {
     id: ID!
-    member: Member
-    family: Family
+    member: Member!
     amount: Float!
     payment_date: Time
     status: PaymentStatus!
@@ -159,7 +158,6 @@ type CashFlow {
     operation_type: OperationType!
     detail: String!
     member: Member
-    family: Family
     payment: Payment
 }
 
@@ -204,7 +202,6 @@ input PaymentFilter {
     min_amount: Float
     max_amount: Float
     member_id: ID
-    family_id: ID
     pagination: PaginationInput
     sort: SortInput
 }
@@ -445,8 +442,7 @@ input FamiliarInput {
 }
 
 input PaymentInput {
-    member_id: ID
-    family_id: ID
+    member_id: ID!
     amount: Float!
     payment_method: String!
     notes: String
@@ -454,7 +450,6 @@ input PaymentInput {
 
 input TransactionInput {
     member_id: ID
-    family_id: ID
     operation_type: OperationType!
     amount: Float!
     date: Time!

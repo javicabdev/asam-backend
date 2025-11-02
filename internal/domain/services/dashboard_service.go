@@ -532,9 +532,6 @@ func (s *dashboardService) GetRecentActivity(ctx context.Context, limit int) ([]
 			if transaction.MemberID != nil {
 				activity.RelatedMemberID = transaction.MemberID
 			}
-			if transaction.FamilyID != nil {
-				activity.RelatedFamilyID = transaction.FamilyID
-			}
 
 			activities = append(activities, activity)
 		}

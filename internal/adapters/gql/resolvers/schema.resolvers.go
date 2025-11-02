@@ -1022,7 +1022,7 @@ func (r *queryResolver) GetPayment(ctx context.Context, id string) (*models.Paym
 	}
 
 	// Verificar permisos de acceso
-	if err := middleware.CanAccessPayment(ctx, payment.MemberID); err != nil {
+	if err := middleware.CanAccessPayment(ctx, &payment.MemberID); err != nil {
 		return nil, err
 	}
 
@@ -1103,7 +1103,7 @@ func (r *queryResolver) GetPaymentStatus(ctx context.Context, id string) (models
 	}
 
 	// Verificar permisos de acceso al pago
-	if err := middleware.CanAccessPayment(ctx, payment.MemberID); err != nil {
+	if err := middleware.CanAccessPayment(ctx, &payment.MemberID); err != nil {
 		return "", err
 	}
 

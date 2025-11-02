@@ -46,19 +46,15 @@ func (s *paymentService) RegisterPayment(ctx context.Context, payment *models.Pa
 
 	// Si es un pago inicial (no tiene MembershipFeeID), asociar con cuota anual
 	if payment.MembershipFeeID == nil {
-		// Verificar que no exista ya un pago inicial para este member/family
-		hasInitial, err := s.paymentRepo.HasInitialPayment(ctx, payment.MemberID, payment.FamilyID)
+		// Verificar que no exista ya un pago inicial para este miembro
+		hasInitial, err := s.paymentRepo.HasInitialPayment(ctx, &payment.MemberID, nil)
 		if err != nil {
 			return errors.DB(err, "error verificando pagos existentes")
 		}
 
 		if hasInitial {
-			entityType := "socio"
-			if payment.FamilyID != nil && *payment.FamilyID != 0 {
-				entityType = "familia"
-			}
 			return errors.NewValidationError(
-				"Ya existe un pago inicial registrado para este "+entityType,
+				"Ya existe un pago inicial registrado para este socio",
 				map[string]string{
 					"duplicate": "initial_payment_already_exists",
 				},
@@ -130,18 +126,8 @@ func (s *paymentService) validatePayment(ctx context.Context, payment *models.Pa
 		return errors.NewValidationError(err.Error(), nil)
 	}
 
-	// Validar miembro si MemberID está presente
-	if payment.MemberID != nil && *payment.MemberID != 0 {
-		return s.validateMember(ctx, *payment.MemberID)
-	}
-
-	// Validar familia si FamilyID está presente
-	if payment.FamilyID != nil && *payment.FamilyID != 0 {
-		return s.validateFamily(ctx, *payment.FamilyID)
-	}
-
-	// Si llegamos aquí, ni MemberID ni FamilyID están presentes (ya validado en Validate())
-	return nil
+	// Validar miembro (siempre requerido)
+	return s.validateMember(ctx, payment.MemberID)
 }
 
 // validateMember verifica que el miembro exista y esté activo
@@ -158,20 +144,6 @@ func (s *paymentService) validateMember(ctx context.Context, memberID uint) erro
 	// Verificar que el miembro esté activo
 	if member.State != models.EstadoActivo {
 		return errors.Validation("El miembro no está activo", "estado", "inactive")
-	}
-
-	return nil
-}
-
-// validateFamily verifica que la familia exista
-func (s *paymentService) validateFamily(ctx context.Context, familyID uint) error {
-	family, err := s.familyRepo.GetByID(ctx, familyID)
-	if err != nil {
-		return errors.DB(err, "error obteniendo familia")
-	}
-
-	if family == nil {
-		return errors.NotFound("family", nil)
 	}
 
 	return nil
@@ -224,13 +196,8 @@ func (s *paymentService) recordLatencyMetrics(ctx context.Context, payment *mode
 	}
 
 	if fee != nil && payment.PaymentDate != nil && fee.DueDate.Before(*payment.PaymentDate) {
-		// Only calculate latency metrics if payment has a member
-		if payment.MemberID == nil {
-			return nil // Skip metrics for family-only payments
-		}
-
 		// Obtener el miembro para las métricas
-		member, err := s.memberRepo.GetByID(ctx, *payment.MemberID)
+		member, err := s.memberRepo.GetByID(ctx, payment.MemberID)
 		if err != nil {
 			return err // Error silencioso para métricas
 		}
@@ -570,17 +537,12 @@ func (s *paymentService) GetDefaulters(ctx context.Context) ([]input.AccountStat
 			continue
 		}
 
-		// Skip family-only payments (no member associated)
-		if payment.MemberID == nil {
-			continue
-		}
-
 		// Verificar si la cuota está vencida
 		if payment.MembershipFee != nil && !payment.MembershipFee.DueDate.Before(now) {
 			continue
 		}
 
-		memberID := *payment.MemberID
+		memberID := payment.MemberID
 		if !memberMap[memberID] {
 			statement, err := s.GetMemberStatement(ctx, memberID)
 			if err != nil {
@@ -646,7 +608,6 @@ func (s *paymentService) ListPayments(ctx context.Context, filters input.Payment
 		MinAmount:     filters.MinAmount,
 		MaxAmount:     filters.MaxAmount,
 		MemberID:      filters.MemberID,
-		FamilyID:      filters.FamilyID,
 		Offset:        (page - 1) * pageSize,
 		Limit:         pageSize,
 		OrderBy:       orderBy,

@@ -20,13 +20,12 @@ const (
 	PaymentStatusCancelled PaymentStatus = "cancelled"
 )
 
-// Payment representa un pago realizado por un miembro o familia
+// Payment representa un pago realizado por un miembro
+// Para pagos de miembros familiares, usar el member_id del miembro origen de la familia
 type Payment struct {
 	gorm.Model
-	MemberID        *uint
+	MemberID        uint // Siempre requerido - para familias usar el miembro origen
 	Member          *Member `gorm:"foreignKey:MemberID"`
-	FamilyID        *uint
-	Family          *Family `gorm:"foreignKey:FamilyID"`
 	Amount          float64
 	PaymentDate     *time.Time
 	Status          PaymentStatus
@@ -59,13 +58,12 @@ func NewAnnualFee(year int, baseAmount float64) *MembershipFee {
 
 // Validate verifica que el pago cumpla con las reglas de negocio
 func (p *Payment) Validate() error {
-	// At least one of MemberID or FamilyID must be present
-	if (p.MemberID == nil || *p.MemberID == 0) && (p.FamilyID == nil || *p.FamilyID == 0) {
+	// MemberID is always required
+	if p.MemberID == 0 {
 		return appErrors.NewValidationError(
-			"payment must be associated with either a member or family",
+			"payment must be associated with a member",
 			map[string]string{
-				"MemberID": "required if FamilyID not provided",
-				"FamilyID": "required if MemberID not provided",
+				"MemberID": "required",
 			},
 		)
 	}

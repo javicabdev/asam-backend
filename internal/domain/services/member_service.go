@@ -521,7 +521,7 @@ func (s *memberService) createPendingPayment(ctx context.Context, tx output.Tran
 
 	// Create the pending payment
 	payment := &models.Payment{
-		MemberID:        &member.ID,
+		MemberID:        member.ID,
 		Amount:          amount,
 		PaymentDate:     nil, // Nil indicates pending payment
 		Status:          models.PaymentStatusPending,

@@ -66,7 +66,6 @@ type ComplexityRoot struct {
 		Amount        func(childComplexity int) int
 		Date          func(childComplexity int) int
 		Detail        func(childComplexity int) int
-		Family        func(childComplexity int) int
 		ID            func(childComplexity int) int
 		Member        func(childComplexity int) int
 		OperationType func(childComplexity int) int
@@ -221,7 +220,6 @@ type ComplexityRoot struct {
 
 	Payment struct {
 		Amount        func(childComplexity int) int
-		Family        func(childComplexity int) int
 		ID            func(childComplexity int) int
 		Member        func(childComplexity int) int
 		MembershipFee func(childComplexity int) int
@@ -474,12 +472,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.CashFlow.Detail(childComplexity), true
-	case "CashFlow.family":
-		if e.complexity.CashFlow.Family == nil {
-			break
-		}
-
-		return e.complexity.CashFlow.Family(childComplexity), true
 	case "CashFlow.id":
 		if e.complexity.CashFlow.ID == nil {
 			break
@@ -1318,12 +1310,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Payment.Amount(childComplexity), true
-	case "Payment.family":
-		if e.complexity.Payment.Family == nil {
-			break
-		}
-
-		return e.complexity.Payment.Family(childComplexity), true
 	case "Payment.id":
 		if e.complexity.Payment.ID == nil {
 			break
@@ -2078,8 +2064,7 @@ type Familiar {
 
 type Payment {
     id: ID!
-    member: Member
-    family: Family
+    member: Member!
     amount: Float!
     payment_date: Time
     status: PaymentStatus!
@@ -2103,7 +2088,6 @@ type CashFlow {
     operation_type: OperationType!
     detail: String!
     member: Member
-    family: Family
     payment: Payment
 }
 
@@ -2148,7 +2132,6 @@ input PaymentFilter {
     min_amount: Float
     max_amount: Float
     member_id: ID
-    family_id: ID
     pagination: PaginationInput
     sort: SortInput
 }
@@ -2389,8 +2372,7 @@ input FamiliarInput {
 }
 
 input PaymentInput {
-    member_id: ID
-    family_id: ID
+    member_id: ID!
     amount: Float!
     payment_method: String!
     notes: String
@@ -2398,7 +2380,6 @@ input PaymentInput {
 
 input TransactionInput {
     member_id: ID
-    family_id: ID
     operation_type: OperationType!
     amount: Float!
     date: Time!
@@ -3533,65 +3514,6 @@ func (ec *executionContext) fieldContext_CashFlow_member(_ context.Context, fiel
 	return fc, nil
 }
 
-func (ec *executionContext) _CashFlow_family(ctx context.Context, field graphql.CollectedField, obj *models.CashFlow) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_CashFlow_family,
-		func(ctx context.Context) (any, error) {
-			return obj.Family, nil
-		},
-		nil,
-		ec.marshalOFamily2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐFamily,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_CashFlow_family(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "CashFlow",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Family_id(ctx, field)
-			case "numero_socio":
-				return ec.fieldContext_Family_numero_socio(ctx, field)
-			case "miembro_origen":
-				return ec.fieldContext_Family_miembro_origen(ctx, field)
-			case "esposo_nombre":
-				return ec.fieldContext_Family_esposo_nombre(ctx, field)
-			case "esposo_apellidos":
-				return ec.fieldContext_Family_esposo_apellidos(ctx, field)
-			case "esposo_fecha_nacimiento":
-				return ec.fieldContext_Family_esposo_fecha_nacimiento(ctx, field)
-			case "esposo_documento_identidad":
-				return ec.fieldContext_Family_esposo_documento_identidad(ctx, field)
-			case "esposo_correo_electronico":
-				return ec.fieldContext_Family_esposo_correo_electronico(ctx, field)
-			case "esposa_nombre":
-				return ec.fieldContext_Family_esposa_nombre(ctx, field)
-			case "esposa_apellidos":
-				return ec.fieldContext_Family_esposa_apellidos(ctx, field)
-			case "esposa_fecha_nacimiento":
-				return ec.fieldContext_Family_esposa_fecha_nacimiento(ctx, field)
-			case "esposa_documento_identidad":
-				return ec.fieldContext_Family_esposa_documento_identidad(ctx, field)
-			case "esposa_correo_electronico":
-				return ec.fieldContext_Family_esposa_correo_electronico(ctx, field)
-			case "familiares":
-				return ec.fieldContext_Family_familiares(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Family", field.Name)
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _CashFlow_payment(ctx context.Context, field graphql.CollectedField, obj *models.CashFlow) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -3620,8 +3542,6 @@ func (ec *executionContext) fieldContext_CashFlow_payment(_ context.Context, fie
 				return ec.fieldContext_Payment_id(ctx, field)
 			case "member":
 				return ec.fieldContext_Payment_member(ctx, field)
-			case "family":
-				return ec.fieldContext_Payment_family(ctx, field)
 			case "amount":
 				return ec.fieldContext_Payment_amount(ctx, field)
 			case "payment_date":
@@ -6557,8 +6477,6 @@ func (ec *executionContext) fieldContext_Mutation_registerPayment(ctx context.Co
 				return ec.fieldContext_Payment_id(ctx, field)
 			case "member":
 				return ec.fieldContext_Payment_member(ctx, field)
-			case "family":
-				return ec.fieldContext_Payment_family(ctx, field)
 			case "amount":
 				return ec.fieldContext_Payment_amount(ctx, field)
 			case "payment_date":
@@ -6618,8 +6536,6 @@ func (ec *executionContext) fieldContext_Mutation_updatePayment(ctx context.Cont
 				return ec.fieldContext_Payment_id(ctx, field)
 			case "member":
 				return ec.fieldContext_Payment_member(ctx, field)
-			case "family":
-				return ec.fieldContext_Payment_family(ctx, field)
 			case "amount":
 				return ec.fieldContext_Payment_amount(ctx, field)
 			case "payment_date":
@@ -6728,8 +6644,6 @@ func (ec *executionContext) fieldContext_Mutation_confirmPayment(ctx context.Con
 				return ec.fieldContext_Payment_id(ctx, field)
 			case "member":
 				return ec.fieldContext_Payment_member(ctx, field)
-			case "family":
-				return ec.fieldContext_Payment_family(ctx, field)
 			case "amount":
 				return ec.fieldContext_Payment_amount(ctx, field)
 			case "payment_date":
@@ -6846,8 +6760,6 @@ func (ec *executionContext) fieldContext_Mutation_registerTransaction(ctx contex
 				return ec.fieldContext_CashFlow_detail(ctx, field)
 			case "member":
 				return ec.fieldContext_CashFlow_member(ctx, field)
-			case "family":
-				return ec.fieldContext_CashFlow_family(ctx, field)
 			case "payment":
 				return ec.fieldContext_CashFlow_payment(ctx, field)
 			}
@@ -6905,8 +6817,6 @@ func (ec *executionContext) fieldContext_Mutation_updateTransaction(ctx context.
 				return ec.fieldContext_CashFlow_detail(ctx, field)
 			case "member":
 				return ec.fieldContext_CashFlow_member(ctx, field)
-			case "family":
-				return ec.fieldContext_CashFlow_family(ctx, field)
 			case "payment":
 				return ec.fieldContext_CashFlow_payment(ctx, field)
 			}
@@ -7828,9 +7738,9 @@ func (ec *executionContext) _Payment_member(ctx context.Context, field graphql.C
 			return obj.Member, nil
 		},
 		nil,
-		ec.marshalOMember2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐMember,
+		ec.marshalNMember2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐMember,
 		true,
-		false,
+		true,
 	)
 }
 
@@ -7882,65 +7792,6 @@ func (ec *executionContext) fieldContext_Payment_member(_ context.Context, field
 				return ec.fieldContext_Member_observaciones(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Member", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Payment_family(ctx context.Context, field graphql.CollectedField, obj *models.Payment) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Payment_family,
-		func(ctx context.Context) (any, error) {
-			return obj.Family, nil
-		},
-		nil,
-		ec.marshalOFamily2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐFamily,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Payment_family(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Payment",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Family_id(ctx, field)
-			case "numero_socio":
-				return ec.fieldContext_Family_numero_socio(ctx, field)
-			case "miembro_origen":
-				return ec.fieldContext_Family_miembro_origen(ctx, field)
-			case "esposo_nombre":
-				return ec.fieldContext_Family_esposo_nombre(ctx, field)
-			case "esposo_apellidos":
-				return ec.fieldContext_Family_esposo_apellidos(ctx, field)
-			case "esposo_fecha_nacimiento":
-				return ec.fieldContext_Family_esposo_fecha_nacimiento(ctx, field)
-			case "esposo_documento_identidad":
-				return ec.fieldContext_Family_esposo_documento_identidad(ctx, field)
-			case "esposo_correo_electronico":
-				return ec.fieldContext_Family_esposo_correo_electronico(ctx, field)
-			case "esposa_nombre":
-				return ec.fieldContext_Family_esposa_nombre(ctx, field)
-			case "esposa_apellidos":
-				return ec.fieldContext_Family_esposa_apellidos(ctx, field)
-			case "esposa_fecha_nacimiento":
-				return ec.fieldContext_Family_esposa_fecha_nacimiento(ctx, field)
-			case "esposa_documento_identidad":
-				return ec.fieldContext_Family_esposa_documento_identidad(ctx, field)
-			case "esposa_correo_electronico":
-				return ec.fieldContext_Family_esposa_correo_electronico(ctx, field)
-			case "familiares":
-				return ec.fieldContext_Family_familiares(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Family", field.Name)
 		},
 	}
 	return fc, nil
@@ -8160,8 +8011,6 @@ func (ec *executionContext) fieldContext_PaymentConnection_nodes(_ context.Conte
 				return ec.fieldContext_Payment_id(ctx, field)
 			case "member":
 				return ec.fieldContext_Payment_member(ctx, field)
-			case "family":
-				return ec.fieldContext_Payment_family(ctx, field)
 			case "amount":
 				return ec.fieldContext_Payment_amount(ctx, field)
 			case "payment_date":
@@ -9012,8 +8861,6 @@ func (ec *executionContext) fieldContext_Query_getPayment(ctx context.Context, f
 				return ec.fieldContext_Payment_id(ctx, field)
 			case "member":
 				return ec.fieldContext_Payment_member(ctx, field)
-			case "family":
-				return ec.fieldContext_Payment_family(ctx, field)
 			case "amount":
 				return ec.fieldContext_Payment_amount(ctx, field)
 			case "payment_date":
@@ -9073,8 +8920,6 @@ func (ec *executionContext) fieldContext_Query_getMemberPayments(ctx context.Con
 				return ec.fieldContext_Payment_id(ctx, field)
 			case "member":
 				return ec.fieldContext_Payment_member(ctx, field)
-			case "family":
-				return ec.fieldContext_Payment_family(ctx, field)
 			case "amount":
 				return ec.fieldContext_Payment_amount(ctx, field)
 			case "payment_date":
@@ -9134,8 +8979,6 @@ func (ec *executionContext) fieldContext_Query_getFamilyPayments(ctx context.Con
 				return ec.fieldContext_Payment_id(ctx, field)
 			case "member":
 				return ec.fieldContext_Payment_member(ctx, field)
-			case "family":
-				return ec.fieldContext_Payment_family(ctx, field)
 			case "amount":
 				return ec.fieldContext_Payment_amount(ctx, field)
 			case "payment_date":
@@ -9438,8 +9281,6 @@ func (ec *executionContext) fieldContext_Query_getCashFlow(ctx context.Context, 
 				return ec.fieldContext_CashFlow_detail(ctx, field)
 			case "member":
 				return ec.fieldContext_CashFlow_member(ctx, field)
-			case "family":
-				return ec.fieldContext_CashFlow_family(ctx, field)
 			case "payment":
 				return ec.fieldContext_CashFlow_payment(ctx, field)
 			}
@@ -10386,8 +10227,6 @@ func (ec *executionContext) fieldContext_TransactionConnection_nodes(_ context.C
 				return ec.fieldContext_CashFlow_detail(ctx, field)
 			case "member":
 				return ec.fieldContext_CashFlow_member(ctx, field)
-			case "family":
-				return ec.fieldContext_CashFlow_family(ctx, field)
 			case "payment":
 				return ec.fieldContext_CashFlow_payment(ctx, field)
 			}
@@ -12781,7 +12620,7 @@ func (ec *executionContext) unmarshalInputPaymentFilter(ctx context.Context, obj
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"status", "payment_method", "start_date", "end_date", "min_amount", "max_amount", "member_id", "family_id", "pagination", "sort"}
+	fieldsInOrder := [...]string{"status", "payment_method", "start_date", "end_date", "min_amount", "max_amount", "member_id", "pagination", "sort"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -12837,13 +12676,6 @@ func (ec *executionContext) unmarshalInputPaymentFilter(ctx context.Context, obj
 				return it, err
 			}
 			it.MemberID = data
-		case "family_id":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("family_id"))
-			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.FamilyID = data
 		case "pagination":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("pagination"))
 			data, err := ec.unmarshalOPaginationInput2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPaginationInput(ctx, v)
@@ -12871,7 +12703,7 @@ func (ec *executionContext) unmarshalInputPaymentInput(ctx context.Context, obj 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"member_id", "family_id", "amount", "payment_method", "notes"}
+	fieldsInOrder := [...]string{"member_id", "amount", "payment_method", "notes"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -12880,18 +12712,11 @@ func (ec *executionContext) unmarshalInputPaymentInput(ctx context.Context, obj 
 		switch k {
 		case "member_id":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("member_id"))
-			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			data, err := ec.unmarshalNID2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.MemberID = data
-		case "family_id":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("family_id"))
-			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.FamilyID = data
 		case "amount":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("amount"))
 			data, err := ec.unmarshalNFloat2float64(ctx, v)
@@ -13042,7 +12867,7 @@ func (ec *executionContext) unmarshalInputTransactionInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"member_id", "family_id", "operation_type", "amount", "date", "detail"}
+	fieldsInOrder := [...]string{"member_id", "operation_type", "amount", "date", "detail"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13056,13 +12881,6 @@ func (ec *executionContext) unmarshalInputTransactionInput(ctx context.Context, 
 				return it, err
 			}
 			it.MemberID = data
-		case "family_id":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("family_id"))
-			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.FamilyID = data
 		case "operation_type":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("operation_type"))
 			data, err := ec.unmarshalNOperationType2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐOperationType(ctx, v)
@@ -13498,8 +13316,6 @@ func (ec *executionContext) _CashFlow(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "member":
 			out.Values[i] = ec._CashFlow_member(ctx, field, obj)
-		case "family":
-			out.Values[i] = ec._CashFlow_family(ctx, field, obj)
 		case "payment":
 			out.Values[i] = ec._CashFlow_payment(ctx, field, obj)
 		default:
@@ -15214,8 +15030,9 @@ func (ec *executionContext) _Payment(ctx context.Context, sel ast.SelectionSet, 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "member":
 			out.Values[i] = ec._Payment_member(ctx, field, obj)
-		case "family":
-			out.Values[i] = ec._Payment_family(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "amount":
 			out.Values[i] = ec._Payment_amount(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

@@ -177,14 +177,12 @@ type PaymentFilter struct {
 	MinAmount     *float64              `json:"min_amount,omitempty"`
 	MaxAmount     *float64              `json:"max_amount,omitempty"`
 	MemberID      *string               `json:"member_id,omitempty"`
-	FamilyID      *string               `json:"family_id,omitempty"`
 	Pagination    *PaginationInput      `json:"pagination,omitempty"`
 	Sort          *SortInput            `json:"sort,omitempty"`
 }
 
 type PaymentInput struct {
-	MemberID      *string `json:"member_id,omitempty"`
-	FamilyID      *string `json:"family_id,omitempty"`
+	MemberID      string  `json:"member_id"`
 	Amount        float64 `json:"amount"`
 	PaymentMethod string  `json:"payment_method"`
 	Notes         *string `json:"notes,omitempty"`
@@ -239,7 +237,6 @@ type TransactionFilter struct {
 
 type TransactionInput struct {
 	MemberID      *string              `json:"member_id,omitempty"`
-	FamilyID      *string              `json:"family_id,omitempty"`
 	OperationType models.OperationType `json:"operation_type"`
 	Amount        float64              `json:"amount"`
 	Date          time.Time            `json:"date"`

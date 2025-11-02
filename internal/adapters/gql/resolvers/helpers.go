@@ -166,15 +166,6 @@ func (r *queryResolver) mapPaymentFilterToDomain(filter *model.PaymentFilter) (i
 			}
 			filters.MemberID = &memberID
 		}
-
-		// Family filter
-		if filter.FamilyID != nil {
-			familyID, err := parseID(*filter.FamilyID)
-			if err != nil {
-				return input.PaymentFilters{}, err
-			}
-			filters.FamilyID = &familyID
-		}
 	}
 
 	filters.Page = page
