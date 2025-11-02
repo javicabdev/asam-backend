@@ -21,18 +21,24 @@ const (
 )
 
 type familyService struct {
-	familyRepo output.FamilyRepository
-	memberRepo output.MemberRepository
+	familyRepo           output.FamilyRepository
+	memberRepo           output.MemberRepository
+	paymentRepository    output.PaymentRepository
+	membershipFeeRepo    output.MembershipFeeRepository
 }
 
 // NewFamilyService crea una nueva instancia del servicio
 func NewFamilyService(
 	familyRepo output.FamilyRepository,
 	memberRepo output.MemberRepository,
+	paymentRepository output.PaymentRepository,
+	membershipFeeRepo output.MembershipFeeRepository,
 ) input.FamilyService {
 	return &familyService{
-		familyRepo: familyRepo,
-		memberRepo: memberRepo,
+		familyRepo:        familyRepo,
+		memberRepo:        memberRepo,
+		paymentRepository: paymentRepository,
+		membershipFeeRepo: membershipFeeRepo,
 	}
 }
 
@@ -471,6 +477,45 @@ func (s *familyService) createFamilyAndFamiliares(
 	return nil
 }
 
+// createPendingPaymentForFamily creates a pending payment for the family's origin member
+func (s *familyService) createPendingPaymentForFamily(ctx context.Context, tx output.Transaction, memberID uint) error {
+	currentYear := time.Now().Year()
+
+	// Get the annual membership fee for the current year
+	fee, err := s.membershipFeeRepo.FindByYearWithTx(ctx, tx, currentYear)
+	if err != nil {
+		return errors.DB(err, "error obteniendo cuota de socio")
+	}
+
+	if fee == nil {
+		return errors.New(errors.ErrNotFound, fmt.Sprintf("no existe cuota para el año %d", currentYear))
+	}
+
+	// Family memberships get the extra amount
+	amount := fee.Calculate(true)
+
+	// Create the pending payment
+	payment := &models.Payment{
+		MemberID:        &memberID,
+		Amount:          amount,
+		PaymentDate:     time.Time{}, // Zero value indicates pending
+		Status:          models.PaymentStatusPending,
+		PaymentMethod:   "",
+		Notes:           "Pago pendiente generado automáticamente para familia",
+		MembershipFeeID: &fee.ID,
+	}
+
+	if err := payment.Validate(); err != nil {
+		return errors.Validation("Error validando pago", "", err.Error())
+	}
+
+	if err := s.paymentRepository.CreateWithTx(ctx, tx, payment); err != nil {
+		return errors.DB(err, "error creando pago pendiente")
+	}
+
+	return nil
+}
+
 // CreateFamilyAtomic creates a family with optional member and familiares in a single atomic transaction
 func (s *familyService) CreateFamilyAtomic(ctx context.Context, req *input.CreateFamilyAtomicRequest) (*models.Family, error) {
 	// 1. Validate request
@@ -499,6 +544,17 @@ func (s *familyService) CreateFamilyAtomic(ctx context.Context, req *input.Creat
 
 	if originMemberID != 0 {
 		req.Family.MiembroOrigenID = &originMemberID
+	}
+
+	// 3.5. Create pending payment for the newly created member
+	// Only if we created a new member (not if using an existing one)
+	if req.CreateMemberIfNotExists && originMemberID != 0 {
+		// Check if this is a newly created member by verifying it was just created in this transaction
+		// We create payment for all cases where we have an originMemberID and CreateMemberIfNotExists is true
+		if err := s.createPendingPaymentForFamily(ctx, tx, originMemberID); err != nil {
+			_ = tx.Rollback()
+			return nil, err
+		}
 	}
 
 	// 4. Create family and familiares

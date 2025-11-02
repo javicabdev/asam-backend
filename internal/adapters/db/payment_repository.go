@@ -281,6 +281,23 @@ func (r *paymentRepository) CountAll(ctx context.Context, filters *output.Paymen
 	return count, nil
 }
 
+// CreateWithTx creates a payment within a transaction (without creating CashFlow)
+func (r *paymentRepository) CreateWithTx(ctx context.Context, tx output.Transaction, payment *models.Payment) error {
+	gormTx, ok := tx.(*gormTransaction)
+	if !ok {
+		return appErrors.New(appErrors.ErrInternalError, "invalid transaction type")
+	}
+
+	result := gormTx.tx.WithContext(ctx).Create(payment)
+	if result.Error != nil {
+		if IsDuplicateKeyError(result.Error) {
+			return appErrors.New(appErrors.ErrDuplicateEntry, "payment already exists")
+		}
+		return appErrors.DB(result.Error, "error creating payment")
+	}
+	return nil
+}
+
 // MembershipFeeRepository
 type membershipFeeRepository struct {
 	db *gorm.DB
@@ -369,4 +386,43 @@ func (r *membershipFeeRepository) FindByID(ctx context.Context, id uint) (*model
 	}
 
 	return &fee, nil
+}
+
+// FindByYearWithTx finds a membership fee by year within a transaction
+func (r *membershipFeeRepository) FindByYearWithTx(ctx context.Context, tx output.Transaction, year int) (*models.MembershipFee, error) {
+	gormTx, ok := tx.(*gormTransaction)
+	if !ok {
+		return nil, appErrors.New(appErrors.ErrInternalError, "invalid transaction type")
+	}
+
+	var fee models.MembershipFee
+	result := gormTx.tx.WithContext(ctx).
+		Where("year = ?", year).
+		First(&fee)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, appErrors.DB(result.Error, "error finding annual membership fee")
+	}
+
+	return &fee, nil
+}
+
+// CreateWithTx creates a membership fee within a transaction
+func (r *membershipFeeRepository) CreateWithTx(ctx context.Context, tx output.Transaction, fee *models.MembershipFee) error {
+	gormTx, ok := tx.(*gormTransaction)
+	if !ok {
+		return appErrors.New(appErrors.ErrInternalError, "invalid transaction type")
+	}
+
+	result := gormTx.tx.WithContext(ctx).Create(fee)
+	if result.Error != nil {
+		if IsDuplicateKeyError(result.Error) {
+			return appErrors.New(appErrors.ErrDuplicateEntry, "membership fee already exists for this period")
+		}
+		return appErrors.DB(result.Error, "error creating membership fee")
+	}
+	return nil
 }

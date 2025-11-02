@@ -159,6 +159,15 @@ func (r *memberRepository) List(ctx context.Context, filters output.MemberFilter
 
 // Transaction support methods
 
+// BeginTransaction starts a new database transaction
+func (r *memberRepository) BeginTransaction(ctx context.Context) (output.Transaction, error) {
+	tx := r.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return nil, appErrors.DB(tx.Error, "error beginning transaction")
+	}
+	return &gormTransaction{tx: tx}, nil
+}
+
 // CreateWithTx creates a member within a transaction
 func (r *memberRepository) CreateWithTx(ctx context.Context, tx output.Transaction, member *models.Member) error {
 	gormTx, ok := tx.(*gormTransaction)

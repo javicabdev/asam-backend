@@ -19,17 +19,27 @@ import (
 )
 
 type memberService struct {
-	repository  output.MemberRepository
-	appLogger   logger.Logger
-	auditLogger audit.Logger
+	repository           output.MemberRepository
+	paymentRepository    output.PaymentRepository
+	membershipFeeRepo    output.MembershipFeeRepository
+	appLogger            logger.Logger
+	auditLogger          audit.Logger
 }
 
 // NewMemberService crea una nueva instancia del servicio de miembros
-func NewMemberService(repository output.MemberRepository, appLogger logger.Logger, auditLogger audit.Logger) input.MemberService {
+func NewMemberService(
+	repository output.MemberRepository,
+	paymentRepository output.PaymentRepository,
+	membershipFeeRepo output.MembershipFeeRepository,
+	appLogger logger.Logger,
+	auditLogger audit.Logger,
+) input.MemberService {
 	return &memberService{
-		repository:  repository,
-		appLogger:   appLogger,
-		auditLogger: auditLogger,
+		repository:        repository,
+		paymentRepository: paymentRepository,
+		membershipFeeRepo: membershipFeeRepo,
+		appLogger:         appLogger,
+		auditLogger:       auditLogger,
 	}
 }
 
@@ -40,115 +50,37 @@ func (s *memberService) CreateMember(ctx context.Context, member *models.Member)
 		zap.String("numero_socio", member.MembershipNumber),
 		zap.String("tipo_membresia", member.MembershipType))
 
-	// Verificar si ya existe un miembro con el mismo número de socio
-	existing, err := s.repository.GetByNumeroSocio(ctx, member.MembershipNumber)
-	if err != nil {
-		s.appLogger.Error("Error checking existing member",
-			zap.String("numero_socio", member.MembershipNumber),
-			zap.Error(err))
-		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
-			"Error al verificar miembro existente", err)
-		return errors.DB(err, "error verificando miembro existente")
-	}
+	// ========================================
+	// PHASE 1: Pre-transaction validations
+	// ========================================
 
-	if existing != nil {
-		validationErr := errors.NewValidationError(
-			"El número de socio ya está registrado",
-			map[string]string{
-				"numero_socio": fmt.Sprintf("Ya existe un miembro con el número de socio %s", member.MembershipNumber),
-			},
-		)
-		s.appLogger.Warn("Attempted to create duplicate member",
-			zap.String("numero_socio", member.MembershipNumber))
-		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
-			"Intento de crear miembro duplicado", validationErr)
-		return validationErr
-	}
-
-	// Verificar si ya existe un miembro con el mismo documento de identidad
-	if member.IdentityCard != nil && *member.IdentityCard != "" {
-		existingByDNI, err := s.repository.GetByIdentityCard(ctx, *member.IdentityCard)
-		if err != nil {
-			s.appLogger.Error("Error checking existing member by identity card",
-				zap.String("identity_card", *member.IdentityCard),
-				zap.Error(err))
-			s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
-				"Error al verificar documento de identidad", err)
-			return errors.DB(err, "error verificando documento de identidad")
-		}
-
-		if existingByDNI != nil {
-			validationErr := errors.NewValidationError(
-				"El documento de identidad ya está registrado",
-				map[string]string{
-					"documento_identidad": fmt.Sprintf("Ya existe un miembro (%s) con este documento de identidad", existingByDNI.MembershipNumber),
-				},
-			)
-			s.appLogger.Warn("Attempted to create member with duplicate identity card",
-				zap.String("identity_card", *member.IdentityCard),
-				zap.String("existing_member", existingByDNI.MembershipNumber))
-			s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
-				"Intento de crear miembro con documento de identidad duplicado", validationErr)
-			return validationErr
-		}
+	// Validar duplicados
+	if err := s.validateDuplicateMember(ctx, member); err != nil {
+		return err
 	}
 
 	// Establecer valores por defecto
-	if member.State == "" {
-		member.State = models.EstadoActivo
-	}
-	if member.Province == "" {
-		member.Province = "Barcelona"
-	}
-	if member.Country == "" {
-		member.Country = "España"
-	}
-	if member.Nationality == "" {
-		member.Nationality = "Senegal"
-	}
+	s.setDefaultValues(member)
 
 	// Validar el miembro antes de crear
-	if err := member.Validate(); err != nil {
-		s.appLogger.Error("Member validation failed",
-			zap.String("numero_socio", member.MembershipNumber),
-			zap.Error(err))
-		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
-			"Error en la validación del miembro", err)
-
-		// Conservar el error de validación si ya es un AppError, sino convertirlo
-		appErr, ok := errors.AsAppError(err)
-		if ok {
-			return appErr
-		}
-		return errors.Validation("Error validando miembro", "", err.Error())
+	if err := s.validateMember(ctx, member); err != nil {
+		return err
 	}
 
-	// Crear el miembro en la base de datos
-	if err := s.repository.Create(ctx, member); err != nil {
-		s.appLogger.Error("Failed to create member",
-			zap.String("numero_socio", member.MembershipNumber),
-			zap.Error(err))
-		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
-			"Error al crear miembro en base de datos", err)
-		return errors.DB(err, "error creando miembro")
+	// ========================================
+	// PHASE 2: Atomic transaction
+	// ========================================
+
+	if err := s.createMemberWithPayment(ctx, member); err != nil {
+		return err
 	}
 
-	// Actualizar métricas de miembros
-	metrics.MembersByStatus.WithLabelValues(
-		member.State,
-		member.MembershipType,
-	).Inc()
+	// ========================================
+	// PHASE 3: Post-transaction operations
+	// ========================================
 
-	// Registrar la acción en el log de auditoría
-	s.auditLogger.LogAction(ctx,
-		audit.ActionCreate,
-		audit.EntityMember,
-		member.MembershipNumber,
-		"Created new member")
-
-	s.appLogger.Info("Member created successfully",
-		zap.String("numero_socio", member.MembershipNumber),
-		zap.Uint("member_id", member.ID))
+	s.updateMetrics(member)
+	s.logSuccess(ctx, member)
 
 	return nil
 }
@@ -377,6 +309,247 @@ func (s *memberService) ListMembers(ctx context.Context, filters input.MemberFil
 	}
 
 	return result, nil
+}
+
+// validateDuplicateMember verifica si ya existe un miembro con el mismo número o documento
+func (s *memberService) validateDuplicateMember(ctx context.Context, member *models.Member) error {
+	// Verificar si ya existe un miembro con el mismo número de socio
+	existing, err := s.repository.GetByNumeroSocio(ctx, member.MembershipNumber)
+	if err != nil {
+		s.appLogger.Error("Error checking existing member",
+			zap.String("numero_socio", member.MembershipNumber),
+			zap.Error(err))
+		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
+			"Error al verificar miembro existente", err)
+		return errors.DB(err, "error verificando miembro existente")
+	}
+
+	if existing != nil {
+		validationErr := errors.NewValidationError(
+			"El número de socio ya está registrado",
+			map[string]string{
+				"numero_socio": fmt.Sprintf("Ya existe un miembro con el número de socio %s", member.MembershipNumber),
+			},
+		)
+		s.appLogger.Warn("Attempted to create duplicate member",
+			zap.String("numero_socio", member.MembershipNumber))
+		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
+			"Intento de crear miembro duplicado", validationErr)
+		return validationErr
+	}
+
+	// Verificar si ya existe un miembro con el mismo documento de identidad
+	if member.IdentityCard != nil && *member.IdentityCard != "" {
+		return s.validateDuplicateIdentityCard(ctx, member)
+	}
+
+	return nil
+}
+
+// validateDuplicateIdentityCard verifica si ya existe un miembro con el mismo documento
+func (s *memberService) validateDuplicateIdentityCard(ctx context.Context, member *models.Member) error {
+	existingByDNI, err := s.repository.GetByIdentityCard(ctx, *member.IdentityCard)
+	if err != nil {
+		s.appLogger.Error("Error checking existing member by identity card",
+			zap.String("identity_card", *member.IdentityCard),
+			zap.Error(err))
+		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
+			"Error al verificar documento de identidad", err)
+		return errors.DB(err, "error verificando documento de identidad")
+	}
+
+	if existingByDNI != nil {
+		validationErr := errors.NewValidationError(
+			"El documento de identidad ya está registrado",
+			map[string]string{
+				"documento_identidad": fmt.Sprintf("Ya existe un miembro (%s) con este documento de identidad", existingByDNI.MembershipNumber),
+			},
+		)
+		s.appLogger.Warn("Attempted to create member with duplicate identity card",
+			zap.String("identity_card", *member.IdentityCard),
+			zap.String("existing_member", existingByDNI.MembershipNumber))
+		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
+			"Intento de crear miembro con documento de identidad duplicado", validationErr)
+		return validationErr
+	}
+
+	return nil
+}
+
+// setDefaultValues establece los valores por defecto para un nuevo miembro
+func (s *memberService) setDefaultValues(member *models.Member) {
+	if member.State == "" {
+		member.State = models.EstadoActivo
+	}
+	if member.Province == "" {
+		member.Province = "Barcelona"
+	}
+	if member.Country == "" {
+		member.Country = "España"
+	}
+	if member.Nationality == "" {
+		member.Nationality = "Senegal"
+	}
+}
+
+// validateMember valida el miembro y convierte errores a AppError
+func (s *memberService) validateMember(ctx context.Context, member *models.Member) error {
+	if err := member.Validate(); err != nil {
+		s.appLogger.Error("Member validation failed",
+			zap.String("numero_socio", member.MembershipNumber),
+			zap.Error(err))
+		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
+			"Error en la validación del miembro", err)
+
+		// Conservar el error de validación si ya es un AppError, sino convertirlo
+		appErr, ok := errors.AsAppError(err)
+		if ok {
+			return appErr
+		}
+		return errors.Validation("Error validando miembro", "", err.Error())
+	}
+	return nil
+}
+
+// createMemberWithPayment crea el miembro y el pago pendiente en una transacción
+func (s *memberService) createMemberWithPayment(ctx context.Context, member *models.Member) error {
+	// Begin transaction
+	tx, err := s.repository.BeginTransaction(ctx)
+	if err != nil {
+		s.appLogger.Error("Failed to begin transaction",
+			zap.String("numero_socio", member.MembershipNumber),
+			zap.Error(err))
+		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
+			"Error al iniciar transacción", err)
+		return errors.DB(err, "error iniciando transacción")
+	}
+
+	// Ensure rollback on error
+	defer func() {
+		if err != nil {
+			s.rollbackTransaction(tx, member.MembershipNumber)
+		}
+	}()
+
+	// Create the member in the database within transaction
+	if err = s.repository.CreateWithTx(ctx, tx, member); err != nil {
+		s.appLogger.Error("Failed to create member",
+			zap.String("numero_socio", member.MembershipNumber),
+			zap.Error(err))
+		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
+			"Error al crear miembro en base de datos", err)
+		return errors.DB(err, "error creando miembro")
+	}
+
+	// Create the pending payment for the current year
+	if err = s.createPendingPayment(ctx, tx, member); err != nil {
+		s.appLogger.Error("Failed to create pending payment",
+			zap.String("numero_socio", member.MembershipNumber),
+			zap.Uint("member_id", member.ID),
+			zap.Error(err))
+		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
+			"Error al crear pago pendiente", err)
+		return err // Already wrapped in createPendingPayment
+	}
+
+	// Commit transaction
+	if err = tx.Commit(); err != nil {
+		s.appLogger.Error("Failed to commit transaction",
+			zap.String("numero_socio", member.MembershipNumber),
+			zap.Error(err))
+		s.auditLogger.LogError(ctx, audit.ActionCreate, audit.EntityMember, member.MembershipNumber,
+			"Error al confirmar transacción", err)
+		return errors.DB(err, "error confirmando transacción")
+	}
+
+	return nil
+}
+
+// rollbackTransaction ejecuta rollback de una transacción y loguea errores
+func (s *memberService) rollbackTransaction(tx output.Transaction, membershipNumber string) {
+	if rbErr := tx.Rollback(); rbErr != nil {
+		s.appLogger.Error("Failed to rollback transaction",
+			zap.String("numero_socio", membershipNumber),
+			zap.Error(rbErr))
+	}
+}
+
+// updateMetrics actualiza las métricas de miembros
+func (s *memberService) updateMetrics(member *models.Member) {
+	metrics.MembersByStatus.WithLabelValues(
+		member.State,
+		member.MembershipType,
+	).Inc()
+}
+
+// logSuccess registra el éxito de la creación del miembro
+func (s *memberService) logSuccess(ctx context.Context, member *models.Member) {
+	// Registrar la acción en el log de auditoría
+	s.auditLogger.LogAction(ctx,
+		audit.ActionCreate,
+		audit.EntityMember,
+		member.MembershipNumber,
+		"Created new member with pending payment")
+
+	s.appLogger.Info("Member created successfully with pending payment",
+		zap.String("numero_socio", member.MembershipNumber),
+		zap.Uint("member_id", member.ID))
+}
+
+// createPendingPayment creates a pending payment for a newly created member
+func (s *memberService) createPendingPayment(ctx context.Context, tx output.Transaction, member *models.Member) error {
+	currentYear := time.Now().Year()
+
+	// Get the annual membership fee for the current year
+	fee, err := s.membershipFeeRepo.FindByYearWithTx(ctx, tx, currentYear)
+	if err != nil {
+		s.appLogger.Error("Error fetching membership fee",
+			zap.Int("year", currentYear),
+			zap.Error(err))
+		return errors.DB(err, "error obteniendo cuota de socio")
+	}
+
+	if fee == nil {
+		s.appLogger.Warn("No membership fee found for current year",
+			zap.Int("year", currentYear))
+		return errors.New(errors.ErrNotFound, fmt.Sprintf("no existe cuota para el año %d", currentYear))
+	}
+
+	// Determine payment amount based on membership type
+	isFamily := member.MembershipType == models.TipoMembresiaPFamiliar
+	amount := fee.Calculate(isFamily)
+
+	// Create the pending payment
+	payment := &models.Payment{
+		MemberID:        &member.ID,
+		Amount:          amount,
+		PaymentDate:     time.Time{}, // Zero value indicates pending
+		Status:          models.PaymentStatusPending,
+		PaymentMethod:   "",
+		Notes:           "Pago pendiente generado automáticamente",
+		MembershipFeeID: &fee.ID,
+	}
+
+	if err := payment.Validate(); err != nil {
+		s.appLogger.Error("Payment validation failed",
+			zap.Uint("member_id", member.ID),
+			zap.Error(err))
+		return errors.Validation("Error validando pago", "", err.Error())
+	}
+
+	if err := s.paymentRepository.CreateWithTx(ctx, tx, payment); err != nil {
+		s.appLogger.Error("Failed to create pending payment",
+			zap.Uint("member_id", member.ID),
+			zap.Error(err))
+		return errors.DB(err, "error creando pago pendiente")
+	}
+
+	s.appLogger.Info("Pending payment created successfully",
+		zap.Uint("member_id", member.ID),
+		zap.Uint("payment_id", payment.ID),
+		zap.Float64("amount", payment.Amount))
+
+	return nil
 }
 
 // numToStr es una función auxiliar para convertir un número a string para los logs

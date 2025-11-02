@@ -18,6 +18,9 @@ type PaymentRepository interface {
 	HasInitialPayment(ctx context.Context, memberID *uint, familyID *uint) (bool, error)
 	FindAll(ctx context.Context, filters *PaymentRepositoryFilters) ([]models.Payment, error)
 	CountAll(ctx context.Context, filters *PaymentRepositoryFilters) (int64, error)
+
+	// Transaction support
+	CreateWithTx(ctx context.Context, tx Transaction, payment *models.Payment) error
 }
 
 // PaymentRepositoryFilters defines database-level filters for payment queries
@@ -42,4 +45,8 @@ type MembershipFeeRepository interface {
 	FindByID(ctx context.Context, id uint) (*models.MembershipFee, error)
 	FindByYear(ctx context.Context, year int) (*models.MembershipFee, error)
 	FindPendingByMember(ctx context.Context, memberID uint) ([]models.MembershipFee, error)
+
+	// Transaction support
+	FindByYearWithTx(ctx context.Context, tx Transaction, year int) (*models.MembershipFee, error)
+	CreateWithTx(ctx context.Context, tx Transaction, fee *models.MembershipFee) error
 }

@@ -19,6 +19,7 @@ type MemberRepository interface {
 	SearchWithoutUser(ctx context.Context, criteria string) ([]models.Member, error)
 
 	// Transaction support
+	BeginTransaction(ctx context.Context) (Transaction, error)
 	CreateWithTx(ctx context.Context, tx Transaction, member *models.Member) error
 	GetByIDWithTx(ctx context.Context, tx Transaction, id uint) (*models.Member, error)
 	GetByNumeroSocioWithTx(ctx context.Context, tx Transaction, numeroSocio string) (*models.Member, error)

@@ -499,8 +499,8 @@ func initializeServicesAndDependencies(ctx context.Context, cfg *config.Config, 
 	)
 
 	// Initialize domain services
-	memberService := services.NewMemberService(memberRepo, appLogger, auditLogger)
-	familyService := services.NewFamilyService(familyRepo, memberRepo)
+	memberService := services.NewMemberService(memberRepo, paymentRepo, membershipFeeRepo, appLogger, auditLogger)
+	familyService := services.NewFamilyService(familyRepo, memberRepo, paymentRepo, membershipFeeRepo)
 
 	// Initialize email verification service (always available now)
 	emailVerificationService := services.NewEmailVerificationService(
