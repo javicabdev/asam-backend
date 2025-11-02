@@ -19,11 +19,11 @@ import (
 )
 
 type memberService struct {
-	repository           output.MemberRepository
-	paymentRepository    output.PaymentRepository
-	membershipFeeRepo    output.MembershipFeeRepository
-	appLogger            logger.Logger
-	auditLogger          audit.Logger
+	repository        output.MemberRepository
+	paymentRepository output.PaymentRepository
+	membershipFeeRepo output.MembershipFeeRepository
+	appLogger         logger.Logger
+	auditLogger       audit.Logger
 }
 
 // NewMemberService crea una nueva instancia del servicio de miembros
@@ -526,7 +526,7 @@ func (s *memberService) createPendingPayment(ctx context.Context, tx output.Tran
 		PaymentDate:     nil, // Nil indicates pending payment
 		Status:          models.PaymentStatusPending,
 		PaymentMethod:   "",
-		Notes:           "Pago pendiente generado automáticamente",
+		Notes:           "",
 		MembershipFeeID: &fee.ID,
 	}
 

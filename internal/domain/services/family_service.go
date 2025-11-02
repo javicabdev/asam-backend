@@ -21,10 +21,10 @@ const (
 )
 
 type familyService struct {
-	familyRepo           output.FamilyRepository
-	memberRepo           output.MemberRepository
-	paymentRepository    output.PaymentRepository
-	membershipFeeRepo    output.MembershipFeeRepository
+	familyRepo        output.FamilyRepository
+	memberRepo        output.MemberRepository
+	paymentRepository output.PaymentRepository
+	membershipFeeRepo output.MembershipFeeRepository
 }
 
 // NewFamilyService crea una nueva instancia del servicio
@@ -501,7 +501,7 @@ func (s *familyService) createPendingPaymentForFamily(ctx context.Context, tx ou
 		PaymentDate:     nil, // Nil indicates pending payment
 		Status:          models.PaymentStatusPending,
 		PaymentMethod:   "",
-		Notes:           "Pago pendiente generado automáticamente para familia",
+		Notes:           "",
 		MembershipFeeID: &fee.ID,
 	}
 
