@@ -183,7 +183,7 @@ type ComplexityRoot struct {
 		CancelPayment           func(childComplexity int, id string, reason string) int
 		ChangeMemberStatus      func(childComplexity int, id string, status model.MemberStatus) int
 		ChangePassword          func(childComplexity int, input model.ChangePasswordInput) int
-		ConfirmPayment          func(childComplexity int, id string, paymentMethod string) int
+		ConfirmPayment          func(childComplexity int, id string, paymentMethod string, paymentDate *time.Time, notes *string) int
 		CreateFamily            func(childComplexity int, input model.CreateFamilyInput) int
 		CreateMember            func(childComplexity int, input model.CreateMemberInput) int
 		CreateUser              func(childComplexity int, input model.CreateUserInput) int
@@ -355,7 +355,7 @@ type MutationResolver interface {
 	RegisterPayment(ctx context.Context, input model.PaymentInput) (*models.Payment, error)
 	UpdatePayment(ctx context.Context, id string, input model.PaymentInput) (*models.Payment, error)
 	CancelPayment(ctx context.Context, id string, reason string) (*model.MutationResponse, error)
-	ConfirmPayment(ctx context.Context, id string, paymentMethod string) (*models.Payment, error)
+	ConfirmPayment(ctx context.Context, id string, paymentMethod string, paymentDate *time.Time, notes *string) (*models.Payment, error)
 	RegisterFee(ctx context.Context, year int, baseAmount float64) (*model.MutationResponse, error)
 	RegisterTransaction(ctx context.Context, input model.TransactionInput) (*models.CashFlow, error)
 	UpdateTransaction(ctx context.Context, id string, input model.TransactionInput) (*models.CashFlow, error)
@@ -1043,7 +1043,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.ConfirmPayment(childComplexity, args["id"].(string), args["paymentMethod"].(string)), true
+		return e.complexity.Mutation.ConfirmPayment(childComplexity, args["id"].(string), args["paymentMethod"].(string), args["paymentDate"].(*time.Time), args["notes"].(*string)), true
 	case "Mutation.createFamily":
 		if e.complexity.Mutation.CreateFamily == nil {
 			break
@@ -2479,7 +2479,7 @@ type Mutation {
     registerPayment(input: PaymentInput!): Payment!
     updatePayment(id: ID!, input: PaymentInput!): Payment!
     cancelPayment(id: ID!, reason: String!): MutationResponse!
-    confirmPayment(id: ID!, paymentMethod: String!): Payment!
+    confirmPayment(id: ID!, paymentMethod: String!, paymentDate: Time, notes: String): Payment!
     registerFee(year: Int!, base_amount: Float!): MutationResponse!
 
     # CashFlow Mutations
@@ -2604,6 +2604,16 @@ func (ec *executionContext) field_Mutation_confirmPayment_args(ctx context.Conte
 		return nil, err
 	}
 	args["paymentMethod"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "paymentDate", ec.unmarshalOTime2ᚖtimeᚐTime)
+	if err != nil {
+		return nil, err
+	}
+	args["paymentDate"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "notes", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["notes"] = arg3
 	return args, nil
 }
 
@@ -6791,7 +6801,7 @@ func (ec *executionContext) _Mutation_confirmPayment(ctx context.Context, field 
 		ec.fieldContext_Mutation_confirmPayment,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().ConfirmPayment(ctx, fc.Args["id"].(string), fc.Args["paymentMethod"].(string))
+			return ec.resolvers.Mutation().ConfirmPayment(ctx, fc.Args["id"].(string), fc.Args["paymentMethod"].(string), fc.Args["paymentDate"].(*time.Time), fc.Args["notes"].(*string))
 		},
 		nil,
 		ec.marshalNPayment2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐPayment,

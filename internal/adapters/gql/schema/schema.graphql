@@ -521,7 +521,7 @@ type Mutation {
     registerPayment(input: PaymentInput!): Payment!
     updatePayment(id: ID!, input: PaymentInput!): Payment!
     cancelPayment(id: ID!, reason: String!): MutationResponse!
-    confirmPayment(id: ID!, paymentMethod: String!): Payment!
+    confirmPayment(id: ID!, paymentMethod: String!, paymentDate: Time, notes: String): Payment!
     registerFee(year: Int!, base_amount: Float!): MutationResponse!
 
     # CashFlow Mutations

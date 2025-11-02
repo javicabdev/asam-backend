@@ -22,7 +22,7 @@ type AccountStatement struct {
 type PaymentService interface {
 	RegisterPayment(ctx context.Context, payment *models.Payment) error
 	CancelPayment(ctx context.Context, paymentID uint, reason string) error
-	ConfirmPayment(ctx context.Context, paymentID uint, paymentMethod string) (*models.Payment, error)
+	ConfirmPayment(ctx context.Context, paymentID uint, paymentMethod string, paymentDate *time.Time, notes *string) (*models.Payment, error)
 	GetPayment(ctx context.Context, paymentID uint) (*models.Payment, error)
 	GetMemberPayments(ctx context.Context, memberID uint) ([]*models.Payment, error)
 	GetFamilyPayments(ctx context.Context, familyID uint) ([]*models.Payment, error)
