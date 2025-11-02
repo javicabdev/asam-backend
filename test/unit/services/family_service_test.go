@@ -20,8 +20,10 @@ func TestCreateFamilyAtomic_RollbackOnInvalidEmail(t *testing.T) {
 	// Arrange
 	mockFamilyRepo := &MockFamilyRepository{}
 	mockMemberRepo := &MockMemberRepository{}
+	mockPaymentRepo := &MockPaymentRepository{}
+	mockFeeRepo := &MockMembershipFeeRepository{}
 
-	familyService := services.NewFamilyService(mockFamilyRepo, mockMemberRepo)
+	familyService := services.NewFamilyService(mockFamilyRepo, mockMemberRepo, mockPaymentRepo, mockFeeRepo)
 
 	req := &input.CreateFamilyAtomicRequest{
 		Family: &models.Family{
@@ -116,7 +118,9 @@ func TestCreateFamilyAtomic_RollbackOnFamilyCreationError(t *testing.T) {
 		},
 	}
 
-	familyService := services.NewFamilyService(mockFamilyRepo, mockMemberRepo)
+	mockPaymentRepo := &MockPaymentRepository{}
+	mockFeeRepo := &MockMembershipFeeRepository{}
+	familyService := services.NewFamilyService(mockFamilyRepo, mockMemberRepo, mockPaymentRepo, mockFeeRepo)
 
 	req := &input.CreateFamilyAtomicRequest{
 		Family: &models.Family{
@@ -199,7 +203,9 @@ func TestCreateFamilyAtomic_RollbackOnFamiliarCreationError(t *testing.T) {
 		},
 	}
 
-	familyService := services.NewFamilyService(mockFamilyRepo, mockMemberRepo)
+	mockPaymentRepo := &MockPaymentRepository{}
+	mockFeeRepo := &MockMembershipFeeRepository{}
+	familyService := services.NewFamilyService(mockFamilyRepo, mockMemberRepo, mockPaymentRepo, mockFeeRepo)
 
 	req := &input.CreateFamilyAtomicRequest{
 		Family: &models.Family{
@@ -275,7 +281,9 @@ func TestCreateFamilyAtomic_SuccessfulCreation(t *testing.T) {
 		},
 	}
 
-	familyService := services.NewFamilyService(mockFamilyRepo, mockMemberRepo)
+	mockPaymentRepo := &MockPaymentRepository{}
+	mockFeeRepo := &MockMembershipFeeRepository{}
+	familyService := services.NewFamilyService(mockFamilyRepo, mockMemberRepo, mockPaymentRepo, mockFeeRepo)
 
 	req := &input.CreateFamilyAtomicRequest{
 		Family: &models.Family{
@@ -355,8 +363,10 @@ func TestCreateFamilyAtomic_ValidationPreventsMemberCreation(t *testing.T) {
 	// Arrange
 	mockFamilyRepo := &MockFamilyRepository{}
 	mockMemberRepo := &MockMemberRepository{}
+	mockPaymentRepo := &MockPaymentRepository{}
+	mockFeeRepo := &MockMembershipFeeRepository{}
 
-	familyService := services.NewFamilyService(mockFamilyRepo, mockMemberRepo)
+	familyService := services.NewFamilyService(mockFamilyRepo, mockMemberRepo, mockPaymentRepo, mockFeeRepo)
 
 	testCases := []struct {
 		name        string

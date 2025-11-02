@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/output"
@@ -254,4 +255,131 @@ func (m *MockMemberRepository) GetLastMemberNumberByPrefix(ctx context.Context, 
 
 func (m *MockMemberRepository) SearchWithoutUser(ctx context.Context, criteria string) ([]models.Member, error) {
 	return nil, errors.New("not implemented")
+}
+
+func (m *MockMemberRepository) BeginTransaction(ctx context.Context) (output.Transaction, error) {
+	return &MockTransaction{}, nil
+}
+
+// MockPaymentRepository simulates a payment repository for testing
+type MockPaymentRepository struct {
+	CreateWithTxFunc func(ctx context.Context, tx output.Transaction, payment *models.Payment) error
+	// Tracking
+	CreatedPayments []*models.Payment
+}
+
+func (m *MockPaymentRepository) CreateWithTx(ctx context.Context, tx output.Transaction, payment *models.Payment) error {
+	if m.CreateWithTxFunc != nil {
+		return m.CreateWithTxFunc(ctx, tx, payment)
+	}
+	// Simulate auto-increment ID
+	length := len(m.CreatedPayments)
+	if length < 0 {
+		return errors.New("invalid CreatedPayments length")
+	}
+	payment.ID = uint(length) + 1
+	m.CreatedPayments = append(m.CreatedPayments, payment)
+	return nil
+}
+
+// Unimplemented methods (not needed for our tests)
+func (m *MockPaymentRepository) Create(ctx context.Context, payment *models.Payment) error {
+	return errors.New("not implemented")
+}
+
+func (m *MockPaymentRepository) Update(ctx context.Context, payment *models.Payment) error {
+	return errors.New("not implemented")
+}
+
+func (m *MockPaymentRepository) Delete(ctx context.Context, id uint) error {
+	return errors.New("not implemented")
+}
+
+func (m *MockPaymentRepository) GetByMember(ctx context.Context, memberID uint) ([]*models.Payment, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *MockPaymentRepository) GetByFamily(ctx context.Context, familyID uint) ([]*models.Payment, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *MockPaymentRepository) FindByMember(ctx context.Context, memberID uint, from, to time.Time) ([]models.Payment, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *MockPaymentRepository) FindByFamily(ctx context.Context, familyID uint, from, to time.Time) ([]models.Payment, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *MockPaymentRepository) FindByID(ctx context.Context, id uint) (*models.Payment, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *MockPaymentRepository) HasInitialPayment(ctx context.Context, memberID *uint, familyID *uint) (bool, error) {
+	return false, errors.New("not implemented")
+}
+
+func (m *MockPaymentRepository) FindAll(ctx context.Context, filters *output.PaymentRepositoryFilters) ([]models.Payment, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *MockPaymentRepository) CountAll(ctx context.Context, filters *output.PaymentRepositoryFilters) (int64, error) {
+	return 0, errors.New("not implemented")
+}
+
+// MockMembershipFeeRepository simulates a membership fee repository for testing
+type MockMembershipFeeRepository struct {
+	FindCurrentYearFunc func(ctx context.Context) (*models.MembershipFee, error)
+	// Tracking
+	Fees []*models.MembershipFee
+}
+
+func (m *MockMembershipFeeRepository) FindCurrentYear(ctx context.Context) (*models.MembershipFee, error) {
+	if m.FindCurrentYearFunc != nil {
+		return m.FindCurrentYearFunc(ctx)
+	}
+	// Return a default fee for testing
+	return &models.MembershipFee{
+		Year:           time.Now().Year(),
+		BaseFeeAmount:  30.0,
+		FamilyFeeExtra: 10.0,
+		Status:         models.PaymentStatusPending,
+	}, nil
+}
+
+// Unimplemented methods (not needed for our tests)
+func (m *MockMembershipFeeRepository) Create(ctx context.Context, fee *models.MembershipFee) error {
+	return errors.New("not implemented")
+}
+
+func (m *MockMembershipFeeRepository) FindByID(ctx context.Context, id uint) (*models.MembershipFee, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *MockMembershipFeeRepository) FindByYear(ctx context.Context, year int) (*models.MembershipFee, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *MockMembershipFeeRepository) FindPendingByMember(ctx context.Context, memberID uint) ([]models.MembershipFee, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *MockMembershipFeeRepository) Update(ctx context.Context, fee *models.MembershipFee) error {
+	return errors.New("not implemented")
+}
+
+func (m *MockMembershipFeeRepository) FindByYearWithTx(ctx context.Context, tx output.Transaction, year int) (*models.MembershipFee, error) {
+	// Return a default fee for testing
+	fee := &models.MembershipFee{
+		Year:           year,
+		BaseFeeAmount:  30.0,
+		FamilyFeeExtra: 10.0,
+		Status:         models.PaymentStatusPending,
+	}
+	fee.ID = 1
+	return fee, nil
+}
+
+func (m *MockMembershipFeeRepository) CreateWithTx(ctx context.Context, tx output.Transaction, fee *models.MembershipFee) error {
+	return errors.New("not implemented")
 }

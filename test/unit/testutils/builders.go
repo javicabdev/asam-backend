@@ -131,10 +131,11 @@ func (b *TestDataBuilder) BuildValidFamily() *models.Family {
 
 // BuildValidPayment creates a valid payment
 func (b *TestDataBuilder) BuildValidPayment(memberID uint) *models.Payment {
+	now := time.Now()
 	return &models.Payment{
 		MemberID:      &memberID,
 		Amount:        30.0 + float64(b.rand.Intn(20)), // Between 30 and 50
-		PaymentDate:   time.Now(),
+		PaymentDate:   &now,
 		Status:        models.PaymentStatusPaid,
 		PaymentMethod: "cash",
 		Notes:         "Test payment",
@@ -143,9 +144,14 @@ func (b *TestDataBuilder) BuildValidPayment(memberID uint) *models.Payment {
 
 // BuildPendingPayment creates a pending payment
 func (b *TestDataBuilder) BuildPendingPayment(memberID uint) *models.Payment {
-	payment := b.BuildValidPayment(memberID)
-	payment.Status = models.PaymentStatusPending
-	return payment
+	return &models.Payment{
+		MemberID:      &memberID,
+		Amount:        30.0 + float64(b.rand.Intn(20)), // Between 30 and 50
+		PaymentDate:   nil,                             // Pending payments have no date
+		Status:        models.PaymentStatusPending,
+		PaymentMethod: "",
+		Notes:         "Test pending payment",
+	}
 }
 
 // BuildValidCashFlow creates a valid cash flow entry
@@ -164,13 +170,17 @@ func (b *TestDataBuilder) BuildValidCashFlow() *models.CashFlow {
 
 // BuildCashFlowFromPayment creates a cash flow entry from a payment
 func (b *TestDataBuilder) BuildCashFlowFromPayment(payment *models.Payment) *models.CashFlow {
+	date := time.Now()
+	if payment.PaymentDate != nil {
+		date = *payment.PaymentDate
+	}
 	return &models.CashFlow{
 		MemberID:      payment.MemberID,
 		FamilyID:      payment.FamilyID,
 		PaymentID:     &payment.ID,
 		OperationType: models.OperationTypeMembershipFee,
 		Amount:        payment.Amount,
-		Date:          payment.PaymentDate,
+		Date:          date,
 		Detail:        "Cuota de membresía - " + payment.Notes,
 	}
 }

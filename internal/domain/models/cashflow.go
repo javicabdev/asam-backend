@@ -86,6 +86,10 @@ func NewFromPayment(payment *Payment) (*CashFlow, error) {
 		return nil, errors.New("payment no puede ser nil")
 	}
 
+	if payment.PaymentDate == nil {
+		return nil, errors.New("payment date cannot be nil for cash flow creation")
+	}
+
 	paymentID := payment.ID
 
 	// Determinar detalle según si es cuota anual
@@ -100,7 +104,7 @@ func NewFromPayment(payment *Payment) (*CashFlow, error) {
 		PaymentID:     &paymentID,
 		OperationType: OperationTypeMembershipFee,
 		Amount:        payment.Amount,
-		Date:          payment.PaymentDate,
+		Date:          *payment.PaymentDate,
 		Detail:        detail,
 	}
 

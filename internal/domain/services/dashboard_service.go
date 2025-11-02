@@ -267,18 +267,19 @@ func (s *dashboardService) processPayments(payments []models.Payment, stats *pay
 			stats.paidCount++
 
 			// This month's payments
-			if payment.PaymentDate.After(filters.monthStart) || payment.PaymentDate.Equal(filters.monthStart) {
+			if payment.PaymentDate != nil && (payment.PaymentDate.After(filters.monthStart) || payment.PaymentDate.Equal(filters.monthStart)) {
 				stats.monthlyPaid += payment.Amount
 			}
 
 			// Last month's payments
-			if (payment.PaymentDate.After(filters.lastMonthStart) || payment.PaymentDate.Equal(filters.lastMonthStart)) &&
+			if payment.PaymentDate != nil &&
+				(payment.PaymentDate.After(filters.lastMonthStart) || payment.PaymentDate.Equal(filters.lastMonthStart)) &&
 				(payment.PaymentDate.Before(filters.lastMonthEnd) || payment.PaymentDate.Equal(filters.lastMonthEnd)) {
 				stats.lastMonthPaid += payment.Amount
 			}
 
 			// Recent payments (last week)
-			if payment.PaymentDate.After(filters.oneWeekAgo) {
+			if payment.PaymentDate != nil && payment.PaymentDate.After(filters.oneWeekAgo) {
 				stats.recentCount++
 			}
 

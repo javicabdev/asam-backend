@@ -226,7 +226,7 @@ func (s *paymentService) recordLatencyMetrics(ctx context.Context, payment *mode
 		return err // Error silencioso para métricas, no afecta el flujo principal
 	}
 
-	if fee != nil && fee.DueDate.Before(payment.PaymentDate) {
+	if fee != nil && payment.PaymentDate != nil && fee.DueDate.Before(*payment.PaymentDate) {
 		// Only calculate latency metrics if payment has a member
 		if payment.MemberID == nil {
 			return nil // Skip metrics for family-only payments
@@ -311,7 +311,8 @@ func (s *paymentService) ConfirmPayment(ctx context.Context, paymentID uint) (*m
 
 	// Update payment status and date
 	payment.Status = models.PaymentStatusPaid
-	payment.PaymentDate = time.Now()
+	now := time.Now()
+	payment.PaymentDate = &now
 
 	// Save to database
 	err = s.paymentRepo.Update(ctx, payment)
@@ -479,8 +480,8 @@ func (s *paymentService) GetMemberStatement(ctx context.Context, memberID uint) 
 	var lastPaymentDate *time.Time
 	for _, p := range payments {
 		totalPaid += p.Amount
-		if lastPaymentDate == nil || p.PaymentDate.After(*lastPaymentDate) {
-			lastPaymentDate = &p.PaymentDate
+		if p.PaymentDate != nil && (lastPaymentDate == nil || p.PaymentDate.After(*lastPaymentDate)) {
+			lastPaymentDate = p.PaymentDate
 		}
 	}
 
@@ -517,8 +518,8 @@ func (s *paymentService) GetFamilyStatement(ctx context.Context, familyID uint) 
 	var lastPaymentDate *time.Time
 	for _, p := range payments {
 		totalPaid += p.Amount
-		if lastPaymentDate == nil || p.PaymentDate.After(*lastPaymentDate) {
-			lastPaymentDate = &p.PaymentDate
+		if p.PaymentDate != nil && (lastPaymentDate == nil || p.PaymentDate.After(*lastPaymentDate)) {
+			lastPaymentDate = p.PaymentDate
 		}
 	}
 

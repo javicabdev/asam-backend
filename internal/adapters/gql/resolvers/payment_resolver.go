@@ -11,9 +11,10 @@ import (
 )
 
 func (r *paymentResolver) mapPaymentInputToModel(input *model.PaymentInput) *models.Payment {
+	now := time.Now()
 	payment := &models.Payment{
 		Amount:        input.Amount,
-		PaymentDate:   time.Now(),
+		PaymentDate:   &now,
 		PaymentMethod: input.PaymentMethod,
 		Status:        models.PaymentStatusPaid,
 	}

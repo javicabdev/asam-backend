@@ -523,7 +523,7 @@ func (s *memberService) createPendingPayment(ctx context.Context, tx output.Tran
 	payment := &models.Payment{
 		MemberID:        &member.ID,
 		Amount:          amount,
-		PaymentDate:     time.Time{}, // Zero value indicates pending
+		PaymentDate:     nil, // Nil indicates pending payment
 		Status:          models.PaymentStatusPending,
 		PaymentMethod:   "",
 		Notes:           "Pago pendiente generado automáticamente",

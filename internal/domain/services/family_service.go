@@ -498,7 +498,7 @@ func (s *familyService) createPendingPaymentForFamily(ctx context.Context, tx ou
 	payment := &models.Payment{
 		MemberID:        &memberID,
 		Amount:          amount,
-		PaymentDate:     time.Time{}, // Zero value indicates pending
+		PaymentDate:     nil, // Nil indicates pending payment
 		Status:          models.PaymentStatusPending,
 		PaymentMethod:   "",
 		Notes:           "Pago pendiente generado automáticamente para familia",

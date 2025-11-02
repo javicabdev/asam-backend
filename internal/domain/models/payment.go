@@ -28,7 +28,7 @@ type Payment struct {
 	FamilyID        *uint
 	Family          *Family `gorm:"foreignKey:FamilyID"`
 	Amount          float64
-	PaymentDate     time.Time
+	PaymentDate     *time.Time
 	Status          PaymentStatus
 	PaymentMethod   string
 	Notes           string
