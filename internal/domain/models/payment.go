@@ -38,12 +38,12 @@ type Payment struct {
 }
 
 // MembershipFee representa una cuota de membresía anual
+// Define los montos y configuración para un año específico
 type MembershipFee struct {
 	gorm.Model
 	Year           int
 	BaseFeeAmount  float64
 	FamilyFeeExtra float64 // Additional amount for family memberships
-	Status         PaymentStatus
 	DueDate        time.Time // Siempre 31 de diciembre del año
 	PaymentID      *uint
 	Payment        *Payment `gorm:"foreignKey:PaymentID"`
@@ -55,7 +55,6 @@ func NewAnnualFee(year int, baseAmount float64) *MembershipFee {
 		Year:           year,
 		BaseFeeAmount:  baseAmount,
 		FamilyFeeExtra: 0, // Se calculará por el FeeCalculator si aplica
-		Status:         PaymentStatusPending,
 		DueDate:        time.Date(year, 12, 31, 23, 59, 59, 0, time.UTC),
 	}
 }

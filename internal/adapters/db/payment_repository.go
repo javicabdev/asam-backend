@@ -353,18 +353,18 @@ func (r *membershipFeeRepository) FindByYear(ctx context.Context, year int) (*mo
 func (r *membershipFeeRepository) FindPendingByMember(ctx context.Context, memberID uint) ([]models.MembershipFee, error) {
 	var fees []models.MembershipFee
 
-	// Creamos una query que busca cuotas pendientes
+	// Buscar cuotas que tienen pagos pendientes para un miembro específico
+	// Nota: Ahora consultamos el estado del Payment, no del MembershipFee
 	query := r.db.WithContext(ctx).
-		Joins("LEFT JOIN payments ON membership_fees.payment_id = payments.id")
+		Joins("INNER JOIN payments ON membership_fees.id = payments.membership_fee_id").
+		Where("payments.status = ?", models.PaymentStatusPending)
 
-	// Si memberID es 0, traemos todas las cuotas pendientes
+	// Filtrar por miembro específico
 	if memberID != 0 {
 		query = query.Where("payments.member_id = ?", memberID)
 	}
 
-	// Filtramos por estado pendiente
-	result := query.Where("membership_fees.status = ?", models.PaymentStatusPending).
-		Find(&fees)
+	result := query.Distinct().Find(&fees)
 
 	if result.Error != nil {
 		return nil, appErrors.DB(result.Error, "error finding pending membership fees")

@@ -5,18 +5,33 @@
 -- Primero, eliminar cualquier duplicado existente (si los hay)
 -- Mantener solo el registro más antiguo de cada DNI duplicado
 -- Esta operación es idempotente: solo elimina duplicados si existen
-WITH duplicates AS (
-    SELECT 
-        identity_card,
-        MIN(id) as keep_id
-    FROM members
-    WHERE identity_card IS NOT NULL
-    GROUP BY identity_card
-    HAVING COUNT(*) > 1
-)
-DELETE FROM members m
-WHERE m.identity_card IN (SELECT identity_card FROM duplicates)
-  AND m.id NOT IN (SELECT keep_id FROM duplicates);
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM members
+        WHERE identity_card IS NOT NULL
+        GROUP BY identity_card
+        HAVING COUNT(*) > 1
+    ) THEN
+        WITH duplicates AS (
+            SELECT
+                identity_card,
+                MIN(id) as keep_id
+            FROM members
+            WHERE identity_card IS NOT NULL
+            GROUP BY identity_card
+            HAVING COUNT(*) > 1
+        )
+        DELETE FROM members m
+        WHERE m.identity_card IN (SELECT identity_card FROM duplicates)
+          AND m.id NOT IN (SELECT keep_id FROM duplicates);
+
+        RAISE NOTICE 'Cleaned up duplicate identity cards';
+    ELSE
+        RAISE NOTICE 'No duplicate identity cards found';
+    END IF;
+END $$;
 
 -- Añadir el constraint UNIQUE (idempotente)
 DO $$

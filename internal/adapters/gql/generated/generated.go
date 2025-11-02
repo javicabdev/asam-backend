@@ -167,7 +167,6 @@ type ComplexityRoot struct {
 		FamilyFeeExtra func(childComplexity int) int
 		ID             func(childComplexity int) int
 		Payment        func(childComplexity int) int
-		Status         func(childComplexity int) int
 		Year           func(childComplexity int) int
 	}
 
@@ -946,12 +945,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.MembershipFee.Payment(childComplexity), true
-	case "MembershipFee.status":
-		if e.complexity.MembershipFee.Status == nil {
-			break
-		}
-
-		return e.complexity.MembershipFee.Status(childComplexity), true
 	case "MembershipFee.year":
 		if e.complexity.MembershipFee.Year == nil {
 			break
@@ -2107,7 +2100,6 @@ type MembershipFee {
     year: Int!
     base_fee_amount: Float!
     family_fee_extra: Float!
-    status: PaymentStatus!
     due_date: Time!
     payment: Payment
 }
@@ -5874,35 +5866,6 @@ func (ec *executionContext) fieldContext_MembershipFee_family_fee_extra(_ contex
 	return fc, nil
 }
 
-func (ec *executionContext) _MembershipFee_status(ctx context.Context, field graphql.CollectedField, obj *models.MembershipFee) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MembershipFee_status,
-		func(ctx context.Context) (any, error) {
-			return obj.Status, nil
-		},
-		nil,
-		ec.marshalNPaymentStatus2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐPaymentStatus,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MembershipFee_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MembershipFee",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type PaymentStatus does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _MembershipFee_due_date(ctx context.Context, field graphql.CollectedField, obj *models.MembershipFee) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -8217,8 +8180,6 @@ func (ec *executionContext) fieldContext_Payment_membership_fee(_ context.Contex
 				return ec.fieldContext_MembershipFee_base_fee_amount(ctx, field)
 			case "family_fee_extra":
 				return ec.fieldContext_MembershipFee_family_fee_extra(ctx, field)
-			case "status":
-				return ec.fieldContext_MembershipFee_status(ctx, field)
 			case "due_date":
 				return ec.fieldContext_MembershipFee_due_date(ctx, field)
 			case "payment":
@@ -9385,8 +9346,6 @@ func (ec *executionContext) fieldContext_Query_getMembershipFee(ctx context.Cont
 				return ec.fieldContext_MembershipFee_base_fee_amount(ctx, field)
 			case "family_fee_extra":
 				return ec.fieldContext_MembershipFee_family_fee_extra(ctx, field)
-			case "status":
-				return ec.fieldContext_MembershipFee_status(ctx, field)
 			case "due_date":
 				return ec.fieldContext_MembershipFee_due_date(ctx, field)
 			case "payment":
@@ -9442,8 +9401,6 @@ func (ec *executionContext) fieldContext_Query_listMembershipFees(ctx context.Co
 				return ec.fieldContext_MembershipFee_base_fee_amount(ctx, field)
 			case "family_fee_extra":
 				return ec.fieldContext_MembershipFee_family_fee_extra(ctx, field)
-			case "status":
-				return ec.fieldContext_MembershipFee_status(ctx, field)
 			case "due_date":
 				return ec.fieldContext_MembershipFee_due_date(ctx, field)
 			case "payment":
@@ -9498,8 +9455,6 @@ func (ec *executionContext) fieldContext_Query_getPendingFees(_ context.Context,
 				return ec.fieldContext_MembershipFee_base_fee_amount(ctx, field)
 			case "family_fee_extra":
 				return ec.fieldContext_MembershipFee_family_fee_extra(ctx, field)
-			case "status":
-				return ec.fieldContext_MembershipFee_status(ctx, field)
 			case "due_date":
 				return ec.fieldContext_MembershipFee_due_date(ctx, field)
 			case "payment":
@@ -14858,11 +14813,6 @@ func (ec *executionContext) _MembershipFee(ctx context.Context, sel ast.Selectio
 			}
 		case "family_fee_extra":
 			out.Values[i] = ec._MembershipFee_family_fee_extra(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "status":
-			out.Values[i] = ec._MembershipFee_status(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}

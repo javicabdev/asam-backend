@@ -343,7 +343,6 @@ func (m *MockMembershipFeeRepository) FindCurrentYear(ctx context.Context) (*mod
 		Year:           time.Now().Year(),
 		BaseFeeAmount:  30.0,
 		FamilyFeeExtra: 10.0,
-		Status:         models.PaymentStatusPending,
 	}, nil
 }
 
@@ -374,7 +373,6 @@ func (m *MockMembershipFeeRepository) FindByYearWithTx(ctx context.Context, tx o
 		Year:           year,
 		BaseFeeAmount:  30.0,
 		FamilyFeeExtra: 10.0,
-		Status:         models.PaymentStatusPending,
 	}
 	fee.ID = 1
 	return fee, nil

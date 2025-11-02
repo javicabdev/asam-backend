@@ -149,7 +149,6 @@ type MembershipFee {
     year: Int!
     base_fee_amount: Float!
     family_fee_extra: Float!
-    status: PaymentStatus!
     due_date: Time!
     payment: Payment
 }

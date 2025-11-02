@@ -177,14 +177,15 @@ func (s *paymentService) validateFamily(ctx context.Context, familyID uint) erro
 	return nil
 }
 
-// processMembershipFee actualiza la cuota de membresía si el pago está asociado a una
+// processMembershipFee valida que la cuota de membresía exista
+// Nota: El estado del pago se maneja en la tabla payments, no en membership_fees
 func (s *paymentService) processMembershipFee(ctx context.Context, payment *models.Payment) error {
 	// Si no es un pago de cuota, no hay nada que procesar
 	if payment.MembershipFeeID == nil {
 		return nil
 	}
 
-	// Buscar cuota existente
+	// Buscar cuota existente para validar que existe
 	fee, err := s.membershipFeeRepo.FindByID(ctx, *payment.MembershipFeeID)
 	if err != nil {
 		return errors.DB(err, "error buscando cuota de membresía")
@@ -194,12 +195,8 @@ func (s *paymentService) processMembershipFee(ctx context.Context, payment *mode
 		return errors.NotFound("membership fee", nil)
 	}
 
-	// Actualizar estado de la cuota a pagado
-	fee.Status = models.PaymentStatusPaid
-	if err := s.membershipFeeRepo.Update(ctx, fee); err != nil {
-		return errors.DB(err, "error actualizando cuota de membresía")
-	}
-
+	// No necesitamos actualizar nada en membership_fee
+	// El estado del pago individual ya está en payment.Status
 	return nil
 }
 
