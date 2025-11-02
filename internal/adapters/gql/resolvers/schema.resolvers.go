@@ -510,6 +510,34 @@ func (r *mutationResolver) RegisterFee(ctx context.Context, year int, baseAmount
 	}, nil
 }
 
+// CreateCashFlow is the resolver for the createCashFlow field.
+func (r *mutationResolver) CreateCashFlow(ctx context.Context, input model.CreateCashFlowInput) (*models.CashFlow, error) {
+	panic(fmt.Errorf("not implemented: CreateCashFlow - createCashFlow"))
+}
+
+// UpdateCashFlow is the resolver for the updateCashFlow field.
+func (r *mutationResolver) UpdateCashFlow(ctx context.Context, id string, input model.UpdateCashFlowInput) (*models.CashFlow, error) {
+	panic(fmt.Errorf("not implemented: UpdateCashFlow - updateCashFlow"))
+}
+
+// DeleteCashFlow is the resolver for the deleteCashFlow field.
+func (r *mutationResolver) DeleteCashFlow(ctx context.Context, id string) (*model.MutationResponse, error) {
+	panic(fmt.Errorf("not implemented: DeleteCashFlow - deleteCashFlow"))
+}
+
+// AdjustBalance is the resolver for the adjustBalance field.
+func (r *mutationResolver) AdjustBalance(ctx context.Context, amount float64, reason string) (*model.MutationResponse, error) {
+	// Solo ADMIN puede ajustar balance
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+	cashFlowResolver, ok := r.CashFlow().(*cashFlowResolver)
+	if !ok {
+		return nil, appErrors.NewInternalError("invalid resolver type")
+	}
+	return cashFlowResolver.handleBalanceAdjustment(ctx, amount, reason)
+}
+
 // RegisterTransaction is the resolver for the registerTransaction field.
 // schema.resolvers.go
 func (r *mutationResolver) RegisterTransaction(ctx context.Context, input model.TransactionInput) (*models.CashFlow, error) {
@@ -559,19 +587,6 @@ func (r *mutationResolver) UpdateTransaction(ctx context.Context, id string, inp
 
 	// persistir
 	return cashFlowResolver.handleTransactionMutation(ctx, updatedTx)
-}
-
-// AdjustBalance is the resolver for the adjustBalance field.
-func (r *mutationResolver) AdjustBalance(ctx context.Context, amount float64, reason string) (*model.MutationResponse, error) {
-	// Solo ADMIN puede ajustar balance
-	if err := middleware.MustBeAdmin(ctx); err != nil {
-		return nil, err
-	}
-	cashFlowResolver, ok := r.CashFlow().(*cashFlowResolver)
-	if !ok {
-		return nil, appErrors.NewInternalError("invalid resolver type")
-	}
-	return cashFlowResolver.handleBalanceAdjustment(ctx, amount, reason)
 }
 
 // Login is the resolver for the login field.
@@ -1212,21 +1227,14 @@ func (r *queryResolver) GetCashFlow(ctx context.Context, id string) (*models.Cas
 	return cashFlow, nil
 }
 
-// GetBalance is the resolver for the getBalance field.
-func (r *queryResolver) GetBalance(ctx context.Context) (float64, error) {
-	// Solo ADMIN puede ver el balance general
-	if err := middleware.MustBeAdmin(ctx); err != nil {
-		return 0, err
-	}
+// CashFlowBalance is the resolver for the cashFlowBalance field.
+func (r *queryResolver) CashFlowBalance(ctx context.Context) (*model.CashFlowBalance, error) {
+	panic(fmt.Errorf("not implemented: CashFlowBalance - cashFlowBalance"))
+}
 
-	// 1) Llamas a un método de tu servicio (p. ej. "GetCurrentBalance")
-	balance, err := r.cashFlowService.GetCurrentBalance(ctx)
-	if err != nil {
-		return 0, err
-	}
-
-	// 2) Retornas el valor numérico
-	return balance.CurrentBalance, nil
+// CashFlowStats is the resolver for the cashFlowStats field.
+func (r *queryResolver) CashFlowStats(ctx context.Context, startDate time.Time, endDate time.Time) (*model.CashFlowStats, error) {
+	panic(fmt.Errorf("not implemented: CashFlowStats - cashFlowStats"))
 }
 
 // GetTransactions is the resolver for the getTransactions field.
@@ -1288,6 +1296,23 @@ func (r *queryResolver) GetTransactions(ctx context.Context, filter *model.Trans
 		Nodes:    movements,
 		PageInfo: pageInfo,
 	}, nil
+}
+
+// GetBalance is the resolver for the getBalance field.
+func (r *queryResolver) GetBalance(ctx context.Context) (float64, error) {
+	// Solo ADMIN puede ver el balance general
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return 0, err
+	}
+
+	// 1) Llamas a un método de tu servicio (p. ej. "GetCurrentBalance")
+	balance, err := r.cashFlowService.GetCurrentBalance(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	// 2) Retornas el valor numérico
+	return balance.CurrentBalance, nil
 }
 
 // GetNextMemberNumber is the resolver for the getNextMemberNumber field.

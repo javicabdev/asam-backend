@@ -219,7 +219,7 @@ func (r *cashFlowResolver) createAdjustmentTransaction(amount float64, reason st
 
 	// Set proper operation type based on amount
 	if amount < 0 {
-		adjustment.OperationType = models.OperationTypeCurrentExpense
+		adjustment.OperationType = models.OperationTypeOtherExpense
 	}
 
 	return adjustment

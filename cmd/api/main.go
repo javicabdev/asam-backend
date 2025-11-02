@@ -526,7 +526,7 @@ func initializeServicesAndDependencies(ctx context.Context, cfg *config.Config, 
 
 	// Initialize fee calculator (consider moving magic numbers to config)
 	feeCalculator := services.NewFeeCalculator(30.0, 10.0, 1.0, 1.0)
-	paymentService := services.NewPaymentService(paymentRepo, membershipFeeRepo, memberRepo, familyRepo, feeCalculator)
+	paymentService := services.NewPaymentService(paymentRepo, membershipFeeRepo, memberRepo, familyRepo, cashFlowRepo, feeCalculator)
 	cashFlowService := services.NewCashFlowService(cashFlowRepo)
 	authService := services.NewAuthService(userRepo, memberRepo, jwtUtil, tokenRepo, verificationTokenRepo, emailVerificationService, appLogger)
 	serviceStatus.Auth.Store(true)

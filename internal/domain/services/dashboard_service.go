@@ -310,11 +310,11 @@ func (s *dashboardService) combinePaymentStats(memberStats, familyStats *payment
 // calculateFinancialStats calcula las estadísticas financieras
 func (s *dashboardService) calculateFinancialStats(ctx context.Context, stats *input.DashboardStats, startOfMonth time.Time) error {
 	// Get current balance
-	balance, err := s.cashflowRepo.GetBalance(ctx)
+	balanceData, err := s.cashflowRepo.GetBalance(ctx, nil)
 	if err != nil {
 		return err
 	}
-	stats.CurrentBalance = balance
+	stats.CurrentBalance = balanceData.CurrentBalance
 
 	// Get all transactions using List with empty filter
 	filter := output.CashFlowFilter{
@@ -332,8 +332,8 @@ func (s *dashboardService) calculateFinancialStats(ctx context.Context, stats *i
 	// Calculate monthly expenses
 	var monthlyExpenses float64
 	for _, transaction := range transactions {
-		// Count as expense if it's a current expense and happened this month
-		if transaction.OperationType == models.OperationTypeCurrentExpense &&
+		// Count as expense if it's an expense type and happened this month
+		if transaction.OperationType.IsExpense() &&
 			(transaction.Date.After(startOfMonth) || transaction.Date.Equal(startOfMonth)) {
 			monthlyExpenses += transaction.Amount
 		}
@@ -430,10 +430,9 @@ func (s *dashboardService) calculateRevenueTrend(ctx context.Context, months int
 		for _, transaction := range transactions {
 			if (transaction.Date.After(monthStart) || transaction.Date.Equal(monthStart)) &&
 				(transaction.Date.Before(monthEnd) || transaction.Date.Equal(monthEnd)) {
-				switch transaction.OperationType {
-				case models.OperationTypeMembershipFee, models.OperationTypeOtherIncome:
+				if transaction.OperationType.IsIncome() {
 					revenue += transaction.Amount
-				case models.OperationTypeCurrentExpense, models.OperationTypeFundDelivery:
+				} else if transaction.OperationType.IsExpense() {
 					expenses += transaction.Amount
 				}
 			}

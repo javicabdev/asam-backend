@@ -14,10 +14,17 @@ enum MemberStatus {
 }
 
 enum OperationType {
-    MEMBERSHIP_FEE
-    CURRENT_EXPENSE
-    FUND_DELIVERY
-    OTHER_INCOME
+    # INGRESOS (amount > 0)
+    INGRESO_CUOTA          # Generado automáticamente por pagos
+    INGRESO_DONACION       # Registro manual
+    INGRESO_OTRO           # Registro manual
+
+    # GASTOS (amount < 0)
+    GASTO_REPATRIACION     # Requiere member_id
+    GASTO_ADMINISTRATIVO   # Tasas, sellos, copistería
+    GASTO_BANCARIO         # Comisiones bancarias
+    GASTO_AYUDA            # Ayudas sociales
+    GASTO_OTRO             # Otros gastos
 }
 
 enum PaymentStatus {
@@ -159,6 +166,33 @@ type CashFlow {
     detail: String!
     member: Member
     payment: Payment
+    created_at: Time!
+    updated_at: Time!
+}
+
+type CashFlowBalance {
+    totalIncome: Float!
+    totalExpenses: Float!
+    currentBalance: Float!
+}
+
+type CategoryAmount {
+    category: OperationType!
+    amount: Float!
+    count: Int!
+}
+
+type MonthlyAmount {
+    month: String!       # Formato: "2025-10"
+    income: Float!
+    expenses: Float!
+    balance: Float!
+}
+
+type CashFlowStats {
+    incomeByCategory: [CategoryAmount!]!
+    expensesByCategory: [CategoryAmount!]!
+    monthlyTrend: [MonthlyAmount!]!
 }
 
 # Inputs para filtros
@@ -190,6 +224,8 @@ input TransactionFilter {
     start_date: Time
     end_date: Time
     operation_type: OperationType
+    member_id: ID
+    category: String  # "INGRESO" o "GASTO"
     pagination: PaginationInput
     sort: SortInput
 }
@@ -270,8 +306,10 @@ type Query {
 
     # CashFlow Queries
     getCashFlow(id: ID!): CashFlow
-    getBalance: Float!
+    cashFlowBalance: CashFlowBalance!
+    cashFlowStats(start_date: Time!, end_date: Time!): CashFlowStats!
     getTransactions(filter: TransactionFilter): TransactionConnection!
+    getBalance: Float!  # DEPRECATED: usar cashFlowBalance en su lugar
     
     # Member Number Queries
     getNextMemberNumber(isFamily: Boolean!): String!
@@ -448,6 +486,23 @@ input PaymentInput {
     notes: String
 }
 
+input CreateCashFlowInput {
+    member_id: ID  # Para familias usar family.miembro_origen_id
+    operation_type: OperationType!
+    amount: Float!
+    date: Time!
+    detail: String!
+}
+
+input UpdateCashFlowInput {
+    operation_type: OperationType
+    amount: Float
+    date: Time
+    detail: String
+    member_id: ID
+}
+
+# DEPRECATED: usar CreateCashFlowInput
 input TransactionInput {
     member_id: ID
     operation_type: OperationType!
@@ -518,9 +573,14 @@ type Mutation {
     registerFee(year: Int!, base_amount: Float!): MutationResponse!
 
     # CashFlow Mutations
+    createCashFlow(input: CreateCashFlowInput!): CashFlow!
+    updateCashFlow(id: ID!, input: UpdateCashFlowInput!): CashFlow!
+    deleteCashFlow(id: ID!): MutationResponse!
+    adjustBalance(amount: Float!, reason: String!): MutationResponse!
+
+    # DEPRECATED: usar createCashFlow y updateCashFlow
     registerTransaction(input: TransactionInput!): CashFlow!
     updateTransaction(id: ID!, input: TransactionInput!): CashFlow!
-    adjustBalance(amount: Float!, reason: String!): MutationResponse!
 
     # Auth Mutations
     login(input: LoginInput!): AuthResponse!

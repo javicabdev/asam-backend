@@ -19,9 +19,35 @@ type AuthResponse struct {
 	ExpiresAt    time.Time    `json:"expiresAt"`
 }
 
+type CashFlowBalance struct {
+	TotalIncome    float64 `json:"totalIncome"`
+	TotalExpenses  float64 `json:"totalExpenses"`
+	CurrentBalance float64 `json:"currentBalance"`
+}
+
+type CashFlowStats struct {
+	IncomeByCategory   []*CategoryAmount `json:"incomeByCategory"`
+	ExpensesByCategory []*CategoryAmount `json:"expensesByCategory"`
+	MonthlyTrend       []*MonthlyAmount  `json:"monthlyTrend"`
+}
+
+type CategoryAmount struct {
+	Category models.OperationType `json:"category"`
+	Amount   float64              `json:"amount"`
+	Count    int                  `json:"count"`
+}
+
 type ChangePasswordInput struct {
 	CurrentPassword string `json:"currentPassword"`
 	NewPassword     string `json:"newPassword"`
+}
+
+type CreateCashFlowInput struct {
+	MemberID      *string              `json:"member_id,omitempty"`
+	OperationType models.OperationType `json:"operation_type"`
+	Amount        float64              `json:"amount"`
+	Date          time.Time            `json:"date"`
+	Detail        string               `json:"detail"`
 }
 
 type CreateFamilyInput struct {
@@ -144,6 +170,13 @@ type MembershipTrendData struct {
 	TotalMembers int    `json:"totalMembers"`
 }
 
+type MonthlyAmount struct {
+	Month    string  `json:"month"`
+	Income   float64 `json:"income"`
+	Expenses float64 `json:"expenses"`
+	Balance  float64 `json:"balance"`
+}
+
 type Mutation struct {
 }
 
@@ -231,6 +264,8 @@ type TransactionFilter struct {
 	StartDate     *time.Time            `json:"start_date,omitempty"`
 	EndDate       *time.Time            `json:"end_date,omitempty"`
 	OperationType *models.OperationType `json:"operation_type,omitempty"`
+	MemberID      *string               `json:"member_id,omitempty"`
+	Category      *string               `json:"category,omitempty"`
 	Pagination    *PaginationInput      `json:"pagination,omitempty"`
 	Sort          *SortInput            `json:"sort,omitempty"`
 }
@@ -241,6 +276,14 @@ type TransactionInput struct {
 	Amount        float64              `json:"amount"`
 	Date          time.Time            `json:"date"`
 	Detail        string               `json:"detail"`
+}
+
+type UpdateCashFlowInput struct {
+	OperationType *models.OperationType `json:"operation_type,omitempty"`
+	Amount        *float64              `json:"amount,omitempty"`
+	Date          *time.Time            `json:"date,omitempty"`
+	Detail        *string               `json:"detail,omitempty"`
+	MemberID      *string               `json:"member_id,omitempty"`
 }
 
 type UpdateFamilyInput struct {

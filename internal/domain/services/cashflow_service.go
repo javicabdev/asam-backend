@@ -138,10 +138,11 @@ func (s *CashFlowService) DeleteMovement(ctx context.Context, id uint) error {
 // GetCurrentBalance obtiene el balance actual con detalles
 func (s *CashFlowService) GetCurrentBalance(ctx context.Context) (*input.BalanceReport, error) {
 	// Obtener el balance actual
-	currentBalance, err := s.repository.GetBalance(ctx)
+	balanceData, err := s.repository.GetBalance(ctx, nil)
 	if err != nil {
 		return nil, errors.DB(err, "error al obtener balance")
 	}
+	currentBalance := balanceData.CurrentBalance
 
 	// Obtener movimientos del período actual (mes en curso)
 	startOfMonth := time.Now().UTC().AddDate(0, 0, -time.Now().UTC().Day()+1)
@@ -270,10 +271,11 @@ func (s *CashFlowService) ValidateBalance(ctx context.Context) (*input.BalanceVa
 	}
 
 	// Obtener balance actual
-	actualBalance, err := s.repository.GetBalance(ctx)
+	balanceData, err := s.repository.GetBalance(ctx, nil)
 	if err != nil {
 		return nil, errors.DB(err, "error al obtener balance actual")
 	}
+	actualBalance := balanceData.CurrentBalance
 
 	// Calcular discrepancia
 	discrepancy := actualBalance - expectedBalance
@@ -741,10 +743,11 @@ func (s *CashFlowService) GetFinancialAlerts(ctx context.Context) ([]input.Finan
 	var alerts []input.FinancialAlert
 
 	// Obtener balance actual
-	currentBalance, err := s.repository.GetBalance(ctx)
+	balanceData, err := s.repository.GetBalance(ctx, nil)
 	if err != nil {
 		return nil, errors.DB(err, "error al obtener balance")
 	}
+	currentBalance := balanceData.CurrentBalance
 
 	// Obtener movimientos del último mes
 	endDate := time.Now()

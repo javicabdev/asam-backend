@@ -64,12 +64,32 @@ type ComplexityRoot struct {
 
 	CashFlow struct {
 		Amount        func(childComplexity int) int
+		CreatedAt     func(childComplexity int) int
 		Date          func(childComplexity int) int
 		Detail        func(childComplexity int) int
 		ID            func(childComplexity int) int
 		Member        func(childComplexity int) int
 		OperationType func(childComplexity int) int
 		Payment       func(childComplexity int) int
+		UpdatedAt     func(childComplexity int) int
+	}
+
+	CashFlowBalance struct {
+		CurrentBalance func(childComplexity int) int
+		TotalExpenses  func(childComplexity int) int
+		TotalIncome    func(childComplexity int) int
+	}
+
+	CashFlowStats struct {
+		ExpensesByCategory func(childComplexity int) int
+		IncomeByCategory   func(childComplexity int) int
+		MonthlyTrend       func(childComplexity int) int
+	}
+
+	CategoryAmount struct {
+		Amount   func(childComplexity int) int
+		Category func(childComplexity int) int
+		Count    func(childComplexity int) int
 	}
 
 	DashboardStats struct {
@@ -174,6 +194,13 @@ type ComplexityRoot struct {
 		TotalMembers func(childComplexity int) int
 	}
 
+	MonthlyAmount struct {
+		Balance  func(childComplexity int) int
+		Expenses func(childComplexity int) int
+		Income   func(childComplexity int) int
+		Month    func(childComplexity int) int
+	}
+
 	Mutation struct {
 		AddFamilyMember         func(childComplexity int, familyID string, familiar model.FamiliarInput) int
 		AdjustBalance           func(childComplexity int, amount float64, reason string) int
@@ -181,9 +208,11 @@ type ComplexityRoot struct {
 		ChangeMemberStatus      func(childComplexity int, id string, status model.MemberStatus) int
 		ChangePassword          func(childComplexity int, input model.ChangePasswordInput) int
 		ConfirmPayment          func(childComplexity int, id string, paymentMethod string, paymentDate *time.Time, notes *string) int
+		CreateCashFlow          func(childComplexity int, input model.CreateCashFlowInput) int
 		CreateFamily            func(childComplexity int, input model.CreateFamilyInput) int
 		CreateMember            func(childComplexity int, input model.CreateMemberInput) int
 		CreateUser              func(childComplexity int, input model.CreateUserInput) int
+		DeleteCashFlow          func(childComplexity int, id string) int
 		DeleteMember            func(childComplexity int, id string) int
 		DeleteUser              func(childComplexity int, id string) int
 		Login                   func(childComplexity int, input model.LoginInput) int
@@ -198,6 +227,7 @@ type ComplexityRoot struct {
 		ResetPasswordWithToken  func(childComplexity int, token string, newPassword string) int
 		ResetUserPassword       func(childComplexity int, userID string, newPassword string) int
 		SendVerificationEmail   func(childComplexity int) int
+		UpdateCashFlow          func(childComplexity int, id string, input model.UpdateCashFlowInput) int
 		UpdateFamily            func(childComplexity int, input model.UpdateFamilyInput) int
 		UpdateMember            func(childComplexity int, input model.UpdateMemberInput) int
 		UpdatePayment           func(childComplexity int, id string, input model.PaymentInput) int
@@ -235,6 +265,8 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
+		CashFlowBalance          func(childComplexity int) int
+		CashFlowStats            func(childComplexity int, startDate time.Time, endDate time.Time) int
 		CheckDocumentValidity    func(childComplexity int, documentNumber string) int
 		CheckMemberNumberExists  func(childComplexity int, memberNumber string) int
 		GetBalance               func(childComplexity int) int
@@ -353,9 +385,12 @@ type MutationResolver interface {
 	CancelPayment(ctx context.Context, id string, reason string) (*model.MutationResponse, error)
 	ConfirmPayment(ctx context.Context, id string, paymentMethod string, paymentDate *time.Time, notes *string) (*models.Payment, error)
 	RegisterFee(ctx context.Context, year int, baseAmount float64) (*model.MutationResponse, error)
+	CreateCashFlow(ctx context.Context, input model.CreateCashFlowInput) (*models.CashFlow, error)
+	UpdateCashFlow(ctx context.Context, id string, input model.UpdateCashFlowInput) (*models.CashFlow, error)
+	DeleteCashFlow(ctx context.Context, id string) (*model.MutationResponse, error)
+	AdjustBalance(ctx context.Context, amount float64, reason string) (*model.MutationResponse, error)
 	RegisterTransaction(ctx context.Context, input model.TransactionInput) (*models.CashFlow, error)
 	UpdateTransaction(ctx context.Context, id string, input model.TransactionInput) (*models.CashFlow, error)
-	AdjustBalance(ctx context.Context, amount float64, reason string) (*model.MutationResponse, error)
 	Login(ctx context.Context, input model.LoginInput) (*model.AuthResponse, error)
 	Logout(ctx context.Context) (*model.MutationResponse, error)
 	RefreshToken(ctx context.Context, input model.RefreshTokenInput) (*model.TokenResponse, error)
@@ -396,8 +431,10 @@ type QueryResolver interface {
 	ListMembershipFees(ctx context.Context, page *int, pageSize *int) ([]*models.MembershipFee, error)
 	GetPendingFees(ctx context.Context) ([]*models.MembershipFee, error)
 	GetCashFlow(ctx context.Context, id string) (*models.CashFlow, error)
-	GetBalance(ctx context.Context) (float64, error)
+	CashFlowBalance(ctx context.Context) (*model.CashFlowBalance, error)
+	CashFlowStats(ctx context.Context, startDate time.Time, endDate time.Time) (*model.CashFlowStats, error)
 	GetTransactions(ctx context.Context, filter *model.TransactionFilter) (*model.TransactionConnection, error)
+	GetBalance(ctx context.Context) (float64, error)
 	GetNextMemberNumber(ctx context.Context, isFamily bool) (string, error)
 	CheckMemberNumberExists(ctx context.Context, memberNumber string) (bool, error)
 	CheckDocumentValidity(ctx context.Context, documentNumber string) (*model.DocumentValidationResult, error)
@@ -460,6 +497,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.CashFlow.Amount(childComplexity), true
+	case "CashFlow.created_at":
+		if e.complexity.CashFlow.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.CashFlow.CreatedAt(childComplexity), true
 	case "CashFlow.date":
 		if e.complexity.CashFlow.Date == nil {
 			break
@@ -496,6 +539,69 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.CashFlow.Payment(childComplexity), true
+	case "CashFlow.updated_at":
+		if e.complexity.CashFlow.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.CashFlow.UpdatedAt(childComplexity), true
+
+	case "CashFlowBalance.currentBalance":
+		if e.complexity.CashFlowBalance.CurrentBalance == nil {
+			break
+		}
+
+		return e.complexity.CashFlowBalance.CurrentBalance(childComplexity), true
+	case "CashFlowBalance.totalExpenses":
+		if e.complexity.CashFlowBalance.TotalExpenses == nil {
+			break
+		}
+
+		return e.complexity.CashFlowBalance.TotalExpenses(childComplexity), true
+	case "CashFlowBalance.totalIncome":
+		if e.complexity.CashFlowBalance.TotalIncome == nil {
+			break
+		}
+
+		return e.complexity.CashFlowBalance.TotalIncome(childComplexity), true
+
+	case "CashFlowStats.expensesByCategory":
+		if e.complexity.CashFlowStats.ExpensesByCategory == nil {
+			break
+		}
+
+		return e.complexity.CashFlowStats.ExpensesByCategory(childComplexity), true
+	case "CashFlowStats.incomeByCategory":
+		if e.complexity.CashFlowStats.IncomeByCategory == nil {
+			break
+		}
+
+		return e.complexity.CashFlowStats.IncomeByCategory(childComplexity), true
+	case "CashFlowStats.monthlyTrend":
+		if e.complexity.CashFlowStats.MonthlyTrend == nil {
+			break
+		}
+
+		return e.complexity.CashFlowStats.MonthlyTrend(childComplexity), true
+
+	case "CategoryAmount.amount":
+		if e.complexity.CategoryAmount.Amount == nil {
+			break
+		}
+
+		return e.complexity.CategoryAmount.Amount(childComplexity), true
+	case "CategoryAmount.category":
+		if e.complexity.CategoryAmount.Category == nil {
+			break
+		}
+
+		return e.complexity.CategoryAmount.Category(childComplexity), true
+	case "CategoryAmount.count":
+		if e.complexity.CategoryAmount.Count == nil {
+			break
+		}
+
+		return e.complexity.CategoryAmount.Count(childComplexity), true
 
 	case "DashboardStats.activeMembers":
 		if e.complexity.DashboardStats.ActiveMembers == nil {
@@ -956,6 +1062,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.MembershipTrendData.TotalMembers(childComplexity), true
 
+	case "MonthlyAmount.balance":
+		if e.complexity.MonthlyAmount.Balance == nil {
+			break
+		}
+
+		return e.complexity.MonthlyAmount.Balance(childComplexity), true
+	case "MonthlyAmount.expenses":
+		if e.complexity.MonthlyAmount.Expenses == nil {
+			break
+		}
+
+		return e.complexity.MonthlyAmount.Expenses(childComplexity), true
+	case "MonthlyAmount.income":
+		if e.complexity.MonthlyAmount.Income == nil {
+			break
+		}
+
+		return e.complexity.MonthlyAmount.Income(childComplexity), true
+	case "MonthlyAmount.month":
+		if e.complexity.MonthlyAmount.Month == nil {
+			break
+		}
+
+		return e.complexity.MonthlyAmount.Month(childComplexity), true
+
 	case "Mutation.addFamilyMember":
 		if e.complexity.Mutation.AddFamilyMember == nil {
 			break
@@ -1022,6 +1153,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.ConfirmPayment(childComplexity, args["id"].(string), args["paymentMethod"].(string), args["paymentDate"].(*time.Time), args["notes"].(*string)), true
+	case "Mutation.createCashFlow":
+		if e.complexity.Mutation.CreateCashFlow == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createCashFlow_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreateCashFlow(childComplexity, args["input"].(model.CreateCashFlowInput)), true
 	case "Mutation.createFamily":
 		if e.complexity.Mutation.CreateFamily == nil {
 			break
@@ -1055,6 +1197,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.CreateUser(childComplexity, args["input"].(model.CreateUserInput)), true
+	case "Mutation.deleteCashFlow":
+		if e.complexity.Mutation.DeleteCashFlow == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteCashFlow_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteCashFlow(childComplexity, args["id"].(string)), true
 	case "Mutation.deleteMember":
 		if e.complexity.Mutation.DeleteMember == nil {
 			break
@@ -1199,6 +1352,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.SendVerificationEmail(childComplexity), true
+	case "Mutation.updateCashFlow":
+		if e.complexity.Mutation.UpdateCashFlow == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateCashFlow_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateCashFlow(childComplexity, args["id"].(string), args["input"].(model.UpdateCashFlowInput)), true
 	case "Mutation.updateFamily":
 		if e.complexity.Mutation.UpdateFamily == nil {
 			break
@@ -1366,6 +1530,23 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.PaymentConnection.PageInfo(childComplexity), true
 
+	case "Query.cashFlowBalance":
+		if e.complexity.Query.CashFlowBalance == nil {
+			break
+		}
+
+		return e.complexity.Query.CashFlowBalance(childComplexity), true
+	case "Query.cashFlowStats":
+		if e.complexity.Query.CashFlowStats == nil {
+			break
+		}
+
+		args, err := ec.field_Query_cashFlowStats_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.CashFlowStats(childComplexity, args["start_date"].(time.Time), args["end_date"].(time.Time)), true
 	case "Query.checkDocumentValidity":
 		if e.complexity.Query.CheckDocumentValidity == nil {
 			break
@@ -1814,6 +1995,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
 		ec.unmarshalInputChangePasswordInput,
+		ec.unmarshalInputCreateCashFlowInput,
 		ec.unmarshalInputCreateFamilyInput,
 		ec.unmarshalInputCreateMemberInput,
 		ec.unmarshalInputCreateUserInput,
@@ -1828,6 +2010,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputSortInput,
 		ec.unmarshalInputTransactionFilter,
 		ec.unmarshalInputTransactionInput,
+		ec.unmarshalInputUpdateCashFlowInput,
 		ec.unmarshalInputUpdateFamilyInput,
 		ec.unmarshalInputUpdateMemberInput,
 		ec.unmarshalInputUpdateUserInput,
@@ -1944,10 +2127,17 @@ enum MemberStatus {
 }
 
 enum OperationType {
-    MEMBERSHIP_FEE
-    CURRENT_EXPENSE
-    FUND_DELIVERY
-    OTHER_INCOME
+    # INGRESOS (amount > 0)
+    INGRESO_CUOTA          # Generado automáticamente por pagos
+    INGRESO_DONACION       # Registro manual
+    INGRESO_OTRO           # Registro manual
+
+    # GASTOS (amount < 0)
+    GASTO_REPATRIACION     # Requiere member_id
+    GASTO_ADMINISTRATIVO   # Tasas, sellos, copistería
+    GASTO_BANCARIO         # Comisiones bancarias
+    GASTO_AYUDA            # Ayudas sociales
+    GASTO_OTRO             # Otros gastos
 }
 
 enum PaymentStatus {
@@ -2089,6 +2279,33 @@ type CashFlow {
     detail: String!
     member: Member
     payment: Payment
+    created_at: Time!
+    updated_at: Time!
+}
+
+type CashFlowBalance {
+    totalIncome: Float!
+    totalExpenses: Float!
+    currentBalance: Float!
+}
+
+type CategoryAmount {
+    category: OperationType!
+    amount: Float!
+    count: Int!
+}
+
+type MonthlyAmount {
+    month: String!       # Formato: "2025-10"
+    income: Float!
+    expenses: Float!
+    balance: Float!
+}
+
+type CashFlowStats {
+    incomeByCategory: [CategoryAmount!]!
+    expensesByCategory: [CategoryAmount!]!
+    monthlyTrend: [MonthlyAmount!]!
 }
 
 # Inputs para filtros
@@ -2120,6 +2337,8 @@ input TransactionFilter {
     start_date: Time
     end_date: Time
     operation_type: OperationType
+    member_id: ID
+    category: String  # "INGRESO" o "GASTO"
     pagination: PaginationInput
     sort: SortInput
 }
@@ -2200,8 +2419,10 @@ type Query {
 
     # CashFlow Queries
     getCashFlow(id: ID!): CashFlow
-    getBalance: Float!
+    cashFlowBalance: CashFlowBalance!
+    cashFlowStats(start_date: Time!, end_date: Time!): CashFlowStats!
     getTransactions(filter: TransactionFilter): TransactionConnection!
+    getBalance: Float!  # DEPRECATED: usar cashFlowBalance en su lugar
     
     # Member Number Queries
     getNextMemberNumber(isFamily: Boolean!): String!
@@ -2378,6 +2599,23 @@ input PaymentInput {
     notes: String
 }
 
+input CreateCashFlowInput {
+    member_id: ID  # Para familias usar family.miembro_origen_id
+    operation_type: OperationType!
+    amount: Float!
+    date: Time!
+    detail: String!
+}
+
+input UpdateCashFlowInput {
+    operation_type: OperationType
+    amount: Float
+    date: Time
+    detail: String
+    member_id: ID
+}
+
+# DEPRECATED: usar CreateCashFlowInput
 input TransactionInput {
     member_id: ID
     operation_type: OperationType!
@@ -2448,9 +2686,14 @@ type Mutation {
     registerFee(year: Int!, base_amount: Float!): MutationResponse!
 
     # CashFlow Mutations
+    createCashFlow(input: CreateCashFlowInput!): CashFlow!
+    updateCashFlow(id: ID!, input: UpdateCashFlowInput!): CashFlow!
+    deleteCashFlow(id: ID!): MutationResponse!
+    adjustBalance(amount: Float!, reason: String!): MutationResponse!
+
+    # DEPRECATED: usar createCashFlow y updateCashFlow
     registerTransaction(input: TransactionInput!): CashFlow!
     updateTransaction(id: ID!, input: TransactionInput!): CashFlow!
-    adjustBalance(amount: Float!, reason: String!): MutationResponse!
 
     # Auth Mutations
     login(input: LoginInput!): AuthResponse!
@@ -2582,6 +2825,17 @@ func (ec *executionContext) field_Mutation_confirmPayment_args(ctx context.Conte
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_createCashFlow_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateCashFlowInput2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐCreateCashFlowInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_createFamily_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -2612,6 +2866,17 @@ func (ec *executionContext) field_Mutation_createUser_args(ctx context.Context, 
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteCashFlow_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
 	return args, nil
 }
 
@@ -2762,6 +3027,22 @@ func (ec *executionContext) field_Mutation_resetUserPassword_args(ctx context.Co
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_updateCashFlow_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateCashFlowInput2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐUpdateCashFlowInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_updateFamily_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -2846,6 +3127,22 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		return nil, err
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_cashFlowStats_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "start_date", ec.unmarshalNTime2timeᚐTime)
+	if err != nil {
+		return nil, err
+	}
+	args["start_date"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "end_date", ec.unmarshalNTime2timeᚐTime)
+	if err != nil {
+		return nil, err
+	}
+	args["end_date"] = arg1
 	return args, nil
 }
 
@@ -3556,6 +3853,351 @@ func (ec *executionContext) fieldContext_CashFlow_payment(_ context.Context, fie
 				return ec.fieldContext_Payment_membership_fee(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Payment", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CashFlow_created_at(ctx context.Context, field graphql.CollectedField, obj *models.CashFlow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CashFlow_created_at,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CashFlow_created_at(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CashFlow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CashFlow_updated_at(ctx context.Context, field graphql.CollectedField, obj *models.CashFlow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CashFlow_updated_at,
+		func(ctx context.Context) (any, error) {
+			return obj.UpdatedAt, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CashFlow_updated_at(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CashFlow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CashFlowBalance_totalIncome(ctx context.Context, field graphql.CollectedField, obj *model.CashFlowBalance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CashFlowBalance_totalIncome,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalIncome, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CashFlowBalance_totalIncome(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CashFlowBalance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CashFlowBalance_totalExpenses(ctx context.Context, field graphql.CollectedField, obj *model.CashFlowBalance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CashFlowBalance_totalExpenses,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalExpenses, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CashFlowBalance_totalExpenses(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CashFlowBalance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CashFlowBalance_currentBalance(ctx context.Context, field graphql.CollectedField, obj *model.CashFlowBalance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CashFlowBalance_currentBalance,
+		func(ctx context.Context) (any, error) {
+			return obj.CurrentBalance, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CashFlowBalance_currentBalance(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CashFlowBalance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CashFlowStats_incomeByCategory(ctx context.Context, field graphql.CollectedField, obj *model.CashFlowStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CashFlowStats_incomeByCategory,
+		func(ctx context.Context) (any, error) {
+			return obj.IncomeByCategory, nil
+		},
+		nil,
+		ec.marshalNCategoryAmount2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐCategoryAmountᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CashFlowStats_incomeByCategory(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CashFlowStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "category":
+				return ec.fieldContext_CategoryAmount_category(ctx, field)
+			case "amount":
+				return ec.fieldContext_CategoryAmount_amount(ctx, field)
+			case "count":
+				return ec.fieldContext_CategoryAmount_count(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CategoryAmount", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CashFlowStats_expensesByCategory(ctx context.Context, field graphql.CollectedField, obj *model.CashFlowStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CashFlowStats_expensesByCategory,
+		func(ctx context.Context) (any, error) {
+			return obj.ExpensesByCategory, nil
+		},
+		nil,
+		ec.marshalNCategoryAmount2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐCategoryAmountᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CashFlowStats_expensesByCategory(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CashFlowStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "category":
+				return ec.fieldContext_CategoryAmount_category(ctx, field)
+			case "amount":
+				return ec.fieldContext_CategoryAmount_amount(ctx, field)
+			case "count":
+				return ec.fieldContext_CategoryAmount_count(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CategoryAmount", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CashFlowStats_monthlyTrend(ctx context.Context, field graphql.CollectedField, obj *model.CashFlowStats) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CashFlowStats_monthlyTrend,
+		func(ctx context.Context) (any, error) {
+			return obj.MonthlyTrend, nil
+		},
+		nil,
+		ec.marshalNMonthlyAmount2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMonthlyAmountᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CashFlowStats_monthlyTrend(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CashFlowStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "month":
+				return ec.fieldContext_MonthlyAmount_month(ctx, field)
+			case "income":
+				return ec.fieldContext_MonthlyAmount_income(ctx, field)
+			case "expenses":
+				return ec.fieldContext_MonthlyAmount_expenses(ctx, field)
+			case "balance":
+				return ec.fieldContext_MonthlyAmount_balance(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MonthlyAmount", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CategoryAmount_category(ctx context.Context, field graphql.CollectedField, obj *model.CategoryAmount) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CategoryAmount_category,
+		func(ctx context.Context) (any, error) {
+			return obj.Category, nil
+		},
+		nil,
+		ec.marshalNOperationType2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐOperationType,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CategoryAmount_category(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CategoryAmount",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type OperationType does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CategoryAmount_amount(ctx context.Context, field graphql.CollectedField, obj *model.CategoryAmount) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CategoryAmount_amount,
+		func(ctx context.Context) (any, error) {
+			return obj.Amount, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CategoryAmount_amount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CategoryAmount",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CategoryAmount_count(ctx context.Context, field graphql.CollectedField, obj *model.CategoryAmount) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CategoryAmount_count,
+		func(ctx context.Context) (any, error) {
+			return obj.Count, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CategoryAmount_count(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CategoryAmount",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -5894,6 +6536,122 @@ func (ec *executionContext) fieldContext_MembershipTrendData_totalMembers(_ cont
 	return fc, nil
 }
 
+func (ec *executionContext) _MonthlyAmount_month(ctx context.Context, field graphql.CollectedField, obj *model.MonthlyAmount) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MonthlyAmount_month,
+		func(ctx context.Context) (any, error) {
+			return obj.Month, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MonthlyAmount_month(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MonthlyAmount",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MonthlyAmount_income(ctx context.Context, field graphql.CollectedField, obj *model.MonthlyAmount) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MonthlyAmount_income,
+		func(ctx context.Context) (any, error) {
+			return obj.Income, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MonthlyAmount_income(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MonthlyAmount",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MonthlyAmount_expenses(ctx context.Context, field graphql.CollectedField, obj *model.MonthlyAmount) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MonthlyAmount_expenses,
+		func(ctx context.Context) (any, error) {
+			return obj.Expenses, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MonthlyAmount_expenses(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MonthlyAmount",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MonthlyAmount_balance(ctx context.Context, field graphql.CollectedField, obj *model.MonthlyAmount) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MonthlyAmount_balance,
+		func(ctx context.Context) (any, error) {
+			return obj.Balance, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MonthlyAmount_balance(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MonthlyAmount",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_createMember(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6723,6 +7481,226 @@ func (ec *executionContext) fieldContext_Mutation_registerFee(ctx context.Contex
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_createCashFlow(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_createCashFlow,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().CreateCashFlow(ctx, fc.Args["input"].(model.CreateCashFlowInput))
+		},
+		nil,
+		ec.marshalNCashFlow2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐCashFlow,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createCashFlow(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_CashFlow_id(ctx, field)
+			case "amount":
+				return ec.fieldContext_CashFlow_amount(ctx, field)
+			case "date":
+				return ec.fieldContext_CashFlow_date(ctx, field)
+			case "operation_type":
+				return ec.fieldContext_CashFlow_operation_type(ctx, field)
+			case "detail":
+				return ec.fieldContext_CashFlow_detail(ctx, field)
+			case "member":
+				return ec.fieldContext_CashFlow_member(ctx, field)
+			case "payment":
+				return ec.fieldContext_CashFlow_payment(ctx, field)
+			case "created_at":
+				return ec.fieldContext_CashFlow_created_at(ctx, field)
+			case "updated_at":
+				return ec.fieldContext_CashFlow_updated_at(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CashFlow", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createCashFlow_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateCashFlow(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_updateCashFlow,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().UpdateCashFlow(ctx, fc.Args["id"].(string), fc.Args["input"].(model.UpdateCashFlowInput))
+		},
+		nil,
+		ec.marshalNCashFlow2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐCashFlow,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateCashFlow(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_CashFlow_id(ctx, field)
+			case "amount":
+				return ec.fieldContext_CashFlow_amount(ctx, field)
+			case "date":
+				return ec.fieldContext_CashFlow_date(ctx, field)
+			case "operation_type":
+				return ec.fieldContext_CashFlow_operation_type(ctx, field)
+			case "detail":
+				return ec.fieldContext_CashFlow_detail(ctx, field)
+			case "member":
+				return ec.fieldContext_CashFlow_member(ctx, field)
+			case "payment":
+				return ec.fieldContext_CashFlow_payment(ctx, field)
+			case "created_at":
+				return ec.fieldContext_CashFlow_created_at(ctx, field)
+			case "updated_at":
+				return ec.fieldContext_CashFlow_updated_at(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CashFlow", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateCashFlow_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteCashFlow(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_deleteCashFlow,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().DeleteCashFlow(ctx, fc.Args["id"].(string))
+		},
+		nil,
+		ec.marshalNMutationResponse2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMutationResponse,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteCashFlow(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_MutationResponse_success(ctx, field)
+			case "message":
+				return ec.fieldContext_MutationResponse_message(ctx, field)
+			case "error":
+				return ec.fieldContext_MutationResponse_error(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MutationResponse", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteCashFlow_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_adjustBalance(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_adjustBalance,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().AdjustBalance(ctx, fc.Args["amount"].(float64), fc.Args["reason"].(string))
+		},
+		nil,
+		ec.marshalNMutationResponse2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMutationResponse,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_adjustBalance(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_MutationResponse_success(ctx, field)
+			case "message":
+				return ec.fieldContext_MutationResponse_message(ctx, field)
+			case "error":
+				return ec.fieldContext_MutationResponse_error(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MutationResponse", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_adjustBalance_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_registerTransaction(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6762,6 +7740,10 @@ func (ec *executionContext) fieldContext_Mutation_registerTransaction(ctx contex
 				return ec.fieldContext_CashFlow_member(ctx, field)
 			case "payment":
 				return ec.fieldContext_CashFlow_payment(ctx, field)
+			case "created_at":
+				return ec.fieldContext_CashFlow_created_at(ctx, field)
+			case "updated_at":
+				return ec.fieldContext_CashFlow_updated_at(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type CashFlow", field.Name)
 		},
@@ -6819,6 +7801,10 @@ func (ec *executionContext) fieldContext_Mutation_updateTransaction(ctx context.
 				return ec.fieldContext_CashFlow_member(ctx, field)
 			case "payment":
 				return ec.fieldContext_CashFlow_payment(ctx, field)
+			case "created_at":
+				return ec.fieldContext_CashFlow_created_at(ctx, field)
+			case "updated_at":
+				return ec.fieldContext_CashFlow_updated_at(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type CashFlow", field.Name)
 		},
@@ -6831,55 +7817,6 @@ func (ec *executionContext) fieldContext_Mutation_updateTransaction(ctx context.
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_updateTransaction_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_adjustBalance(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_adjustBalance,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().AdjustBalance(ctx, fc.Args["amount"].(float64), fc.Args["reason"].(string))
-		},
-		nil,
-		ec.marshalNMutationResponse2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMutationResponse,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_adjustBalance(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "success":
-				return ec.fieldContext_MutationResponse_success(ctx, field)
-			case "message":
-				return ec.fieldContext_MutationResponse_message(ctx, field)
-			case "error":
-				return ec.fieldContext_MutationResponse_error(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type MutationResponse", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_adjustBalance_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -9283,6 +10220,10 @@ func (ec *executionContext) fieldContext_Query_getCashFlow(ctx context.Context, 
 				return ec.fieldContext_CashFlow_member(ctx, field)
 			case "payment":
 				return ec.fieldContext_CashFlow_payment(ctx, field)
+			case "created_at":
+				return ec.fieldContext_CashFlow_created_at(ctx, field)
+			case "updated_at":
+				return ec.fieldContext_CashFlow_updated_at(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type CashFlow", field.Name)
 		},
@@ -9301,31 +10242,88 @@ func (ec *executionContext) fieldContext_Query_getCashFlow(ctx context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _Query_getBalance(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Query_cashFlowBalance(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Query_getBalance,
+		ec.fieldContext_Query_cashFlowBalance,
 		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Query().GetBalance(ctx)
+			return ec.resolvers.Query().CashFlowBalance(ctx)
 		},
 		nil,
-		ec.marshalNFloat2float64,
+		ec.marshalNCashFlowBalance2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐCashFlowBalance,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Query_getBalance(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Query_cashFlowBalance(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Query",
 		Field:      field,
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Float does not have child fields")
+			switch field.Name {
+			case "totalIncome":
+				return ec.fieldContext_CashFlowBalance_totalIncome(ctx, field)
+			case "totalExpenses":
+				return ec.fieldContext_CashFlowBalance_totalExpenses(ctx, field)
+			case "currentBalance":
+				return ec.fieldContext_CashFlowBalance_currentBalance(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CashFlowBalance", field.Name)
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_cashFlowStats(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_cashFlowStats,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().CashFlowStats(ctx, fc.Args["start_date"].(time.Time), fc.Args["end_date"].(time.Time))
+		},
+		nil,
+		ec.marshalNCashFlowStats2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐCashFlowStats,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_cashFlowStats(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "incomeByCategory":
+				return ec.fieldContext_CashFlowStats_incomeByCategory(ctx, field)
+			case "expensesByCategory":
+				return ec.fieldContext_CashFlowStats_expensesByCategory(ctx, field)
+			case "monthlyTrend":
+				return ec.fieldContext_CashFlowStats_monthlyTrend(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CashFlowStats", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_cashFlowStats_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -9373,6 +10371,35 @@ func (ec *executionContext) fieldContext_Query_getTransactions(ctx context.Conte
 	if fc.Args, err = ec.field_Query_getTransactions_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getBalance(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_getBalance,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().GetBalance(ctx)
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_getBalance(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
 	}
 	return fc, nil
 }
@@ -10229,6 +11256,10 @@ func (ec *executionContext) fieldContext_TransactionConnection_nodes(_ context.C
 				return ec.fieldContext_CashFlow_member(ctx, field)
 			case "payment":
 				return ec.fieldContext_CashFlow_payment(ctx, field)
+			case "created_at":
+				return ec.fieldContext_CashFlow_created_at(ctx, field)
+			case "updated_at":
+				return ec.fieldContext_CashFlow_updated_at(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type CashFlow", field.Name)
 		},
@@ -12054,6 +13085,61 @@ func (ec *executionContext) unmarshalInputChangePasswordInput(ctx context.Contex
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputCreateCashFlowInput(ctx context.Context, obj any) (model.CreateCashFlowInput, error) {
+	var it model.CreateCashFlowInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"member_id", "operation_type", "amount", "date", "detail"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "member_id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("member_id"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MemberID = data
+		case "operation_type":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("operation_type"))
+			data, err := ec.unmarshalNOperationType2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐOperationType(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.OperationType = data
+		case "amount":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("amount"))
+			data, err := ec.unmarshalNFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Amount = data
+		case "date":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("date"))
+			data, err := ec.unmarshalNTime2timeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Date = data
+		case "detail":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("detail"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Detail = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputCreateFamilyInput(ctx context.Context, obj any) (model.CreateFamilyInput, error) {
 	var it model.CreateFamilyInput
 	asMap := map[string]any{}
@@ -12812,7 +13898,7 @@ func (ec *executionContext) unmarshalInputTransactionFilter(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"start_date", "end_date", "operation_type", "pagination", "sort"}
+	fieldsInOrder := [...]string{"start_date", "end_date", "operation_type", "member_id", "category", "pagination", "sort"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -12840,6 +13926,20 @@ func (ec *executionContext) unmarshalInputTransactionFilter(ctx context.Context,
 				return it, err
 			}
 			it.OperationType = data
+		case "member_id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("member_id"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MemberID = data
+		case "category":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("category"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Category = data
 		case "pagination":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("pagination"))
 			data, err := ec.unmarshalOPaginationInput2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPaginationInput(ctx, v)
@@ -12909,6 +14009,61 @@ func (ec *executionContext) unmarshalInputTransactionInput(ctx context.Context, 
 				return it, err
 			}
 			it.Detail = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputUpdateCashFlowInput(ctx context.Context, obj any) (model.UpdateCashFlowInput, error) {
+	var it model.UpdateCashFlowInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"operation_type", "amount", "date", "detail", "member_id"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "operation_type":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("operation_type"))
+			data, err := ec.unmarshalOOperationType2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐOperationType(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.OperationType = data
+		case "amount":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("amount"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Amount = data
+		case "date":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("date"))
+			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Date = data
+		case "detail":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("detail"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Detail = data
+		case "member_id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("member_id"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MemberID = data
 		}
 	}
 
@@ -13318,6 +14473,163 @@ func (ec *executionContext) _CashFlow(ctx context.Context, sel ast.SelectionSet,
 			out.Values[i] = ec._CashFlow_member(ctx, field, obj)
 		case "payment":
 			out.Values[i] = ec._CashFlow_payment(ctx, field, obj)
+		case "created_at":
+			out.Values[i] = ec._CashFlow_created_at(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "updated_at":
+			out.Values[i] = ec._CashFlow_updated_at(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cashFlowBalanceImplementors = []string{"CashFlowBalance"}
+
+func (ec *executionContext) _CashFlowBalance(ctx context.Context, sel ast.SelectionSet, obj *model.CashFlowBalance) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cashFlowBalanceImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CashFlowBalance")
+		case "totalIncome":
+			out.Values[i] = ec._CashFlowBalance_totalIncome(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalExpenses":
+			out.Values[i] = ec._CashFlowBalance_totalExpenses(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "currentBalance":
+			out.Values[i] = ec._CashFlowBalance_currentBalance(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cashFlowStatsImplementors = []string{"CashFlowStats"}
+
+func (ec *executionContext) _CashFlowStats(ctx context.Context, sel ast.SelectionSet, obj *model.CashFlowStats) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cashFlowStatsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CashFlowStats")
+		case "incomeByCategory":
+			out.Values[i] = ec._CashFlowStats_incomeByCategory(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "expensesByCategory":
+			out.Values[i] = ec._CashFlowStats_expensesByCategory(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "monthlyTrend":
+			out.Values[i] = ec._CashFlowStats_monthlyTrend(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var categoryAmountImplementors = []string{"CategoryAmount"}
+
+func (ec *executionContext) _CategoryAmount(ctx context.Context, sel ast.SelectionSet, obj *model.CategoryAmount) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, categoryAmountImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CategoryAmount")
+		case "category":
+			out.Values[i] = ec._CategoryAmount_category(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "amount":
+			out.Values[i] = ec._CategoryAmount_amount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "count":
+			out.Values[i] = ec._CategoryAmount_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -14644,6 +15956,60 @@ func (ec *executionContext) _MembershipTrendData(ctx context.Context, sel ast.Se
 	return out
 }
 
+var monthlyAmountImplementors = []string{"MonthlyAmount"}
+
+func (ec *executionContext) _MonthlyAmount(ctx context.Context, sel ast.SelectionSet, obj *model.MonthlyAmount) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, monthlyAmountImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MonthlyAmount")
+		case "month":
+			out.Values[i] = ec._MonthlyAmount_month(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "income":
+			out.Values[i] = ec._MonthlyAmount_income(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "expenses":
+			out.Values[i] = ec._MonthlyAmount_expenses(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "balance":
+			out.Values[i] = ec._MonthlyAmount_balance(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -14754,6 +16120,34 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "createCashFlow":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createCashFlow(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateCashFlow":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateCashFlow(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteCashFlow":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteCashFlow(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "adjustBalance":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_adjustBalance(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "registerTransaction":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_registerTransaction(ctx, field)
@@ -14764,13 +16158,6 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "updateTransaction":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateTransaction(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "adjustBalance":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_adjustBalance(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -15603,7 +16990,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "getBalance":
+		case "cashFlowBalance":
 			field := field
 
 			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
@@ -15612,7 +16999,29 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Query_getBalance(ctx, field)
+				res = ec._Query_cashFlowBalance(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "cashFlowStats":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_cashFlowStats(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -15635,6 +17044,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getTransactions(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getBalance":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getBalance(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -16555,8 +17986,95 @@ func (ec *executionContext) marshalNCashFlow2ᚖgithubᚗcomᚋjavicabdevᚋasam
 	return ec._CashFlow(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNCashFlowBalance2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐCashFlowBalance(ctx context.Context, sel ast.SelectionSet, v model.CashFlowBalance) graphql.Marshaler {
+	return ec._CashFlowBalance(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNCashFlowBalance2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐCashFlowBalance(ctx context.Context, sel ast.SelectionSet, v *model.CashFlowBalance) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CashFlowBalance(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCashFlowStats2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐCashFlowStats(ctx context.Context, sel ast.SelectionSet, v model.CashFlowStats) graphql.Marshaler {
+	return ec._CashFlowStats(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNCashFlowStats2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐCashFlowStats(ctx context.Context, sel ast.SelectionSet, v *model.CashFlowStats) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CashFlowStats(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCategoryAmount2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐCategoryAmountᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CategoryAmount) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNCategoryAmount2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐCategoryAmount(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCategoryAmount2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐCategoryAmount(ctx context.Context, sel ast.SelectionSet, v *model.CategoryAmount) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CategoryAmount(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNChangePasswordInput2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐChangePasswordInput(ctx context.Context, v any) (model.ChangePasswordInput, error) {
 	res, err := ec.unmarshalInputChangePasswordInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNCreateCashFlowInput2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐCreateCashFlowInput(ctx context.Context, v any) (model.CreateCashFlowInput, error) {
+	res, err := ec.unmarshalInputCreateCashFlowInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -17012,6 +18530,60 @@ func (ec *executionContext) marshalNMembershipType2githubᚗcomᚋjavicabdevᚋa
 	return v
 }
 
+func (ec *executionContext) marshalNMonthlyAmount2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMonthlyAmountᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MonthlyAmount) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNMonthlyAmount2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMonthlyAmount(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNMonthlyAmount2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMonthlyAmount(ctx context.Context, sel ast.SelectionSet, v *model.MonthlyAmount) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._MonthlyAmount(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNMutationResponse2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMutationResponse(ctx context.Context, sel ast.SelectionSet, v model.MutationResponse) graphql.Marshaler {
 	return ec._MutationResponse(ctx, sel, &v)
 }
@@ -17354,6 +18926,11 @@ func (ec *executionContext) marshalNTransactionConnection2ᚖgithubᚗcomᚋjavi
 
 func (ec *executionContext) unmarshalNTransactionInput2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐTransactionInput(ctx context.Context, v any) (model.TransactionInput, error) {
 	res, err := ec.unmarshalInputTransactionInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNUpdateCashFlowInput2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐUpdateCashFlowInput(ctx context.Context, v any) (model.UpdateCashFlowInput, error) {
+	res, err := ec.unmarshalInputUpdateCashFlowInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 

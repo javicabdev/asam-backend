@@ -17,6 +17,7 @@ type paymentService struct {
 	membershipFeeRepo output.MembershipFeeRepository
 	memberRepo        output.MemberRepository
 	familyRepo        output.FamilyRepository
+	cashFlowRepo      output.CashFlowRepository
 	feeCalculator     input.FeeCalculator
 }
 
@@ -27,6 +28,7 @@ func NewPaymentService(
 	membershipFeeRepo output.MembershipFeeRepository,
 	memberRepo output.MemberRepository,
 	familyRepo output.FamilyRepository,
+	cashFlowRepo output.CashFlowRepository,
 	feeCalculator input.FeeCalculator,
 ) input.PaymentService {
 	return &paymentService{
@@ -34,6 +36,7 @@ func NewPaymentService(
 		membershipFeeRepo: membershipFeeRepo,
 		memberRepo:        memberRepo,
 		familyRepo:        familyRepo,
+		cashFlowRepo:      cashFlowRepo,
 		feeCalculator:     feeCalculator,
 	}
 }
@@ -304,6 +307,12 @@ func (s *paymentService) ConfirmPayment(ctx context.Context, paymentID uint, pay
 	err = s.paymentRepo.Update(ctx, payment)
 	if err != nil {
 		return nil, errors.DB(err, "failed to confirm payment")
+	}
+
+	// Crear entrada automática en cash_flows
+	if err := s.createCashFlowForPayment(ctx, payment); err != nil {
+		// Log error but don't fail the confirmation
+		log.Printf("Warning: Failed to create cash flow entry for payment %d: %v", payment.ID, err)
 	}
 
 	return payment, nil
@@ -632,4 +641,37 @@ func (s *paymentService) ListPayments(ctx context.Context, filters input.Payment
 	}
 
 	return result, int(total), nil
+}
+
+// createCashFlowForPayment crea automáticamente una entrada en cash_flows cuando se confirma un pago
+func (s *paymentService) createCashFlowForPayment(ctx context.Context, payment *models.Payment) error {
+	// Verificar que el pago tiene una fecha de pago
+	if payment.PaymentDate == nil {
+		return errors.New(errors.ErrInvalidOperation, "payment date is required for cash flow creation")
+	}
+
+	// Verificar si ya existe un cash_flow para este pago (idempotencia)
+	exists, err := s.cashFlowRepo.ExistsByPaymentID(ctx, payment.ID)
+	if err != nil {
+		return errors.DB(err, "failed to check existing cash flow")
+	}
+
+	if exists {
+		log.Printf("Info: Cash flow already exists for payment %d, skipping creation", payment.ID)
+		return nil
+	}
+
+	// Crear el cash flow usando el helper del modelo
+	cashFlow, err := models.NewFromPayment(payment)
+	if err != nil {
+		return errors.Wrap(err, errors.ErrInvalidOperation, "failed to create cash flow from payment")
+	}
+
+	// Guardar en la base de datos
+	if err := s.cashFlowRepo.Create(ctx, cashFlow); err != nil {
+		return errors.DB(err, "failed to save cash flow entry")
+	}
+
+	log.Printf("Info: Cash flow entry created successfully for payment %d", payment.ID)
+	return nil
 }
