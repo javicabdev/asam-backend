@@ -2095,7 +2095,7 @@ type Payment {
     member: Member
     family: Family
     amount: Float!
-    payment_date: Time!
+    payment_date: Time
     status: PaymentStatus!
     payment_method: String!
     notes: String
@@ -8064,9 +8064,9 @@ func (ec *executionContext) _Payment_payment_date(ctx context.Context, field gra
 			return obj.PaymentDate, nil
 		},
 		nil,
-		ec.marshalNTime2timeᚐTime,
+		ec.marshalOTime2ᚖtimeᚐTime,
 		true,
-		true,
+		false,
 	)
 }
 
@@ -15325,9 +15325,6 @@ func (ec *executionContext) _Payment(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "payment_date":
 			out.Values[i] = ec._Payment_payment_date(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
 		case "status":
 			out.Values[i] = ec._Payment_status(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
