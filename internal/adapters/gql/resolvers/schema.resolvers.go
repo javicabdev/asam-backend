@@ -454,7 +454,7 @@ func (r *mutationResolver) CancelPayment(ctx context.Context, id string, reason 
 }
 
 // ConfirmPayment is the resolver for the confirmPayment field.
-func (r *mutationResolver) ConfirmPayment(ctx context.Context, id string) (*models.Payment, error) {
+func (r *mutationResolver) ConfirmPayment(ctx context.Context, id string, paymentMethod string) (*models.Payment, error) {
 	// Solo ADMIN puede confirmar pagos
 	if err := middleware.MustBeAdmin(ctx); err != nil {
 		return nil, err
@@ -467,7 +467,7 @@ func (r *mutationResolver) ConfirmPayment(ctx context.Context, id string) (*mode
 	}
 
 	// Llamar al servicio de dominio para confirmar el pago
-	payment, err := r.paymentService.ConfirmPayment(ctx, paymentID)
+	payment, err := r.paymentService.ConfirmPayment(ctx, paymentID, paymentMethod)
 	if err != nil {
 		return nil, err
 	}

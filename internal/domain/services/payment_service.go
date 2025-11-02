@@ -289,7 +289,7 @@ func (s *paymentService) CancelPayment(ctx context.Context, paymentID uint, reas
 }
 
 // ConfirmPayment confirms a pending payment by changing its status to PAID
-func (s *paymentService) ConfirmPayment(ctx context.Context, paymentID uint) (*models.Payment, error) {
+func (s *paymentService) ConfirmPayment(ctx context.Context, paymentID uint, paymentMethod string) (*models.Payment, error) {
 	// Get existing payment
 	payment, err := s.paymentRepo.FindByID(ctx, paymentID)
 	if err != nil {
@@ -309,10 +309,20 @@ func (s *paymentService) ConfirmPayment(ctx context.Context, paymentID uint) (*m
 		)
 	}
 
-	// Update payment status and date
+	// Validate payment method is not empty
+	if paymentMethod == "" {
+		return nil, errors.Validation(
+			"Payment method is required",
+			"payment_method",
+			"empty",
+		)
+	}
+
+	// Update payment status, date and payment method
 	payment.Status = models.PaymentStatusPaid
 	now := time.Now()
 	payment.PaymentDate = &now
+	payment.PaymentMethod = paymentMethod
 
 	// Save to database
 	err = s.paymentRepo.Update(ctx, payment)
