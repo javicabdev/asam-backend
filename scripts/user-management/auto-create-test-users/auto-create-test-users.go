@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -14,6 +15,9 @@ import (
 	"github.com/javicabdev/asam-backend/internal/adapters/db"
 	"github.com/javicabdev/asam-backend/internal/config"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
+	"github.com/javicabdev/asam-backend/internal/domain/services"
+	"github.com/javicabdev/asam-backend/internal/ports/input"
+	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
 // This script automatically creates test users without user interaction
@@ -67,7 +71,7 @@ func main() {
 	}
 
 	// Create regular user with associated member
-	if err := createOrUpdateUserWithMember(database); err != nil {
+	if err := createOrUpdateUserWithMember(database, cfg); err != nil {
 		log.Printf("❌ Error creating user with member: %v", err)
 	} else {
 		fmt.Println("✓ Regular user with member ready")
@@ -176,7 +180,7 @@ func createOrUpdateAdminUser(db *gorm.DB) error {
 }
 
 // createOrUpdateUserWithMember crea o actualiza un usuario regular con su miembro asociado
-func createOrUpdateUserWithMember(db *gorm.DB) error {
+func createOrUpdateUserWithMember(db *gorm.DB, cfg *config.Config) error {
 	// Primero crear o buscar el miembro
 	member, err := getOrCreateTestMember(db)
 	if err != nil {
@@ -188,8 +192,49 @@ func createOrUpdateUserWithMember(db *gorm.DB) error {
 		return err
 	}
 
+	// Crear pago pendiente para el primer usuario (B99001)
+	currentYear := time.Now().Year()
+	var membershipFee models.MembershipFee
+	if err := db.Where("year = ?", currentYear).First(&membershipFee).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Crear cuota anual si no existe
+			membershipFee = models.MembershipFee{
+				Year:           currentYear,
+				BaseFeeAmount:  30.0, // Cuota base
+				FamilyFeeExtra: 10.0, // Extra para familias
+				DueDate:        time.Date(currentYear, 12, 31, 23, 59, 59, 0, time.UTC),
+			}
+			if err := db.Create(&membershipFee).Error; err != nil {
+				log.Printf("⚠️  Could not create membership fee for first user: %v", err)
+			} else {
+				fmt.Printf("   ✓ Created membership fee for year %d\n", currentYear)
+			}
+		}
+	}
+
+	// Verificar si el miembro B99001 ya tiene un pago pendiente
+	var existingPayment models.Payment
+	if err := db.Where("member_id = ? AND membership_fee_id = ?", member.ID, membershipFee.ID).First(&existingPayment).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Crear pago pendiente para B99001
+			payment := models.Payment{
+				MemberID:        &member.ID,
+				Amount:          membershipFee.BaseFeeAmount,
+				Status:          models.PaymentStatusPending,
+				PaymentDate:     nil,
+				MembershipFeeID: &membershipFee.ID,
+				Notes:           "Pago de prueba generado automáticamente para usuario test",
+			}
+			if err := db.Create(&payment).Error; err != nil {
+				log.Printf("⚠️  Could not create pending payment for first user: %v", err)
+			} else {
+				fmt.Printf("   ✓ Created pending payment (%.2f€) for member %s\n", payment.Amount, member.MembershipNumber)
+			}
+		}
+	}
+
 	// Finalmente crear miembros adicionales para testing
-	createAdditionalTestMembers(db)
+	createAdditionalTestMembers(db, cfg)
 
 	return nil
 }
@@ -322,14 +367,53 @@ func createOrUpdateTestUser(db *gorm.DB, member *models.Member) error {
 }
 
 // createAdditionalTestMembers crea miembros adicionales sin usuarios para testing
-func createAdditionalTestMembers(db *gorm.DB) {
-	fmt.Println("\n📝 Creating additional test members...")
+// Incluye miembros individuales y familiares, todos con pagos pendientes
+func createAdditionalTestMembers(database *gorm.DB, _ *config.Config) {
+	fmt.Println("\n📝 Creating additional test members with pending payments...")
 
-	// IMPORTANTE: Convención de numeración ASAM
-	// - Prefijo A: Miembros FAMILIARES (requieren entidad Family asociada)
-	// - Prefijo B: Miembros INDIVIDUALES
-	// Todos los miembros de prueba son individuales, por lo tanto usan prefijo B
-	testMembers := []struct {
+	ctx := context.Background()
+	currentYear := time.Now().Year()
+
+	// Inicializar logger para el servicio
+	_, err := logger.InitLogger(logger.DefaultConfig())
+	if err != nil {
+		log.Printf("⚠️  Could not initialize logger: %v", err)
+		return
+	}
+
+	// Inicializar repositorios
+	memberRepo := db.NewMemberRepository(database)
+	familyRepo := db.NewFamilyRepository(database)
+	paymentRepo := db.NewPaymentRepository(database)
+	membershipFeeRepo := db.NewMembershipFeeRepository(database)
+
+	// Inicializar servicio de familias
+	familyService := services.NewFamilyService(familyRepo, memberRepo, paymentRepo, membershipFeeRepo)
+
+	// Crear o obtener cuota anual del año actual
+	var membershipFee models.MembershipFee
+	if err := database.Where("year = ?", currentYear).First(&membershipFee).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Crear cuota anual si no existe
+			membershipFee = models.MembershipFee{
+				Year:           currentYear,
+				BaseFeeAmount:  30.0, // Cuota base
+				FamilyFeeExtra: 10.0, // Extra para familias
+				DueDate:        time.Date(currentYear, 12, 31, 23, 59, 59, 0, time.UTC),
+			}
+			if err := database.Create(&membershipFee).Error; err != nil {
+				log.Printf("⚠️  Could not create membership fee: %v", err)
+				return
+			}
+			fmt.Printf("   ✓ Created membership fee for year %d\n", currentYear)
+		} else {
+			log.Printf("⚠️  Error checking membership fee: %v", err)
+			return
+		}
+	}
+
+	// MIEMBROS INDIVIDUALES (prefijo B)
+	individualMembers := []struct {
 		number   string
 		name     string
 		surnames string
@@ -338,37 +422,175 @@ func createAdditionalTestMembers(db *gorm.DB) {
 		{"B99002", "María", "González López", "maria.gonzalez@example.com"},
 		{"B99003", "Carlos", "Rodríguez Martín", "carlos.rodriguez@example.com"},
 		{"B99004", "Ana", "Martínez Sánchez", "ana.martinez@example.com"},
-		{"B99005", "Pedro", "López Fernández", "pedro.lopez@example.com"},
 	}
 
-	for _, tm := range testMembers {
-		var existingMember models.Member
-		if err := db.Where("membership_number = ?", tm.number).First(&existingMember).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				newMember := models.Member{
-					MembershipNumber: tm.number,
-					MembershipType:   models.TipoMembresiaPIndividual,
-					Name:             tm.name,
-					Surnames:         tm.surnames,
-					Email:            stringPtr(tm.email),
-					Address:          "Calle Ejemplo 100",
-					Postcode:         "08001",
-					City:             "Barcelona",
-					Province:         "Barcelona",
-					Country:          "España",
-					State:            models.EstadoActivo,
-					Nationality:      "Española",
-					RegistrationDate: time.Now(),
-				}
+	fmt.Println("\n   Creating individual members:")
+	for _, tm := range individualMembers {
+		member := createOrGetMember(database, tm.number, tm.name, tm.surnames, tm.email, models.TipoMembresiaPIndividual)
+		if member != nil {
+			// Crear pago pendiente para el miembro
+			createPendingPayment(database, &member.ID, nil, membershipFee.BaseFeeAmount, membershipFee.ID)
+		}
+	}
 
-				if err := db.Create(&newMember).Error; err != nil {
-					log.Printf("⚠️  Could not create additional member %s: %v", tm.number, err)
-				} else {
-					fmt.Printf("   ✓ Created member: %s %s (Number: %s) - Available for association\n",
-						tm.name, tm.surnames, tm.number)
+	// FAMILIAS (prefijo A) - Usar CreateFamilyAtomic
+	// Usando DNIs válidos españoles (con letra de control correcta)
+	familyData := []struct {
+		number          string
+		esposoNombre    string
+		esposoApellidos string
+		esposoEmail     string
+		esposoDNI       string
+		esposaNombre    string
+		esposaApellidos string
+		esposaEmail     string
+	}{
+		{"A99001", "Pedro", "López Fernández", "pedro.lopez@example.com", "12345678Z", "Laura", "García Ruiz", "laura.garcia@example.com"},
+		{"A99002", "Miguel", "Sánchez Torres", "miguel.sanchez@example.com", "87654321X", "Carmen", "Díaz Moreno", "carmen.diaz@example.com"},
+	}
+
+	fmt.Println("\n   Creating family members:")
+	for _, fm := range familyData {
+		// Verificar si ya existe la familia
+		existingFamily, _ := familyService.GetByNumeroSocio(ctx, fm.number)
+		if existingFamily != nil {
+			fmt.Printf("      ℹ️  Family %s already exists\n", fm.number)
+			// Verificar si tiene miembro origen
+			if existingFamily.MiembroOrigenID != nil {
+				// Verificar si ya tiene pago pendiente
+				var existingPayment models.Payment
+				if err := database.Where("member_id = ? AND membership_fee_id = ?",
+					*existingFamily.MiembroOrigenID, membershipFee.ID).First(&existingPayment).Error; err != nil {
+					if errors.Is(err, gorm.ErrRecordNotFound) {
+						// Crear pago pendiente para la familia existente
+						familyAmount := membershipFee.BaseFeeAmount + membershipFee.FamilyFeeExtra
+						createPendingPayment(database, existingFamily.MiembroOrigenID, nil, familyAmount, membershipFee.ID)
+					}
 				}
+			}
+			continue
+		}
+
+		// Crear familia con miembro origen usando CreateFamilyAtomic
+		req := &input.CreateFamilyAtomicRequest{
+			Family: &models.Family{
+				NumeroSocio:              fm.number,
+				EsposoNombre:             fm.esposoNombre,
+				EsposoApellidos:          fm.esposoApellidos,
+				EsposoCorreoElectronico:  fm.esposoEmail,
+				EsposoDocumentoIdentidad: fm.esposoDNI, // DNI obligatorio cuando CreateMemberIfNotExists=true
+				EsposaNombre:             fm.esposaNombre,
+				EsposaApellidos:          fm.esposaApellidos,
+				EsposaCorreoElectronico:  fm.esposaEmail,
+			},
+			CreateMemberIfNotExists: true,
+			MemberData: &input.CreateMemberData{
+				Address:  "Calle Ejemplo 100",
+				Postcode: "08001",
+				City:     "Barcelona",
+				Province: "Barcelona",
+				Country:  "España",
+			},
+		}
+
+		family, err := familyService.CreateFamilyAtomic(ctx, req)
+		if err != nil {
+			log.Printf("      ⚠️  Could not create family %s: %v", fm.number, err)
+			continue
+		}
+
+		fmt.Printf("      ✓ Created family: %s %s & %s %s (Number: %s)\n",
+			fm.esposoNombre, fm.esposoApellidos, fm.esposaNombre, fm.esposaApellidos, fm.number)
+
+		// Obtener el miembro origen creado
+		if family.MiembroOrigenID != nil {
+			// Crear pago pendiente para el miembro familiar (incluye extra familiar)
+			familyAmount := membershipFee.BaseFeeAmount + membershipFee.FamilyFeeExtra
+			createPendingPayment(database, family.MiembroOrigenID, nil, familyAmount, membershipFee.ID)
+		}
+	}
+
+	fmt.Println("\n✅ Test members with pending payments created successfully!")
+}
+
+// createOrGetMember crea o obtiene un miembro individual
+func createOrGetMember(db *gorm.DB, number, name, surnames, email string, memberType string) *models.Member {
+	var member models.Member
+	if err := db.Where("membership_number = ?", number).First(&member).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			member = models.Member{
+				MembershipNumber: number,
+				MembershipType:   memberType,
+				Name:             name,
+				Surnames:         surnames,
+				Email:            stringPtr(email),
+				Address:          "Calle Ejemplo 100",
+				Postcode:         "08001",
+				City:             "Barcelona",
+				Province:         "Barcelona",
+				Country:          "España",
+				State:            models.EstadoActivo,
+				Nationality:      "Española",
+				RegistrationDate: time.Now(),
+			}
+
+			if err := db.Create(&member).Error; err != nil {
+				log.Printf("      ⚠️  Could not create member %s: %v", number, err)
+				return nil
+			}
+			fmt.Printf("      ✓ Created individual member: %s %s (Number: %s)\n",
+				name, surnames, number)
+			return &member
+		}
+		log.Printf("      ⚠️  Error checking member %s: %v", number, err)
+		return nil
+	}
+	fmt.Printf("      ℹ️  Individual member %s already exists\n", number)
+	return &member
+}
+
+// createPendingPayment crea un pago pendiente para un miembro o familia
+func createPendingPayment(db *gorm.DB, memberID, familyID *uint, amount float64, feeID uint) {
+	// Verificar si ya existe un pago para esta entidad y cuota
+	var existingPayment models.Payment
+	query := db.Where("membership_fee_id = ?", feeID)
+	if memberID != nil {
+		query = query.Where("member_id = ?", *memberID)
+	} else if familyID != nil {
+		query = query.Where("family_id = ?", *familyID)
+	}
+
+	if err := query.First(&existingPayment).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Crear nuevo pago pendiente
+			payment := models.Payment{
+				MemberID:        memberID,
+				FamilyID:        familyID,
+				Amount:          amount,
+				Status:          models.PaymentStatusPending,
+				PaymentDate:     nil, // Sin fecha de pago porque está pendiente
+				MembershipFeeID: &feeID,
+				Notes:           "Pago de prueba generado automáticamente",
+			}
+
+			if err := db.Create(&payment).Error; err != nil {
+				entityType := "member"
+				entityID := uint(0)
+				if memberID != nil {
+					entityID = *memberID
+				} else if familyID != nil {
+					entityType = "family"
+					entityID = *familyID
+				}
+				log.Printf("         ⚠️  Could not create pending payment for %s %d: %v", entityType, entityID, err)
 			} else {
-				fmt.Printf("   ℹ️  Member %s already exists\n", tm.number)
+				entityInfo := ""
+				if memberID != nil {
+					entityInfo = fmt.Sprintf("member ID %d", *memberID)
+				} else if familyID != nil {
+					entityInfo = fmt.Sprintf("family ID %d", *familyID)
+				}
+				fmt.Printf("         ✓ Created pending payment (%.2f€) for %s\n", amount, entityInfo)
 			}
 		}
 	}
