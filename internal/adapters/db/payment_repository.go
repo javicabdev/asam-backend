@@ -85,7 +85,6 @@ func (r *paymentRepository) FindByID(ctx context.Context, id uint) (*models.Paym
 	var payment models.Payment
 	result := r.db.WithContext(ctx).
 		Preload("Member").
-		Preload("Family").
 		Preload("MembershipFee").
 		First(&payment, id)
 
@@ -104,7 +103,6 @@ func (r *paymentRepository) FindByMember(ctx context.Context, memberID uint, fro
 
 	result := r.db.WithContext(ctx).
 		Preload("Member").
-		Preload("Family").
 		Preload("MembershipFee").
 		Where("member_id = ? AND (payment_date BETWEEN ? AND ? OR payment_date IS NULL)", memberID, from, to).
 		Find(&payments)
@@ -198,7 +196,6 @@ func (r *paymentRepository) FindAll(ctx context.Context, filters *output.Payment
 
 	query := r.db.WithContext(ctx).
 		Preload("Member").
-		Preload("Family").
 		Preload("MembershipFee")
 
 	if filters != nil {
