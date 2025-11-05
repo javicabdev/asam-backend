@@ -160,102 +160,47 @@ func (s *dashboardService) calculatePaymentStats(ctx context.Context, stats *inp
 		oneWeekAgo:     now.AddDate(0, 0, -7),
 	}
 
-	// Process member payments
-	memberStats, err := s.processMemberPayments(ctx, filters)
+	// Get all payments using repository filters (no duplication since all payments have member_id)
+	paymentFilters := &output.PaymentRepositoryFilters{
+		Limit: 10000, // Large enough to get all payments
+	}
+
+	allPayments, err := s.paymentRepo.FindAll(ctx, paymentFilters)
 	if err != nil {
 		return err
 	}
 
-	// Process family payments
-	familyStats, err := s.processFamilyPayments(ctx, filters)
-	if err != nil {
-		return err
-	}
-
-	// Combine statistics
-	totalStats := s.combinePaymentStats(memberStats, familyStats)
+	// Process all payments once (no more member/family separation to avoid duplication)
+	paymentStats := &paymentStats{}
+	s.processPayments(allPayments, paymentStats, filters)
 
 	// Update dashboard stats
-	stats.TotalRevenue = totalStats.totalPaid
-	stats.MonthlyRevenue = totalStats.monthlyPaid
-	stats.RecentPaymentsCount = totalStats.recentCount
-	stats.PendingPayments = totalStats.pendingAmount
+	stats.TotalRevenue = paymentStats.totalPaid
+	stats.MonthlyRevenue = paymentStats.monthlyPaid
+	stats.RecentPaymentsCount = paymentStats.recentCount
+	stats.PendingPayments = paymentStats.pendingAmount
 
 	// Calculate average payment
-	if totalStats.paidCount > 0 {
-		stats.AveragePayment = totalStats.totalPaid / float64(totalStats.paidCount)
+	if paymentStats.paidCount > 0 {
+		stats.AveragePayment = paymentStats.totalPaid / float64(paymentStats.paidCount)
 	}
 
 	// Calculate payment completion rate
-	totalPayments := totalStats.paidCount + totalStats.pendingCount
+	totalPayments := paymentStats.paidCount + paymentStats.pendingCount
 	if totalPayments > 0 {
-		stats.PaymentCompletionRate = float64(totalStats.paidCount) / float64(totalPayments) * 100
+		stats.PaymentCompletionRate = float64(paymentStats.paidCount) / float64(totalPayments) * 100
 	}
 
 	// Calculate revenue growth percentage
-	if totalStats.lastMonthPaid > 0 {
-		stats.RevenueGrowthPercentage = (totalStats.monthlyPaid - totalStats.lastMonthPaid) / totalStats.lastMonthPaid * 100
-	} else if totalStats.monthlyPaid > 0 {
+	if paymentStats.lastMonthPaid > 0 {
+		stats.RevenueGrowthPercentage = (paymentStats.monthlyPaid - paymentStats.lastMonthPaid) / paymentStats.lastMonthPaid * 100
+	} else if paymentStats.monthlyPaid > 0 {
 		stats.RevenueGrowthPercentage = 100
 	}
 
 	return nil
 }
 
-// processMemberPayments processes payments for all members
-func (s *dashboardService) processMemberPayments(ctx context.Context, filters timeFilters) (*paymentStats, error) {
-	// Get all members
-	memberFilters := output.MemberFilters{
-		Page:     1,
-		PageSize: 10000,
-	}
-	members, err := s.memberRepo.List(ctx, memberFilters)
-	if err != nil {
-		return nil, err
-	}
-
-	stats := &paymentStats{}
-
-	// Get payments for each member
-	for _, member := range members {
-		payments, err := s.paymentRepo.FindByMember(ctx, member.ID, filters.yearStart, filters.yearEnd)
-		if err != nil {
-			continue // Skip errors for individual members
-		}
-
-		s.processPayments(payments, stats, filters)
-	}
-
-	return stats, nil
-}
-
-// processFamilyPayments processes payments for all families
-// The error return is kept for consistency with processMemberPayments even though we currently
-// choose to return nil error to allow partial results when family data is unavailable.
-//
-//nolint:unparam // Intentional: error return kept for API consistency
-func (s *dashboardService) processFamilyPayments(ctx context.Context, filters timeFilters) (*paymentStats, error) {
-	stats := &paymentStats{}
-
-	// Get all families
-	families, _, err := s.familyRepo.List(ctx, 1, 10000, nil, "")
-	if err != nil {
-		// Log the error but continue with empty stats to allow partial results
-		s.appLogger.Warn("Error getting families for payment stats", zap.Error(err))
-		return stats, nil
-	}
-
-	for _, family := range families {
-		payments, err := s.paymentRepo.FindByFamily(ctx, family.ID, filters.yearStart, filters.yearEnd)
-		if err != nil {
-			continue // Skip errors for individual families
-		}
-
-		s.processPayments(payments, stats, filters)
-	}
-
-	return stats, nil
-}
 
 // processPayments processes a list of payments and updates statistics
 func (s *dashboardService) processPayments(payments []models.Payment, stats *paymentStats, filters timeFilters) {
@@ -291,19 +236,6 @@ func (s *dashboardService) processPayments(payments []models.Payment, stats *pay
 			// Cancelled payments are ignored in statistics
 			// They don't count towards revenue or pending amounts
 		}
-	}
-}
-
-// combinePaymentStats combines payment statistics from members and families
-func (s *dashboardService) combinePaymentStats(memberStats, familyStats *paymentStats) *paymentStats {
-	return &paymentStats{
-		totalPaid:     memberStats.totalPaid + familyStats.totalPaid,
-		monthlyPaid:   memberStats.monthlyPaid + familyStats.monthlyPaid,
-		lastMonthPaid: memberStats.lastMonthPaid + familyStats.lastMonthPaid,
-		pendingAmount: memberStats.pendingAmount + familyStats.pendingAmount,
-		paidCount:     memberStats.paidCount + familyStats.paidCount,
-		pendingCount:  memberStats.pendingCount + familyStats.pendingCount,
-		recentCount:   memberStats.recentCount + familyStats.recentCount,
 	}
 }
 
