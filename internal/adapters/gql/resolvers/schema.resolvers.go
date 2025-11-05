@@ -1239,8 +1239,14 @@ func (r *queryResolver) CashFlowStats(ctx context.Context, startDate time.Time, 
 
 // GetTransactions is the resolver for the getTransactions field.
 func (r *queryResolver) GetTransactions(ctx context.Context, filter *model.TransactionFilter) (*model.TransactionConnection, error) {
-	// Solo ADMIN puede ver lista de transacciones
-	if err := middleware.MustBeAdmin(ctx); err != nil {
+	// Verificar autenticación
+	if err := middleware.MustBeAuthenticated(ctx); err != nil {
+		return nil, err
+	}
+
+	// Obtener MemberID del contexto (nil para admin, memberID para user)
+	memberID, err := middleware.GetMemberIDFromContext(ctx)
+	if err != nil {
 		return nil, err
 	}
 
@@ -1249,6 +1255,7 @@ func (r *queryResolver) GetTransactions(ctx context.Context, filter *model.Trans
 	var orderBy string
 	var startDate, endDate *time.Time
 	var operationType *models.OperationType
+	var filterMemberID *uint
 
 	if filter != nil {
 		if filter.Pagination != nil {
@@ -1268,12 +1275,25 @@ func (r *queryResolver) GetTransactions(ctx context.Context, filter *model.Trans
 			op := *filter.OperationType
 			operationType = &op
 		}
+		// Si viene memberID en el filtro (solo admin puede usarlo)
+		if filter.MemberID != nil {
+			parsedID, err := parseID(*filter.MemberID)
+			if err == nil {
+				filterMemberID = &parsedID
+			}
+		}
+	}
+
+	// Si el usuario es USER (no admin), forzar el filtro por su memberID
+	if memberID != nil {
+		filterMemberID = memberID
 	}
 
 	cfFilter := input.CashFlowFilter{
 		StartDate:     startDate,
 		EndDate:       endDate,
 		OperationType: operationType,
+		MemberID:      filterMemberID,
 		Page:          page,
 		PageSize:      pageSize,
 		OrderBy:       orderBy,

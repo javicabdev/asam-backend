@@ -96,6 +96,7 @@ func (s *CashFlowService) GetMovementsByPeriod(ctx context.Context, filter input
 
 	// Convertir el filtro de input a output
 	repoFilter := output.CashFlowFilter{
+		MemberID:      filter.MemberID,
 		StartDate:     filter.StartDate,
 		EndDate:       filter.EndDate,
 		OperationType: filter.OperationType,

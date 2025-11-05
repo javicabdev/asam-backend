@@ -141,6 +141,7 @@ type FinancialAlert struct {
 
 // CashFlowFilter define los filtros para consultar movimientos de caja
 type CashFlowFilter struct {
+	MemberID      *uint
 	StartDate     *time.Time
 	EndDate       *time.Time
 	OperationType *models.OperationType
