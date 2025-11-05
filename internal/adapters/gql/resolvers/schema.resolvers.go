@@ -544,12 +544,94 @@ func (r *mutationResolver) CreateCashFlow(ctx context.Context, input model.Creat
 
 // UpdateCashFlow is the resolver for the updateCashFlow field.
 func (r *mutationResolver) UpdateCashFlow(ctx context.Context, id string, input model.UpdateCashFlowInput) (*models.CashFlow, error) {
-	panic(fmt.Errorf("not implemented: UpdateCashFlow - updateCashFlow"))
+	// Solo ADMIN puede actualizar movimientos de caja
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+
+	// Parsear el ID
+	cashFlowID, err := parseID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Obtener el movimiento existente
+	existing, err := r.cashFlowService.GetMovement(ctx, cashFlowID)
+	if err != nil {
+		return nil, err
+	}
+	if existing == nil {
+		return nil, appErrors.NotFound("cash flow", nil)
+	}
+
+	// Actualizar solo los campos proporcionados
+	if input.OperationType != nil {
+		existing.OperationType = *input.OperationType
+	}
+	if input.Amount != nil {
+		existing.Amount = *input.Amount
+	}
+	if input.Date != nil {
+		existing.Date = *input.Date
+	}
+	if input.Detail != nil {
+		existing.Detail = *input.Detail
+	}
+
+	// Validar y persistir
+	cashFlowResolver, ok := r.CashFlow().(*cashFlowResolver)
+	if !ok {
+		return nil, appErrors.NewInternalError("invalid resolver type")
+	}
+
+	return cashFlowResolver.handleTransactionMutation(ctx, existing)
 }
 
 // DeleteCashFlow is the resolver for the deleteCashFlow field.
 func (r *mutationResolver) DeleteCashFlow(ctx context.Context, id string) (*model.MutationResponse, error) {
-	panic(fmt.Errorf("not implemented: DeleteCashFlow - deleteCashFlow"))
+	// Solo ADMIN puede eliminar movimientos de caja
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+
+	// Parsear el ID
+	cashFlowID, err := parseID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Verificar que el movimiento existe
+	existing, err := r.cashFlowService.GetMovement(ctx, cashFlowID)
+	if err != nil {
+		return nil, err
+	}
+	if existing == nil {
+		return nil, appErrors.NotFound("cash flow", nil)
+	}
+
+	// Verificar que no esté asociado a un pago
+	// Los movimientos generados automáticamente por pagos no deberían eliminarse manualmente
+	if existing.PaymentID != nil {
+		return &model.MutationResponse{
+			Success: false,
+			Error:   stringPtr("No se puede eliminar un movimiento de caja generado automáticamente por un pago. Debe cancelar el pago en su lugar."),
+		}, nil
+	}
+
+	// Eliminar el movimiento
+	if err := r.cashFlowService.DeleteMovement(ctx, cashFlowID); err != nil {
+		errMsg := err.Error()
+		return &model.MutationResponse{
+			Success: false,
+			Error:   &errMsg,
+		}, err
+	}
+
+	msg := "Cash flow movement deleted successfully"
+	return &model.MutationResponse{
+		Success: true,
+		Message: &msg,
+	}, nil
 }
 
 // AdjustBalance is the resolver for the adjustBalance field.
