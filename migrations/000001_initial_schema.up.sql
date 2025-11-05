@@ -1,8 +1,8 @@
 --!postgresql
--- ASAM Backend - Complete Database Schema
--- Single migration containing the complete final schema for development phase
--- Includes all features: members, families, users, authentication, email verification, payments, etc.
--- VERSION: 1.1 - Annual membership fee system (without month field)
+-- ASAM Backend - Initial Database Schema (Consolidated)
+-- Single migration containing the complete final schema
+-- Includes all features: members, families, users, authentication, email verification, payments, cash flows
+-- VERSION: 2.0 - Consolidated from 9 previous migrations
 -- IDEMPOTENT: Safe to run multiple times
 
 -- Enable required extensions
@@ -99,41 +99,47 @@ CREATE TABLE IF NOT EXISTS telephones (
 
 -- Membership fees table - Annual fee definitions
 -- IMPORTANT: This is an ANNUAL system. One fee per year, due date is always December 31st
+-- CHANGES from v1: Removed 'status' and 'payment_id' fields (migration 006 & 007)
 CREATE TABLE IF NOT EXISTS membership_fees (
     id SERIAL PRIMARY KEY,
     year INTEGER NOT NULL UNIQUE,  -- UNIQUE constraint ensures one fee per year
     base_fee_amount DECIMAL(10,2) NOT NULL,
     family_fee_extra DECIMAL(10,2) NOT NULL DEFAULT 0,
-    status VARCHAR(255) NOT NULL DEFAULT 'pending',
     due_date DATE NOT NULL,  -- Always December 31st of the year
-    payment_id INTEGER,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 -- Payments table - Payment records
+-- CHANGES from v1:
+-- - member_id is NOT NULL (migration 008: removed family_id, now all payments must have member)
+-- - payment_date is nullable (migration 005: pending payments don't have a date yet)
+-- - membership_fee_id tracks which annual fee this payment is for
+-- - Unique constraint: one initial payment per member (migration 004)
 CREATE TABLE IF NOT EXISTS payments (
     id SERIAL PRIMARY KEY,
-    member_id INTEGER NOT NULL,
-    family_id INTEGER,
+    member_id INTEGER NOT NULL,  -- Required: for families, use family.miembro_origen_id
     amount DECIMAL(10,2) NOT NULL,
-    payment_date DATE NOT NULL,
+    payment_date DATE,  -- NULL for pending payments
     status VARCHAR(255) NOT NULL,
     payment_method VARCHAR(255) NOT NULL,
     notes TEXT,
-    membership_fee_id INTEGER,
+    membership_fee_id INTEGER,  -- Links to annual fee definition
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 -- Cash flows table - Financial movements tracking
+-- CHANGES from v1:
+-- - Removed family_id (migration 008)
+-- - Added unique constraint on payment_id (migration 009)
+-- - member_id can be NULL for non-payment transactions
 CREATE TABLE IF NOT EXISTS cash_flows (
     id SERIAL PRIMARY KEY,
-    member_id INTEGER,
-    family_id INTEGER,
-    payment_id INTEGER,
+    member_id INTEGER,  -- Can be NULL for non-payment transactions
+    payment_id INTEGER,  -- Must be unique when not NULL
     operation_type VARCHAR(20) NOT NULL,
     amount DECIMAL(10,2) NOT NULL,
     date TIMESTAMP NOT NULL,
@@ -204,8 +210,8 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'families_miembro_origen_id_fkey'
     ) THEN
-        ALTER TABLE families 
-            ADD CONSTRAINT families_miembro_origen_id_fkey 
+        ALTER TABLE families
+            ADD CONSTRAINT families_miembro_origen_id_fkey
             FOREIGN KEY (miembro_origen_id) REFERENCES members(id) ON DELETE SET NULL;
     END IF;
 END $$;
@@ -215,8 +221,8 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'familiars_familia_id_fkey'
     ) THEN
-        ALTER TABLE familiars 
-            ADD CONSTRAINT familiars_familia_id_fkey 
+        ALTER TABLE familiars
+            ADD CONSTRAINT familiars_familia_id_fkey
             FOREIGN KEY (familia_id) REFERENCES families(id) ON DELETE CASCADE;
     END IF;
 END $$;
@@ -227,20 +233,9 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'payments_member_id_fkey'
     ) THEN
-        ALTER TABLE payments 
-            ADD CONSTRAINT payments_member_id_fkey 
+        ALTER TABLE payments
+            ADD CONSTRAINT payments_member_id_fkey
             FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE RESTRICT;
-    END IF;
-END $$;
-
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'payments_family_id_fkey'
-    ) THEN
-        ALTER TABLE payments 
-            ADD CONSTRAINT payments_family_id_fkey 
-            FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE RESTRICT;
     END IF;
 END $$;
 
@@ -249,20 +244,9 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'payments_membership_fee_id_fkey'
     ) THEN
-        ALTER TABLE payments 
-            ADD CONSTRAINT payments_membership_fee_id_fkey 
+        ALTER TABLE payments
+            ADD CONSTRAINT payments_membership_fee_id_fkey
             FOREIGN KEY (membership_fee_id) REFERENCES membership_fees(id) ON DELETE SET NULL;
-    END IF;
-END $$;
-
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'membership_fees_payment_id_fkey'
-    ) THEN
-        ALTER TABLE membership_fees 
-            ADD CONSTRAINT membership_fees_payment_id_fkey 
-            FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE SET NULL;
     END IF;
 END $$;
 
@@ -272,20 +256,9 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'cash_flows_member_id_fkey'
     ) THEN
-        ALTER TABLE cash_flows 
-            ADD CONSTRAINT cash_flows_member_id_fkey 
+        ALTER TABLE cash_flows
+            ADD CONSTRAINT cash_flows_member_id_fkey
             FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE SET NULL;
-    END IF;
-END $$;
-
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'cash_flows_family_id_fkey'
-    ) THEN
-        ALTER TABLE cash_flows 
-            ADD CONSTRAINT cash_flows_family_id_fkey 
-            FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET NULL;
     END IF;
 END $$;
 
@@ -294,8 +267,8 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'cash_flows_payment_id_fkey'
     ) THEN
-        ALTER TABLE cash_flows 
-            ADD CONSTRAINT cash_flows_payment_id_fkey 
+        ALTER TABLE cash_flows
+            ADD CONSTRAINT cash_flows_payment_id_fkey
             FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE SET NULL;
     END IF;
 END $$;
@@ -306,8 +279,8 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'users_member_id_fkey'
     ) THEN
-        ALTER TABLE users 
-            ADD CONSTRAINT users_member_id_fkey 
+        ALTER TABLE users
+            ADD CONSTRAINT users_member_id_fkey
             FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE SET NULL;
     END IF;
 END $$;
@@ -317,8 +290,8 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'refresh_tokens_user_id_fkey'
     ) THEN
-        ALTER TABLE refresh_tokens 
-            ADD CONSTRAINT refresh_tokens_user_id_fkey 
+        ALTER TABLE refresh_tokens
+            ADD CONSTRAINT refresh_tokens_user_id_fkey
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
     END IF;
 END $$;
@@ -328,9 +301,58 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'verification_tokens_user_id_fkey'
     ) THEN
-        ALTER TABLE verification_tokens 
-            ADD CONSTRAINT verification_tokens_user_id_fkey 
+        ALTER TABLE verification_tokens
+            ADD CONSTRAINT verification_tokens_user_id_fkey
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+
+-- =============================================================================
+-- UNIQUE CONSTRAINTS (From migration 002 & 004)
+-- =============================================================================
+
+-- Unique constraint on identity_card (migration 002)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'members_identity_card_unique'
+    ) THEN
+        ALTER TABLE members
+        ADD CONSTRAINT members_identity_card_unique
+        UNIQUE (identity_card);
+    END IF;
+END $$;
+
+-- Partial unique indexes for initial payments (migration 004)
+-- Only one initial payment per member
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE c.relname = 'unique_initial_payment_per_member'
+          AND n.nspname = 'public'
+    ) THEN
+        CREATE UNIQUE INDEX unique_initial_payment_per_member
+        ON payments (member_id)
+        WHERE membership_fee_id IS NOT NULL AND deleted_at IS NULL;
+    END IF;
+END $$;
+
+-- Unique constraint on payment_id in cash_flows (migration 009)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'unique_payment_id_not_null'
+          AND conrelid = 'cash_flows'::regclass
+    ) THEN
+        CREATE UNIQUE INDEX unique_payment_id_not_null
+        ON cash_flows(payment_id)
+        WHERE payment_id IS NOT NULL AND deleted_at IS NULL;
     END IF;
 END $$;
 
@@ -341,10 +363,10 @@ END $$;
 -- Member indexes
 CREATE INDEX IF NOT EXISTS idx_members_membership_number ON members(membership_number);
 CREATE INDEX IF NOT EXISTS idx_members_state ON members(state);
-CREATE INDEX IF NOT EXISTS idx_members_identity_card ON members(identity_card);
+CREATE INDEX IF NOT EXISTS idx_members_identity_card ON members(identity_card) WHERE identity_card IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_members_email ON members(email);
 
--- Family indexes  
+-- Family indexes
 CREATE INDEX IF NOT EXISTS idx_families_numero_socio ON families(numero_socio);
 CREATE INDEX IF NOT EXISTS idx_families_miembro_origen_id ON families(miembro_origen_id);
 CREATE INDEX IF NOT EXISTS idx_families_deleted_at ON families(deleted_at);
@@ -359,7 +381,6 @@ CREATE INDEX IF NOT EXISTS idx_telephones_deleted_at ON telephones(deleted_at);
 
 -- Payment indexes
 CREATE INDEX IF NOT EXISTS idx_payments_member_id ON payments(member_id);
-CREATE INDEX IF NOT EXISTS idx_payments_family_id ON payments(family_id);
 CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
 CREATE INDEX IF NOT EXISTS idx_payments_payment_date ON payments(payment_date);
 CREATE INDEX IF NOT EXISTS idx_payments_membership_fee_id ON payments(membership_fee_id);
@@ -367,16 +388,15 @@ CREATE INDEX IF NOT EXISTS idx_payments_deleted_at ON payments(deleted_at);
 
 -- Membership fee indexes
 CREATE INDEX IF NOT EXISTS idx_membership_fees_year ON membership_fees(year);
-CREATE INDEX IF NOT EXISTS idx_membership_fees_status ON membership_fees(status);
 CREATE INDEX IF NOT EXISTS idx_membership_fees_due_date ON membership_fees(due_date);
 
--- Cash flow indexes
-CREATE INDEX IF NOT EXISTS idx_cash_flows_member_id ON cash_flows(member_id);
-CREATE INDEX IF NOT EXISTS idx_cash_flows_family_id ON cash_flows(family_id);
-CREATE INDEX IF NOT EXISTS idx_cash_flows_payment_id ON cash_flows(payment_id);
-CREATE INDEX IF NOT EXISTS idx_cash_flows_operation_type ON cash_flows(operation_type);
-CREATE INDEX IF NOT EXISTS idx_cash_flows_date ON cash_flows(date);
-CREATE INDEX IF NOT EXISTS idx_cash_flows_deleted_at ON cash_flows(deleted_at);
+-- Cash flow indexes (migration 009: optimized indexes)
+CREATE INDEX IF NOT EXISTS idx_cashflows_member ON cash_flows(member_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_cashflows_date ON cash_flows(date) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_cashflows_operation_type ON cash_flows(operation_type) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_cashflows_payment ON cash_flows(payment_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_cashflows_member_date ON cash_flows(member_id, date) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_cashflows_type_date ON cash_flows(operation_type, date) WHERE deleted_at IS NULL;
 
 -- User and authentication indexes
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
@@ -461,7 +481,7 @@ CREATE TRIGGER update_verification_tokens_updated_at
 -- COMMENTS AND DOCUMENTATION
 -- =============================================================================
 
-COMMENT ON SCHEMA public IS 'ASAM (Asociación de Senegaleses y Amigos de Montmeló) - Complete database schema';
+COMMENT ON SCHEMA public IS 'ASAM (Asociación de Senegaleses y Amigos de Montmeló) - Complete database schema v2.0';
 
 -- Table comments
 COMMENT ON TABLE members IS 'Individual members of the association';
@@ -469,15 +489,20 @@ COMMENT ON TABLE families IS 'Family groups with mixed Spanish field names per e
 COMMENT ON TABLE familiars IS 'Family relatives with Spanish field names per existing model';
 COMMENT ON TABLE telephones IS 'Polymorphic phone numbers with Spanish field name per existing model';
 COMMENT ON TABLE membership_fees IS 'Annual membership fee definitions. One fee per year, due date is always December 31st';
-COMMENT ON TABLE payments IS 'Payment records from members and families';
+COMMENT ON TABLE payments IS 'Payment records from members. For families, use family.miembro_origen_id as member_id';
 COMMENT ON TABLE cash_flows IS 'Financial movements and transaction tracking';
 COMMENT ON TABLE users IS 'System users with authentication and email verification';
 COMMENT ON TABLE refresh_tokens IS 'JWT refresh token management for secure authentication';
 COMMENT ON TABLE verification_tokens IS 'Email verification and password reset tokens';
 
 -- Key column comments
+COMMENT ON COLUMN members.identity_card IS 'Identity card number (DNI/NIE). Must be unique when present';
 COMMENT ON COLUMN membership_fees.year IS 'Year of the membership fee. UNIQUE constraint ensures only one fee per year';
 COMMENT ON COLUMN membership_fees.due_date IS 'Due date for the fee payment. Always set to December 31st of the year';
+COMMENT ON COLUMN payments.member_id IS 'Member associated with the payment. For family payments, use family.miembro_origen_id';
+COMMENT ON COLUMN payments.payment_date IS 'Date when the payment was made. NULL for pending payments, set when payment status changes to paid';
+COMMENT ON COLUMN payments.membership_fee_id IS 'Links to the annual fee this payment is for. Initial payments will have this set';
+COMMENT ON COLUMN cash_flows.payment_id IS 'Links to payment record. Must be unique when not NULL (one cash_flow per payment)';
 COMMENT ON COLUMN users.email IS 'User email address, required for notifications and authentication';
 COMMENT ON COLUMN users.email_verified_at IS 'Timestamp when email was verified, NULL if not verified';
 COMMENT ON COLUMN users.email_verification_sent_at IS 'Last time verification email was sent';
@@ -491,18 +516,28 @@ COMMENT ON COLUMN refresh_tokens.uuid IS 'Unique identifier for the refresh toke
 COMMENT ON COLUMN cash_flows.operation_type IS 'Type of operation: income, expense, transfer, etc.';
 
 -- =============================================================================
+-- MIGRATION HISTORY
+-- =============================================================================
+-- This consolidated migration includes changes from:
+-- - 000001: Complete initial schema
+-- - 000002: Add unique constraint on identity_card
+-- - 000003: Allow NULL member_id (later reverted in 008)
+-- - 000004: Prevent duplicate initial payments
+-- - 000005: Make payment_date nullable
+-- - 000006: Remove status from membership_fees
+-- - 000007: Remove payment_id from membership_fees
+-- - 000008: Remove family_id from payments and cash_flows
+-- - 000009: Add cash_flow constraints and optimized indexes
+
+-- =============================================================================
 -- NOTA SOBRE USUARIOS INICIALES
 -- =============================================================================
 -- Los usuarios administradores iniciales deben crearse usando el comando seed:
 -- ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=SecurePass123! go run cmd/seed/main.go
--- 
+--
 -- NUNCA incluyas contraseñas en los archivos de migración, incluso si están hasheadas.
 -- Los usuarios creados con el comando seed tendrán email_verified=false y deberán
 -- verificar su email en el primer acceso.
 
--- =============================================================================
--- SCHEMA CREATION COMPLETE
--- =============================================================================
-
 -- Schema version for reference
-COMMENT ON EXTENSION "uuid-ossp" IS 'ASAM Schema v1.1 - Annual membership fee system (without month field) - IDEMPOTENT';
+COMMENT ON EXTENSION "uuid-ossp" IS 'ASAM Schema v2.0 - Consolidated single migration - IDEMPOTENT';
