@@ -517,7 +517,29 @@ func (r *mutationResolver) RegisterFee(ctx context.Context, year int, baseAmount
 
 // CreateCashFlow is the resolver for the createCashFlow field.
 func (r *mutationResolver) CreateCashFlow(ctx context.Context, input model.CreateCashFlowInput) (*models.CashFlow, error) {
-	panic(fmt.Errorf("not implemented: CreateCashFlow - createCashFlow"))
+	// Solo ADMIN puede crear movimientos de caja manualmente
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+
+	// Mapear el input a TransactionInput (que ya tiene validación)
+	transactionInput := model.TransactionInput{
+		MemberID:      input.MemberID,
+		OperationType: input.OperationType,
+		Amount:        input.Amount,
+		Date:          input.Date,
+		Detail:        input.Detail,
+	}
+
+	// Usar el mismo flujo que RegisterTransaction
+	cashFlowResolver, ok := r.CashFlow().(*cashFlowResolver)
+	if !ok {
+		return nil, appErrors.NewInternalError("invalid resolver type")
+	}
+	transaction := cashFlowResolver.mapTransactionInputToModel(&transactionInput)
+
+	// Manejar la lógica de validación y persistencia
+	return cashFlowResolver.handleTransactionMutation(ctx, transaction)
 }
 
 // UpdateCashFlow is the resolver for the updateCashFlow field.
@@ -1234,7 +1256,40 @@ func (r *queryResolver) GetCashFlow(ctx context.Context, id string) (*models.Cas
 
 // CashFlowBalance is the resolver for the cashFlowBalance field.
 func (r *queryResolver) CashFlowBalance(ctx context.Context) (*model.CashFlowBalance, error) {
-	panic(fmt.Errorf("not implemented: CashFlowBalance - cashFlowBalance"))
+	// Verificar autenticación
+	if err := middleware.MustBeAuthenticated(ctx); err != nil {
+		return nil, err
+	}
+
+	// Obtener MemberID del contexto (nil para admin, memberID para user)
+	memberID, err := middleware.GetMemberIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Obtener el balance actual
+	balanceReport, err := r.cashFlowService.GetCurrentBalance(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Si es un usuario normal (no admin), necesitamos filtrar por su memberID
+	// GetCurrentBalance devuelve el balance global, necesitamos obtenerlo específico
+	if memberID != nil {
+		// TODO: Implementar GetBalanceByMember en el servicio
+		// Por ahora, los usuarios normales no deberían ver este query
+		return nil, appErrors.NewBusinessError(
+			appErrors.ErrForbidden,
+			"Los usuarios solo pueden ver sus transacciones, no el balance global",
+		)
+	}
+
+	// Construir la respuesta para admin
+	return &model.CashFlowBalance{
+		TotalIncome:    balanceReport.TotalIncome,
+		TotalExpenses:  balanceReport.TotalExpenses,
+		CurrentBalance: balanceReport.CurrentBalance,
+	}, nil
 }
 
 // CashFlowStats is the resolver for the cashFlowStats field.
