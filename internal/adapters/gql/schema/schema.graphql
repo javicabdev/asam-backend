@@ -164,6 +164,7 @@ type CashFlow {
     date: Time!
     operation_type: OperationType!
     detail: String!
+    runningBalance: Float!  # Saldo acumulado después de este movimiento
     member: Member
     payment: Payment
     created_at: Time!

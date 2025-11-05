@@ -34,6 +34,9 @@ type CashFlow struct {
 	UpdatedAt     time.Time      `gorm:"not null"`
 	DeletedAt     gorm.DeletedAt `gorm:"index"`
 
+	// Campo calculado (no se persiste en BD)
+	RunningBalance float64 `gorm:"-"` // Saldo acumulado después de este movimiento
+
 	// Relaciones
 	Member  *Member  `gorm:"foreignKey:MemberID"`
 	Payment *Payment `gorm:"foreignKey:PaymentID"` // Relación con el pago
