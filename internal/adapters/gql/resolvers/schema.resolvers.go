@@ -522,14 +522,8 @@ func (r *mutationResolver) CreateCashFlow(ctx context.Context, input model.Creat
 		return nil, err
 	}
 
-	// Mapear el input a TransactionInput (que ya tiene validación)
-	transactionInput := model.TransactionInput{
-		MemberID:      input.MemberID,
-		OperationType: input.OperationType,
-		Amount:        input.Amount,
-		Date:          input.Date,
-		Detail:        input.Detail,
-	}
+	// Convertir CreateCashFlowInput a TransactionInput (son idénticos)
+	transactionInput := model.TransactionInput(input)
 
 	// Usar el mismo flujo que RegisterTransaction
 	cashFlowResolver, ok := r.CashFlow().(*cashFlowResolver)
