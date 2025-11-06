@@ -3,6 +3,7 @@ package integration
 import (
 	"fmt"
 	"os"
+	"sync"
 	"testing"
 
 	"gorm.io/driver/postgres"
@@ -14,9 +15,15 @@ import (
 	"github.com/javicabdev/asam-backend/internal/ports/output"
 )
 
+// testMutex ensures integration tests run sequentially to avoid database conflicts
+var testMutex sync.Mutex
+
 // setupTestDB crea una conexión a la base de datos de prueba
 // y retorna una función de limpieza para ejecutar después del test
 func setupTestDB(t *testing.T) (*gorm.DB, func()) {
+	// Adquirir mutex para asegurar que solo un test corra a la vez
+	testMutex.Lock()
+
 	// Leer configuración desde variables de entorno
 	// Por defecto usa las credenciales del CI (asam_test)
 	// En desarrollo local, pasar DB_NAME=asam_db si es necesario
@@ -55,12 +62,20 @@ func setupTestDB(t *testing.T) (*gorm.DB, func()) {
 	// Función de limpieza de tablas
 	cleanTables := func() {
 		// Orden importante: primero las tablas con foreign keys
-		database.Exec("TRUNCATE TABLE cash_flows RESTART IDENTITY CASCADE")
-		database.Exec("TRUNCATE TABLE payments RESTART IDENTITY CASCADE")
-		database.Exec("TRUNCATE TABLE familiares RESTART IDENTITY CASCADE")
-		database.Exec("TRUNCATE TABLE families RESTART IDENTITY CASCADE")
-		database.Exec("TRUNCATE TABLE members RESTART IDENTITY CASCADE")
-		database.Exec("TRUNCATE TABLE membership_fees RESTART IDENTITY CASCADE")
+		// Usar CASCADE trunca también las tablas dependientes automáticamente
+		tables := []string{
+			"cash_flows",
+			"payments",
+			"familiares",
+			"families",
+			"members",
+			"membership_fees",
+		}
+		for _, table := range tables {
+			if err := database.Exec("TRUNCATE TABLE " + table + " RESTART IDENTITY CASCADE").Error; err != nil {
+				t.Logf("Warning: Failed to truncate table %s: %v", table, err)
+			}
+		}
 	}
 
 	// Limpiar todas las tablas ANTES del test para garantizar estado limpio
@@ -68,6 +83,9 @@ func setupTestDB(t *testing.T) (*gorm.DB, func()) {
 
 	// Función de limpieza
 	cleanup := func() {
+		// Liberar mutex para permitir que el siguiente test corra
+		defer testMutex.Unlock()
+
 		// Limpiar todas las tablas después del test también
 		cleanTables()
 

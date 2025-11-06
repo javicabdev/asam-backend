@@ -186,7 +186,7 @@ test-integration:
 	@echo "📝 Note: Integration tests require postgres running. Use 'make dev' or 'docker compose up postgres' first."
 	@DB_HOST=$${DB_HOST:-localhost} DB_PORT=$${DB_PORT:-5432} DB_USER=$${DB_USER:-postgres} \
 		DB_PASSWORD=$${DB_PASSWORD:-postgres} DB_NAME=$${DB_NAME:-asam_db} DB_SSL_MODE=$${DB_SSL_MODE:-disable} \
-		$(GOTEST) -v ./test/integration/...
+		$(GOTEST) -v -p 1 ./test/integration/...
 
 ## test-coverage: Run tests with coverage report
 .PHONY: test-coverage
