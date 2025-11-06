@@ -23,7 +23,8 @@ func setupTestDB(t *testing.T) (*gorm.DB, func()) {
 	port := getEnvOrDefault("DB_PORT", "5432")
 	user := getEnvOrDefault("DB_USER", "postgres")
 	password := getEnvOrDefault("DB_PASSWORD", "postgres")
-	dbName := getEnvOrDefault("DB_NAME", "asam_db")
+	// Usar asam_test en CI (POSTGRES_DB) o asam_db en desarrollo local
+	dbName := getEnvOrDefault("DB_NAME", getEnvOrDefault("POSTGRES_DB", "asam_db"))
 	sslMode := getEnvOrDefault("DB_SSL_MODE", "disable")
 
 	// Construir DSN
