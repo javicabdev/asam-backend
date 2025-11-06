@@ -120,6 +120,95 @@ type DashboardStats struct {
 	RevenueTrend            []*RevenueTrendData    `json:"revenueTrend"`
 }
 
+// Representa un deudor (socio o familia)
+type Debtor struct {
+	// ID del socio (si es deuda individual)
+	MemberID *string `json:"memberId,omitempty"`
+	// ID de la familia (si es deuda familiar)
+	FamilyID *string `json:"familyId,omitempty"`
+	// Tipo de deudor: "INDIVIDUAL" o "FAMILY"
+	Type string `json:"type"`
+	// Información del socio (si es individual)
+	Member *DebtorMemberInfo `json:"member,omitempty"`
+	// Información de la familia (si es familiar)
+	Family *DebtorFamilyInfo `json:"family,omitempty"`
+	// Lista de pagos pendientes
+	PendingPayments []*PendingPayment `json:"pendingPayments"`
+	// Importe total pendiente (suma de todos los pagos pendientes)
+	TotalDebt float64 `json:"totalDebt"`
+	// Días de atraso del pago más antiguo
+	OldestDebtDays int `json:"oldestDebtDays"`
+	// Fecha del pago pendiente más antiguo
+	OldestDebtDate time.Time `json:"oldestDebtDate"`
+	// Última fecha en que este socio/familia realizó un pago exitoso
+	LastPaymentDate *time.Time `json:"lastPaymentDate,omitempty"`
+	// Importe del último pago realizado
+	LastPaymentAmount *float64 `json:"lastPaymentAmount,omitempty"`
+}
+
+// Información básica de la familia para el informe
+type DebtorFamilyInfo struct {
+	ID            string            `json:"id"`
+	FamilyName    string            `json:"familyName"`
+	PrimaryMember *DebtorMemberInfo `json:"primaryMember"`
+	TotalMembers  int               `json:"totalMembers"`
+}
+
+// Información básica del socio para el informe
+type DebtorMemberInfo struct {
+	ID           string  `json:"id"`
+	MemberNumber string  `json:"memberNumber"`
+	FirstName    string  `json:"firstName"`
+	LastName     string  `json:"lastName"`
+	Email        *string `json:"email,omitempty"`
+	Phone        *string `json:"phone,omitempty"`
+	Status       string  `json:"status"`
+}
+
+// Parámetros de entrada para el informe de morosos
+type DelinquentReportInput struct {
+	// Fecha de corte para calcular la antigüedad de la deuda.
+	// Si no se proporciona, se usa la fecha actual.
+	CutoffDate *time.Time `json:"cutoffDate,omitempty"`
+	// Importe mínimo de deuda para incluir en el informe.
+	// Útil para filtrar deudas pequeñas.
+	// Default: 0
+	MinAmount *float64 `json:"minAmount,omitempty"`
+	// Filtrar solo por socios individuales o familias
+	// Valores: "INDIVIDUAL" | "FAMILY" | null (ambos)
+	DebtorType *string `json:"debtorType,omitempty"`
+	// Ordenamiento de resultados
+	// Valores: "AMOUNT_DESC" | "AMOUNT_ASC" | "DAYS_DESC" | "DAYS_ASC" | "NAME_ASC"
+	// Default: "DAYS_DESC" (más antiguas primero)
+	SortBy *string `json:"sortBy,omitempty"`
+}
+
+// Respuesta del informe de morosos
+type DelinquentReportResponse struct {
+	// Lista de deudores (socios o familias)
+	Debtors []*Debtor `json:"debtors"`
+	// Estadísticas generales del informe
+	Summary *DelinquentSummary `json:"summary"`
+	// Fecha en que se generó el informe
+	GeneratedAt time.Time `json:"generatedAt"`
+}
+
+// Resumen estadístico del informe
+type DelinquentSummary struct {
+	// Número total de deudores
+	TotalDebtors int `json:"totalDebtors"`
+	// Número de socios individuales con deuda
+	IndividualDebtors int `json:"individualDebtors"`
+	// Número de familias con deuda
+	FamilyDebtors int `json:"familyDebtors"`
+	// Importe total de todas las deudas
+	TotalDebtAmount float64 `json:"totalDebtAmount"`
+	// Promedio de días de atraso
+	AverageDaysOverdue int `json:"averageDaysOverdue"`
+	// Deuda promedio por deudor
+	AverageDebtPerDebtor float64 `json:"averageDebtPerDebtor"`
+}
+
 type DocumentValidationResult struct {
 	IsValid         bool    `json:"isValid"`
 	NormalizedValue *string `json:"normalizedValue,omitempty"`
@@ -219,6 +308,15 @@ type PaymentInput struct {
 	Amount        float64 `json:"amount"`
 	PaymentMethod string  `json:"payment_method"`
 	Notes         *string `json:"notes,omitempty"`
+}
+
+// Información de un pago pendiente
+type PendingPayment struct {
+	ID          string    `json:"id"`
+	Amount      float64   `json:"amount"`
+	CreatedAt   time.Time `json:"createdAt"`
+	DaysOverdue int       `json:"daysOverdue"`
+	Notes       *string   `json:"notes,omitempty"`
 }
 
 type Query struct {

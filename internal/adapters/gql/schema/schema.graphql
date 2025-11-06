@@ -322,6 +322,9 @@ type Query {
     # Dashboard Queries
     getDashboardStats: DashboardStats!
     getRecentActivity(limit: Int = 10): [RecentActivity!]!
+
+    # Report Queries
+    getDelinquentReport(input: DelinquentReportInput): DelinquentReportResponse!
 }
 
 # Type for document validation result
@@ -603,4 +606,186 @@ type Mutation {
     # Password Recovery Mutations
     requestPasswordReset(email: String!): MutationResponse!
     resetPasswordWithToken(token: String!, newPassword: String!): MutationResponse!
+}
+
+# Delinquent Report Types
+
+"""
+Parámetros de entrada para el informe de morosos
+"""
+input DelinquentReportInput {
+    """
+    Fecha de corte para calcular la antigüedad de la deuda.
+    Si no se proporciona, se usa la fecha actual.
+    """
+    cutoffDate: Time
+
+    """
+    Importe mínimo de deuda para incluir en el informe.
+    Útil para filtrar deudas pequeñas.
+    Default: 0
+    """
+    minAmount: Float
+
+    """
+    Filtrar solo por socios individuales o familias
+    Valores: "INDIVIDUAL" | "FAMILY" | null (ambos)
+    """
+    debtorType: String
+
+    """
+    Ordenamiento de resultados
+    Valores: "AMOUNT_DESC" | "AMOUNT_ASC" | "DAYS_DESC" | "DAYS_ASC" | "NAME_ASC"
+    Default: "DAYS_DESC" (más antiguas primero)
+    """
+    sortBy: String
+}
+
+"""
+Respuesta del informe de morosos
+"""
+type DelinquentReportResponse {
+    """
+    Lista de deudores (socios o familias)
+    """
+    debtors: [Debtor!]!
+
+    """
+    Estadísticas generales del informe
+    """
+    summary: DelinquentSummary!
+
+    """
+    Fecha en que se generó el informe
+    """
+    generatedAt: Time!
+}
+
+"""
+Representa un deudor (socio o familia)
+"""
+type Debtor {
+    """
+    ID del socio (si es deuda individual)
+    """
+    memberId: ID
+
+    """
+    ID de la familia (si es deuda familiar)
+    """
+    familyId: ID
+
+    """
+    Tipo de deudor: "INDIVIDUAL" o "FAMILY"
+    """
+    type: String!
+
+    """
+    Información del socio (si es individual)
+    """
+    member: DebtorMemberInfo
+
+    """
+    Información de la familia (si es familiar)
+    """
+    family: DebtorFamilyInfo
+
+    """
+    Lista de pagos pendientes
+    """
+    pendingPayments: [PendingPayment!]!
+
+    """
+    Importe total pendiente (suma de todos los pagos pendientes)
+    """
+    totalDebt: Float!
+
+    """
+    Días de atraso del pago más antiguo
+    """
+    oldestDebtDays: Int!
+
+    """
+    Fecha del pago pendiente más antiguo
+    """
+    oldestDebtDate: Time!
+
+    """
+    Última fecha en que este socio/familia realizó un pago exitoso
+    """
+    lastPaymentDate: Time
+
+    """
+    Importe del último pago realizado
+    """
+    lastPaymentAmount: Float
+}
+
+"""
+Información básica del socio para el informe
+"""
+type DebtorMemberInfo {
+    id: ID!
+    memberNumber: String!
+    firstName: String!
+    lastName: String!
+    email: String
+    phone: String
+    status: String!
+}
+
+"""
+Información básica de la familia para el informe
+"""
+type DebtorFamilyInfo {
+    id: ID!
+    familyName: String!
+    primaryMember: DebtorMemberInfo!
+    totalMembers: Int!
+}
+
+"""
+Información de un pago pendiente
+"""
+type PendingPayment {
+    id: ID!
+    amount: Float!
+    createdAt: Time!
+    daysOverdue: Int!
+    notes: String
+}
+
+"""
+Resumen estadístico del informe
+"""
+type DelinquentSummary {
+    """
+    Número total de deudores
+    """
+    totalDebtors: Int!
+
+    """
+    Número de socios individuales con deuda
+    """
+    individualDebtors: Int!
+
+    """
+    Número de familias con deuda
+    """
+    familyDebtors: Int!
+
+    """
+    Importe total de todas las deudas
+    """
+    totalDebtAmount: Float!
+
+    """
+    Promedio de días de atraso
+    """
+    averageDaysOverdue: Int!
+
+    """
+    Deuda promedio por deudor
+    """
+    averageDebtPerDebtor: Float!
 }

@@ -22,6 +22,7 @@ type Resolver struct {
 	emailVerificationService input.EmailVerificationService // Añadimos email verification service
 	emailNotificationService input.EmailNotificationService // Añadimos email notification service
 	dashboardService         input.DashboardService         // Añadimos dashboard service
+	reportService            input.ReportService            // Añadimos report service
 	loginRateLimiter         *auth.LoginRateLimiter         // Añadimos rate limiter para login
 	logger                   logger.Logger                  // Añadimos logger
 }
@@ -38,6 +39,7 @@ func NewResolver(
 	emailVerificationService input.EmailVerificationService, // Añadimos email verification
 	emailNotificationService input.EmailNotificationService, // Añadimos email notification
 	dashboardService input.DashboardService, // Añadimos dashboard service
+	reportService input.ReportService, // Añadimos report service
 	loginRateLimiter *auth.LoginRateLimiter, // Añadimos el rate limiter
 	logger logger.Logger, // Añadimos logger
 ) *Resolver {
@@ -51,6 +53,7 @@ func NewResolver(
 		emailVerificationService: emailVerificationService, // Asignamos email verification
 		emailNotificationService: emailNotificationService, // Asignamos email notification
 		dashboardService:         dashboardService,         // Asignamos dashboard service
+		reportService:            reportService,            // Asignamos report service
 		loginRateLimiter:         loginRateLimiter,         // Asignamos el rate limiter
 		logger:                   logger,                   // Asignamos logger
 	}
@@ -193,4 +196,11 @@ func (r *Resolver) RequestPasswordReset(ctx context.Context, email string) (*mod
 // ResetPasswordWithToken resets a user's password using a valid reset token
 func (r *Resolver) ResetPasswordWithToken(ctx context.Context, token string, newPassword string) (*model.MutationResponse, error) {
 	return (&emailResolver{r}).ResetPasswordWithToken(ctx, token, newPassword)
+}
+
+// Report methods (delegate to report_resolver.go)
+
+// GetDelinquentReport retrieves the delinquent report
+func (r *Resolver) GetDelinquentReport(ctx context.Context, input *model.DelinquentReportInput) (*model.DelinquentReportResponse, error) {
+	return (&reportResolver{r}).GetDelinquentReport(ctx, input)
 }

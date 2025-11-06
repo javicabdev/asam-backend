@@ -120,6 +120,7 @@ type appDependencies struct {
 	emailVerificationService input.EmailVerificationService
 	emailNotificationService input.EmailNotificationService
 	dashboardService         input.DashboardService
+	reportService            input.ReportService
 	// Monitoring components
 	queryMonitor    *monitoring.QueryMonitor
 	gqlTracer       *middleware.GraphQLTracer
@@ -482,6 +483,7 @@ func initializeServicesAndDependencies(ctx context.Context, cfg *config.Config, 
 	userRepo := db.NewUserRepository(database)
 	tokenRepo := db.NewTokenRepository(database)
 	verificationTokenRepo := db.NewVerificationTokenRepository(database)
+	reportRepo := db.NewReportRepository(database)
 
 	// Initialize JWT utility
 	jwtUtil := auth.NewJWTUtil(cfg.JWTAccessSecret, cfg.JWTRefreshSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
@@ -533,6 +535,9 @@ func initializeServicesAndDependencies(ctx context.Context, cfg *config.Config, 
 
 	// Initialize dashboard service
 	dashboardService := services.NewDashboardService(memberRepo, paymentRepo, cashFlowRepo, familyRepo, appLogger)
+
+	// Initialize report service
+	reportService := services.NewReportService(reportRepo, memberRepo, familyRepo)
 
 	// Initialize monitoring components
 	// 1. Setup query monitor for tracking slow queries
@@ -604,6 +609,7 @@ func initializeServicesAndDependencies(ctx context.Context, cfg *config.Config, 
 		emailVerificationService: emailVerificationService,
 		emailNotificationService: emailNotificationService,
 		dashboardService:         dashboardService,
+		reportService:            reportService,
 		queryMonitor:             queryMonitor,
 		gqlTracer:                gqlTracer,
 		memoryMonitor:            memoryMonitor,
@@ -897,6 +903,7 @@ func setupApplicationComponents(ctx context.Context, state *appState, cfg *confi
 		deps.emailVerificationService,
 		deps.emailNotificationService,
 		deps.dashboardService,
+		deps.reportService,
 		loginRateLimiter,
 		appLogger,
 	)
@@ -1045,6 +1052,7 @@ func retryDatabaseConnection(ctx context.Context, state *appState, cfg *config.C
 				deps.emailVerificationService,
 				deps.emailNotificationService,
 				deps.dashboardService,
+				deps.reportService,
 				loginRateLimiter,
 				appLogger,
 			)

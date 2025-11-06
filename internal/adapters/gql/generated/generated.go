@@ -63,15 +63,16 @@ type ComplexityRoot struct {
 	}
 
 	CashFlow struct {
-		Amount        func(childComplexity int) int
-		CreatedAt     func(childComplexity int) int
-		Date          func(childComplexity int) int
-		Detail        func(childComplexity int) int
-		ID            func(childComplexity int) int
-		Member        func(childComplexity int) int
-		OperationType func(childComplexity int) int
-		Payment       func(childComplexity int) int
-		UpdatedAt     func(childComplexity int) int
+		Amount         func(childComplexity int) int
+		CreatedAt      func(childComplexity int) int
+		Date           func(childComplexity int) int
+		Detail         func(childComplexity int) int
+		ID             func(childComplexity int) int
+		Member         func(childComplexity int) int
+		OperationType  func(childComplexity int) int
+		Payment        func(childComplexity int) int
+		RunningBalance func(childComplexity int) int
+		UpdatedAt      func(childComplexity int) int
 	}
 
 	CashFlowBalance struct {
@@ -113,6 +114,52 @@ type ComplexityRoot struct {
 		TotalMembers            func(childComplexity int) int
 		TotalRevenue            func(childComplexity int) int
 		TotalTransactions       func(childComplexity int) int
+	}
+
+	Debtor struct {
+		Family            func(childComplexity int) int
+		FamilyID          func(childComplexity int) int
+		LastPaymentAmount func(childComplexity int) int
+		LastPaymentDate   func(childComplexity int) int
+		Member            func(childComplexity int) int
+		MemberID          func(childComplexity int) int
+		OldestDebtDate    func(childComplexity int) int
+		OldestDebtDays    func(childComplexity int) int
+		PendingPayments   func(childComplexity int) int
+		TotalDebt         func(childComplexity int) int
+		Type              func(childComplexity int) int
+	}
+
+	DebtorFamilyInfo struct {
+		FamilyName    func(childComplexity int) int
+		ID            func(childComplexity int) int
+		PrimaryMember func(childComplexity int) int
+		TotalMembers  func(childComplexity int) int
+	}
+
+	DebtorMemberInfo struct {
+		Email        func(childComplexity int) int
+		FirstName    func(childComplexity int) int
+		ID           func(childComplexity int) int
+		LastName     func(childComplexity int) int
+		MemberNumber func(childComplexity int) int
+		Phone        func(childComplexity int) int
+		Status       func(childComplexity int) int
+	}
+
+	DelinquentReportResponse struct {
+		Debtors     func(childComplexity int) int
+		GeneratedAt func(childComplexity int) int
+		Summary     func(childComplexity int) int
+	}
+
+	DelinquentSummary struct {
+		AverageDaysOverdue   func(childComplexity int) int
+		AverageDebtPerDebtor func(childComplexity int) int
+		FamilyDebtors        func(childComplexity int) int
+		IndividualDebtors    func(childComplexity int) int
+		TotalDebtAmount      func(childComplexity int) int
+		TotalDebtors         func(childComplexity int) int
 	}
 
 	DocumentValidationResult struct {
@@ -264,6 +311,14 @@ type ComplexityRoot struct {
 		PageInfo func(childComplexity int) int
 	}
 
+	PendingPayment struct {
+		Amount      func(childComplexity int) int
+		CreatedAt   func(childComplexity int) int
+		DaysOverdue func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Notes       func(childComplexity int) int
+	}
+
 	Query struct {
 		CashFlowBalance          func(childComplexity int) int
 		CashFlowStats            func(childComplexity int, startDate time.Time, endDate time.Time) int
@@ -273,6 +328,7 @@ type ComplexityRoot struct {
 		GetCashFlow              func(childComplexity int, id string) int
 		GetCurrentUser           func(childComplexity int) int
 		GetDashboardStats        func(childComplexity int) int
+		GetDelinquentReport      func(childComplexity int, input *model.DelinquentReportInput) int
 		GetFamily                func(childComplexity int, id string) int
 		GetFamilyByOriginMember  func(childComplexity int, memberID string) int
 		GetFamilyMembers         func(childComplexity int, familyID string) int
@@ -440,6 +496,7 @@ type QueryResolver interface {
 	CheckDocumentValidity(ctx context.Context, documentNumber string) (*model.DocumentValidationResult, error)
 	GetDashboardStats(ctx context.Context) (*model.DashboardStats, error)
 	GetRecentActivity(ctx context.Context, limit *int) ([]*model.RecentActivity, error)
+	GetDelinquentReport(ctx context.Context, input *model.DelinquentReportInput) (*model.DelinquentReportResponse, error)
 }
 type UserResolver interface {
 	ID(ctx context.Context, obj *models.User) (string, error)
@@ -539,6 +596,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.CashFlow.Payment(childComplexity), true
+	case "CashFlow.running_balance":
+		if e.complexity.CashFlow.RunningBalance == nil {
+			break
+		}
+
+		return e.complexity.CashFlow.RunningBalance(childComplexity), true
 	case "CashFlow.updated_at":
 		if e.complexity.CashFlow.UpdatedAt == nil {
 			break
@@ -723,6 +786,197 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.DashboardStats.TotalTransactions(childComplexity), true
+
+	case "Debtor.family":
+		if e.complexity.Debtor.Family == nil {
+			break
+		}
+
+		return e.complexity.Debtor.Family(childComplexity), true
+	case "Debtor.familyId":
+		if e.complexity.Debtor.FamilyID == nil {
+			break
+		}
+
+		return e.complexity.Debtor.FamilyID(childComplexity), true
+	case "Debtor.lastPaymentAmount":
+		if e.complexity.Debtor.LastPaymentAmount == nil {
+			break
+		}
+
+		return e.complexity.Debtor.LastPaymentAmount(childComplexity), true
+	case "Debtor.lastPaymentDate":
+		if e.complexity.Debtor.LastPaymentDate == nil {
+			break
+		}
+
+		return e.complexity.Debtor.LastPaymentDate(childComplexity), true
+	case "Debtor.member":
+		if e.complexity.Debtor.Member == nil {
+			break
+		}
+
+		return e.complexity.Debtor.Member(childComplexity), true
+	case "Debtor.memberId":
+		if e.complexity.Debtor.MemberID == nil {
+			break
+		}
+
+		return e.complexity.Debtor.MemberID(childComplexity), true
+	case "Debtor.oldestDebtDate":
+		if e.complexity.Debtor.OldestDebtDate == nil {
+			break
+		}
+
+		return e.complexity.Debtor.OldestDebtDate(childComplexity), true
+	case "Debtor.oldestDebtDays":
+		if e.complexity.Debtor.OldestDebtDays == nil {
+			break
+		}
+
+		return e.complexity.Debtor.OldestDebtDays(childComplexity), true
+	case "Debtor.pendingPayments":
+		if e.complexity.Debtor.PendingPayments == nil {
+			break
+		}
+
+		return e.complexity.Debtor.PendingPayments(childComplexity), true
+	case "Debtor.totalDebt":
+		if e.complexity.Debtor.TotalDebt == nil {
+			break
+		}
+
+		return e.complexity.Debtor.TotalDebt(childComplexity), true
+	case "Debtor.type":
+		if e.complexity.Debtor.Type == nil {
+			break
+		}
+
+		return e.complexity.Debtor.Type(childComplexity), true
+
+	case "DebtorFamilyInfo.familyName":
+		if e.complexity.DebtorFamilyInfo.FamilyName == nil {
+			break
+		}
+
+		return e.complexity.DebtorFamilyInfo.FamilyName(childComplexity), true
+	case "DebtorFamilyInfo.id":
+		if e.complexity.DebtorFamilyInfo.ID == nil {
+			break
+		}
+
+		return e.complexity.DebtorFamilyInfo.ID(childComplexity), true
+	case "DebtorFamilyInfo.primaryMember":
+		if e.complexity.DebtorFamilyInfo.PrimaryMember == nil {
+			break
+		}
+
+		return e.complexity.DebtorFamilyInfo.PrimaryMember(childComplexity), true
+	case "DebtorFamilyInfo.totalMembers":
+		if e.complexity.DebtorFamilyInfo.TotalMembers == nil {
+			break
+		}
+
+		return e.complexity.DebtorFamilyInfo.TotalMembers(childComplexity), true
+
+	case "DebtorMemberInfo.email":
+		if e.complexity.DebtorMemberInfo.Email == nil {
+			break
+		}
+
+		return e.complexity.DebtorMemberInfo.Email(childComplexity), true
+	case "DebtorMemberInfo.firstName":
+		if e.complexity.DebtorMemberInfo.FirstName == nil {
+			break
+		}
+
+		return e.complexity.DebtorMemberInfo.FirstName(childComplexity), true
+	case "DebtorMemberInfo.id":
+		if e.complexity.DebtorMemberInfo.ID == nil {
+			break
+		}
+
+		return e.complexity.DebtorMemberInfo.ID(childComplexity), true
+	case "DebtorMemberInfo.lastName":
+		if e.complexity.DebtorMemberInfo.LastName == nil {
+			break
+		}
+
+		return e.complexity.DebtorMemberInfo.LastName(childComplexity), true
+	case "DebtorMemberInfo.memberNumber":
+		if e.complexity.DebtorMemberInfo.MemberNumber == nil {
+			break
+		}
+
+		return e.complexity.DebtorMemberInfo.MemberNumber(childComplexity), true
+	case "DebtorMemberInfo.phone":
+		if e.complexity.DebtorMemberInfo.Phone == nil {
+			break
+		}
+
+		return e.complexity.DebtorMemberInfo.Phone(childComplexity), true
+	case "DebtorMemberInfo.status":
+		if e.complexity.DebtorMemberInfo.Status == nil {
+			break
+		}
+
+		return e.complexity.DebtorMemberInfo.Status(childComplexity), true
+
+	case "DelinquentReportResponse.debtors":
+		if e.complexity.DelinquentReportResponse.Debtors == nil {
+			break
+		}
+
+		return e.complexity.DelinquentReportResponse.Debtors(childComplexity), true
+	case "DelinquentReportResponse.generatedAt":
+		if e.complexity.DelinquentReportResponse.GeneratedAt == nil {
+			break
+		}
+
+		return e.complexity.DelinquentReportResponse.GeneratedAt(childComplexity), true
+	case "DelinquentReportResponse.summary":
+		if e.complexity.DelinquentReportResponse.Summary == nil {
+			break
+		}
+
+		return e.complexity.DelinquentReportResponse.Summary(childComplexity), true
+
+	case "DelinquentSummary.averageDaysOverdue":
+		if e.complexity.DelinquentSummary.AverageDaysOverdue == nil {
+			break
+		}
+
+		return e.complexity.DelinquentSummary.AverageDaysOverdue(childComplexity), true
+	case "DelinquentSummary.averageDebtPerDebtor":
+		if e.complexity.DelinquentSummary.AverageDebtPerDebtor == nil {
+			break
+		}
+
+		return e.complexity.DelinquentSummary.AverageDebtPerDebtor(childComplexity), true
+	case "DelinquentSummary.familyDebtors":
+		if e.complexity.DelinquentSummary.FamilyDebtors == nil {
+			break
+		}
+
+		return e.complexity.DelinquentSummary.FamilyDebtors(childComplexity), true
+	case "DelinquentSummary.individualDebtors":
+		if e.complexity.DelinquentSummary.IndividualDebtors == nil {
+			break
+		}
+
+		return e.complexity.DelinquentSummary.IndividualDebtors(childComplexity), true
+	case "DelinquentSummary.totalDebtAmount":
+		if e.complexity.DelinquentSummary.TotalDebtAmount == nil {
+			break
+		}
+
+		return e.complexity.DelinquentSummary.TotalDebtAmount(childComplexity), true
+	case "DelinquentSummary.totalDebtors":
+		if e.complexity.DelinquentSummary.TotalDebtors == nil {
+			break
+		}
+
+		return e.complexity.DelinquentSummary.TotalDebtors(childComplexity), true
 
 	case "DocumentValidationResult.errorMessage":
 		if e.complexity.DocumentValidationResult.ErrorMessage == nil {
@@ -1530,6 +1784,37 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.PaymentConnection.PageInfo(childComplexity), true
 
+	case "PendingPayment.amount":
+		if e.complexity.PendingPayment.Amount == nil {
+			break
+		}
+
+		return e.complexity.PendingPayment.Amount(childComplexity), true
+	case "PendingPayment.createdAt":
+		if e.complexity.PendingPayment.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.PendingPayment.CreatedAt(childComplexity), true
+	case "PendingPayment.daysOverdue":
+		if e.complexity.PendingPayment.DaysOverdue == nil {
+			break
+		}
+
+		return e.complexity.PendingPayment.DaysOverdue(childComplexity), true
+	case "PendingPayment.id":
+		if e.complexity.PendingPayment.ID == nil {
+			break
+		}
+
+		return e.complexity.PendingPayment.ID(childComplexity), true
+	case "PendingPayment.notes":
+		if e.complexity.PendingPayment.Notes == nil {
+			break
+		}
+
+		return e.complexity.PendingPayment.Notes(childComplexity), true
+
 	case "Query.cashFlowBalance":
 		if e.complexity.Query.CashFlowBalance == nil {
 			break
@@ -1598,6 +1883,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.GetDashboardStats(childComplexity), true
+	case "Query.getDelinquentReport":
+		if e.complexity.Query.GetDelinquentReport == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getDelinquentReport_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetDelinquentReport(childComplexity, args["input"].(*model.DelinquentReportInput)), true
 	case "Query.getFamily":
 		if e.complexity.Query.GetFamily == nil {
 			break
@@ -1999,6 +2295,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateFamilyInput,
 		ec.unmarshalInputCreateMemberInput,
 		ec.unmarshalInputCreateUserInput,
+		ec.unmarshalInputDelinquentReportInput,
 		ec.unmarshalInputFamiliarInput,
 		ec.unmarshalInputFamilyFilter,
 		ec.unmarshalInputLoginInput,
@@ -2277,6 +2574,7 @@ type CashFlow {
     date: Time!
     operation_type: OperationType!
     detail: String!
+    running_balance: Float!  # Saldo acumulado después de este movimiento
     member: Member
     payment: Payment
     created_at: Time!
@@ -2434,6 +2732,9 @@ type Query {
     # Dashboard Queries
     getDashboardStats: DashboardStats!
     getRecentActivity(limit: Int = 10): [RecentActivity!]!
+
+    # Report Queries
+    getDelinquentReport(input: DelinquentReportInput): DelinquentReportResponse!
 }
 
 # Type for document validation result
@@ -2715,6 +3016,188 @@ type Mutation {
     # Password Recovery Mutations
     requestPasswordReset(email: String!): MutationResponse!
     resetPasswordWithToken(token: String!, newPassword: String!): MutationResponse!
+}
+
+# Delinquent Report Types
+
+"""
+Parámetros de entrada para el informe de morosos
+"""
+input DelinquentReportInput {
+    """
+    Fecha de corte para calcular la antigüedad de la deuda.
+    Si no se proporciona, se usa la fecha actual.
+    """
+    cutoffDate: Time
+
+    """
+    Importe mínimo de deuda para incluir en el informe.
+    Útil para filtrar deudas pequeñas.
+    Default: 0
+    """
+    minAmount: Float
+
+    """
+    Filtrar solo por socios individuales o familias
+    Valores: "INDIVIDUAL" | "FAMILY" | null (ambos)
+    """
+    debtorType: String
+
+    """
+    Ordenamiento de resultados
+    Valores: "AMOUNT_DESC" | "AMOUNT_ASC" | "DAYS_DESC" | "DAYS_ASC" | "NAME_ASC"
+    Default: "DAYS_DESC" (más antiguas primero)
+    """
+    sortBy: String
+}
+
+"""
+Respuesta del informe de morosos
+"""
+type DelinquentReportResponse {
+    """
+    Lista de deudores (socios o familias)
+    """
+    debtors: [Debtor!]!
+
+    """
+    Estadísticas generales del informe
+    """
+    summary: DelinquentSummary!
+
+    """
+    Fecha en que se generó el informe
+    """
+    generatedAt: Time!
+}
+
+"""
+Representa un deudor (socio o familia)
+"""
+type Debtor {
+    """
+    ID del socio (si es deuda individual)
+    """
+    memberId: ID
+
+    """
+    ID de la familia (si es deuda familiar)
+    """
+    familyId: ID
+
+    """
+    Tipo de deudor: "INDIVIDUAL" o "FAMILY"
+    """
+    type: String!
+
+    """
+    Información del socio (si es individual)
+    """
+    member: DebtorMemberInfo
+
+    """
+    Información de la familia (si es familiar)
+    """
+    family: DebtorFamilyInfo
+
+    """
+    Lista de pagos pendientes
+    """
+    pendingPayments: [PendingPayment!]!
+
+    """
+    Importe total pendiente (suma de todos los pagos pendientes)
+    """
+    totalDebt: Float!
+
+    """
+    Días de atraso del pago más antiguo
+    """
+    oldestDebtDays: Int!
+
+    """
+    Fecha del pago pendiente más antiguo
+    """
+    oldestDebtDate: Time!
+
+    """
+    Última fecha en que este socio/familia realizó un pago exitoso
+    """
+    lastPaymentDate: Time
+
+    """
+    Importe del último pago realizado
+    """
+    lastPaymentAmount: Float
+}
+
+"""
+Información básica del socio para el informe
+"""
+type DebtorMemberInfo {
+    id: ID!
+    memberNumber: String!
+    firstName: String!
+    lastName: String!
+    email: String
+    phone: String
+    status: String!
+}
+
+"""
+Información básica de la familia para el informe
+"""
+type DebtorFamilyInfo {
+    id: ID!
+    familyName: String!
+    primaryMember: DebtorMemberInfo!
+    totalMembers: Int!
+}
+
+"""
+Información de un pago pendiente
+"""
+type PendingPayment {
+    id: ID!
+    amount: Float!
+    createdAt: Time!
+    daysOverdue: Int!
+    notes: String
+}
+
+"""
+Resumen estadístico del informe
+"""
+type DelinquentSummary {
+    """
+    Número total de deudores
+    """
+    totalDebtors: Int!
+
+    """
+    Número de socios individuales con deuda
+    """
+    individualDebtors: Int!
+
+    """
+    Número de familias con deuda
+    """
+    familyDebtors: Int!
+
+    """
+    Importe total de todas las deudas
+    """
+    totalDebtAmount: Float!
+
+    """
+    Promedio de días de atraso
+    """
+    averageDaysOverdue: Int!
+
+    """
+    Deuda promedio por deudor
+    """
+    averageDebtPerDebtor: Float!
 }
 `, BuiltIn: false},
 }
@@ -3176,6 +3659,17 @@ func (ec *executionContext) field_Query_getCashFlow_args(ctx context.Context, ra
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_getDelinquentReport_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalODelinquentReportInput2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDelinquentReportInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -3737,6 +4231,35 @@ func (ec *executionContext) fieldContext_CashFlow_detail(_ context.Context, fiel
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CashFlow_running_balance(ctx context.Context, field graphql.CollectedField, obj *models.CashFlow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CashFlow_running_balance,
+		func(ctx context.Context) (any, error) {
+			return obj.RunningBalance, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CashFlow_running_balance(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CashFlow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
 		},
 	}
 	return fc, nil
@@ -4794,6 +5317,997 @@ func (ec *executionContext) fieldContext_DashboardStats_revenueTrend(_ context.C
 				return ec.fieldContext_RevenueTrendData_expenses(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type RevenueTrendData", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Debtor_memberId(ctx context.Context, field graphql.CollectedField, obj *model.Debtor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Debtor_memberId,
+		func(ctx context.Context) (any, error) {
+			return obj.MemberID, nil
+		},
+		nil,
+		ec.marshalOID2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Debtor_memberId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Debtor",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Debtor_familyId(ctx context.Context, field graphql.CollectedField, obj *model.Debtor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Debtor_familyId,
+		func(ctx context.Context) (any, error) {
+			return obj.FamilyID, nil
+		},
+		nil,
+		ec.marshalOID2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Debtor_familyId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Debtor",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Debtor_type(ctx context.Context, field graphql.CollectedField, obj *model.Debtor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Debtor_type,
+		func(ctx context.Context) (any, error) {
+			return obj.Type, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Debtor_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Debtor",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Debtor_member(ctx context.Context, field graphql.CollectedField, obj *model.Debtor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Debtor_member,
+		func(ctx context.Context) (any, error) {
+			return obj.Member, nil
+		},
+		nil,
+		ec.marshalODebtorMemberInfo2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDebtorMemberInfo,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Debtor_member(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Debtor",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_DebtorMemberInfo_id(ctx, field)
+			case "memberNumber":
+				return ec.fieldContext_DebtorMemberInfo_memberNumber(ctx, field)
+			case "firstName":
+				return ec.fieldContext_DebtorMemberInfo_firstName(ctx, field)
+			case "lastName":
+				return ec.fieldContext_DebtorMemberInfo_lastName(ctx, field)
+			case "email":
+				return ec.fieldContext_DebtorMemberInfo_email(ctx, field)
+			case "phone":
+				return ec.fieldContext_DebtorMemberInfo_phone(ctx, field)
+			case "status":
+				return ec.fieldContext_DebtorMemberInfo_status(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DebtorMemberInfo", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Debtor_family(ctx context.Context, field graphql.CollectedField, obj *model.Debtor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Debtor_family,
+		func(ctx context.Context) (any, error) {
+			return obj.Family, nil
+		},
+		nil,
+		ec.marshalODebtorFamilyInfo2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDebtorFamilyInfo,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Debtor_family(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Debtor",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_DebtorFamilyInfo_id(ctx, field)
+			case "familyName":
+				return ec.fieldContext_DebtorFamilyInfo_familyName(ctx, field)
+			case "primaryMember":
+				return ec.fieldContext_DebtorFamilyInfo_primaryMember(ctx, field)
+			case "totalMembers":
+				return ec.fieldContext_DebtorFamilyInfo_totalMembers(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DebtorFamilyInfo", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Debtor_pendingPayments(ctx context.Context, field graphql.CollectedField, obj *model.Debtor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Debtor_pendingPayments,
+		func(ctx context.Context) (any, error) {
+			return obj.PendingPayments, nil
+		},
+		nil,
+		ec.marshalNPendingPayment2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPendingPaymentᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Debtor_pendingPayments(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Debtor",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_PendingPayment_id(ctx, field)
+			case "amount":
+				return ec.fieldContext_PendingPayment_amount(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_PendingPayment_createdAt(ctx, field)
+			case "daysOverdue":
+				return ec.fieldContext_PendingPayment_daysOverdue(ctx, field)
+			case "notes":
+				return ec.fieldContext_PendingPayment_notes(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PendingPayment", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Debtor_totalDebt(ctx context.Context, field graphql.CollectedField, obj *model.Debtor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Debtor_totalDebt,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalDebt, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Debtor_totalDebt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Debtor",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Debtor_oldestDebtDays(ctx context.Context, field graphql.CollectedField, obj *model.Debtor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Debtor_oldestDebtDays,
+		func(ctx context.Context) (any, error) {
+			return obj.OldestDebtDays, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Debtor_oldestDebtDays(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Debtor",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Debtor_oldestDebtDate(ctx context.Context, field graphql.CollectedField, obj *model.Debtor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Debtor_oldestDebtDate,
+		func(ctx context.Context) (any, error) {
+			return obj.OldestDebtDate, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Debtor_oldestDebtDate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Debtor",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Debtor_lastPaymentDate(ctx context.Context, field graphql.CollectedField, obj *model.Debtor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Debtor_lastPaymentDate,
+		func(ctx context.Context) (any, error) {
+			return obj.LastPaymentDate, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Debtor_lastPaymentDate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Debtor",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Debtor_lastPaymentAmount(ctx context.Context, field graphql.CollectedField, obj *model.Debtor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Debtor_lastPaymentAmount,
+		func(ctx context.Context) (any, error) {
+			return obj.LastPaymentAmount, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Debtor_lastPaymentAmount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Debtor",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DebtorFamilyInfo_id(ctx context.Context, field graphql.CollectedField, obj *model.DebtorFamilyInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DebtorFamilyInfo_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DebtorFamilyInfo_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DebtorFamilyInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DebtorFamilyInfo_familyName(ctx context.Context, field graphql.CollectedField, obj *model.DebtorFamilyInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DebtorFamilyInfo_familyName,
+		func(ctx context.Context) (any, error) {
+			return obj.FamilyName, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DebtorFamilyInfo_familyName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DebtorFamilyInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DebtorFamilyInfo_primaryMember(ctx context.Context, field graphql.CollectedField, obj *model.DebtorFamilyInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DebtorFamilyInfo_primaryMember,
+		func(ctx context.Context) (any, error) {
+			return obj.PrimaryMember, nil
+		},
+		nil,
+		ec.marshalNDebtorMemberInfo2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDebtorMemberInfo,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DebtorFamilyInfo_primaryMember(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DebtorFamilyInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_DebtorMemberInfo_id(ctx, field)
+			case "memberNumber":
+				return ec.fieldContext_DebtorMemberInfo_memberNumber(ctx, field)
+			case "firstName":
+				return ec.fieldContext_DebtorMemberInfo_firstName(ctx, field)
+			case "lastName":
+				return ec.fieldContext_DebtorMemberInfo_lastName(ctx, field)
+			case "email":
+				return ec.fieldContext_DebtorMemberInfo_email(ctx, field)
+			case "phone":
+				return ec.fieldContext_DebtorMemberInfo_phone(ctx, field)
+			case "status":
+				return ec.fieldContext_DebtorMemberInfo_status(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DebtorMemberInfo", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DebtorFamilyInfo_totalMembers(ctx context.Context, field graphql.CollectedField, obj *model.DebtorFamilyInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DebtorFamilyInfo_totalMembers,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalMembers, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DebtorFamilyInfo_totalMembers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DebtorFamilyInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DebtorMemberInfo_id(ctx context.Context, field graphql.CollectedField, obj *model.DebtorMemberInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DebtorMemberInfo_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DebtorMemberInfo_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DebtorMemberInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DebtorMemberInfo_memberNumber(ctx context.Context, field graphql.CollectedField, obj *model.DebtorMemberInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DebtorMemberInfo_memberNumber,
+		func(ctx context.Context) (any, error) {
+			return obj.MemberNumber, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DebtorMemberInfo_memberNumber(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DebtorMemberInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DebtorMemberInfo_firstName(ctx context.Context, field graphql.CollectedField, obj *model.DebtorMemberInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DebtorMemberInfo_firstName,
+		func(ctx context.Context) (any, error) {
+			return obj.FirstName, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DebtorMemberInfo_firstName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DebtorMemberInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DebtorMemberInfo_lastName(ctx context.Context, field graphql.CollectedField, obj *model.DebtorMemberInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DebtorMemberInfo_lastName,
+		func(ctx context.Context) (any, error) {
+			return obj.LastName, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DebtorMemberInfo_lastName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DebtorMemberInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DebtorMemberInfo_email(ctx context.Context, field graphql.CollectedField, obj *model.DebtorMemberInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DebtorMemberInfo_email,
+		func(ctx context.Context) (any, error) {
+			return obj.Email, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DebtorMemberInfo_email(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DebtorMemberInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DebtorMemberInfo_phone(ctx context.Context, field graphql.CollectedField, obj *model.DebtorMemberInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DebtorMemberInfo_phone,
+		func(ctx context.Context) (any, error) {
+			return obj.Phone, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DebtorMemberInfo_phone(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DebtorMemberInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DebtorMemberInfo_status(ctx context.Context, field graphql.CollectedField, obj *model.DebtorMemberInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DebtorMemberInfo_status,
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DebtorMemberInfo_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DebtorMemberInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DelinquentReportResponse_debtors(ctx context.Context, field graphql.CollectedField, obj *model.DelinquentReportResponse) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DelinquentReportResponse_debtors,
+		func(ctx context.Context) (any, error) {
+			return obj.Debtors, nil
+		},
+		nil,
+		ec.marshalNDebtor2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDebtorᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DelinquentReportResponse_debtors(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DelinquentReportResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "memberId":
+				return ec.fieldContext_Debtor_memberId(ctx, field)
+			case "familyId":
+				return ec.fieldContext_Debtor_familyId(ctx, field)
+			case "type":
+				return ec.fieldContext_Debtor_type(ctx, field)
+			case "member":
+				return ec.fieldContext_Debtor_member(ctx, field)
+			case "family":
+				return ec.fieldContext_Debtor_family(ctx, field)
+			case "pendingPayments":
+				return ec.fieldContext_Debtor_pendingPayments(ctx, field)
+			case "totalDebt":
+				return ec.fieldContext_Debtor_totalDebt(ctx, field)
+			case "oldestDebtDays":
+				return ec.fieldContext_Debtor_oldestDebtDays(ctx, field)
+			case "oldestDebtDate":
+				return ec.fieldContext_Debtor_oldestDebtDate(ctx, field)
+			case "lastPaymentDate":
+				return ec.fieldContext_Debtor_lastPaymentDate(ctx, field)
+			case "lastPaymentAmount":
+				return ec.fieldContext_Debtor_lastPaymentAmount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Debtor", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DelinquentReportResponse_summary(ctx context.Context, field graphql.CollectedField, obj *model.DelinquentReportResponse) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DelinquentReportResponse_summary,
+		func(ctx context.Context) (any, error) {
+			return obj.Summary, nil
+		},
+		nil,
+		ec.marshalNDelinquentSummary2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDelinquentSummary,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DelinquentReportResponse_summary(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DelinquentReportResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "totalDebtors":
+				return ec.fieldContext_DelinquentSummary_totalDebtors(ctx, field)
+			case "individualDebtors":
+				return ec.fieldContext_DelinquentSummary_individualDebtors(ctx, field)
+			case "familyDebtors":
+				return ec.fieldContext_DelinquentSummary_familyDebtors(ctx, field)
+			case "totalDebtAmount":
+				return ec.fieldContext_DelinquentSummary_totalDebtAmount(ctx, field)
+			case "averageDaysOverdue":
+				return ec.fieldContext_DelinquentSummary_averageDaysOverdue(ctx, field)
+			case "averageDebtPerDebtor":
+				return ec.fieldContext_DelinquentSummary_averageDebtPerDebtor(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DelinquentSummary", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DelinquentReportResponse_generatedAt(ctx context.Context, field graphql.CollectedField, obj *model.DelinquentReportResponse) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DelinquentReportResponse_generatedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.GeneratedAt, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DelinquentReportResponse_generatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DelinquentReportResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DelinquentSummary_totalDebtors(ctx context.Context, field graphql.CollectedField, obj *model.DelinquentSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DelinquentSummary_totalDebtors,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalDebtors, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DelinquentSummary_totalDebtors(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DelinquentSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DelinquentSummary_individualDebtors(ctx context.Context, field graphql.CollectedField, obj *model.DelinquentSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DelinquentSummary_individualDebtors,
+		func(ctx context.Context) (any, error) {
+			return obj.IndividualDebtors, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DelinquentSummary_individualDebtors(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DelinquentSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DelinquentSummary_familyDebtors(ctx context.Context, field graphql.CollectedField, obj *model.DelinquentSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DelinquentSummary_familyDebtors,
+		func(ctx context.Context) (any, error) {
+			return obj.FamilyDebtors, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DelinquentSummary_familyDebtors(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DelinquentSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DelinquentSummary_totalDebtAmount(ctx context.Context, field graphql.CollectedField, obj *model.DelinquentSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DelinquentSummary_totalDebtAmount,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalDebtAmount, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DelinquentSummary_totalDebtAmount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DelinquentSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DelinquentSummary_averageDaysOverdue(ctx context.Context, field graphql.CollectedField, obj *model.DelinquentSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DelinquentSummary_averageDaysOverdue,
+		func(ctx context.Context) (any, error) {
+			return obj.AverageDaysOverdue, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DelinquentSummary_averageDaysOverdue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DelinquentSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DelinquentSummary_averageDebtPerDebtor(ctx context.Context, field graphql.CollectedField, obj *model.DelinquentSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DelinquentSummary_averageDebtPerDebtor,
+		func(ctx context.Context) (any, error) {
+			return obj.AverageDebtPerDebtor, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DelinquentSummary_averageDebtPerDebtor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DelinquentSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
 		},
 	}
 	return fc, nil
@@ -7516,6 +9030,8 @@ func (ec *executionContext) fieldContext_Mutation_createCashFlow(ctx context.Con
 				return ec.fieldContext_CashFlow_operation_type(ctx, field)
 			case "detail":
 				return ec.fieldContext_CashFlow_detail(ctx, field)
+			case "running_balance":
+				return ec.fieldContext_CashFlow_running_balance(ctx, field)
 			case "member":
 				return ec.fieldContext_CashFlow_member(ctx, field)
 			case "payment":
@@ -7577,6 +9093,8 @@ func (ec *executionContext) fieldContext_Mutation_updateCashFlow(ctx context.Con
 				return ec.fieldContext_CashFlow_operation_type(ctx, field)
 			case "detail":
 				return ec.fieldContext_CashFlow_detail(ctx, field)
+			case "running_balance":
+				return ec.fieldContext_CashFlow_running_balance(ctx, field)
 			case "member":
 				return ec.fieldContext_CashFlow_member(ctx, field)
 			case "payment":
@@ -7736,6 +9254,8 @@ func (ec *executionContext) fieldContext_Mutation_registerTransaction(ctx contex
 				return ec.fieldContext_CashFlow_operation_type(ctx, field)
 			case "detail":
 				return ec.fieldContext_CashFlow_detail(ctx, field)
+			case "running_balance":
+				return ec.fieldContext_CashFlow_running_balance(ctx, field)
 			case "member":
 				return ec.fieldContext_CashFlow_member(ctx, field)
 			case "payment":
@@ -7797,6 +9317,8 @@ func (ec *executionContext) fieldContext_Mutation_updateTransaction(ctx context.
 				return ec.fieldContext_CashFlow_operation_type(ctx, field)
 			case "detail":
 				return ec.fieldContext_CashFlow_detail(ctx, field)
+			case "running_balance":
+				return ec.fieldContext_CashFlow_running_balance(ctx, field)
 			case "member":
 				return ec.fieldContext_CashFlow_member(ctx, field)
 			case "payment":
@@ -8999,6 +10521,151 @@ func (ec *executionContext) fieldContext_PaymentConnection_pageInfo(_ context.Co
 				return ec.fieldContext_PageInfo_totalCount(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type PageInfo", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PendingPayment_id(ctx context.Context, field graphql.CollectedField, obj *model.PendingPayment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PendingPayment_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PendingPayment_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PendingPayment",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PendingPayment_amount(ctx context.Context, field graphql.CollectedField, obj *model.PendingPayment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PendingPayment_amount,
+		func(ctx context.Context) (any, error) {
+			return obj.Amount, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PendingPayment_amount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PendingPayment",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PendingPayment_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.PendingPayment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PendingPayment_createdAt,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PendingPayment_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PendingPayment",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PendingPayment_daysOverdue(ctx context.Context, field graphql.CollectedField, obj *model.PendingPayment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PendingPayment_daysOverdue,
+		func(ctx context.Context) (any, error) {
+			return obj.DaysOverdue, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PendingPayment_daysOverdue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PendingPayment",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PendingPayment_notes(ctx context.Context, field graphql.CollectedField, obj *model.PendingPayment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PendingPayment_notes,
+		func(ctx context.Context) (any, error) {
+			return obj.Notes, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_PendingPayment_notes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PendingPayment",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -10216,6 +11883,8 @@ func (ec *executionContext) fieldContext_Query_getCashFlow(ctx context.Context, 
 				return ec.fieldContext_CashFlow_operation_type(ctx, field)
 			case "detail":
 				return ec.fieldContext_CashFlow_detail(ctx, field)
+			case "running_balance":
+				return ec.fieldContext_CashFlow_running_balance(ctx, field)
 			case "member":
 				return ec.fieldContext_CashFlow_member(ctx, field)
 			case "payment":
@@ -10657,6 +12326,55 @@ func (ec *executionContext) fieldContext_Query_getRecentActivity(ctx context.Con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_getRecentActivity_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getDelinquentReport(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_getDelinquentReport,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().GetDelinquentReport(ctx, fc.Args["input"].(*model.DelinquentReportInput))
+		},
+		nil,
+		ec.marshalNDelinquentReportResponse2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDelinquentReportResponse,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_getDelinquentReport(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "debtors":
+				return ec.fieldContext_DelinquentReportResponse_debtors(ctx, field)
+			case "summary":
+				return ec.fieldContext_DelinquentReportResponse_summary(ctx, field)
+			case "generatedAt":
+				return ec.fieldContext_DelinquentReportResponse_generatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DelinquentReportResponse", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getDelinquentReport_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -11252,6 +12970,8 @@ func (ec *executionContext) fieldContext_TransactionConnection_nodes(_ context.C
 				return ec.fieldContext_CashFlow_operation_type(ctx, field)
 			case "detail":
 				return ec.fieldContext_CashFlow_detail(ctx, field)
+			case "running_balance":
+				return ec.fieldContext_CashFlow_running_balance(ctx, field)
 			case "member":
 				return ec.fieldContext_CashFlow_member(ctx, field)
 			case "payment":
@@ -13466,6 +15186,54 @@ func (ec *executionContext) unmarshalInputCreateUserInput(ctx context.Context, o
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputDelinquentReportInput(ctx context.Context, obj any) (model.DelinquentReportInput, error) {
+	var it model.DelinquentReportInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"cutoffDate", "minAmount", "debtorType", "sortBy"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "cutoffDate":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cutoffDate"))
+			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CutoffDate = data
+		case "minAmount":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("minAmount"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MinAmount = data
+		case "debtorType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("debtorType"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DebtorType = data
+		case "sortBy":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sortBy"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SortBy = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputFamiliarInput(ctx context.Context, obj any) (model.FamiliarInput, error) {
 	var it model.FamiliarInput
 	asMap := map[string]any{}
@@ -14469,6 +16237,11 @@ func (ec *executionContext) _CashFlow(ctx context.Context, sel ast.SelectionSet,
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "running_balance":
+			out.Values[i] = ec._CashFlow_running_balance(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "member":
 			out.Values[i] = ec._CashFlow_member(ctx, field, obj)
 		case "payment":
@@ -14761,6 +16534,307 @@ func (ec *executionContext) _DashboardStats(ctx context.Context, sel ast.Selecti
 			}
 		case "revenueTrend":
 			out.Values[i] = ec._DashboardStats_revenueTrend(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var debtorImplementors = []string{"Debtor"}
+
+func (ec *executionContext) _Debtor(ctx context.Context, sel ast.SelectionSet, obj *model.Debtor) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, debtorImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Debtor")
+		case "memberId":
+			out.Values[i] = ec._Debtor_memberId(ctx, field, obj)
+		case "familyId":
+			out.Values[i] = ec._Debtor_familyId(ctx, field, obj)
+		case "type":
+			out.Values[i] = ec._Debtor_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "member":
+			out.Values[i] = ec._Debtor_member(ctx, field, obj)
+		case "family":
+			out.Values[i] = ec._Debtor_family(ctx, field, obj)
+		case "pendingPayments":
+			out.Values[i] = ec._Debtor_pendingPayments(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalDebt":
+			out.Values[i] = ec._Debtor_totalDebt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "oldestDebtDays":
+			out.Values[i] = ec._Debtor_oldestDebtDays(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "oldestDebtDate":
+			out.Values[i] = ec._Debtor_oldestDebtDate(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "lastPaymentDate":
+			out.Values[i] = ec._Debtor_lastPaymentDate(ctx, field, obj)
+		case "lastPaymentAmount":
+			out.Values[i] = ec._Debtor_lastPaymentAmount(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var debtorFamilyInfoImplementors = []string{"DebtorFamilyInfo"}
+
+func (ec *executionContext) _DebtorFamilyInfo(ctx context.Context, sel ast.SelectionSet, obj *model.DebtorFamilyInfo) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, debtorFamilyInfoImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DebtorFamilyInfo")
+		case "id":
+			out.Values[i] = ec._DebtorFamilyInfo_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "familyName":
+			out.Values[i] = ec._DebtorFamilyInfo_familyName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "primaryMember":
+			out.Values[i] = ec._DebtorFamilyInfo_primaryMember(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalMembers":
+			out.Values[i] = ec._DebtorFamilyInfo_totalMembers(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var debtorMemberInfoImplementors = []string{"DebtorMemberInfo"}
+
+func (ec *executionContext) _DebtorMemberInfo(ctx context.Context, sel ast.SelectionSet, obj *model.DebtorMemberInfo) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, debtorMemberInfoImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DebtorMemberInfo")
+		case "id":
+			out.Values[i] = ec._DebtorMemberInfo_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "memberNumber":
+			out.Values[i] = ec._DebtorMemberInfo_memberNumber(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "firstName":
+			out.Values[i] = ec._DebtorMemberInfo_firstName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "lastName":
+			out.Values[i] = ec._DebtorMemberInfo_lastName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "email":
+			out.Values[i] = ec._DebtorMemberInfo_email(ctx, field, obj)
+		case "phone":
+			out.Values[i] = ec._DebtorMemberInfo_phone(ctx, field, obj)
+		case "status":
+			out.Values[i] = ec._DebtorMemberInfo_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var delinquentReportResponseImplementors = []string{"DelinquentReportResponse"}
+
+func (ec *executionContext) _DelinquentReportResponse(ctx context.Context, sel ast.SelectionSet, obj *model.DelinquentReportResponse) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, delinquentReportResponseImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DelinquentReportResponse")
+		case "debtors":
+			out.Values[i] = ec._DelinquentReportResponse_debtors(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "summary":
+			out.Values[i] = ec._DelinquentReportResponse_summary(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "generatedAt":
+			out.Values[i] = ec._DelinquentReportResponse_generatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var delinquentSummaryImplementors = []string{"DelinquentSummary"}
+
+func (ec *executionContext) _DelinquentSummary(ctx context.Context, sel ast.SelectionSet, obj *model.DelinquentSummary) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, delinquentSummaryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DelinquentSummary")
+		case "totalDebtors":
+			out.Values[i] = ec._DelinquentSummary_totalDebtors(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "individualDebtors":
+			out.Values[i] = ec._DelinquentSummary_individualDebtors(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "familyDebtors":
+			out.Values[i] = ec._DelinquentSummary_familyDebtors(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalDebtAmount":
+			out.Values[i] = ec._DelinquentSummary_totalDebtAmount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "averageDaysOverdue":
+			out.Values[i] = ec._DelinquentSummary_averageDaysOverdue(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "averageDebtPerDebtor":
+			out.Values[i] = ec._DelinquentSummary_averageDebtPerDebtor(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -16508,6 +18582,62 @@ func (ec *executionContext) _PaymentConnection(ctx context.Context, sel ast.Sele
 	return out
 }
 
+var pendingPaymentImplementors = []string{"PendingPayment"}
+
+func (ec *executionContext) _PendingPayment(ctx context.Context, sel ast.SelectionSet, obj *model.PendingPayment) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, pendingPaymentImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PendingPayment")
+		case "id":
+			out.Values[i] = ec._PendingPayment_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "amount":
+			out.Values[i] = ec._PendingPayment_amount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._PendingPayment_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "daysOverdue":
+			out.Values[i] = ec._PendingPayment_daysOverdue(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "notes":
+			out.Values[i] = ec._PendingPayment_notes(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var queryImplementors = []string{"Query"}
 
 func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -17176,6 +19306,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getRecentActivity(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getDelinquentReport":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getDelinquentReport(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -18107,6 +20259,94 @@ func (ec *executionContext) marshalNDashboardStats2ᚖgithubᚗcomᚋjavicabdev�
 	return ec._DashboardStats(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNDebtor2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDebtorᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Debtor) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNDebtor2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDebtor(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDebtor2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDebtor(ctx context.Context, sel ast.SelectionSet, v *model.Debtor) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Debtor(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDebtorMemberInfo2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDebtorMemberInfo(ctx context.Context, sel ast.SelectionSet, v *model.DebtorMemberInfo) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DebtorMemberInfo(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDelinquentReportResponse2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDelinquentReportResponse(ctx context.Context, sel ast.SelectionSet, v model.DelinquentReportResponse) graphql.Marshaler {
+	return ec._DelinquentReportResponse(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDelinquentReportResponse2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDelinquentReportResponse(ctx context.Context, sel ast.SelectionSet, v *model.DelinquentReportResponse) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DelinquentReportResponse(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDelinquentSummary2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDelinquentSummary(ctx context.Context, sel ast.SelectionSet, v *model.DelinquentSummary) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DelinquentSummary(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNDocumentValidationResult2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDocumentValidationResult(ctx context.Context, sel ast.SelectionSet, v model.DocumentValidationResult) graphql.Marshaler {
 	return ec._DocumentValidationResult(ctx, sel, &v)
 }
@@ -18719,6 +20959,60 @@ func (ec *executionContext) marshalNPaymentStatus2githubᚗcomᚋjavicabdevᚋas
 	return res
 }
 
+func (ec *executionContext) marshalNPendingPayment2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPendingPaymentᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.PendingPayment) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNPendingPayment2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPendingPayment(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNPendingPayment2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPendingPayment(ctx context.Context, sel ast.SelectionSet, v *model.PendingPayment) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._PendingPayment(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNRecentActivity2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐRecentActivityᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.RecentActivity) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -19305,6 +21599,28 @@ func (ec *executionContext) marshalOCashFlow2ᚖgithubᚗcomᚋjavicabdevᚋasam
 		return graphql.Null
 	}
 	return ec._CashFlow(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalODebtorFamilyInfo2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDebtorFamilyInfo(ctx context.Context, sel ast.SelectionSet, v *model.DebtorFamilyInfo) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._DebtorFamilyInfo(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalODebtorMemberInfo2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDebtorMemberInfo(ctx context.Context, sel ast.SelectionSet, v *model.DebtorMemberInfo) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._DebtorMemberInfo(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalODelinquentReportInput2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDelinquentReportInput(ctx context.Context, v any) (*model.DelinquentReportInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputDelinquentReportInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalOFamiliar2ᚕgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐFamiliarᚄ(ctx context.Context, sel ast.SelectionSet, v []models.Familiar) graphql.Marshaler {

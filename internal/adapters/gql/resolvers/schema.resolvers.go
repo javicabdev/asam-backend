@@ -24,11 +24,6 @@ func (r *cashFlowResolver) ID(ctx context.Context, obj *models.CashFlow) (string
 	return fmt.Sprintf("%d", obj.ID), nil
 }
 
-// RunningBalance is the resolver for the running_balance field.
-func (r *cashFlowResolver) RunningBalance(ctx context.Context, obj *models.CashFlow) (float64, error) {
-	return obj.RunningBalance, nil
-}
-
 // ID is the resolver for the id field.
 func (r *familiarResolver) ID(ctx context.Context, obj *models.Familiar) (string, error) {
 	return fmt.Sprintf("%d", obj.ID), nil
@@ -1539,6 +1534,11 @@ func (r *queryResolver) GetRecentActivity(ctx context.Context, limit *int) ([]*m
 	// Delegar al dashboard resolver
 	dashboardResolver := &dashboardResolver{r.Resolver}
 	return dashboardResolver.GetRecentActivity(ctx, limit)
+}
+
+// GetDelinquentReport is the resolver for the getDelinquentReport field.
+func (r *queryResolver) GetDelinquentReport(ctx context.Context, input *model.DelinquentReportInput) (*model.DelinquentReportResponse, error) {
+	panic(fmt.Errorf("not implemented: GetDelinquentReport - getDelinquentReport"))
 }
 
 // ID is the resolver for the id field.
