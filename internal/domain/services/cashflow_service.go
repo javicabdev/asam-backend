@@ -69,7 +69,7 @@ func (s *CashFlowService) GetMovement(ctx context.Context, id uint) (*models.Cas
 }
 
 // GetMovementsByPeriod obtiene los movimientos de caja en un período específico
-// y calcula el saldo acumulado para cada movimiento
+// y calcula el saldo acumulado para cada movimiento usando window functions SQL
 func (s *CashFlowService) GetMovementsByPeriod(ctx context.Context, filter input.CashFlowFilter) ([]*models.CashFlow, error) {
 	// Validaciones básicas
 	if filter.PageSize < 1 {
@@ -95,10 +95,6 @@ func (s *CashFlowService) GetMovementsByPeriod(ctx context.Context, filter input
 		}
 	}
 
-	// IMPORTANTE: Forzar ordenamiento por fecha ASC para calcular el saldo acumulado correctamente
-	originalOrderBy := filter.OrderBy
-	filter.OrderBy = "date ASC"
-
 	// Convertir el filtro de input a output
 	repoFilter := output.CashFlowFilter{
 		MemberID:      filter.MemberID,
@@ -110,80 +106,13 @@ func (s *CashFlowService) GetMovementsByPeriod(ctx context.Context, filter input
 		OrderBy:       filter.OrderBy,
 	}
 
-	// Obtener los movimientos usando el repositorio
-	movements, err := s.repository.List(ctx, repoFilter)
+	// Usar el nuevo método optimizado con window functions
+	movements, err := s.repository.ListWithRunningBalance(ctx, repoFilter)
 	if err != nil {
 		return nil, errors.DB(err, "error obteniendo movimientos del período")
 	}
 
-	// Calcular el saldo inicial (balance antes de la primera transacción)
-	var initialBalance float64
-	if len(movements) > 0 {
-		// Obtener el saldo acumulado hasta la fecha de la primera transacción (excluyéndola)
-		firstDate := movements[0].Date
-		balanceFilter := output.CashFlowFilter{
-			MemberID:  filter.MemberID,
-			EndDate:   &firstDate,
-			OrderBy:   "date ASC",
-			Page:      1,
-			PageSize:  999999, // Obtener todos los movimientos anteriores
-		}
-		previousMovements, err := s.repository.List(ctx, balanceFilter)
-		if err == nil {
-			// Sumar todos los movimientos anteriores
-			for _, mov := range previousMovements {
-				// Excluir la primera transacción del resultado actual
-				if mov.ID != movements[0].ID {
-					initialBalance += mov.Amount
-				}
-			}
-		}
-	}
-
-	// Calcular el saldo acumulado para cada movimiento
-	runningBalance := initialBalance
-	for i := range movements {
-		runningBalance += movements[i].Amount
-		movements[i].RunningBalance = runningBalance
-	}
-
-	// Si el usuario pidió un ordenamiento diferente, reordenar ahora
-	if originalOrderBy != "" && originalOrderBy != "date ASC" {
-		// Aplicar el ordenamiento original después del cálculo
-		s.sortMovements(movements, originalOrderBy)
-	}
-
 	return movements, nil
-}
-
-// sortMovements reordena los movimientos según el criterio especificado
-func (s *CashFlowService) sortMovements(movements []*models.CashFlow, orderBy string) {
-	parts := strings.Fields(strings.ToLower(orderBy))
-	if len(parts) == 0 {
-		return
-	}
-
-	field := parts[0]
-	ascending := len(parts) == 1 || parts[1] == "asc"
-
-	sort.Slice(movements, func(i, j int) bool {
-		var less bool
-		switch field {
-		case "date":
-			less = movements[i].Date.Before(movements[j].Date)
-		case "amount":
-			less = movements[i].Amount < movements[j].Amount
-		case "operation_type":
-			less = movements[i].OperationType < movements[j].OperationType
-		default:
-			return false
-		}
-
-		if !ascending {
-			return !less
-		}
-		return less
-	})
 }
 
 // UpdateMovement implementa la actualización de un movimiento

@@ -40,6 +40,14 @@ type CashFlowRepository interface {
 
 	// ExistsByPaymentID verifica si ya existe un cash_flow para un payment_id (para idempotencia)
 	ExistsByPaymentID(ctx context.Context, paymentID uint) (bool, error)
+
+	// ListWithRunningBalance obtiene una lista de movimientos con running_balance calculado
+	// usando una única query SQL con window functions para máxima eficiencia.
+	// El running_balance se calcula considerando:
+	// - El balance inicial (suma de todos los movimientos anteriores al filtro de fecha)
+	// - Los filtros aplicados (operation_type, member_id, etc.)
+	// - El ordenamiento cronológico (date ASC, created_at ASC)
+	ListWithRunningBalance(ctx context.Context, filter CashFlowFilter) ([]*models.CashFlow, error)
 }
 
 // CashFlowFilter define los filtros disponibles para buscar movimientos

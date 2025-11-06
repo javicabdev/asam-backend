@@ -163,11 +163,15 @@ generate-mocks:
 ## Testing commands
 ## ─────────────────────────────────────────────────────────────────
 
-## test: Run all tests
+## test: Run only unit tests (use 'make test-integration' for integration tests)
 .PHONY: test
 test:
-	@echo "🧪 Running tests..."
-	@$(GOTEST) -v -race ./...
+	@echo "🧪 Running unit tests..."
+	@$(GOTEST) -v -race ./test/unit/...
+
+## test-all: Run all tests (unit + integration, requires postgres)
+.PHONY: test-all
+test-all: test-unit test-integration
 
 ## test-unit: Run unit tests only
 .PHONY: test-unit
@@ -175,11 +179,13 @@ test-unit:
 	@echo "🧪 Running unit tests..."
 	@$(GOTEST) -v -race ./test/unit/...
 
-## test-integration: Run integration tests only
+## test-integration: Run integration tests only (requires postgres running on localhost:5432)
 .PHONY: test-integration
 test-integration:
 	@echo "🧪 Running integration tests..."
-	@$(GOTEST) -v -race -tags=integration ./...
+	@echo "📝 Note: Integration tests require postgres running. Use 'make dev' or 'docker compose up postgres' first."
+	@DB_HOST=localhost DB_PORT=5432 DB_USER=postgres DB_PASSWORD=postgres DB_NAME=asam_db DB_SSL_MODE=disable \
+		$(GOTEST) -v ./test/integration/...
 
 ## test-coverage: Run tests with coverage report
 .PHONY: test-coverage
