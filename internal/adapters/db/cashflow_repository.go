@@ -312,7 +312,7 @@ func (r *cashFlowRepository) ExistsByPaymentID(ctx context.Context, paymentID ui
 }
 
 const (
-	defaultOrderBy = "date DESC, created_at DESC"
+	defaultOrderBy = "t.date DESC, t.created_at DESC"
 )
 
 // ListWithRunningBalance obtiene movimientos con running_balance calculado mediante window functions
@@ -353,7 +353,7 @@ func (r *cashFlowRepository) ListWithRunningBalance(ctx context.Context, filter 
 			FROM all_transactions t
 		)
 		-- Aplicar paginación al final
-		SELECT t.* FROM transactions_with_balance t
+		SELECT * FROM transactions_with_balance
 		ORDER BY %s%s
 		`
 		finalSQL = fmt.Sprintf(queryTemplate, rangeConditions, orderBy, pagination)
@@ -394,7 +394,7 @@ func (r *cashFlowRepository) ListWithRunningBalance(ctx context.Context, filter 
 			FROM all_transactions t
 		)
 		-- Aplicar paginación al final
-		SELECT t.* FROM transactions_with_balance t
+		SELECT * FROM transactions_with_balance
 		ORDER BY %s%s
 		`
 		finalSQL = fmt.Sprintf(queryTemplate, initialBalanceConditions, rangeConditions, orderBy, pagination)
@@ -506,17 +506,17 @@ func (r *cashFlowRepository) buildPagination(filter output.CashFlowFilter) strin
 func (r *cashFlowRepository) buildOrderBy(orderBy string) string {
 	switch orderBy {
 	case "date ASC":
-		return "date ASC, created_at ASC"
+		return "t.date ASC, t.created_at ASC"
 	case "date DESC":
 		return defaultOrderBy
 	case "amount ASC":
-		return "amount ASC, date ASC"
+		return "t.amount ASC, t.date ASC"
 	case "amount DESC":
-		return "amount DESC, date DESC"
+		return "t.amount DESC, t.date DESC"
 	case "operation_type ASC":
-		return "operation_type ASC, date ASC"
+		return "t.operation_type ASC, t.date ASC"
 	case "operation_type DESC":
-		return "operation_type DESC, date DESC"
+		return "t.operation_type DESC, t.date DESC"
 	default:
 		return defaultOrderBy
 	}
