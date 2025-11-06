@@ -61,8 +61,8 @@ func setupTestDB(t *testing.T) (*gorm.DB, func()) {
 
 	// Función de limpieza de tablas
 	cleanTables := func() {
-		// Orden importante: primero las tablas con foreign keys
-		// Usar CASCADE trunca también las tablas dependientes automáticamente
+		// Usar DELETE en lugar de TRUNCATE para mejor compatibilidad
+		// El orden es importante: primero las tablas con foreign keys
 		tables := []string{
 			"cash_flows",
 			"payments",
@@ -71,15 +71,36 @@ func setupTestDB(t *testing.T) (*gorm.DB, func()) {
 			"members",
 			"membership_fees",
 		}
+
+		// Ejecutar DELETE para cada tabla
 		for _, table := range tables {
-			if err := database.Exec("TRUNCATE TABLE " + table + " RESTART IDENTITY CASCADE").Error; err != nil {
-				t.Logf("Warning: Failed to truncate table %s: %v", table, err)
+			result := database.Exec("DELETE FROM " + table)
+			if result.Error != nil {
+				// Solo loguear si la tabla existe (ignorar error de tabla no existente)
+				if !isTableNotExistError(result.Error) {
+					t.Logf("Warning: Failed to delete from table %s: %v", table, result.Error)
+				}
 			}
+		}
+
+		// Reiniciar las secuencias de IDs
+		database.Exec("ALTER SEQUENCE cash_flows_id_seq RESTART WITH 1")
+		database.Exec("ALTER SEQUENCE payments_id_seq RESTART WITH 1")
+		database.Exec("ALTER SEQUENCE members_id_seq RESTART WITH 1")
+		database.Exec("ALTER SEQUENCE membership_fees_id_seq RESTART WITH 1")
+
+		// Verificar que cash_flows está realmente vacío
+		var count int64
+		database.Raw("SELECT COUNT(*) FROM cash_flows").Scan(&count)
+		if count > 0 {
+			t.Logf("WARNING: cash_flows table still has %d rows after cleanup!", count)
 		}
 	}
 
 	// Limpiar todas las tablas ANTES del test para garantizar estado limpio
+	t.Logf("Setting up test database, acquiring lock...")
 	cleanTables()
+	t.Logf("Tables cleaned, ready for test")
 
 	// Función de limpieza
 	cleanup := func() {
@@ -114,4 +135,14 @@ func getEnvOrDefault(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+// isTableNotExistError verifica si un error es porque la tabla no existe
+func isTableNotExistError(err error) bool {
+	if err == nil {
+		return false
+	}
+	// PostgreSQL error code 42P01 = undefined_table
+	return err.Error() == "ERROR: relation \"familiares\" does not exist (SQLSTATE 42P01)" ||
+		err.Error() == "ERROR: relation \"families\" does not exist (SQLSTATE 42P01)"
 }
