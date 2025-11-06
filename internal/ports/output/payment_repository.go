@@ -19,8 +19,25 @@ type PaymentRepository interface {
 	FindAll(ctx context.Context, filters *PaymentRepositoryFilters) ([]models.Payment, error)
 	CountAll(ctx context.Context, filters *PaymentRepositoryFilters) (int64, error)
 
+	// GetDefaultersData obtiene información agregada de socios morosos en una sola query optimizada
+	GetDefaultersData(ctx context.Context) ([]DefaulterData, error)
+
 	// Transaction support
 	CreateWithTx(ctx context.Context, tx Transaction, payment *models.Payment) error
+}
+
+// DefaulterData contiene información agregada de un socio moroso
+type DefaulterData struct {
+	MemberID         uint
+	NumeroSocio      string
+	FullName         string
+	Email            string
+	OverdueCount     int
+	OldestPendingDue time.Time
+	TotalPaid        float64
+	LastPaymentDate  *time.Time
+	PendingPayments  []models.MembershipFee
+	PaymentHistory   []models.Payment
 }
 
 // PaymentRepositoryFilters defines database-level filters for payment queries

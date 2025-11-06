@@ -526,42 +526,31 @@ func (s *paymentService) GetFamilyStatement(ctx context.Context, familyID uint) 
 }
 
 func (s *paymentService) GetDefaulters(ctx context.Context) ([]input.AccountStatement, error) {
-	var defaulters []input.AccountStatement
-
-	// Buscar todos los pagos pendientes (membership fees vencidas)
-	now := time.Now()
-	pendingStatus := models.PaymentStatusPending
-	pendingPayments, err := s.paymentRepo.FindAll(ctx, &output.PaymentRepositoryFilters{
-		Status: &pendingStatus,
-	})
+	// Usar el método optimizado del repositorio que obtiene todos los datos en 3 queries
+	// en lugar de N+1 queries (una por cada miembro moroso)
+	defaultersData, err := s.paymentRepo.GetDefaultersData(ctx)
 	if err != nil {
-		return nil, errors.DB(err, "error buscando pagos pendientes")
+		return nil, errors.DB(err, "error obteniendo datos de morosos")
 	}
 
-	// Agrupar por miembro y verificar si están en mora
-	memberMap := make(map[uint]bool)
-	for _, payment := range pendingPayments {
-		// Solo procesar pagos de cuotas de membresía (no otros tipos de pagos)
-		if payment.MembershipFeeID == nil {
-			continue
+	// Convertir DefaulterData a AccountStatement
+	defaulters := make([]input.AccountStatement, len(defaultersData))
+	now := time.Now()
+
+	for i, data := range defaultersData {
+		// Calcular días de mora basado en la cuota más antigua vencida
+		defaultDays := 0
+		if !data.OldestPendingDue.IsZero() && now.After(data.OldestPendingDue) {
+			defaultDays = int(now.Sub(data.OldestPendingDue).Hours() / 24)
 		}
 
-		// Verificar si la cuota está vencida
-		if payment.MembershipFee != nil && !payment.MembershipFee.DueDate.Before(now) {
-			continue
-		}
-
-		memberID := payment.MemberID
-		if !memberMap[memberID] {
-			statement, err := s.GetMemberStatement(ctx, memberID)
-			if err != nil {
-				// Loguear el error pero continuar con otros miembros
-				continue
-			}
-			if statement.IsDefaulter {
-				defaulters = append(defaulters, *statement)
-				memberMap[memberID] = true
-			}
+		defaulters[i] = input.AccountStatement{
+			TotalPaid:       data.TotalPaid,
+			PendingPayments: data.PendingPayments,
+			PaymentHistory:  data.PaymentHistory,
+			LastPaymentDate: data.LastPaymentDate,
+			IsDefaulter:     data.OverdueCount > 0,
+			DefaultDays:     defaultDays,
 		}
 	}
 

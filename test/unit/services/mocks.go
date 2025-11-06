@@ -311,6 +311,10 @@ func (m *MockPaymentRepository) FindByFamily(ctx context.Context, familyID uint,
 	return nil, errors.New("not implemented")
 }
 
+func (m *MockPaymentRepository) GetDefaultersData(ctx context.Context) ([]output.DefaulterData, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (m *MockPaymentRepository) FindByID(ctx context.Context, id uint) (*models.Payment, error) {
 	return nil, errors.New("not implemented")
 }

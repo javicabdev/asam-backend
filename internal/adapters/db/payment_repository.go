@@ -434,3 +434,151 @@ func (r *membershipFeeRepository) CreateWithTx(ctx context.Context, tx output.Tr
 	}
 	return nil
 }
+
+// GetDefaultersData obtiene información agregada de socios morosos en una sola query optimizada.
+// Usa CTEs y agregaciones SQL para evitar el problema N+1 de hacer una query por cada miembro.
+func (r *paymentRepository) GetDefaultersData(ctx context.Context) ([]output.DefaulterData, error) {
+	// Query optimizada que obtiene toda la información de morosos en una sola consulta
+	query := `
+	WITH
+	-- CTE 1: Identificar miembros con pagos vencidos
+	members_with_overdue AS (
+		SELECT DISTINCT
+			p.member_id,
+			COUNT(*) FILTER (WHERE p.status = 'PENDING' AND mf.due_date < NOW()) as overdue_count,
+			MIN(mf.due_date) FILTER (WHERE p.status = 'PENDING' AND mf.due_date < NOW()) as oldest_pending_due
+		FROM payments p
+		INNER JOIN membership_fees mf ON p.membership_fee_id = mf.id
+		WHERE p.membership_fee_id IS NOT NULL
+		  AND p.deleted_at IS NULL
+		  AND mf.deleted_at IS NULL
+		GROUP BY p.member_id
+		HAVING COUNT(*) FILTER (WHERE p.status = 'PENDING' AND mf.due_date < NOW()) > 0
+	),
+	-- CTE 2: Calcular agregaciones de pagos por miembro
+	payment_aggregations AS (
+		SELECT
+			p.member_id,
+			COALESCE(SUM(p.amount) FILTER (WHERE p.status = 'PAID'), 0) as total_paid,
+			MAX(p.payment_date) FILTER (WHERE p.status = 'PAID') as last_payment_date
+		FROM payments p
+		WHERE p.deleted_at IS NULL
+		  AND p.payment_date >= NOW() - INTERVAL '1 year'
+		GROUP BY p.member_id
+	)
+	-- Query principal: Unir con datos del miembro
+	SELECT
+		m.id as member_id,
+		m.numero_socio,
+		m.full_name,
+		COALESCE(m.correo_electronico, '') as email,
+		mwo.overdue_count,
+		mwo.oldest_pending_due,
+		COALESCE(pa.total_paid, 0) as total_paid,
+		pa.last_payment_date
+	FROM members_with_overdue mwo
+	INNER JOIN members m ON m.id = mwo.member_id
+	LEFT JOIN payment_aggregations pa ON pa.member_id = mwo.member_id
+	WHERE m.deleted_at IS NULL
+	ORDER BY mwo.oldest_pending_due ASC
+	`
+
+	// Estructura para escanear los resultados de la query
+	type queryResult struct {
+		MemberID         uint
+		NumeroSocio      string
+		FullName         string
+		Email            string
+		OverdueCount     int
+		OldestPendingDue time.Time
+		TotalPaid        float64
+		LastPaymentDate  *time.Time
+	}
+
+	var results []queryResult
+	if err := r.db.WithContext(ctx).Raw(query).Scan(&results).Error; err != nil {
+		return nil, appErrors.DB(err, "error getting defaulters data")
+	}
+
+	// Convertir resultados a DefaulterData
+	defaultersData := make([]output.DefaulterData, len(results))
+	for i, result := range results {
+		defaultersData[i] = output.DefaulterData{
+			MemberID:         result.MemberID,
+			NumeroSocio:      result.NumeroSocio,
+			FullName:         result.FullName,
+			Email:            result.Email,
+			OverdueCount:     result.OverdueCount,
+			OldestPendingDue: result.OldestPendingDue,
+			TotalPaid:        result.TotalPaid,
+			LastPaymentDate:  result.LastPaymentDate,
+		}
+	}
+
+	// Cargar pending payments y payment history para cada miembro
+	// Esto se hace en 2 queries adicionales (una por tipo) en lugar de N queries
+	if len(defaultersData) > 0 {
+		memberIDs := make([]uint, len(defaultersData))
+		for i, d := range defaultersData {
+			memberIDs[i] = d.MemberID
+		}
+
+		// Cargar pending payments para todos los miembros morosos
+		var allPendingPayments []struct {
+			MemberID       uint
+			MembershipFee  models.MembershipFee
+			MembershipFeeID uint
+		}
+
+		err := r.db.WithContext(ctx).
+			Table("payments").
+			Select("payments.member_id, membership_fees.*, payments.membership_fee_id").
+			Joins("INNER JOIN membership_fees ON payments.membership_fee_id = membership_fees.id").
+			Where("payments.member_id IN ?", memberIDs).
+			Where("payments.status = ?", models.PaymentStatusPending).
+			Where("membership_fees.due_date < ?", time.Now()).
+			Where("payments.deleted_at IS NULL").
+			Where("membership_fees.deleted_at IS NULL").
+			Order("membership_fees.due_date ASC").
+			Scan(&allPendingPayments).Error
+
+		if err != nil {
+			return nil, appErrors.DB(err, "error loading pending payments")
+		}
+
+		// Cargar payment history para todos los miembros morosos
+		var allPaymentHistory []models.Payment
+		from := time.Now().AddDate(-1, 0, 0)
+		err = r.db.WithContext(ctx).
+			Preload("MembershipFee").
+			Where("member_id IN ?", memberIDs).
+			Where("payment_date >= ? OR payment_date IS NULL", from).
+			Where("deleted_at IS NULL").
+			Order("payment_date DESC").
+			Find(&allPaymentHistory).Error
+
+		if err != nil {
+			return nil, appErrors.DB(err, "error loading payment history")
+		}
+
+		// Mapear pending payments y payment history a cada miembro
+		pendingByMember := make(map[uint][]models.MembershipFee)
+		for _, pp := range allPendingPayments {
+			pendingByMember[pp.MemberID] = append(pendingByMember[pp.MemberID], pp.MembershipFee)
+		}
+
+		historyByMember := make(map[uint][]models.Payment)
+		for _, ph := range allPaymentHistory {
+			historyByMember[ph.MemberID] = append(historyByMember[ph.MemberID], ph)
+		}
+
+		// Asignar a cada defaulter
+		for i := range defaultersData {
+			memberID := defaultersData[i].MemberID
+			defaultersData[i].PendingPayments = pendingByMember[memberID]
+			defaultersData[i].PaymentHistory = historyByMember[memberID]
+		}
+	}
+
+	return defaultersData, nil
+}
