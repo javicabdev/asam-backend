@@ -330,12 +330,8 @@ func (r *cashFlowRepository) ListWithRunningBalance(ctx context.Context, filter 
 		// SIN StartDate: balance inicial = 0 (mostramos TODO desde el inicio)
 		queryTemplate := `
 		WITH
-		-- Balance inicial es 0 cuando no hay StartDate
-		initial_balance AS (
-			SELECT 0 as balance
-		),
-		-- Obtener todas las transacciones que cumplen los filtros
-		transactions_in_range AS (
+		-- Obtener todas las transacciones que cumplen los filtros (sin paginación aún)
+		all_transactions AS (
 			SELECT
 				cf.id,
 				cf.member_id,
@@ -348,16 +344,19 @@ func (r *cashFlowRepository) ListWithRunningBalance(ctx context.Context, filter 
 				cf.updated_at
 			FROM cash_flows cf
 			WHERE cf.deleted_at IS NULL%s
-			ORDER BY cf.date ASC, cf.created_at ASC%s
+		),
+		-- Calcular running_balance sobre TODAS las transacciones
+		transactions_with_balance AS (
+			SELECT
+				t.*,
+				SUM(t.amount) OVER (ORDER BY t.date ASC, t.created_at ASC) as running_balance
+			FROM all_transactions t
 		)
-		-- Query principal: Calcular running_balance con window function
-		SELECT
-			t.*,
-			SUM(t.amount) OVER (ORDER BY t.date ASC, t.created_at ASC) as running_balance
-		FROM transactions_in_range t
-		ORDER BY %s
+		-- Aplicar paginación al final
+		SELECT * FROM transactions_with_balance
+		ORDER BY %s%s
 		`
-		finalSQL = fmt.Sprintf(queryTemplate, rangeConditions, pagination, orderBy)
+		finalSQL = fmt.Sprintf(queryTemplate, rangeConditions, orderBy, pagination)
 		allArgs = rangeArgs
 	} else {
 		// CON StartDate: calcular balance inicial de transacciones anteriores
@@ -371,8 +370,8 @@ func (r *cashFlowRepository) ListWithRunningBalance(ctx context.Context, filter 
 			FROM cash_flows
 			WHERE deleted_at IS NULL%s
 		),
-		-- CTE 2: Obtener las transacciones del rango solicitado con su posición
-		transactions_in_range AS (
+		-- CTE 2: Obtener todas las transacciones del rango (sin paginación aún)
+		all_transactions AS (
 			SELECT
 				cf.id,
 				cf.member_id,
@@ -385,17 +384,20 @@ func (r *cashFlowRepository) ListWithRunningBalance(ctx context.Context, filter 
 				cf.updated_at
 			FROM cash_flows cf
 			WHERE cf.deleted_at IS NULL%s
-			ORDER BY cf.date ASC, cf.created_at ASC%s
+		),
+		-- CTE 3: Calcular running_balance sobre TODAS las transacciones
+		transactions_with_balance AS (
+			SELECT
+				t.*,
+				(SELECT balance FROM initial_balance) +
+				SUM(t.amount) OVER (ORDER BY t.date ASC, t.created_at ASC) as running_balance
+			FROM all_transactions t
 		)
-		-- Query principal: Calcular running_balance con window function
-		SELECT
-			t.*,
-			(SELECT balance FROM initial_balance) +
-			SUM(t.amount) OVER (ORDER BY t.date ASC, t.created_at ASC) as running_balance
-		FROM transactions_in_range t
-		ORDER BY %s
+		-- Aplicar paginación al final
+		SELECT * FROM transactions_with_balance
+		ORDER BY %s%s
 		`
-		finalSQL = fmt.Sprintf(queryTemplate, initialBalanceConditions, rangeConditions, pagination, orderBy)
+		finalSQL = fmt.Sprintf(queryTemplate, initialBalanceConditions, rangeConditions, orderBy, pagination)
 
 		// Combinar todos los argumentos
 		allArgs = make([]interface{}, 0, len(initialBalanceArgs)+len(rangeArgs))
