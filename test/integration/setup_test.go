@@ -61,7 +61,7 @@ func setupTestDB(t *testing.T) (*gorm.DB, func()) {
 
 	// Función de limpieza de tablas
 	cleanTables := func() {
-		// Usar TRUNCATE que hace hard delete y es más rápido
+		// Usar DELETE en lugar de TRUNCATE para mejor compatibilidad
 		// El orden es importante: primero las tablas con foreign keys
 		tables := []string{
 			"cash_flows",
@@ -72,19 +72,24 @@ func setupTestDB(t *testing.T) (*gorm.DB, func()) {
 			"membership_fees",
 		}
 
-		// Ejecutar TRUNCATE para cada tabla (hard delete, ignora soft deletes)
+		// Ejecutar DELETE para cada tabla
 		for _, table := range tables {
-			// TRUNCATE hace hard delete y resetea secuencias automáticamente con RESTART IDENTITY
-			result := database.Exec("TRUNCATE TABLE " + table + " RESTART IDENTITY CASCADE")
+			result := database.Exec("DELETE FROM " + table)
 			if result.Error != nil {
 				// Solo loguear si la tabla existe (ignorar error de tabla no existente)
 				if !isTableNotExistError(result.Error) {
-					t.Logf("Warning: Failed to truncate table %s: %v", table, result.Error)
+					t.Logf("Warning: Failed to delete from table %s: %v", table, result.Error)
 				}
 			}
 		}
 
-		// Verificar que cash_flows está realmente vacío (incluyendo soft-deleted)
+		// Reiniciar las secuencias de IDs
+		database.Exec("ALTER SEQUENCE cash_flows_id_seq RESTART WITH 1")
+		database.Exec("ALTER SEQUENCE payments_id_seq RESTART WITH 1")
+		database.Exec("ALTER SEQUENCE members_id_seq RESTART WITH 1")
+		database.Exec("ALTER SEQUENCE membership_fees_id_seq RESTART WITH 1")
+
+		// Verificar que cash_flows está realmente vacío
 		var count int64
 		database.Raw("SELECT COUNT(*) FROM cash_flows").Scan(&count)
 		if count > 0 {
