@@ -18,12 +18,12 @@ import (
 // y retorna una función de limpieza para ejecutar después del test
 func setupTestDB(t *testing.T) (*gorm.DB, func()) {
 	// Leer configuración desde variables de entorno
-	// Por defecto usa las credenciales del docker-compose y CI
+	// Por defecto usa las credenciales del CI (asam_test)
+	// En desarrollo local, pasar DB_NAME=asam_db si es necesario
 	host := getEnvOrDefault("DB_HOST", "localhost")
 	port := getEnvOrDefault("DB_PORT", "5432")
 	user := getEnvOrDefault("DB_USER", "postgres")
 	password := getEnvOrDefault("DB_PASSWORD", "postgres")
-	// Usar asam_test como default para coincidir con CI
 	dbName := getEnvOrDefault("DB_NAME", "asam_test")
 	sslMode := getEnvOrDefault("DB_SSL_MODE", "disable")
 
