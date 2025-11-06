@@ -312,7 +312,7 @@ func (r *cashFlowRepository) ExistsByPaymentID(ctx context.Context, paymentID ui
 }
 
 const (
-	defaultOrderBy = "t.date DESC, t.created_at DESC"
+	defaultOrderBy = "date DESC, created_at DESC"
 )
 
 // ListWithRunningBalance obtiene movimientos con running_balance calculado mediante window functions
@@ -506,17 +506,17 @@ func (r *cashFlowRepository) buildPagination(filter output.CashFlowFilter) strin
 func (r *cashFlowRepository) buildOrderBy(orderBy string) string {
 	switch orderBy {
 	case "date ASC":
-		return "t.date ASC, t.created_at ASC"
+		return "date ASC, created_at ASC"
 	case "date DESC":
 		return defaultOrderBy
 	case "amount ASC":
-		return "t.amount ASC, t.date ASC"
+		return "amount ASC, date ASC"
 	case "amount DESC":
-		return "t.amount DESC, t.date DESC"
+		return "amount DESC, date DESC"
 	case "operation_type ASC":
-		return "t.operation_type ASC, t.date ASC"
+		return "operation_type ASC, date ASC"
 	case "operation_type DESC":
-		return "t.operation_type DESC, t.date DESC"
+		return "operation_type DESC, date DESC"
 	default:
 		return defaultOrderBy
 	}
