@@ -317,52 +317,91 @@ const (
 
 // ListWithRunningBalance obtiene movimientos con running_balance calculado mediante window functions
 func (r *cashFlowRepository) ListWithRunningBalance(ctx context.Context, filter output.CashFlowFilter) ([]*models.CashFlow, error) {
-	// Construir los filtros para el balance inicial y las transacciones
-	initialBalanceConditions, initialBalanceArgs := r.buildInitialBalanceFilters(filter)
+	// Construir los filtros para las transacciones
 	rangeConditions, rangeArgs := r.buildRangeFilters(filter)
 	pagination := r.buildPagination(filter)
 	orderBy := r.buildOrderBy(filter.OrderBy)
 
-	// Construir la query SQL completa usando fmt.Sprintf para los placeholders no parametrizables
-	queryTemplate := `
-	WITH
-	-- CTE 1: Calcular el balance inicial (suma de todas las transacciones antes del rango de fechas)
-	initial_balance AS (
-		SELECT COALESCE(SUM(amount), 0) as balance
-		FROM cash_flows
-		WHERE deleted_at IS NULL%s
-	),
-	-- CTE 2: Obtener las transacciones del rango solicitado con su posición
-	transactions_in_range AS (
+	var finalSQL string
+	var allArgs []interface{}
+
+	// Lógica diferente según si hay o no StartDate
+	if filter.StartDate == nil {
+		// SIN StartDate: balance inicial = 0 (mostramos TODO desde el inicio)
+		queryTemplate := `
+		WITH
+		-- Balance inicial es 0 cuando no hay StartDate
+		initial_balance AS (
+			SELECT 0 as balance
+		),
+		-- Obtener todas las transacciones que cumplen los filtros
+		transactions_in_range AS (
+			SELECT
+				cf.id,
+				cf.member_id,
+				cf.payment_id,
+				cf.operation_type,
+				cf.amount,
+				cf.date,
+				cf.detail,
+				cf.created_at,
+				cf.updated_at
+			FROM cash_flows cf
+			WHERE cf.deleted_at IS NULL%s
+			ORDER BY cf.date ASC, cf.created_at ASC%s
+		)
+		-- Query principal: Calcular running_balance con window function
 		SELECT
-			cf.id,
-			cf.member_id,
-			cf.payment_id,
-			cf.operation_type,
-			cf.amount,
-			cf.date,
-			cf.detail,
-			cf.created_at,
-			cf.updated_at
-		FROM cash_flows cf
-		WHERE cf.deleted_at IS NULL%s
-		ORDER BY cf.date ASC, cf.created_at ASC%s
-	)
-	-- Query principal: Calcular running_balance con window function
-	SELECT
-		t.*,
-		(SELECT balance FROM initial_balance) +
-		SUM(t.amount) OVER (ORDER BY t.date ASC, t.created_at ASC) as running_balance
-	FROM transactions_in_range t
-	ORDER BY %s
-	`
+			t.*,
+			SUM(t.amount) OVER (ORDER BY t.date ASC, t.created_at ASC) as running_balance
+		FROM transactions_in_range t
+		ORDER BY %s
+		`
+		finalSQL = fmt.Sprintf(queryTemplate, rangeConditions, pagination, orderBy)
+		allArgs = rangeArgs
+	} else {
+		// CON StartDate: calcular balance inicial de transacciones anteriores
+		initialBalanceConditions, initialBalanceArgs := r.buildInitialBalanceFilters(filter)
 
-	finalSQL := fmt.Sprintf(queryTemplate, initialBalanceConditions, rangeConditions, pagination, orderBy)
+		queryTemplate := `
+		WITH
+		-- CTE 1: Calcular el balance inicial (suma de todas las transacciones antes del rango de fechas)
+		initial_balance AS (
+			SELECT COALESCE(SUM(amount), 0) as balance
+			FROM cash_flows
+			WHERE deleted_at IS NULL%s
+		),
+		-- CTE 2: Obtener las transacciones del rango solicitado con su posición
+		transactions_in_range AS (
+			SELECT
+				cf.id,
+				cf.member_id,
+				cf.payment_id,
+				cf.operation_type,
+				cf.amount,
+				cf.date,
+				cf.detail,
+				cf.created_at,
+				cf.updated_at
+			FROM cash_flows cf
+			WHERE cf.deleted_at IS NULL%s
+			ORDER BY cf.date ASC, cf.created_at ASC%s
+		)
+		-- Query principal: Calcular running_balance con window function
+		SELECT
+			t.*,
+			(SELECT balance FROM initial_balance) +
+			SUM(t.amount) OVER (ORDER BY t.date ASC, t.created_at ASC) as running_balance
+		FROM transactions_in_range t
+		ORDER BY %s
+		`
+		finalSQL = fmt.Sprintf(queryTemplate, initialBalanceConditions, rangeConditions, pagination, orderBy)
 
-	// Combinar todos los argumentos
-	allArgs := make([]interface{}, 0, len(initialBalanceArgs)+len(rangeArgs))
-	allArgs = append(allArgs, initialBalanceArgs...)
-	allArgs = append(allArgs, rangeArgs...)
+		// Combinar todos los argumentos
+		allArgs = make([]interface{}, 0, len(initialBalanceArgs)+len(rangeArgs))
+		allArgs = append(allArgs, initialBalanceArgs...)
+		allArgs = append(allArgs, rangeArgs...)
+	}
 
 	// Escanear resultados
 	var results []struct {
