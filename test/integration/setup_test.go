@@ -72,7 +72,7 @@ func setupTestDB(t *testing.T) (*gorm.DB, func()) {
 
 		sqlDB, _ := database.DB()
 		if sqlDB != nil {
-			sqlDB.Close()
+			_ = sqlDB.Close()
 		}
 	}
 
