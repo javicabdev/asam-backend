@@ -57,12 +57,10 @@ func (s *reportService) GetDelinquentReport(ctx context.Context, inputParams inp
 
 		// Determinar el tipo de deudor
 		var debtorKey string
-		var debtorType string
 		var entityID uint
 
 		if payment.MemberID != 0 {
 			debtorKey = fmt.Sprintf("member_%d", payment.MemberID)
-			debtorType = debtorTypeIndividual
 			entityID = payment.MemberID
 		} else {
 			// Skip pagos sin member_id (datos inconsistentes)
@@ -71,30 +69,34 @@ func (s *reportService) GetDelinquentReport(ctx context.Context, inputParams inp
 
 		// Si el deudor no existe en el map, crearlo
 		if _, exists := debtorMap[debtorKey]; !exists {
-			debtor := &input.Debtor{
-				Type:            debtorType,
-				PendingPayments: []*input.PendingPayment{},
-				TotalDebt:       0,
+			// Cargar información del socio para determinar el tipo real
+			memberInfo, err := s.loadMemberInfo(ctx, entityID)
+			if err != nil {
+				// Log y continuar con el siguiente deudor
+				continue
 			}
 
-			// Cargar información del socio o familia
-			if debtorType == debtorTypeIndividual {
-				memberInfo, err := s.loadMemberInfo(ctx, entityID)
-				if err != nil {
-					// Log y continuar con el siguiente deudor
-					continue
-				}
-				debtor.MemberID = &entityID
-				debtor.Member = memberInfo
+			// Determinar el tipo real basado en el campo membership del socio
+			actualDebtorType := debtorTypeIndividual
+			if memberInfo.Membership == "FAMILY" {
+				actualDebtorType = debtorTypeFamily
+			}
 
-				// Obtener último pago PAID de este socio
-				lastPaid, err := s.reportRepo.GetLastPaidPaymentForMember(ctx, entityID)
-				if err != nil {
-					// Log y continuar
-				} else if lastPaid != nil {
-					debtor.LastPaymentDate = &lastPaid.PaymentDate
-					debtor.LastPaymentAmount = &lastPaid.Amount
-				}
+			debtor := &input.Debtor{
+				Type:            actualDebtorType,
+				PendingPayments: []*input.PendingPayment{},
+				TotalDebt:       0,
+				MemberID:        &entityID,
+				Member:          memberInfo,
+			}
+
+			// Obtener último pago PAID de este socio
+			lastPaid, err := s.reportRepo.GetLastPaidPaymentForMember(ctx, entityID)
+			if err != nil {
+				// Log y continuar
+			} else if lastPaid != nil {
+				debtor.LastPaymentDate = &lastPaid.PaymentDate
+				debtor.LastPaymentAmount = &lastPaid.Amount
 			}
 
 			debtorMap[debtorKey] = debtor
@@ -167,6 +169,7 @@ func (s *reportService) loadMemberInfo(ctx context.Context, memberID uint) (*inp
 		FirstName:    member.Name,
 		LastName:     member.Surnames,
 		Status:       member.State,
+		Membership:   member.MembershipType, // INDIVIDUAL o FAMILY
 	}
 
 	if member.Email != nil && *member.Email != "" {

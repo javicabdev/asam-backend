@@ -143,6 +143,7 @@ type ComplexityRoot struct {
 		ID           func(childComplexity int) int
 		LastName     func(childComplexity int) int
 		MemberNumber func(childComplexity int) int
+		Membership   func(childComplexity int) int
 		Phone        func(childComplexity int) int
 		Status       func(childComplexity int) int
 	}
@@ -909,6 +910,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.DebtorMemberInfo.MemberNumber(childComplexity), true
+	case "DebtorMemberInfo.membership":
+		if e.complexity.DebtorMemberInfo.Membership == nil {
+			break
+		}
+
+		return e.complexity.DebtorMemberInfo.Membership(childComplexity), true
 	case "DebtorMemberInfo.phone":
 		if e.complexity.DebtorMemberInfo.Phone == nil {
 			break
@@ -3142,6 +3149,7 @@ type DebtorMemberInfo {
     email: String
     phone: String
     status: String!
+    membership: String!
 }
 
 """
@@ -5447,6 +5455,8 @@ func (ec *executionContext) fieldContext_Debtor_member(_ context.Context, field 
 				return ec.fieldContext_DebtorMemberInfo_phone(ctx, field)
 			case "status":
 				return ec.fieldContext_DebtorMemberInfo_status(ctx, field)
+			case "membership":
+				return ec.fieldContext_DebtorMemberInfo_membership(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type DebtorMemberInfo", field.Name)
 		},
@@ -5775,6 +5785,8 @@ func (ec *executionContext) fieldContext_DebtorFamilyInfo_primaryMember(_ contex
 				return ec.fieldContext_DebtorMemberInfo_phone(ctx, field)
 			case "status":
 				return ec.fieldContext_DebtorMemberInfo_status(ctx, field)
+			case "membership":
+				return ec.fieldContext_DebtorMemberInfo_membership(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type DebtorMemberInfo", field.Name)
 		},
@@ -6002,6 +6014,35 @@ func (ec *executionContext) _DebtorMemberInfo_status(ctx context.Context, field 
 }
 
 func (ec *executionContext) fieldContext_DebtorMemberInfo_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DebtorMemberInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DebtorMemberInfo_membership(ctx context.Context, field graphql.CollectedField, obj *model.DebtorMemberInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DebtorMemberInfo_membership,
+		func(ctx context.Context) (any, error) {
+			return obj.Membership, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DebtorMemberInfo_membership(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "DebtorMemberInfo",
 		Field:      field,
@@ -16722,6 +16763,11 @@ func (ec *executionContext) _DebtorMemberInfo(ctx context.Context, sel ast.Selec
 			out.Values[i] = ec._DebtorMemberInfo_phone(ctx, field, obj)
 		case "status":
 			out.Values[i] = ec._DebtorMemberInfo_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "membership":
+			out.Values[i] = ec._DebtorMemberInfo_membership(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

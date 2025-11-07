@@ -105,6 +105,7 @@ func mapDebtorMemberInfoToGraphQL(member *input.DebtorMemberInfo) *model.DebtorM
 		Email:        member.Email,
 		Phone:        member.Phone,
 		Status:       member.Status,
+		Membership:   member.Membership,
 	}
 }
 

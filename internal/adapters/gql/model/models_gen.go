@@ -163,6 +163,7 @@ type DebtorMemberInfo struct {
 	Email        *string `json:"email,omitempty"`
 	Phone        *string `json:"phone,omitempty"`
 	Status       string  `json:"status"`
+	Membership   string  `json:"membership"`
 }
 
 // Parámetros de entrada para el informe de morosos
