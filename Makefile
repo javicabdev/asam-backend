@@ -94,6 +94,15 @@ dev-stop-wsl:
 .PHONY: dev-restart
 dev-restart: dev-stop dev
 
+## dev-rebuild: Rebuild and restart backend with latest code changes
+.PHONY: dev-rebuild
+dev-rebuild:
+	@echo "🔨 Rebuilding backend with latest changes..."
+	@$(DOCKER_COMPOSE) build api
+	@$(DOCKER_COMPOSE) up -d
+	@echo "✅ Backend rebuilt and restarted"
+	@echo "📝 GraphQL Playground: http://localhost:8080/playground"
+
 ## clean: Clean everything (containers, volumes, build artifacts)
 .PHONY: clean
 clean:

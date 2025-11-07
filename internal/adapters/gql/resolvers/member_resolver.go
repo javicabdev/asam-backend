@@ -177,19 +177,25 @@ func (r *memberResolver) handleMemberStatus(ctx context.Context, memberID uint,
 	case model.MemberStatusActive:
 		member.State = models.EstadoActivo
 		member.LeavingDate = nil
+		if err = r.memberService.UpdateMember(ctx, member); err != nil {
+			return nil, errors.Wrap(err, errors.ErrInternalError, "Failed to update member status")
+		}
 	case model.MemberStatusInactive:
-		member.State = models.EstadoInactivo
+		// Use DeactivateMember to ensure validation of pending payments
 		now := time.Now()
-		member.LeavingDate = &now
+		if err = r.memberService.DeactivateMember(ctx, memberID, &now); err != nil {
+			return nil, err // Service error already properly wrapped
+		}
+		// Refresh member to get updated state
+		member, err = r.memberService.GetMemberByID(ctx, memberID)
+		if err != nil {
+			return nil, errors.Wrap(err, errors.ErrDatabaseError, "Failed to fetch updated member")
+		}
 	default:
 		return nil, errors.NewValidationError(
 			"Invalid member status",
 			map[string]string{"status": "Must be ACTIVE or INACTIVE"},
 		)
-	}
-
-	if err = r.memberService.UpdateMember(ctx, member); err != nil {
-		return nil, errors.Wrap(err, errors.ErrInternalError, "Failed to update member status")
 	}
 
 	return member, nil
