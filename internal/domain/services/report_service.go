@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/internal/ports/output"
 	"github.com/javicabdev/asam-backend/pkg/errors"
@@ -147,22 +148,46 @@ func (s *reportService) createDebtor(ctx context.Context, memberID uint) (*input
 
 	// Determinar el tipo real basado en el campo MembershipType de la BD
 	actualDebtorType := debtorTypeIndividual
-	if member.MembershipType == membershipTypeFamily {
-		actualDebtorType = debtorTypeFamily
-	}
+	isFamily := member.MembershipType == membershipTypeFamily
 
-	// Cargar información del socio para la respuesta
-	memberInfo, err := s.loadMemberInfo(ctx, memberID)
-	if err != nil {
-		return nil, err
+	if isFamily {
+		actualDebtorType = debtorTypeFamily
 	}
 
 	debtor := &input.Debtor{
 		Type:            actualDebtorType,
 		PendingPayments: []*input.PendingPayment{},
 		TotalDebt:       0,
-		MemberID:        &memberID,
-		Member:          memberInfo,
+	}
+
+	// Si es FAMILY, construir objeto family y dejar member en null
+	if isFamily {
+		// Obtener la familia del miembro origen
+		family, err := s.familyRepo.GetByOriginMemberID(ctx, memberID)
+		if err != nil {
+			return nil, err
+		}
+
+		if family != nil {
+			familyInfo := s.loadFamilyInfo(ctx, family, member)
+
+			familyID := family.ID
+			debtor.FamilyID = &familyID
+			debtor.Family = familyInfo
+			debtor.MemberID = nil
+			debtor.Member = nil
+		}
+	} else {
+		// Si es INDIVIDUAL, construir objeto member y dejar family en null
+		memberInfo, err := s.loadMemberInfo(ctx, memberID)
+		if err != nil {
+			return nil, err
+		}
+
+		debtor.MemberID = &memberID
+		debtor.Member = memberInfo
+		debtor.FamilyID = nil
+		debtor.Family = nil
 	}
 
 	// Obtener último pago PAID de este socio
@@ -173,6 +198,50 @@ func (s *reportService) createDebtor(ctx context.Context, memberID uint) (*input
 	}
 
 	return debtor, nil
+}
+
+// loadFamilyInfo carga la información de una familia
+func (s *reportService) loadFamilyInfo(ctx context.Context, family *models.Family, primaryMember *models.Member) *input.DebtorFamilyInfo {
+	// Obtener familiares para contar total de miembros
+	familiares, err := s.familyRepo.GetFamiliares(ctx, family.ID)
+	if err != nil {
+		// Si hay error, asumir solo el miembro principal
+		familiares = []*models.Familiar{}
+	}
+
+	// Total de miembros = miembro principal + familiares + cónyuges (si existen)
+	totalMembers := 1 + len(familiares)
+	if family.EsposoNombre != "" || family.EsposaNombre != "" {
+		totalMembers++
+	}
+
+	// Construir nombre de familia
+	familyName := fmt.Sprintf("Familia %s", primaryMember.Surnames)
+	if family.EsposoApellidos != "" {
+		familyName = fmt.Sprintf("Familia %s", family.EsposoApellidos)
+	}
+
+	// Construir información del miembro principal
+	primaryMemberInfo := &input.DebtorMemberInfo{
+		ID:           primaryMember.ID,
+		MemberNumber: primaryMember.MembershipNumber,
+		FirstName:    primaryMember.Name,
+		LastName:     primaryMember.Surnames,
+		Status:       primaryMember.State,
+	}
+
+	if primaryMember.Email != nil && *primaryMember.Email != "" {
+		primaryMemberInfo.Email = primaryMember.Email
+	}
+
+	familyInfo := &input.DebtorFamilyInfo{
+		ID:            family.ID,
+		FamilyName:    familyName,
+		PrimaryMember: *primaryMemberInfo,
+		TotalMembers:  totalMembers,
+	}
+
+	return familyInfo
 }
 
 // loadMemberInfo carga la información de un socio
