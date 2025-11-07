@@ -222,6 +222,28 @@ func (s *memberService) DeactivateMember(ctx context.Context, id uint, fechaBaja
 		return errors.New(errors.ErrInvalidOperation, "el miembro ya está dado de baja")
 	}
 
+	// Verificar si el miembro tiene pagos pendientes
+	hasPendingPayments, err := s.paymentRepository.HasPendingPayments(ctx, id)
+	if err != nil {
+		s.appLogger.Error("Error checking pending payments",
+			zap.Uint("id", id),
+			zap.Error(err))
+		s.auditLogger.LogError(ctx, audit.ActionUpdate, audit.EntityMember,
+			numToStr(id),
+			"Error al verificar pagos pendientes", err)
+		return errors.DB(err, "error verificando pagos pendientes")
+	}
+
+	if hasPendingPayments {
+		s.appLogger.Warn("Cannot deactivate member with pending payments",
+			zap.Uint("id", id),
+			zap.String("numero_socio", member.MembershipNumber))
+		s.auditLogger.LogError(ctx, audit.ActionUpdate, audit.EntityMember,
+			numToStr(id),
+			"Intento de desactivar miembro con pagos pendientes", nil)
+		return errors.New(errors.ErrInvalidOperation, "no se puede dar de baja un socio con pagos pendientes")
+	}
+
 	// Guardar estado anterior para el log de auditoría
 	previousState := *member
 

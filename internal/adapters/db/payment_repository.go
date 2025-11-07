@@ -141,6 +141,22 @@ func (r *paymentRepository) FindByFamily(ctx context.Context, familyID uint, fro
 	return payments, nil
 }
 
+// HasPendingPayments verifica si un miembro tiene pagos pendientes
+func (r *paymentRepository) HasPendingPayments(ctx context.Context, memberID uint) (bool, error) {
+	var count int64
+
+	result := r.db.WithContext(ctx).
+		Model(&models.Payment{}).
+		Where("member_id = ? AND status = ?", memberID, models.PaymentStatusPending).
+		Count(&count)
+
+	if result.Error != nil {
+		return false, appErrors.DB(result.Error, "error checking pending payments")
+	}
+
+	return count > 0, nil
+}
+
 // HasInitialPayment checks if an initial payment already exists for the given member
 func (r *paymentRepository) HasInitialPayment(ctx context.Context, memberID *uint, familyID *uint) (bool, error) {
 	var exists bool

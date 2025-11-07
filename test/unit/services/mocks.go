@@ -263,7 +263,8 @@ func (m *MockMemberRepository) BeginTransaction(ctx context.Context) (output.Tra
 
 // MockPaymentRepository simulates a payment repository for testing
 type MockPaymentRepository struct {
-	CreateWithTxFunc func(ctx context.Context, tx output.Transaction, payment *models.Payment) error
+	CreateWithTxFunc       func(ctx context.Context, tx output.Transaction, payment *models.Payment) error
+	HasPendingPaymentsFunc func(ctx context.Context, memberID uint) (bool, error)
 	// Tracking
 	CreatedPayments []*models.Payment
 }
@@ -329,6 +330,14 @@ func (m *MockPaymentRepository) FindAll(ctx context.Context, filters *output.Pay
 
 func (m *MockPaymentRepository) CountAll(ctx context.Context, filters *output.PaymentRepositoryFilters) (int64, error) {
 	return 0, errors.New("not implemented")
+}
+
+func (m *MockPaymentRepository) HasPendingPayments(ctx context.Context, memberID uint) (bool, error) {
+	if m.HasPendingPaymentsFunc != nil {
+		return m.HasPendingPaymentsFunc(ctx, memberID)
+	}
+	// Default: no pending payments
+	return false, nil
 }
 
 // MockMembershipFeeRepository simulates a membership fee repository for testing

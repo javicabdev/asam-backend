@@ -22,6 +22,9 @@ type PaymentRepository interface {
 	// GetDefaultersData obtiene información agregada de socios morosos en una sola query optimizada
 	GetDefaultersData(ctx context.Context) ([]DefaulterData, error)
 
+	// HasPendingPayments verifica si un miembro tiene pagos pendientes
+	HasPendingPayments(ctx context.Context, memberID uint) (bool, error)
+
 	// Transaction support
 	CreateWithTx(ctx context.Context, tx Transaction, payment *models.Payment) error
 }
