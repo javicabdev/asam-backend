@@ -1538,7 +1538,7 @@ func (r *queryResolver) GetRecentActivity(ctx context.Context, limit *int) ([]*m
 
 // GetDelinquentReport is the resolver for the getDelinquentReport field.
 func (r *queryResolver) GetDelinquentReport(ctx context.Context, input *model.DelinquentReportInput) (*model.DelinquentReportResponse, error) {
-	panic(fmt.Errorf("not implemented: GetDelinquentReport - getDelinquentReport"))
+	return r.Resolver.GetDelinquentReport(ctx, input)
 }
 
 // ID is the resolver for the id field.
