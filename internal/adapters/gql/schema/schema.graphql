@@ -732,7 +732,6 @@ type DebtorMemberInfo {
     email: String
     phone: String
     status: String!
-    membership: String!
 }
 
 """

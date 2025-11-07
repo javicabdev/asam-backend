@@ -14,6 +14,10 @@ import (
 const (
 	debtorTypeIndividual = "INDIVIDUAL"
 	debtorTypeFamily     = "FAMILY"
+
+	// Valores del campo MembershipType en la BD (minúsculas)
+	membershipTypeIndividual = "individual"
+	membershipTypeFamily     = "familiar"
 )
 
 type reportService struct {
@@ -69,37 +73,14 @@ func (s *reportService) GetDelinquentReport(ctx context.Context, inputParams inp
 
 		// Si el deudor no existe en el map, crearlo
 		if _, exists := debtorMap[debtorKey]; !exists {
-			// Cargar información del socio para determinar el tipo real
-			memberInfo, err := s.loadMemberInfo(ctx, entityID)
+			debtor, err := s.createDebtor(ctx, entityID)
 			if err != nil {
 				// Log y continuar con el siguiente deudor
 				continue
 			}
-
-			// Determinar el tipo real basado en el campo membership del socio
-			actualDebtorType := debtorTypeIndividual
-			if memberInfo.Membership == "FAMILY" {
-				actualDebtorType = debtorTypeFamily
+			if debtor != nil {
+				debtorMap[debtorKey] = debtor
 			}
-
-			debtor := &input.Debtor{
-				Type:            actualDebtorType,
-				PendingPayments: []*input.PendingPayment{},
-				TotalDebt:       0,
-				MemberID:        &entityID,
-				Member:          memberInfo,
-			}
-
-			// Obtener último pago PAID de este socio
-			lastPaid, err := s.reportRepo.GetLastPaidPaymentForMember(ctx, entityID)
-			if err != nil {
-				// Log y continuar
-			} else if lastPaid != nil {
-				debtor.LastPaymentDate = &lastPaid.PaymentDate
-				debtor.LastPaymentAmount = &lastPaid.Amount
-			}
-
-			debtorMap[debtorKey] = debtor
 		}
 
 		// Añadir el pago pendiente al deudor
@@ -153,6 +134,47 @@ func (s *reportService) GetDelinquentReport(ctx context.Context, inputParams inp
 	}, nil
 }
 
+// createDebtor crea un nuevo deudor con su información
+func (s *reportService) createDebtor(ctx context.Context, memberID uint) (*input.Debtor, error) {
+	// Cargar información del socio
+	member, err := s.memberRepo.GetByID(ctx, memberID)
+	if err != nil {
+		return nil, err
+	}
+	if member == nil {
+		return nil, nil
+	}
+
+	// Determinar el tipo real basado en el campo MembershipType de la BD
+	actualDebtorType := debtorTypeIndividual
+	if member.MembershipType == membershipTypeFamily {
+		actualDebtorType = debtorTypeFamily
+	}
+
+	// Cargar información del socio para la respuesta
+	memberInfo, err := s.loadMemberInfo(ctx, memberID)
+	if err != nil {
+		return nil, err
+	}
+
+	debtor := &input.Debtor{
+		Type:            actualDebtorType,
+		PendingPayments: []*input.PendingPayment{},
+		TotalDebt:       0,
+		MemberID:        &memberID,
+		Member:          memberInfo,
+	}
+
+	// Obtener último pago PAID de este socio
+	lastPaid, err := s.reportRepo.GetLastPaidPaymentForMember(ctx, memberID)
+	if err == nil && lastPaid != nil {
+		debtor.LastPaymentDate = &lastPaid.PaymentDate
+		debtor.LastPaymentAmount = &lastPaid.Amount
+	}
+
+	return debtor, nil
+}
+
 // loadMemberInfo carga la información de un socio
 func (s *reportService) loadMemberInfo(ctx context.Context, memberID uint) (*input.DebtorMemberInfo, error) {
 	member, err := s.memberRepo.GetByID(ctx, memberID)
@@ -169,7 +191,6 @@ func (s *reportService) loadMemberInfo(ctx context.Context, memberID uint) (*inp
 		FirstName:    member.Name,
 		LastName:     member.Surnames,
 		Status:       member.State,
-		Membership:   member.MembershipType, // INDIVIDUAL o FAMILY
 	}
 
 	if member.Email != nil && *member.Email != "" {

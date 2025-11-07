@@ -49,7 +49,6 @@ type DebtorMemberInfo struct {
 	Email        *string
 	Phone        *string
 	Status       string
-	Membership   string // "INDIVIDUAL" o "FAMILY"
 }
 
 // DebtorFamilyInfo contiene información básica de la familia para el informe
