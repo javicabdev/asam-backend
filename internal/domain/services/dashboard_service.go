@@ -179,7 +179,7 @@ func (s *dashboardService) calculatePaymentStats(ctx context.Context, stats *inp
 	stats.TotalRevenue = paymentStats.totalPaid
 	stats.MonthlyRevenue = paymentStats.monthlyPaid
 	stats.RecentPaymentsCount = paymentStats.recentCount
-	stats.PendingPayments = paymentStats.pendingAmount
+	stats.PendingPayments = float64(paymentStats.pendingCount)
 
 	// Calculate average payment
 	if paymentStats.paidCount > 0 {
