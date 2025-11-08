@@ -332,11 +332,11 @@ BEGIN
         SELECT 1
         FROM pg_class c
         JOIN pg_namespace n ON n.oid = c.relnamespace
-        WHERE c.relname = 'unique_initial_payment_per_member'
+        WHERE c.relname = 'unique_payment_per_member_per_fee'
           AND n.nspname = 'public'
     ) THEN
-        CREATE UNIQUE INDEX unique_initial_payment_per_member
-        ON payments (member_id)
+        CREATE UNIQUE INDEX unique_payment_per_member_per_fee
+        ON payments (member_id, membership_fee_id)
         WHERE membership_fee_id IS NOT NULL AND deleted_at IS NULL;
     END IF;
 END $$;
