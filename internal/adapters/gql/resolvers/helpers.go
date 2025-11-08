@@ -155,6 +155,26 @@ func (r *queryResolver) buildPaymentConnection(payments []*models.Payment, total
 	}
 }
 
+// buildTransactionConnection builds a TransactionConnection response from cash flows and pagination info
+func (r *queryResolver) buildTransactionConnection(cashFlows []*models.CashFlow, totalCount int, page int, pageSize int) *model.TransactionConnection {
+	// Calculate pagination info
+	totalPages := (totalCount + pageSize - 1) / pageSize
+	hasNextPage := page < totalPages
+	hasPreviousPage := page > 1
+
+	// Build PageInfo
+	pageInfo := &model.PageInfo{
+		HasNextPage:     hasNextPage,
+		HasPreviousPage: hasPreviousPage,
+		TotalCount:      totalCount,
+	}
+
+	return &model.TransactionConnection{
+		Nodes:    cashFlows,
+		PageInfo: pageInfo,
+	}
+}
+
 // mapPaymentFilterToDomain converts a GraphQL PaymentFilter to domain PaymentFilters
 func (r *queryResolver) mapPaymentFilterToDomain(filter *model.PaymentFilter) (input.PaymentFilters, error) {
 	// Set default pagination

@@ -1448,22 +1448,13 @@ func (r *queryResolver) GetTransactions(ctx context.Context, filter *model.Trans
 	}
 
 	// Llamar al servicio
-	movements, err := r.cashFlowService.GetMovementsByPeriod(ctx, cfFilter)
+	movements, totalCount, err := r.cashFlowService.GetMovementsByPeriod(ctx, cfFilter)
 	if err != nil {
 		return nil, err
 	}
 
-	// Construir PageInfo, con paginación "incompleta" (no tenemos total real)
-	pageInfo := &model.PageInfo{
-		HasNextPage:     false, // sin total real, no sabemos si hay más
-		HasPreviousPage: page > 1,
-		TotalCount:      len(movements), // no es el total global, solo la página actual
-	}
-
-	return &model.TransactionConnection{
-		Nodes:    movements,
-		PageInfo: pageInfo,
-	}, nil
+	// Build and return connection using helper
+	return r.buildTransactionConnection(movements, totalCount, page, pageSize), nil
 }
 
 // GetBalance is the resolver for the getBalance field.

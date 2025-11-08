@@ -14,7 +14,7 @@ type CashFlowService interface {
 	GetMovement(ctx context.Context, id uint) (*models.CashFlow, error)
 	UpdateMovement(ctx context.Context, movement *models.CashFlow) error
 	DeleteMovement(ctx context.Context, id uint) error
-	GetMovementsByPeriod(ctx context.Context, filter CashFlowFilter) ([]*models.CashFlow, error)
+	GetMovementsByPeriod(ctx context.Context, filter CashFlowFilter) ([]*models.CashFlow, int, error)
 
 	// GetCurrentBalance Gestión de balance
 	GetCurrentBalance(ctx context.Context) (*BalanceReport, error)

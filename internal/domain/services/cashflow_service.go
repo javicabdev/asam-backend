@@ -70,7 +70,7 @@ func (s *CashFlowService) GetMovement(ctx context.Context, id uint) (*models.Cas
 
 // GetMovementsByPeriod obtiene los movimientos de caja en un período específico
 // y calcula el saldo acumulado para cada movimiento usando window functions SQL
-func (s *CashFlowService) GetMovementsByPeriod(ctx context.Context, filter input.CashFlowFilter) ([]*models.CashFlow, error) {
+func (s *CashFlowService) GetMovementsByPeriod(ctx context.Context, filter input.CashFlowFilter) ([]*models.CashFlow, int, error) {
 	// Validaciones básicas
 	if filter.PageSize < 1 {
 		filter.PageSize = 10
@@ -91,7 +91,7 @@ func (s *CashFlowService) GetMovementsByPeriod(ctx context.Context, filter input
 		// Extraer el campo de ordenamiento (quitando el ASC/DESC)
 		parts := strings.Fields(filter.OrderBy)
 		if !validFields[strings.ToLower(parts[0])] {
-			return nil, errors.Validation("Campo de ordenamiento inválido", "orderBy", parts[0])
+			return nil, 0, errors.Validation("Campo de ordenamiento inválido", "orderBy", parts[0])
 		}
 	}
 
@@ -109,10 +109,16 @@ func (s *CashFlowService) GetMovementsByPeriod(ctx context.Context, filter input
 	// Usar el nuevo método optimizado con window functions
 	movements, err := s.repository.ListWithRunningBalance(ctx, repoFilter)
 	if err != nil {
-		return nil, errors.DB(err, "error obteniendo movimientos del período")
+		return nil, 0, errors.DB(err, "error obteniendo movimientos del período")
 	}
 
-	return movements, nil
+	// Obtener el total count para paginación
+	totalCount, err := s.repository.Count(ctx, repoFilter)
+	if err != nil {
+		return nil, 0, errors.DB(err, "error contando movimientos")
+	}
+
+	return movements, int(totalCount), nil
 }
 
 // UpdateMovement implementa la actualización de un movimiento
