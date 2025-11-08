@@ -23,6 +23,7 @@ func NewPaymentRepository(db *gorm.DB) output.PaymentRepository {
 }
 
 // Create crea un nuevo pago y su correspondiente movimiento en el flujo de caja
+// Solo crea el cash flow si el pago está confirmado (tiene payment_date)
 func (r *paymentRepository) Create(ctx context.Context, payment *models.Payment) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 1. Crear el pago
@@ -33,14 +34,17 @@ func (r *paymentRepository) Create(ctx context.Context, payment *models.Payment)
 			return appErrors.DB(err, "error creating payment")
 		}
 
-		// 2. Crear el movimiento de caja correspondiente
-		cashFlow, err := models.NewFromPayment(payment)
-		if err != nil {
-			return appErrors.Wrap(err, appErrors.ErrInvalidOperation, "error creating cash flow from payment")
-		}
+		// 2. Solo crear cash flow si el pago está confirmado (tiene payment_date)
+		// Los pagos pendientes no generan movimiento de caja hasta que se confirmen
+		if payment.PaymentDate != nil {
+			cashFlow, err := models.NewFromPayment(payment)
+			if err != nil {
+				return appErrors.Wrap(err, appErrors.ErrInvalidOperation, "error creating cash flow from payment")
+			}
 
-		if err := tx.Create(cashFlow).Error; err != nil {
-			return appErrors.DB(err, "error creating cash flow entry")
+			if err := tx.Create(cashFlow).Error; err != nil {
+				return appErrors.DB(err, "error creating cash flow entry")
+			}
 		}
 
 		return nil
