@@ -29,6 +29,8 @@ type PaymentService interface {
 
 	// GenerateAnnualFee creates an annual membership fee for a specific year
 	GenerateAnnualFee(ctx context.Context, year int, baseAmount float64) error
+	// GenerateAnnualFees genera cuotas anuales para todos los socios activos
+	GenerateAnnualFees(ctx context.Context, req *GenerateAnnualFeesRequest) (*GenerateAnnualFeesResponse, error)
 	// GenerateMonthlyFees is DEPRECATED - use GenerateAnnualFee instead
 	GenerateMonthlyFees(ctx context.Context, year, month int, baseAmount float64) error
 	GetMembershipFee(ctx context.Context, year, month int) (*models.MembershipFee, error)
@@ -65,4 +67,32 @@ type FeeCalculator interface {
 	CalculateBaseFee(year, month int) float64
 	CalculateFamilyFee(year, month int) float64
 	CalculateLateFee(daysLate int) float64
+}
+
+// GenerateAnnualFeesRequest contiene los datos para generar cuotas anuales
+type GenerateAnnualFeesRequest struct {
+	Year           int     // Año para el cual generar cuotas
+	BaseFeeAmount  float64 // Monto base (para socios individuales)
+	FamilyFeeExtra float64 // Monto adicional para socios familiares
+}
+
+// PaymentGenerationDetail contiene información sobre un pago individual generado
+type PaymentGenerationDetail struct {
+	MemberID       uint
+	MemberNumber   string
+	MemberName     string
+	Amount         float64
+	WasCreated     bool   // true si se creó, false si ya existía
+	Error          string // mensaje de error si falló
+}
+
+// GenerateAnnualFeesResponse contiene el resultado de generar cuotas anuales
+type GenerateAnnualFeesResponse struct {
+	Year                int
+	MembershipFeeID     uint
+	PaymentsGenerated   int
+	PaymentsExisting    int
+	TotalMembers        int
+	TotalExpectedAmount float64
+	Details             []PaymentGenerationDetail
 }

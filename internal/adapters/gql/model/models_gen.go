@@ -235,6 +235,22 @@ type FamilyFilter struct {
 	Sort       *SortInput       `json:"sort,omitempty"`
 }
 
+type GenerateAnnualFeesInput struct {
+	Year           int     `json:"year"`
+	BaseFeeAmount  float64 `json:"base_fee_amount"`
+	FamilyFeeExtra float64 `json:"family_fee_extra"`
+}
+
+type GenerateAnnualFeesResponse struct {
+	Year                int                        `json:"year"`
+	MembershipFeeID     string                     `json:"membership_fee_id"`
+	PaymentsGenerated   int                        `json:"payments_generated"`
+	PaymentsExisting    int                        `json:"payments_existing"`
+	TotalMembers        int                        `json:"total_members"`
+	TotalExpectedAmount float64                    `json:"total_expected_amount"`
+	Details             []*PaymentGenerationDetail `json:"details"`
+}
+
 type LoginInput struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -301,6 +317,15 @@ type PaymentFilter struct {
 	MemberID      *string               `json:"member_id,omitempty"`
 	Pagination    *PaginationInput      `json:"pagination,omitempty"`
 	Sort          *SortInput            `json:"sort,omitempty"`
+}
+
+type PaymentGenerationDetail struct {
+	MemberID     string  `json:"member_id"`
+	MemberNumber string  `json:"member_number"`
+	MemberName   string  `json:"member_name"`
+	Amount       float64 `json:"amount"`
+	WasCreated   bool    `json:"was_created"`
+	Error        *string `json:"error,omitempty"`
 }
 
 type PaymentInput struct {

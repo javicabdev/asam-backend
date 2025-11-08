@@ -158,6 +158,25 @@ type MembershipFee {
     due_date: Time!
 }
 
+type PaymentGenerationDetail {
+    member_id: ID!
+    member_number: String!
+    member_name: String!
+    amount: Float!
+    was_created: Boolean!
+    error: String
+}
+
+type GenerateAnnualFeesResponse {
+    year: Int!
+    membership_fee_id: ID!
+    payments_generated: Int!
+    payments_existing: Int!
+    total_members: Int!
+    total_expected_amount: Float!
+    details: [PaymentGenerationDetail!]!
+}
+
 type CashFlow {
     id: ID!
     amount: Float!
@@ -490,6 +509,12 @@ input PaymentInput {
     notes: String
 }
 
+input GenerateAnnualFeesInput {
+    year: Int!
+    base_fee_amount: Float!
+    family_fee_extra: Float!
+}
+
 input CreateCashFlowInput {
     member_id: ID  # Para familias usar family.miembro_origen_id
     operation_type: OperationType!
@@ -575,6 +600,7 @@ type Mutation {
     cancelPayment(id: ID!, reason: String!): MutationResponse!
     confirmPayment(id: ID!, paymentMethod: String!, paymentDate: Time, notes: String): Payment!
     registerFee(year: Int!, base_amount: Float!): MutationResponse!
+    generateAnnualFees(input: GenerateAnnualFeesInput!): GenerateAnnualFeesResponse!
 
     # CashFlow Mutations
     createCashFlow(input: CreateCashFlowInput!): CashFlow!

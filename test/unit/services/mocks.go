@@ -165,9 +165,11 @@ type MockMemberRepository struct {
 	GetByIDWithTxFunc           func(ctx context.Context, tx output.Transaction, id uint) (*models.Member, error)
 	GetByNumeroSocioWithTxFunc  func(ctx context.Context, tx output.Transaction, numeroSocio string) (*models.Member, error)
 	GetByIdentityCardWithTxFunc func(ctx context.Context, tx output.Transaction, identityCard string) (*models.Member, error)
+	GetAllActiveFunc            func(ctx context.Context) ([]*models.Member, error)
 
 	// Tracking
 	CreatedMembers []*models.Member
+	ActiveMembers  []*models.Member // Para testing de GetAllActive
 }
 
 func (m *MockMemberRepository) CreateWithTx(ctx context.Context, tx output.Transaction, member *models.Member) error {
@@ -257,6 +259,13 @@ func (m *MockMemberRepository) SearchWithoutUser(ctx context.Context, criteria s
 	return nil, errors.New("not implemented")
 }
 
+func (m *MockMemberRepository) GetAllActive(ctx context.Context) ([]*models.Member, error) {
+	if m.GetAllActiveFunc != nil {
+		return m.GetAllActiveFunc(ctx)
+	}
+	return m.ActiveMembers, nil
+}
+
 func (m *MockMemberRepository) BeginTransaction(ctx context.Context) (output.Transaction, error) {
 	return &MockTransaction{}, nil
 }
@@ -265,6 +274,8 @@ func (m *MockMemberRepository) BeginTransaction(ctx context.Context) (output.Tra
 type MockPaymentRepository struct {
 	CreateWithTxFunc       func(ctx context.Context, tx output.Transaction, payment *models.Payment) error
 	HasPendingPaymentsFunc func(ctx context.Context, memberID uint) (bool, error)
+	CreateFunc             func(ctx context.Context, payment *models.Payment) error
+	FindByMemberFunc       func(ctx context.Context, memberID uint, from, to time.Time) ([]models.Payment, error)
 	// Tracking
 	CreatedPayments []*models.Payment
 }
@@ -285,7 +296,17 @@ func (m *MockPaymentRepository) CreateWithTx(ctx context.Context, tx output.Tran
 
 // Unimplemented methods (not needed for our tests)
 func (m *MockPaymentRepository) Create(ctx context.Context, payment *models.Payment) error {
-	return errors.New("not implemented")
+	if m.CreateFunc != nil {
+		return m.CreateFunc(ctx, payment)
+	}
+	// Simulate auto-increment ID
+	length := len(m.CreatedPayments)
+	if length < 0 {
+		return errors.New("invalid CreatedPayments length")
+	}
+	payment.ID = uint(length) + 1
+	m.CreatedPayments = append(m.CreatedPayments, payment)
+	return nil
 }
 
 func (m *MockPaymentRepository) Update(ctx context.Context, payment *models.Payment) error {
@@ -305,7 +326,17 @@ func (m *MockPaymentRepository) GetByFamily(ctx context.Context, familyID uint) 
 }
 
 func (m *MockPaymentRepository) FindByMember(ctx context.Context, memberID uint, from, to time.Time) ([]models.Payment, error) {
-	return nil, errors.New("not implemented")
+	if m.FindByMemberFunc != nil {
+		return m.FindByMemberFunc(ctx, memberID, from, to)
+	}
+	// Return payments that match memberID and are within date range
+	var result []models.Payment
+	for _, payment := range m.CreatedPayments {
+		if payment.MemberID == memberID {
+			result = append(result, *payment)
+		}
+	}
+	return result, nil
 }
 
 func (m *MockPaymentRepository) FindByFamily(ctx context.Context, familyID uint, from, to time.Time) ([]models.Payment, error) {
@@ -343,6 +374,9 @@ func (m *MockPaymentRepository) HasPendingPayments(ctx context.Context, memberID
 // MockMembershipFeeRepository simulates a membership fee repository for testing
 type MockMembershipFeeRepository struct {
 	FindCurrentYearFunc func(ctx context.Context) (*models.MembershipFee, error)
+	FindByYearFunc      func(ctx context.Context, year int) (*models.MembershipFee, error)
+	CreateFunc          func(ctx context.Context, fee *models.MembershipFee) error
+	UpdateFunc          func(ctx context.Context, fee *models.MembershipFee) error
 	// Tracking
 	Fees []*models.MembershipFee
 }
@@ -361,15 +395,38 @@ func (m *MockMembershipFeeRepository) FindCurrentYear(ctx context.Context) (*mod
 
 // Unimplemented methods (not needed for our tests)
 func (m *MockMembershipFeeRepository) Create(ctx context.Context, fee *models.MembershipFee) error {
-	return errors.New("not implemented")
+	if m.CreateFunc != nil {
+		return m.CreateFunc(ctx, fee)
+	}
+	// Simulate auto-increment ID
+	length := len(m.Fees)
+	if length < 0 {
+		return errors.New("invalid Fees length")
+	}
+	fee.ID = uint(length) + 1
+	m.Fees = append(m.Fees, fee)
+	return nil
 }
 
 func (m *MockMembershipFeeRepository) FindByID(ctx context.Context, id uint) (*models.MembershipFee, error) {
-	return nil, errors.New("not implemented")
+	for _, fee := range m.Fees {
+		if fee.ID == id {
+			return fee, nil
+		}
+	}
+	return nil, nil
 }
 
 func (m *MockMembershipFeeRepository) FindByYear(ctx context.Context, year int) (*models.MembershipFee, error) {
-	return nil, errors.New("not implemented")
+	if m.FindByYearFunc != nil {
+		return m.FindByYearFunc(ctx, year)
+	}
+	for _, fee := range m.Fees {
+		if fee.Year == year {
+			return fee, nil
+		}
+	}
+	return nil, nil
 }
 
 func (m *MockMembershipFeeRepository) FindPendingByMember(ctx context.Context, memberID uint) ([]models.MembershipFee, error) {
@@ -377,7 +434,16 @@ func (m *MockMembershipFeeRepository) FindPendingByMember(ctx context.Context, m
 }
 
 func (m *MockMembershipFeeRepository) Update(ctx context.Context, fee *models.MembershipFee) error {
-	return errors.New("not implemented")
+	if m.UpdateFunc != nil {
+		return m.UpdateFunc(ctx, fee)
+	}
+	for i, f := range m.Fees {
+		if f.ID == fee.ID {
+			m.Fees[i] = fee
+			return nil
+		}
+	}
+	return errors.New("fee not found")
 }
 
 func (m *MockMembershipFeeRepository) FindByYearWithTx(ctx context.Context, tx output.Transaction, year int) (*models.MembershipFee, error) {

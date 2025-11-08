@@ -15,6 +15,7 @@
 - [Configuración de GCP](docs/gcp-project-setup.md) - Guía para configurar el proyecto en Google Cloud
 - [Configuración de GitHub Secrets](docs/github-secrets-setup.md) - Guía para configurar los secretos en GitHub
 - [Compatibilidad con Apollo Client](docs/apollo-client-compatibility.md) - Manejo del campo __typename para Apollo Client
+- [Generación de Cuotas Anuales](docs/annual_fee_generation/README.md) - Sistema de generación automática de cuotas anuales
 
 ## Pipeline de CI/CD
 
@@ -183,10 +184,88 @@ El backend sigue una arquitectura limpia (Clean Architecture) con las siguientes
   - `ports/`: Interfaces que definen los contratos entre capas
 - `pkg/`: Bibliotecas reutilizables
 - `migrations/`: Scripts de migración de la base de datos
+- `test/`: Tests unitarios e integración
+
+## Funcionalidades Principales
+
+### Generación de Cuotas Anuales
+
+El sistema incluye funcionalidad para generar automáticamente las cuotas anuales de membresía para todos los socios activos. Esta característica permite:
+
+- **Generación masiva**: Crear pagos pendientes para todos los socios activos en una sola operación
+- **Configuración flexible**: Definir montos base y extras para familias
+- **Idempotencia**: Ejecutar múltiples veces sin crear duplicados
+- **Validaciones**: Prevenir errores como años futuros o montos negativos
+- **Estadísticas detalladas**: Obtener reporte completo de la operación
+
+#### Uso vía GraphQL
+
+```graphql
+mutation GenerateAnnualFees {
+  generateAnnualFees(input: {
+    year: 2025
+    base_fee_amount: 100.00
+    family_fee_extra: 50.00
+  }) {
+    year
+    membership_fee_id
+    payments_generated
+    payments_existing
+    total_members
+    total_expected_amount
+    details {
+      member_number
+      member_name
+      amount
+      was_created
+      error
+    }
+  }
+}
+```
+
+#### Características técnicas
+
+- **Permisos**: Solo usuarios con rol `ADMIN` pueden ejecutar la operación
+- **Cálculo automático**: El sistema calcula el monto correcto según el tipo de membresía:
+  - Socios individuales: `base_fee_amount`
+  - Socios familiares: `base_fee_amount + family_fee_extra`
+- **Estado de pagos**: Los pagos se crean con estado `PENDING`
+- **Validaciones**:
+  - Año debe ser ≤ año actual (no permite generar para años futuros)
+  - Año debe ser ≥ 2000
+  - Montos deben ser positivos
+- **Tests**: 5 tests unitarios cubren todos los casos de uso
+
+Para más detalles, consulta la [documentación completa](docs/annual_fee_generation/README.md).
+
+#### Pruebas manuales
+
+El proyecto incluye herramientas para probar la funcionalidad:
+
+```bash
+# Script automatizado de prueba
+./test_fees.sh
+
+# O manualmente vía GraphQL Playground
+# http://localhost:8080/graphql
+```
+
+Consulta [PRUEBAS_MANUALES.md](PRUEBAS_MANUALES.md) para instrucciones detalladas.
 
 ## Índice
 
+- [Documentación](#documentación)
 - [Desarrollo](#desarrollo)
+  - [Creación de Usuarios Administradores](#creación-de-usuarios-administradores)
+  - [Inicio rápido](#inicio-rápido-windows-powershell)
+  - [Usando Make](#usando-make-linuxmacwsl)
+  - [Generación de código GraphQL](#generación-de-código-graphql)
+  - [Hooks de Git](#hooks-de-git)
+  - [Estructura del proyecto](#estructura-del-proyecto)
+- [Funcionalidades Principales](#funcionalidades-principales)
+  - [Generación de Cuotas Anuales](#generación-de-cuotas-anuales)
+- [Pipeline de CI/CD](#pipeline-de-cicd)
 - [Conceptos básicos](#conceptos-básicos)
 - [Estructura del pipeline](#estructura-del-pipeline)
 - [Pipeline de CI](#pipeline-de-ci)

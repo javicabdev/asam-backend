@@ -302,3 +302,19 @@ func (r *memberRepository) SearchWithoutUser(ctx context.Context, criteria strin
 
 	return members, nil
 }
+
+// GetAllActive obtiene todos los miembros activos
+func (r *memberRepository) GetAllActive(ctx context.Context) ([]*models.Member, error) {
+	var members []*models.Member
+
+	result := r.db.WithContext(ctx).
+		Where("state = ?", models.EstadoActivo).
+		Order("membership_number ASC").
+		Find(&members)
+
+	if result.Error != nil {
+		return nil, appErrors.DB(result.Error, "error getting active members")
+	}
+
+	return members, nil
+}

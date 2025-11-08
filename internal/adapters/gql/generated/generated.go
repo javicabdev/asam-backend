@@ -200,6 +200,16 @@ type ComplexityRoot struct {
 		PageInfo func(childComplexity int) int
 	}
 
+	GenerateAnnualFeesResponse struct {
+		Details             func(childComplexity int) int
+		MembershipFeeID     func(childComplexity int) int
+		PaymentsExisting    func(childComplexity int) int
+		PaymentsGenerated   func(childComplexity int) int
+		TotalExpectedAmount func(childComplexity int) int
+		TotalMembers        func(childComplexity int) int
+		Year                func(childComplexity int) int
+	}
+
 	Member struct {
 		Apellidos          func(childComplexity int) int
 		CalleNumeroPiso    func(childComplexity int) int
@@ -262,6 +272,7 @@ type ComplexityRoot struct {
 		DeleteCashFlow          func(childComplexity int, id string) int
 		DeleteMember            func(childComplexity int, id string) int
 		DeleteUser              func(childComplexity int, id string) int
+		GenerateAnnualFees      func(childComplexity int, input model.GenerateAnnualFeesInput) int
 		Login                   func(childComplexity int, input model.LoginInput) int
 		Logout                  func(childComplexity int) int
 		RefreshToken            func(childComplexity int, input model.RefreshTokenInput) int
@@ -309,6 +320,15 @@ type ComplexityRoot struct {
 	PaymentConnection struct {
 		Nodes    func(childComplexity int) int
 		PageInfo func(childComplexity int) int
+	}
+
+	PaymentGenerationDetail struct {
+		Amount       func(childComplexity int) int
+		Error        func(childComplexity int) int
+		MemberID     func(childComplexity int) int
+		MemberName   func(childComplexity int) int
+		MemberNumber func(childComplexity int) int
+		WasCreated   func(childComplexity int) int
 	}
 
 	PendingPayment struct {
@@ -441,6 +461,7 @@ type MutationResolver interface {
 	CancelPayment(ctx context.Context, id string, reason string) (*model.MutationResponse, error)
 	ConfirmPayment(ctx context.Context, id string, paymentMethod string, paymentDate *time.Time, notes *string) (*models.Payment, error)
 	RegisterFee(ctx context.Context, year int, baseAmount float64) (*model.MutationResponse, error)
+	GenerateAnnualFees(ctx context.Context, input model.GenerateAnnualFeesInput) (*model.GenerateAnnualFeesResponse, error)
 	CreateCashFlow(ctx context.Context, input model.CreateCashFlowInput) (*models.CashFlow, error)
 	UpdateCashFlow(ctx context.Context, id string, input model.UpdateCashFlowInput) (*models.CashFlow, error)
 	DeleteCashFlow(ctx context.Context, id string) (*model.MutationResponse, error)
@@ -1138,6 +1159,49 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.FamilyConnection.PageInfo(childComplexity), true
 
+	case "GenerateAnnualFeesResponse.details":
+		if e.complexity.GenerateAnnualFeesResponse.Details == nil {
+			break
+		}
+
+		return e.complexity.GenerateAnnualFeesResponse.Details(childComplexity), true
+	case "GenerateAnnualFeesResponse.membership_fee_id":
+		if e.complexity.GenerateAnnualFeesResponse.MembershipFeeID == nil {
+			break
+		}
+
+		return e.complexity.GenerateAnnualFeesResponse.MembershipFeeID(childComplexity), true
+	case "GenerateAnnualFeesResponse.payments_existing":
+		if e.complexity.GenerateAnnualFeesResponse.PaymentsExisting == nil {
+			break
+		}
+
+		return e.complexity.GenerateAnnualFeesResponse.PaymentsExisting(childComplexity), true
+	case "GenerateAnnualFeesResponse.payments_generated":
+		if e.complexity.GenerateAnnualFeesResponse.PaymentsGenerated == nil {
+			break
+		}
+
+		return e.complexity.GenerateAnnualFeesResponse.PaymentsGenerated(childComplexity), true
+	case "GenerateAnnualFeesResponse.total_expected_amount":
+		if e.complexity.GenerateAnnualFeesResponse.TotalExpectedAmount == nil {
+			break
+		}
+
+		return e.complexity.GenerateAnnualFeesResponse.TotalExpectedAmount(childComplexity), true
+	case "GenerateAnnualFeesResponse.total_members":
+		if e.complexity.GenerateAnnualFeesResponse.TotalMembers == nil {
+			break
+		}
+
+		return e.complexity.GenerateAnnualFeesResponse.TotalMembers(childComplexity), true
+	case "GenerateAnnualFeesResponse.year":
+		if e.complexity.GenerateAnnualFeesResponse.Year == nil {
+			break
+		}
+
+		return e.complexity.GenerateAnnualFeesResponse.Year(childComplexity), true
+
 	case "Member.apellidos":
 		if e.complexity.Member.Apellidos == nil {
 			break
@@ -1484,6 +1548,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.DeleteUser(childComplexity, args["id"].(string)), true
+	case "Mutation.generateAnnualFees":
+		if e.complexity.Mutation.GenerateAnnualFees == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_generateAnnualFees_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.GenerateAnnualFees(childComplexity, args["input"].(model.GenerateAnnualFeesInput)), true
 	case "Mutation.login":
 		if e.complexity.Mutation.Login == nil {
 			break
@@ -1783,6 +1858,43 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.PaymentConnection.PageInfo(childComplexity), true
+
+	case "PaymentGenerationDetail.amount":
+		if e.complexity.PaymentGenerationDetail.Amount == nil {
+			break
+		}
+
+		return e.complexity.PaymentGenerationDetail.Amount(childComplexity), true
+	case "PaymentGenerationDetail.error":
+		if e.complexity.PaymentGenerationDetail.Error == nil {
+			break
+		}
+
+		return e.complexity.PaymentGenerationDetail.Error(childComplexity), true
+	case "PaymentGenerationDetail.member_id":
+		if e.complexity.PaymentGenerationDetail.MemberID == nil {
+			break
+		}
+
+		return e.complexity.PaymentGenerationDetail.MemberID(childComplexity), true
+	case "PaymentGenerationDetail.member_name":
+		if e.complexity.PaymentGenerationDetail.MemberName == nil {
+			break
+		}
+
+		return e.complexity.PaymentGenerationDetail.MemberName(childComplexity), true
+	case "PaymentGenerationDetail.member_number":
+		if e.complexity.PaymentGenerationDetail.MemberNumber == nil {
+			break
+		}
+
+		return e.complexity.PaymentGenerationDetail.MemberNumber(childComplexity), true
+	case "PaymentGenerationDetail.was_created":
+		if e.complexity.PaymentGenerationDetail.WasCreated == nil {
+			break
+		}
+
+		return e.complexity.PaymentGenerationDetail.WasCreated(childComplexity), true
 
 	case "PendingPayment.amount":
 		if e.complexity.PendingPayment.Amount == nil {
@@ -2298,6 +2410,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputDelinquentReportInput,
 		ec.unmarshalInputFamiliarInput,
 		ec.unmarshalInputFamilyFilter,
+		ec.unmarshalInputGenerateAnnualFeesInput,
 		ec.unmarshalInputLoginInput,
 		ec.unmarshalInputMemberFilter,
 		ec.unmarshalInputPaginationInput,
@@ -2566,6 +2679,25 @@ type MembershipFee {
     base_fee_amount: Float!
     family_fee_extra: Float!
     due_date: Time!
+}
+
+type PaymentGenerationDetail {
+    member_id: ID!
+    member_number: String!
+    member_name: String!
+    amount: Float!
+    was_created: Boolean!
+    error: String
+}
+
+type GenerateAnnualFeesResponse {
+    year: Int!
+    membership_fee_id: ID!
+    payments_generated: Int!
+    payments_existing: Int!
+    total_members: Int!
+    total_expected_amount: Float!
+    details: [PaymentGenerationDetail!]!
 }
 
 type CashFlow {
@@ -2900,6 +3032,12 @@ input PaymentInput {
     notes: String
 }
 
+input GenerateAnnualFeesInput {
+    year: Int!
+    base_fee_amount: Float!
+    family_fee_extra: Float!
+}
+
 input CreateCashFlowInput {
     member_id: ID  # Para familias usar family.miembro_origen_id
     operation_type: OperationType!
@@ -2985,6 +3123,7 @@ type Mutation {
     cancelPayment(id: ID!, reason: String!): MutationResponse!
     confirmPayment(id: ID!, paymentMethod: String!, paymentDate: Time, notes: String): Payment!
     registerFee(year: Int!, base_amount: Float!): MutationResponse!
+    generateAnnualFees(input: GenerateAnnualFeesInput!): GenerateAnnualFeesResponse!
 
     # CashFlow Mutations
     createCashFlow(input: CreateCashFlowInput!): CashFlow!
@@ -3382,6 +3521,17 @@ func (ec *executionContext) field_Mutation_deleteUser_args(ctx context.Context, 
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_generateAnnualFees_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGenerateAnnualFeesInput2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐGenerateAnnualFeesInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -7161,6 +7311,223 @@ func (ec *executionContext) fieldContext_FamilyConnection_pageInfo(_ context.Con
 	return fc, nil
 }
 
+func (ec *executionContext) _GenerateAnnualFeesResponse_year(ctx context.Context, field graphql.CollectedField, obj *model.GenerateAnnualFeesResponse) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GenerateAnnualFeesResponse_year,
+		func(ctx context.Context) (any, error) {
+			return obj.Year, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GenerateAnnualFeesResponse_year(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GenerateAnnualFeesResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GenerateAnnualFeesResponse_membership_fee_id(ctx context.Context, field graphql.CollectedField, obj *model.GenerateAnnualFeesResponse) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GenerateAnnualFeesResponse_membership_fee_id,
+		func(ctx context.Context) (any, error) {
+			return obj.MembershipFeeID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GenerateAnnualFeesResponse_membership_fee_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GenerateAnnualFeesResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GenerateAnnualFeesResponse_payments_generated(ctx context.Context, field graphql.CollectedField, obj *model.GenerateAnnualFeesResponse) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GenerateAnnualFeesResponse_payments_generated,
+		func(ctx context.Context) (any, error) {
+			return obj.PaymentsGenerated, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GenerateAnnualFeesResponse_payments_generated(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GenerateAnnualFeesResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GenerateAnnualFeesResponse_payments_existing(ctx context.Context, field graphql.CollectedField, obj *model.GenerateAnnualFeesResponse) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GenerateAnnualFeesResponse_payments_existing,
+		func(ctx context.Context) (any, error) {
+			return obj.PaymentsExisting, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GenerateAnnualFeesResponse_payments_existing(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GenerateAnnualFeesResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GenerateAnnualFeesResponse_total_members(ctx context.Context, field graphql.CollectedField, obj *model.GenerateAnnualFeesResponse) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GenerateAnnualFeesResponse_total_members,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalMembers, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GenerateAnnualFeesResponse_total_members(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GenerateAnnualFeesResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GenerateAnnualFeesResponse_total_expected_amount(ctx context.Context, field graphql.CollectedField, obj *model.GenerateAnnualFeesResponse) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GenerateAnnualFeesResponse_total_expected_amount,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalExpectedAmount, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GenerateAnnualFeesResponse_total_expected_amount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GenerateAnnualFeesResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GenerateAnnualFeesResponse_details(ctx context.Context, field graphql.CollectedField, obj *model.GenerateAnnualFeesResponse) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GenerateAnnualFeesResponse_details,
+		func(ctx context.Context) (any, error) {
+			return obj.Details, nil
+		},
+		nil,
+		ec.marshalNPaymentGenerationDetail2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPaymentGenerationDetailᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GenerateAnnualFeesResponse_details(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GenerateAnnualFeesResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "member_id":
+				return ec.fieldContext_PaymentGenerationDetail_member_id(ctx, field)
+			case "member_number":
+				return ec.fieldContext_PaymentGenerationDetail_member_number(ctx, field)
+			case "member_name":
+				return ec.fieldContext_PaymentGenerationDetail_member_name(ctx, field)
+			case "amount":
+				return ec.fieldContext_PaymentGenerationDetail_amount(ctx, field)
+			case "was_created":
+				return ec.fieldContext_PaymentGenerationDetail_was_created(ctx, field)
+			case "error":
+				return ec.fieldContext_PaymentGenerationDetail_error(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PaymentGenerationDetail", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Member_miembro_id(ctx context.Context, field graphql.CollectedField, obj *models.Member) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -8995,6 +9362,63 @@ func (ec *executionContext) fieldContext_Mutation_registerFee(ctx context.Contex
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_generateAnnualFees(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_generateAnnualFees,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().GenerateAnnualFees(ctx, fc.Args["input"].(model.GenerateAnnualFeesInput))
+		},
+		nil,
+		ec.marshalNGenerateAnnualFeesResponse2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐGenerateAnnualFeesResponse,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_generateAnnualFees(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "year":
+				return ec.fieldContext_GenerateAnnualFeesResponse_year(ctx, field)
+			case "membership_fee_id":
+				return ec.fieldContext_GenerateAnnualFeesResponse_membership_fee_id(ctx, field)
+			case "payments_generated":
+				return ec.fieldContext_GenerateAnnualFeesResponse_payments_generated(ctx, field)
+			case "payments_existing":
+				return ec.fieldContext_GenerateAnnualFeesResponse_payments_existing(ctx, field)
+			case "total_members":
+				return ec.fieldContext_GenerateAnnualFeesResponse_total_members(ctx, field)
+			case "total_expected_amount":
+				return ec.fieldContext_GenerateAnnualFeesResponse_total_expected_amount(ctx, field)
+			case "details":
+				return ec.fieldContext_GenerateAnnualFeesResponse_details(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GenerateAnnualFeesResponse", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_generateAnnualFees_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_createCashFlow(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10521,6 +10945,180 @@ func (ec *executionContext) fieldContext_PaymentConnection_pageInfo(_ context.Co
 				return ec.fieldContext_PageInfo_totalCount(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type PageInfo", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PaymentGenerationDetail_member_id(ctx context.Context, field graphql.CollectedField, obj *model.PaymentGenerationDetail) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PaymentGenerationDetail_member_id,
+		func(ctx context.Context) (any, error) {
+			return obj.MemberID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PaymentGenerationDetail_member_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PaymentGenerationDetail",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PaymentGenerationDetail_member_number(ctx context.Context, field graphql.CollectedField, obj *model.PaymentGenerationDetail) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PaymentGenerationDetail_member_number,
+		func(ctx context.Context) (any, error) {
+			return obj.MemberNumber, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PaymentGenerationDetail_member_number(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PaymentGenerationDetail",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PaymentGenerationDetail_member_name(ctx context.Context, field graphql.CollectedField, obj *model.PaymentGenerationDetail) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PaymentGenerationDetail_member_name,
+		func(ctx context.Context) (any, error) {
+			return obj.MemberName, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PaymentGenerationDetail_member_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PaymentGenerationDetail",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PaymentGenerationDetail_amount(ctx context.Context, field graphql.CollectedField, obj *model.PaymentGenerationDetail) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PaymentGenerationDetail_amount,
+		func(ctx context.Context) (any, error) {
+			return obj.Amount, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PaymentGenerationDetail_amount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PaymentGenerationDetail",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PaymentGenerationDetail_was_created(ctx context.Context, field graphql.CollectedField, obj *model.PaymentGenerationDetail) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PaymentGenerationDetail_was_created,
+		func(ctx context.Context) (any, error) {
+			return obj.WasCreated, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PaymentGenerationDetail_was_created(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PaymentGenerationDetail",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PaymentGenerationDetail_error(ctx context.Context, field graphql.CollectedField, obj *model.PaymentGenerationDetail) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PaymentGenerationDetail_error,
+		func(ctx context.Context) (any, error) {
+			return obj.Error, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_PaymentGenerationDetail_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PaymentGenerationDetail",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -15337,6 +15935,47 @@ func (ec *executionContext) unmarshalInputFamilyFilter(ctx context.Context, obj 
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputGenerateAnnualFeesInput(ctx context.Context, obj any) (model.GenerateAnnualFeesInput, error) {
+	var it model.GenerateAnnualFeesInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"year", "base_fee_amount", "family_fee_extra"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "year":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("year"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Year = data
+		case "base_fee_amount":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("base_fee_amount"))
+			data, err := ec.unmarshalNFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BaseFeeAmount = data
+		case "family_fee_extra":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("family_fee_extra"))
+			data, err := ec.unmarshalNFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.FamilyFeeExtra = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputLoginInput(ctx context.Context, obj any) (model.LoginInput, error) {
 	var it model.LoginInput
 	asMap := map[string]any{}
@@ -17150,6 +17789,75 @@ func (ec *executionContext) _FamilyConnection(ctx context.Context, sel ast.Selec
 	return out
 }
 
+var generateAnnualFeesResponseImplementors = []string{"GenerateAnnualFeesResponse"}
+
+func (ec *executionContext) _GenerateAnnualFeesResponse(ctx context.Context, sel ast.SelectionSet, obj *model.GenerateAnnualFeesResponse) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, generateAnnualFeesResponseImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GenerateAnnualFeesResponse")
+		case "year":
+			out.Values[i] = ec._GenerateAnnualFeesResponse_year(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "membership_fee_id":
+			out.Values[i] = ec._GenerateAnnualFeesResponse_membership_fee_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "payments_generated":
+			out.Values[i] = ec._GenerateAnnualFeesResponse_payments_generated(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "payments_existing":
+			out.Values[i] = ec._GenerateAnnualFeesResponse_payments_existing(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "total_members":
+			out.Values[i] = ec._GenerateAnnualFeesResponse_total_members(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "total_expected_amount":
+			out.Values[i] = ec._GenerateAnnualFeesResponse_total_expected_amount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "details":
+			out.Values[i] = ec._GenerateAnnualFeesResponse_details(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var memberImplementors = []string{"Member"}
 
 func (ec *executionContext) _Member(ctx context.Context, sel ast.SelectionSet, obj *models.Member) graphql.Marshaler {
@@ -18194,6 +18902,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "generateAnnualFees":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_generateAnnualFees(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "createCashFlow":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createCashFlow(ctx, field)
@@ -18559,6 +19274,67 @@ func (ec *executionContext) _PaymentConnection(ctx context.Context, sel ast.Sele
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var paymentGenerationDetailImplementors = []string{"PaymentGenerationDetail"}
+
+func (ec *executionContext) _PaymentGenerationDetail(ctx context.Context, sel ast.SelectionSet, obj *model.PaymentGenerationDetail) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, paymentGenerationDetailImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PaymentGenerationDetail")
+		case "member_id":
+			out.Values[i] = ec._PaymentGenerationDetail_member_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "member_number":
+			out.Values[i] = ec._PaymentGenerationDetail_member_number(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "member_name":
+			out.Values[i] = ec._PaymentGenerationDetail_member_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "amount":
+			out.Values[i] = ec._PaymentGenerationDetail_amount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "was_created":
+			out.Values[i] = ec._PaymentGenerationDetail_was_created(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "error":
+			out.Values[i] = ec._PaymentGenerationDetail_error(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -20517,6 +21293,25 @@ func (ec *executionContext) marshalNFloat2float64(ctx context.Context, sel ast.S
 	return graphql.WrapContextMarshaler(ctx, res)
 }
 
+func (ec *executionContext) unmarshalNGenerateAnnualFeesInput2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐGenerateAnnualFeesInput(ctx context.Context, v any) (model.GenerateAnnualFeesInput, error) {
+	res, err := ec.unmarshalInputGenerateAnnualFeesInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNGenerateAnnualFeesResponse2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐGenerateAnnualFeesResponse(ctx context.Context, sel ast.SelectionSet, v model.GenerateAnnualFeesResponse) graphql.Marshaler {
+	return ec._GenerateAnnualFeesResponse(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNGenerateAnnualFeesResponse2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐGenerateAnnualFeesResponse(ctx context.Context, sel ast.SelectionSet, v *model.GenerateAnnualFeesResponse) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._GenerateAnnualFeesResponse(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNID2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalID(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -20935,6 +21730,60 @@ func (ec *executionContext) marshalNPaymentConnection2ᚖgithubᚗcomᚋjavicabd
 		return graphql.Null
 	}
 	return ec._PaymentConnection(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNPaymentGenerationDetail2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPaymentGenerationDetailᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.PaymentGenerationDetail) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNPaymentGenerationDetail2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPaymentGenerationDetail(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNPaymentGenerationDetail2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPaymentGenerationDetail(ctx context.Context, sel ast.SelectionSet, v *model.PaymentGenerationDetail) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._PaymentGenerationDetail(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNPaymentInput2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPaymentInput(ctx context.Context, v any) (model.PaymentInput, error) {

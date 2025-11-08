@@ -1,0 +1,53 @@
+# Mutation para generar cuotas anuales 2025
+# Ejecutar esto en GraphQL Playground: http://localhost:8080/graphql
+
+mutation GenerateAnnualFees2025 {
+  generateAnnualFees(input: {
+    year: 2025
+    base_fee_amount: 100.00
+    family_fee_extra: 50.00
+  }) {
+    year
+    membership_fee_id
+    payments_generated
+    payments_existing
+    total_members
+    total_expected_amount
+    details {
+      member_id
+      member_number
+      member_name
+      amount
+      was_created
+      error
+    }
+  }
+}
+
+# Query para verificar las cuotas generadas
+query GetPayments {
+  payments(filters: {
+    status: PENDING
+  }) {
+    id
+    member {
+      membership_number
+      name
+      surnames
+    }
+    amount
+    status
+    membership_fee {
+      year
+      base_fee_amount
+      family_fee_extra
+    }
+    notes
+  }
+}
+
+# Query para ver la cuota de membresía creada
+query GetMembershipFee2025 {
+  # Nota: Necesitarías añadir un query en el schema para obtener membership fees
+  # Por ahora verificaremos directamente en la BD
+}

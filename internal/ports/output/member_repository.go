@@ -17,6 +17,7 @@ type MemberRepository interface {
 	List(ctx context.Context, filters MemberFilters) ([]models.Member, error)
 	GetLastMemberNumberByPrefix(ctx context.Context, prefix string) (string, error)
 	SearchWithoutUser(ctx context.Context, criteria string) ([]models.Member, error)
+	GetAllActive(ctx context.Context) ([]*models.Member, error)
 
 	// Transaction support
 	BeginTransaction(ctx context.Context) (Transaction, error)

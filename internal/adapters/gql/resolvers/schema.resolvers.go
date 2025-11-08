@@ -510,6 +510,53 @@ func (r *mutationResolver) RegisterFee(ctx context.Context, year int, baseAmount
 	}, nil
 }
 
+// GenerateAnnualFees is the resolver for the generateAnnualFees field.
+func (r *mutationResolver) GenerateAnnualFees(ctx context.Context, graphqlInput model.GenerateAnnualFeesInput) (*model.GenerateAnnualFeesResponse, error) {
+	// Solo ADMIN puede generar cuotas anuales
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+
+	// Convertir input GraphQL a request del servicio
+	req := &input.GenerateAnnualFeesRequest{
+		Year:           graphqlInput.Year,
+		BaseFeeAmount:  graphqlInput.BaseFeeAmount,
+		FamilyFeeExtra: graphqlInput.FamilyFeeExtra,
+	}
+
+	// Llamar al servicio
+	result, err := r.paymentService.GenerateAnnualFees(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convertir response del servicio a GraphQL
+	response := &model.GenerateAnnualFeesResponse{
+		Year:                result.Year,
+		MembershipFeeID:     fmt.Sprintf("%d", result.MembershipFeeID),
+		PaymentsGenerated:   result.PaymentsGenerated,
+		PaymentsExisting:    result.PaymentsExisting,
+		TotalMembers:        result.TotalMembers,
+		TotalExpectedAmount: result.TotalExpectedAmount,
+		Details:             make([]*model.PaymentGenerationDetail, len(result.Details)),
+	}
+
+	// Convertir detalles
+	for i, detail := range result.Details {
+		errorMsg := detail.Error
+		response.Details[i] = &model.PaymentGenerationDetail{
+			MemberID:     fmt.Sprintf("%d", detail.MemberID),
+			MemberNumber: detail.MemberNumber,
+			MemberName:   detail.MemberName,
+			Amount:       detail.Amount,
+			WasCreated:   detail.WasCreated,
+			Error:        &errorMsg,
+		}
+	}
+
+	return response, nil
+}
+
 // CreateCashFlow is the resolver for the createCashFlow field.
 func (r *mutationResolver) CreateCashFlow(ctx context.Context, input model.CreateCashFlowInput) (*models.CashFlow, error) {
 	// Solo ADMIN puede crear movimientos de caja manualmente

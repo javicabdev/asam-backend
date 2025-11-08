@@ -404,6 +404,168 @@ func (s *paymentService) GenerateAnnualFee(ctx context.Context, year int, baseAm
 	return s.membershipFeeRepo.Create(ctx, fee)
 }
 
+// GenerateAnnualFees genera cuotas anuales para todos los socios activos
+func (s *paymentService) GenerateAnnualFees(ctx context.Context, req *input.GenerateAnnualFeesRequest) (*input.GenerateAnnualFeesResponse, error) {
+	// Validar request
+	if err := s.validateGenerateAnnualFeesRequest(req); err != nil {
+		return nil, err
+	}
+
+	// 1. Crear o actualizar MembershipFee
+	fee, err := s.ensureMembershipFee(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Obtener todos los socios activos
+	members, err := s.memberRepo.GetAllActive(ctx)
+	if err != nil {
+		return nil, errors.DB(err, "error obteniendo socios activos")
+	}
+
+	// 3. Generar pagos para cada socio
+	response := &input.GenerateAnnualFeesResponse{
+		Year:            req.Year,
+		MembershipFeeID: fee.ID,
+		TotalMembers:    len(members),
+		Details:         make([]input.PaymentGenerationDetail, 0, len(members)),
+	}
+
+	for _, member := range members {
+		detail := s.generatePaymentForMember(ctx, member, fee)
+		response.Details = append(response.Details, detail)
+
+		if detail.WasCreated {
+			response.PaymentsGenerated++
+			response.TotalExpectedAmount += detail.Amount
+		} else if detail.Error == "" {
+			response.PaymentsExisting++
+		}
+	}
+
+	return response, nil
+}
+
+// validateGenerateAnnualFeesRequest valida el request de generación
+func (s *paymentService) validateGenerateAnnualFeesRequest(req *input.GenerateAnnualFeesRequest) error {
+	currentYear := time.Now().Year()
+
+	if req.Year > currentYear {
+		return errors.Validation(
+			"No se pueden generar cuotas para años futuros",
+			"year",
+			"debe ser menor o igual al año actual",
+		)
+	}
+
+	if req.Year < 2000 {
+		return errors.Validation(
+			"Año inválido",
+			"year",
+			"debe ser mayor o igual a 2000",
+		)
+	}
+
+	if req.BaseFeeAmount <= 0 {
+		return errors.Validation(
+			"El monto base debe ser positivo",
+			"baseFeeAmount",
+			"debe ser mayor a 0",
+		)
+	}
+
+	if req.FamilyFeeExtra < 0 {
+		return errors.Validation(
+			"El extra familiar debe ser no negativo",
+			"familyFeeExtra",
+			"debe ser mayor o igual a 0",
+		)
+	}
+
+	return nil
+}
+
+// ensureMembershipFee crea o actualiza la cuota de membresía para el año
+func (s *paymentService) ensureMembershipFee(ctx context.Context, req *input.GenerateAnnualFeesRequest) (*models.MembershipFee, error) {
+	// Buscar cuota existente
+	existingFee, err := s.membershipFeeRepo.FindByYear(ctx, req.Year)
+	if err != nil {
+		return nil, errors.DB(err, "error verificando cuota existente")
+	}
+
+	// Si ya existe, actualizarla
+	if existingFee != nil {
+		existingFee.BaseFeeAmount = req.BaseFeeAmount
+		existingFee.FamilyFeeExtra = req.FamilyFeeExtra
+		if err := s.membershipFeeRepo.Update(ctx, existingFee); err != nil {
+			return nil, errors.DB(err, "error actualizando cuota existente")
+		}
+		return existingFee, nil
+	}
+
+	// Si no existe, crearla
+	fee := models.NewAnnualFee(req.Year, req.BaseFeeAmount)
+	fee.FamilyFeeExtra = req.FamilyFeeExtra
+
+	if err := s.membershipFeeRepo.Create(ctx, fee); err != nil {
+		return nil, errors.DB(err, "error creando cuota anual")
+	}
+
+	return fee, nil
+}
+
+// generatePaymentForMember genera un pago pendiente para un socio específico
+func (s *paymentService) generatePaymentForMember(ctx context.Context, member *models.Member, fee *models.MembershipFee) input.PaymentGenerationDetail {
+	detail := input.PaymentGenerationDetail{
+		MemberID:     member.ID,
+		MemberNumber: member.MembershipNumber,
+		MemberName:   member.NombreCompleto(),
+	}
+
+	// Calcular monto según tipo de membresía
+	isFamily := member.IsFamiliar()
+	detail.Amount = fee.Calculate(isFamily)
+
+	// Verificar si ya existe un pago para este socio y año
+	// Buscamos pagos del año completo
+	yearStart := time.Date(fee.Year, 1, 1, 0, 0, 0, 0, time.UTC)
+	yearEnd := time.Date(fee.Year, 12, 31, 23, 59, 59, 0, time.UTC)
+
+	existingPayments, err := s.paymentRepo.FindByMember(ctx, member.ID, yearStart, yearEnd)
+	if err != nil {
+		detail.Error = "error verificando pagos existentes: " + err.Error()
+		return detail
+	}
+
+	// Verificar si ya existe un pago asociado a esta cuota
+	for _, payment := range existingPayments {
+		if payment.MembershipFeeID != nil && *payment.MembershipFeeID == fee.ID {
+			detail.WasCreated = false
+			return detail
+		}
+	}
+
+	// Crear pago pendiente
+	feeID := fee.ID
+	payment := &models.Payment{
+		MemberID:        member.ID,
+		Amount:          detail.Amount,
+		Status:          models.PaymentStatusPending,
+		MembershipFeeID: &feeID,
+		PaymentDate:     nil,
+		PaymentMethod:   "",
+		Notes:           "Cuota anual generada automáticamente",
+	}
+
+	if err := s.paymentRepo.Create(ctx, payment); err != nil {
+		detail.Error = "error creando pago: " + err.Error()
+		return detail
+	}
+
+	detail.WasCreated = true
+	return detail
+}
+
 // Deprecated: GenerateMonthlyFees - mantener por compatibilidad.
 // Las cuotas ahora son anuales. Use GenerateAnnualFee en su lugar.
 func (s *paymentService) GenerateMonthlyFees(ctx context.Context, year, _ int, baseAmount float64) error {
