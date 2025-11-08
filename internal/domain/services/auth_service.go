@@ -140,20 +140,35 @@ func (s *authService) Logout(ctx context.Context, accessToken string) error {
 	return nil
 }
 
-// validateCredentials validates username and password
-func (s *authService) validateCredentials(ctx context.Context, username, password string) (*models.User, error) {
-	// Buscar usuario por username
-	user, err := s.userRepo.FindByUsername(ctx, username)
+// validateCredentials validates username/email and password
+// Supports login with either username or email field
+func (s *authService) validateCredentials(ctx context.Context, usernameOrEmail, password string) (*models.User, error) {
+	// Intentar buscar usuario por username primero
+	user, err := s.userRepo.FindByUsername(ctx, usernameOrEmail)
 	if err != nil {
 		s.logger.Error("Login failed: database error",
-			zap.String("username", username),
+			zap.String("input", usernameOrEmail),
 			zap.Error(err),
 		)
 		return nil, errors.DB(err, "error buscando usuario")
 	}
+
+	// Si no se encuentra por username, intentar por email
+	if user == nil {
+		user, err = s.userRepo.FindByEmail(ctx, usernameOrEmail)
+		if err != nil {
+			s.logger.Error("Login failed: database error searching by email",
+				zap.String("input", usernameOrEmail),
+				zap.Error(err),
+			)
+			return nil, errors.DB(err, "error buscando usuario")
+		}
+	}
+
+	// Si aún no se encuentra, credenciales inválidas
 	if user == nil {
 		s.logger.Warn("Login failed: user not found",
-			zap.String("username", username),
+			zap.String("input", usernameOrEmail),
 		)
 		return nil, errors.NewBusinessError(errors.ErrUnauthorized, "credenciales inválidas")
 	}
@@ -161,7 +176,7 @@ func (s *authService) validateCredentials(ctx context.Context, username, passwor
 	// Verificar contraseña
 	if !user.CheckPassword(password) {
 		s.logger.Warn("Login failed: invalid password",
-			zap.String("username", username),
+			zap.String("input", usernameOrEmail),
 			zap.Uint("user_id", user.ID),
 		)
 		return nil, errors.NewBusinessError(errors.ErrUnauthorized, "credenciales inválidas")

@@ -49,9 +49,9 @@ CREATE TABLE users (
 
 ## Implementation Details
 
-### Validation Flow
+### Username Validation Flow
 
-The validation is implemented in `internal/domain/services/user_service.go`:
+Implemented in `internal/domain/services/user_service.go`:
 
 ```go
 // validateUsername (line 750) - Main validation entry point
@@ -73,6 +73,31 @@ func (s *userService) validateRegularUsername(username string) error {
     // Allows: a-z, A-Z, 0-9, underscore, hyphen, dot
 }
 ```
+
+### Login Flow with Dual Support
+
+Implemented in `internal/domain/services/auth_service.go`:
+
+```go
+// validateCredentials (line 145) - Dual login support
+func (s *authService) validateCredentials(ctx, usernameOrEmail, password) error {
+    // 1. Try to find user by username field
+    user := userRepo.FindByUsername(usernameOrEmail)
+
+    // 2. If not found, try to find by email field
+    if user == nil {
+        user = userRepo.FindByEmail(usernameOrEmail)
+    }
+
+    // 3. Validate password if user found
+    // 4. Return error if user not found or password invalid
+}
+```
+
+**Benefits:**
+- Users can login with whatever they remember (username or email)
+- Backward compatible - existing logins continue working
+- No changes needed in client applications
 
 ## Usage Examples
 
@@ -110,9 +135,12 @@ mutation {
 
 ### Login with Email or Username
 
+Both approaches work interchangeably:
+
 ```graphql
+# Login with username
 mutation {
-  login(username: "john.doe@example.com", password: "SecurePass123!") {
+  login(username: "john_doe", password: "SecurePass123!") {
     accessToken
     refreshToken
     user {
@@ -123,6 +151,31 @@ mutation {
     }
   }
 }
+
+# Login with email (works even if username is different)
+mutation {
+  login(username: "john@example.com", password: "SecurePass123!") {
+    accessToken
+    refreshToken
+    user {
+      id
+      username
+      email
+      role
+    }
+  }
+}
+```
+
+**Example Scenario:**
+```
+User in database:
+  username: "john_doe"
+  email: "john@example.com"
+
+Both of these will work:
+  ✅ login(username: "john_doe", ...)
+  ✅ login(username: "john@example.com", ...)
 ```
 
 ## Security Considerations
@@ -146,7 +199,10 @@ mutation {
    - Traditional: `john_doe`
    - Email: `john.doe@example.com`
 
-3. **Login**: Users can login with either their username or email (if used as username)
+3. **Dual Login Support**: Users can login with EITHER `username` OR `email`
+   - Login with username: `john_doe`
+   - Login with email: `john@example.com`
+   - The system automatically tries both fields for maximum flexibility
 
 ### For Developers
 
@@ -175,10 +231,12 @@ mutation {
 1. **Basic Validation**: Uses simple regex pattern, doesn't validate if email domain actually exists
 2. **No MX Record Check**: Doesn't verify if email domain has valid MX records
 3. **No Verification**: Email addresses are not verified (no confirmation email sent)
+4. **Sequential Lookup**: Login tries username first, then email - slight performance impact for email-based logins
 
 ## Future Enhancements
 
 1. **Email Verification**: Implement email verification workflow with confirmation tokens
 2. **Enhanced Validation**: Add MX record validation and disposable email detection
-3. **Password Recovery**: Implement password reset via email functionality
+3. **Password Recovery**: Implement password reset via email functionality (already implemented: `resetPasswordWithToken`)
 4. **OAuth Integration**: Use email for social login matching
+5. **Smart Login Optimization**: Detect if input looks like email and try email lookup first to reduce database queries
