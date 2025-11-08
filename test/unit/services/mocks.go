@@ -247,8 +247,8 @@ func (m *MockMemberRepository) Delete(ctx context.Context, id uint) error {
 	return errors.New("not implemented")
 }
 
-func (m *MockMemberRepository) List(ctx context.Context, filters output.MemberFilters) ([]models.Member, error) {
-	return nil, errors.New("not implemented")
+func (m *MockMemberRepository) List(ctx context.Context, filters output.MemberFilters) ([]models.Member, int, error) {
+	return nil, 0, errors.New("not implemented")
 }
 
 func (m *MockMemberRepository) GetLastMemberNumberByPrefix(ctx context.Context, prefix string) (string, error) {
