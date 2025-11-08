@@ -289,8 +289,23 @@ func (s *paymentService) ConfirmPayment(ctx context.Context, paymentID uint, pay
 	payment.Status = models.PaymentStatusPaid
 
 	// Use provided date or current time
+	// If date is provided but has time 00:00:00, use current time instead
 	if paymentDate != nil {
-		payment.PaymentDate = paymentDate
+		// Check if the time component is midnight (00:00:00)
+		// This likely means the frontend sent only a date without time
+		if paymentDate.Hour() == 0 && paymentDate.Minute() == 0 && paymentDate.Second() == 0 {
+			// Use the date from paymentDate but with the current time
+			now := time.Now()
+			combinedDate := time.Date(
+				paymentDate.Year(), paymentDate.Month(), paymentDate.Day(),
+				now.Hour(), now.Minute(), now.Second(), now.Nanosecond(),
+				paymentDate.Location(),
+			)
+			payment.PaymentDate = &combinedDate
+		} else {
+			// Use the provided date and time as-is
+			payment.PaymentDate = paymentDate
+		}
 	} else {
 		now := time.Now()
 		payment.PaymentDate = &now

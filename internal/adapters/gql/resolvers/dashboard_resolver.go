@@ -80,7 +80,7 @@ func (r *dashboardResolver) GetRecentActivity(ctx context.Context, limit *int) (
 	gqlActivities := make([]*model.RecentActivity, 0, len(activities))
 	for _, activity := range activities {
 		gqlActivity := &model.RecentActivity{
-			ID:          uintToString(activity.ID),
+			ID:          activity.ID, // ID is already a string in the format "type-id"
 			Type:        mapActivityType(activity.Type),
 			Description: activity.Description,
 			Timestamp:   activity.Timestamp,

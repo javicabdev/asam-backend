@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -401,8 +402,11 @@ func (s *dashboardService) GetRecentActivity(ctx context.Context, limit int) ([]
 
 	// Add member registrations to activities
 	for _, member := range members {
+		// Generate unique ID for this activity type
+		activityID := fmt.Sprintf("member-%d", member.ID)
+
 		activity := &input.RecentActivity{
-			ID:              member.ID,
+			ID:              activityID,
 			Type:            input.ActivityMemberRegistered,
 			Description:     fmt.Sprintf("Nuevo miembro registrado: %s %s", member.Name, member.Surnames),
 			Timestamp:       member.RegistrationDate,
@@ -427,10 +431,28 @@ func (s *dashboardService) GetRecentActivity(ctx context.Context, limit int) ([]
 	} else {
 		// Add family creations to activities
 		for _, family := range families {
+			// Generate unique ID for this activity type
+			activityID := fmt.Sprintf("family-%d", family.ID)
+
+			// Generate a more descriptive name using spouse names
+			description := fmt.Sprintf("Nueva familia: %s", family.NumeroSocio)
+			if family.EsposoNombre != "" || family.EsposaNombre != "" {
+				names := make([]string, 0, 2)
+				if family.EsposoNombre != "" {
+					names = append(names, family.EsposoNombre)
+				}
+				if family.EsposaNombre != "" {
+					names = append(names, family.EsposaNombre)
+				}
+				if len(names) > 0 {
+					description = fmt.Sprintf("Nueva familia: %s", strings.Join(names, " y "))
+				}
+			}
+
 			activity := &input.RecentActivity{
-				ID:              family.ID,
+				ID:              activityID,
 				Type:            input.ActivityFamilyCreated,
-				Description:     fmt.Sprintf("Nueva familia creada: %s", family.NumeroSocio),
+				Description:     description,
 				Timestamp:       family.CreatedAt,
 				RelatedFamilyID: &family.ID,
 			}
@@ -452,8 +474,11 @@ func (s *dashboardService) GetRecentActivity(ctx context.Context, limit int) ([]
 	} else {
 		// Add transactions to activities
 		for _, transaction := range transactions {
+			// Generate unique ID for this activity type
+			activityID := fmt.Sprintf("transaction-%d", transaction.ID)
+
 			activity := &input.RecentActivity{
-				ID:          transaction.ID,
+				ID:          activityID,
 				Type:        input.ActivityTransactionRecorded,
 				Description: fmt.Sprintf("Transacción registrada: %s - €%.2f", transaction.Detail, transaction.Amount),
 				Timestamp:   transaction.Date,

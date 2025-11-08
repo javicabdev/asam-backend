@@ -5,6 +5,7 @@
 *.so
 *.dylib
 bin/
+/api
 
 # Archivos de test
 *.test

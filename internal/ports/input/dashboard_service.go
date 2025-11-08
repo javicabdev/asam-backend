@@ -74,7 +74,7 @@ const (
 
 // RecentActivity representa una actividad reciente en el sistema
 type RecentActivity struct {
-	ID              uint
+	ID              string // Composite ID format: "type-id" (e.g., "member-123", "family-456", "transaction-789")
 	Type            ActivityType
 	Description     string
 	Timestamp       time.Time
