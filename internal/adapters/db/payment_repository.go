@@ -239,33 +239,33 @@ func (r *paymentRepository) FindAll(ctx context.Context, filters *output.Payment
 	if filters != nil {
 		// Apply status filter
 		if filters.Status != nil {
-			query = query.Where("status = ?", *filters.Status)
+			query = query.Where("payments.status = ?", *filters.Status)
 		}
 
 		// Apply payment method filter (case-insensitive partial match)
 		if filters.PaymentMethod != nil && *filters.PaymentMethod != "" {
-			query = query.Where("LOWER(payment_method) LIKE LOWER(?)", "%"+*filters.PaymentMethod+"%")
+			query = query.Where("LOWER(payments.payment_method) LIKE LOWER(?)", "%"+*filters.PaymentMethod+"%")
 		}
 
 		// Apply date range filters
 		if filters.StartDate != nil {
-			query = query.Where("payment_date >= ?", *filters.StartDate)
+			query = query.Where("payments.payment_date >= ?", *filters.StartDate)
 		}
 		if filters.EndDate != nil {
-			query = query.Where("payment_date <= ?", *filters.EndDate)
+			query = query.Where("payments.payment_date <= ?", *filters.EndDate)
 		}
 
 		// Apply amount range filters
 		if filters.MinAmount != nil {
-			query = query.Where("amount >= ?", *filters.MinAmount)
+			query = query.Where("payments.amount >= ?", *filters.MinAmount)
 		}
 		if filters.MaxAmount != nil {
-			query = query.Where("amount <= ?", *filters.MaxAmount)
+			query = query.Where("payments.amount <= ?", *filters.MaxAmount)
 		}
 
 		// Apply member filter
 		if filters.MemberID != nil {
-			query = query.Where("member_id = ?", *filters.MemberID)
+			query = query.Where("payments.member_id = ?", *filters.MemberID)
 		}
 
 		// Apply ordering
@@ -302,25 +302,25 @@ func (r *paymentRepository) CountAll(ctx context.Context, filters *output.Paymen
 	if filters != nil {
 		// Apply the same filters as FindAll (excluding pagination)
 		if filters.Status != nil {
-			query = query.Where("status = ?", *filters.Status)
+			query = query.Where("payments.status = ?", *filters.Status)
 		}
 		if filters.PaymentMethod != nil && *filters.PaymentMethod != "" {
-			query = query.Where("LOWER(payment_method) LIKE LOWER(?)", "%"+*filters.PaymentMethod+"%")
+			query = query.Where("LOWER(payments.payment_method) LIKE LOWER(?)", "%"+*filters.PaymentMethod+"%")
 		}
 		if filters.StartDate != nil {
-			query = query.Where("payment_date >= ?", *filters.StartDate)
+			query = query.Where("payments.payment_date >= ?", *filters.StartDate)
 		}
 		if filters.EndDate != nil {
-			query = query.Where("payment_date <= ?", *filters.EndDate)
+			query = query.Where("payments.payment_date <= ?", *filters.EndDate)
 		}
 		if filters.MinAmount != nil {
-			query = query.Where("amount >= ?", *filters.MinAmount)
+			query = query.Where("payments.amount >= ?", *filters.MinAmount)
 		}
 		if filters.MaxAmount != nil {
-			query = query.Where("amount <= ?", *filters.MaxAmount)
+			query = query.Where("payments.amount <= ?", *filters.MaxAmount)
 		}
 		if filters.MemberID != nil {
-			query = query.Where("member_id = ?", *filters.MemberID)
+			query = query.Where("payments.member_id = ?", *filters.MemberID)
 		}
 	}
 
