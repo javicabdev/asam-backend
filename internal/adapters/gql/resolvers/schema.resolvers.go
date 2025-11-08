@@ -1274,22 +1274,8 @@ func (r *queryResolver) ListPayments(ctx context.Context, filter *model.PaymentF
 		return nil, err
 	}
 
-	// Calculate pagination info
-	totalPages := (total + filters.PageSize - 1) / filters.PageSize
-	hasNextPage := filters.Page < totalPages
-	hasPreviousPage := filters.Page > 1
-
-	// Build PageInfo
-	pageInfo := &model.PageInfo{
-		HasNextPage:     hasNextPage,
-		HasPreviousPage: hasPreviousPage,
-		TotalCount:      total,
-	}
-
-	return &model.PaymentConnection{
-		Nodes:    payments,
-		PageInfo: pageInfo,
-	}, nil
+	// Build and return connection using helper
+	return r.buildPaymentConnection(payments, total, filters.Page, filters.PageSize), nil
 }
 
 // GetMembershipFee is the resolver for the getMembershipFee field.
