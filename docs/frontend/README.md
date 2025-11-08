@@ -207,7 +207,7 @@ function MembersList() {
 1. **Registrar pago**: `registerPayment` mutation
 2. **Ver pagos**: `getMemberPayments` query
 3. **Ver balance**: `getBalance` query
-4. **Registrar cuotas masivas**: `registerFee` mutation
+4. **Generar cuotas anuales**: `generateAnnualFees` mutation
 
 ### Flujo de Verificación de Email
 1. Usuario se registra o hace login

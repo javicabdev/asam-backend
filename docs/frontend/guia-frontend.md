@@ -761,22 +761,35 @@ mutation RegisterPayment($input: PaymentInput!) {
 }
 ```
 
-### Registrar Cuotas
+### Generar Cuotas Anuales
 
 ```graphql
-mutation RegisterFee($year: Int!, $month: Int!, $baseAmount: Float!) {
-  registerFee(year: $year, month: $month, base_amount: $baseAmount) {
-    success
-    message
-    error
+mutation GenerateAnnualFees($input: GenerateAnnualFeesInput!) {
+  generateAnnualFees(input: $input) {
+    year
+    membership_fee_id
+    payments_generated
+    payments_existing
+    total_members
+    total_expected_amount
+    details {
+      member_id
+      member_number
+      member_name
+      amount
+      was_created
+      error
+    }
   }
 }
 
 # Variables
 {
-  "year": 2025,
-  "month": 6,
-  "baseAmount": 30.0
+  "input": {
+    "year": 2025,
+    "base_fee_amount": 100.0,
+    "family_fee_extra": 50.0
+  }
 }
 ```
 

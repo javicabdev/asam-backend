@@ -27,12 +27,8 @@ type PaymentService interface {
 	GetMemberPayments(ctx context.Context, memberID uint) ([]*models.Payment, error)
 	GetFamilyPayments(ctx context.Context, familyID uint) ([]*models.Payment, error)
 
-	// GenerateAnnualFee creates an annual membership fee for a specific year
-	GenerateAnnualFee(ctx context.Context, year int, baseAmount float64) error
 	// GenerateAnnualFees genera cuotas anuales para todos los socios activos
 	GenerateAnnualFees(ctx context.Context, req *GenerateAnnualFeesRequest) (*GenerateAnnualFeesResponse, error)
-	// GenerateMonthlyFees is DEPRECATED - use GenerateAnnualFee instead
-	GenerateMonthlyFees(ctx context.Context, year, month int, baseAmount float64) error
 	GetMembershipFee(ctx context.Context, year, month int) (*models.MembershipFee, error)
 	UpdateFeeAmount(ctx context.Context, feeID uint, newAmount float64) error
 

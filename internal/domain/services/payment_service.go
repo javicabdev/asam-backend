@@ -381,29 +381,6 @@ func (s *paymentService) GetFamilyPayments(ctx context.Context, familyID uint) (
 	return paymentPtrs, nil
 }
 
-// GenerateAnnualFee crea una cuota anual para un año específico
-func (s *paymentService) GenerateAnnualFee(ctx context.Context, year int, baseAmount float64) error {
-	// Validar datos de entrada
-	if baseAmount <= 0 {
-		return errors.Validation("El monto base debe ser positivo", "baseAmount", "debe ser positivo")
-	}
-
-	// Verificar si ya existe una cuota para el año
-	existingFee, err := s.membershipFeeRepo.FindByYear(ctx, year)
-	if err != nil {
-		return errors.DB(err, "error verificando cuota existente")
-	}
-
-	if existingFee != nil {
-		return errors.New(errors.ErrDuplicateEntry, "ya existe una cuota para este año")
-	}
-
-	// Crear cuota anual
-	fee := models.NewAnnualFee(year, baseAmount)
-
-	return s.membershipFeeRepo.Create(ctx, fee)
-}
-
 // GenerateAnnualFees genera cuotas anuales para todos los socios activos
 func (s *paymentService) GenerateAnnualFees(ctx context.Context, req *input.GenerateAnnualFeesRequest) (*input.GenerateAnnualFeesResponse, error) {
 	// Validar request
@@ -564,13 +541,6 @@ func (s *paymentService) generatePaymentForMember(ctx context.Context, member *m
 
 	detail.WasCreated = true
 	return detail
-}
-
-// Deprecated: GenerateMonthlyFees - mantener por compatibilidad.
-// Las cuotas ahora son anuales. Use GenerateAnnualFee en su lugar.
-func (s *paymentService) GenerateMonthlyFees(ctx context.Context, year, _ int, baseAmount float64) error {
-	// Simplemente delegar a GenerateAnnualFee ignorando el mes
-	return s.GenerateAnnualFee(ctx, year, baseAmount)
 }
 
 func (s *paymentService) GetMembershipFee(ctx context.Context, year, _ int) (*models.MembershipFee, error) {

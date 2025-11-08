@@ -603,13 +603,24 @@ mutation CancelPayment($id: ID!, $reason: String!) {
 }
 ```
 
-### Registrar Cuotas Masivas
+### Generar Cuotas Anuales
 ```graphql
-mutation RegisterFee($year: Int!, $month: Int!, $base_amount: Float!) {
-  registerFee(year: $year, month: $month, base_amount: $base_amount) {
-    success
-    message
-    error
+mutation GenerateAnnualFees($input: GenerateAnnualFeesInput!) {
+  generateAnnualFees(input: $input) {
+    year
+    membership_fee_id
+    payments_generated
+    payments_existing
+    total_members
+    total_expected_amount
+    details {
+      member_id
+      member_number
+      member_name
+      amount
+      was_created
+      error
+    }
   }
 }
 ```
