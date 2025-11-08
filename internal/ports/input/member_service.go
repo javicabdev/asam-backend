@@ -25,7 +25,8 @@ type MemberService interface {
 	DeactivateMember(ctx context.Context, id uint, fechaBaja *time.Time) error
 
 	// ListMembers obtiene una lista de miembros según los criterios especificados
-	ListMembers(ctx context.Context, filters MemberFilters) ([]*models.Member, error)
+	// Returns members, total count, and error
+	ListMembers(ctx context.Context, filters MemberFilters) ([]*models.Member, int, error)
 
 	// GetNextMemberNumber obtiene el siguiente número de socio disponible según el tipo
 	GetNextMemberNumber(ctx context.Context, isFamily bool) (string, error)

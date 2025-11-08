@@ -303,7 +303,7 @@ func (rw *responseWriter) WriteHeader(code int) {
 // updateBusinessMetrics retrieves and updates various business-related metrics.
 func updateBusinessMetrics(ctx context.Context, memberService input.MemberService, paymentService input.PaymentService, cashFlowService input.CashFlowService) error {
 	// Update member metrics
-	members, err := memberService.ListMembers(ctx, input.MemberFilters{})
+	members, _, err := memberService.ListMembers(ctx, input.MemberFilters{})
 	if err != nil {
 		return fmt.Errorf("error getting members metrics: %w", err)
 	}

@@ -117,9 +117,12 @@ func (r *memberRepository) Delete(ctx context.Context, id uint) error {
 }
 
 // List obtiene una lista de miembros según los filtros proporcionados
-func (r *memberRepository) List(ctx context.Context, filters output.MemberFilters) ([]models.Member, error) {
+func (r *memberRepository) List(ctx context.Context, filters output.MemberFilters) ([]models.Member, int, error) {
 	var members []models.Member
-	query := r.db.WithContext(ctx)
+	var totalCount int64
+
+	// Build base query with filters
+	query := r.db.WithContext(ctx).Model(&models.Member{})
 
 	// Aplicar filtros
 	if filters.Estado != nil {
@@ -138,6 +141,11 @@ func (r *memberRepository) List(ctx context.Context, filters output.MemberFilter
 		)
 	}
 
+	// Get total count BEFORE applying pagination
+	if err := query.Count(&totalCount).Error; err != nil {
+		return nil, 0, appErrors.DB(err, "error counting members")
+	}
+
 	// Aplicar ordenamiento
 	if filters.OrderBy != "" {
 		query = query.Order(filters.OrderBy)
@@ -151,10 +159,10 @@ func (r *memberRepository) List(ctx context.Context, filters output.MemberFilter
 
 	result := query.Find(&members)
 	if result.Error != nil {
-		return nil, appErrors.DB(result.Error, "error listing members")
+		return nil, 0, appErrors.DB(result.Error, "error listing members")
 	}
 
-	return members, nil
+	return members, int(totalCount), nil
 }
 
 // Transaction support methods

@@ -88,7 +88,7 @@ func (r *queryResolver) mapMemberFilterToDomain(filter *model.MemberFilter) inpu
 }
 
 // buildMemberConnection construye una respuesta de conexión para miembros
-func (r *queryResolver) buildMemberConnection(members []*models.Member, page int) *model.MemberConnection {
+func (r *queryResolver) buildMemberConnection(members []*models.Member, totalCount int, page int, pageSize int) *model.MemberConnection {
 	// Convert slice to pointer slice if needed
 	memberPtrs := make([]*models.Member, len(members))
 	for i, m := range members {
@@ -97,11 +97,16 @@ func (r *queryResolver) buildMemberConnection(members []*models.Member, page int
 		memberPtrs[i] = &copy
 	}
 
+	// Calculate pagination info
+	totalPages := (totalCount + pageSize - 1) / pageSize
+	hasNextPage := page < totalPages
+	hasPreviousPage := page > 1
+
 	// Build PageInfo
 	pageInfo := &model.PageInfo{
-		HasNextPage:     false, // without totalCount, we can't know
-		HasPreviousPage: page > 1,
-		TotalCount:      len(members), // placeholder
+		HasNextPage:     hasNextPage,
+		HasPreviousPage: hasPreviousPage,
+		TotalCount:      totalCount,
 	}
 
 	return &model.MemberConnection{

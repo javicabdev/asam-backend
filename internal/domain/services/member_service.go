@@ -307,7 +307,7 @@ func (s *memberService) DeactivateMember(ctx context.Context, id uint, fechaBaja
 }
 
 // ListMembers obtiene una lista de miembros según los criterios especificados
-func (s *memberService) ListMembers(ctx context.Context, filters input.MemberFilters) ([]*models.Member, error) {
+func (s *memberService) ListMembers(ctx context.Context, filters input.MemberFilters) ([]*models.Member, int, error) {
 	// Convertir filtros de input a output
 	repoFilters := output.MemberFilters{
 		Estado:        filters.State,
@@ -318,10 +318,10 @@ func (s *memberService) ListMembers(ctx context.Context, filters input.MemberFil
 		OrderBy:       filters.OrderBy,
 	}
 
-	members, err := s.repository.List(ctx, repoFilters)
+	members, totalCount, err := s.repository.List(ctx, repoFilters)
 	if err != nil {
 		s.appLogger.Error("Error listing members", zap.Error(err))
-		return nil, errors.DB(err, "error al listar miembros")
+		return nil, 0, errors.DB(err, "error al listar miembros")
 	}
 
 	// Convertir []models.Member a []*models.Member
@@ -330,7 +330,7 @@ func (s *memberService) ListMembers(ctx context.Context, filters input.MemberFil
 		result[i] = &members[i]
 	}
 
-	return result, nil
+	return result, totalCount, nil
 }
 
 // validateDuplicateMember verifica si ya existe un miembro con el mismo número o documento

@@ -14,7 +14,7 @@ type MemberRepository interface {
 	GetByIdentityCard(ctx context.Context, identityCard string) (*models.Member, error)
 	Update(ctx context.Context, member *models.Member) error
 	Delete(ctx context.Context, id uint) error
-	List(ctx context.Context, filters MemberFilters) ([]models.Member, error)
+	List(ctx context.Context, filters MemberFilters) ([]models.Member, int, error) // Returns members, total count, error
 	GetLastMemberNumberByPrefix(ctx context.Context, prefix string) (string, error)
 	SearchWithoutUser(ctx context.Context, criteria string) ([]models.Member, error)
 	GetAllActive(ctx context.Context) ([]*models.Member, error)

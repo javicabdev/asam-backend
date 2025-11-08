@@ -103,12 +103,12 @@ func (s *dashboardService) calculateMemberStats(ctx context.Context, stats *inpu
 		PageSize: 10000, // Large enough to get all members
 	}
 
-	allMembers, err := s.memberRepo.List(ctx, filters)
+	allMembers, totalCount, err := s.memberRepo.List(ctx, filters)
 	if err != nil {
 		return err
 	}
 
-	stats.TotalMembers = len(allMembers)
+	stats.TotalMembers = totalCount
 
 	// Count active, inactive, individual and family members
 	for _, member := range allMembers {
@@ -296,7 +296,7 @@ func (s *dashboardService) calculateMembershipTrend(ctx context.Context, months 
 		PageSize: 10000,
 	}
 
-	allMembers, err := s.memberRepo.List(ctx, filters)
+	allMembers, _, err := s.memberRepo.List(ctx, filters)
 	if err != nil {
 		s.appLogger.Error("Error getting members for trend", zap.Error(err))
 		return trend
@@ -394,7 +394,7 @@ func (s *dashboardService) GetRecentActivity(ctx context.Context, limit int) ([]
 		OrderBy:  "registration_date DESC",
 	}
 
-	members, err := s.memberRepo.List(ctx, memberFilters)
+	members, _, err := s.memberRepo.List(ctx, memberFilters)
 	if err != nil {
 		s.appLogger.Error("Error getting members for activity", zap.Error(err))
 		return nil, errors.InternalError("error getting members", err)

@@ -859,13 +859,13 @@ func (r *queryResolver) ListMembers(ctx context.Context, filter *model.MemberFil
 		domainFilter := r.mapMemberFilterToDomain(filter)
 
 		// Llamar al servicio
-		members, err := r.memberService.ListMembers(ctx, domainFilter)
+		members, totalCount, err := r.memberService.ListMembers(ctx, domainFilter)
 		if err != nil {
 			return nil, err
 		}
 
 		// Construir y retornar la respuesta usando el método helper
-		return r.buildMemberConnection(members, domainFilter.Page), nil
+		return r.buildMemberConnection(members, totalCount, domainFilter.Page, domainFilter.PageSize), nil
 	}
 
 	// USER: solo puede ver su propio registro
@@ -913,7 +913,7 @@ func (r *queryResolver) SearchMembers(ctx context.Context, criteria string) ([]*
 		}
 
 		// 2) Llamar a r.memberService.ListMembers
-		members, err := r.memberService.ListMembers(ctx, domainFilter)
+		members, _, err := r.memberService.ListMembers(ctx, domainFilter)
 		if err != nil {
 			return nil, err
 		}
