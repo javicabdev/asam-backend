@@ -124,12 +124,37 @@ func (s *reportService) GetDelinquentReport(ctx context.Context, inputParams inp
 	// 6. Ordenar según inputParams.SortBy
 	debtors = s.sortDebtors(debtors, inputParams.SortBy)
 
-	// 7. Calcular resumen estadístico
+	// 7. Calcular resumen estadístico (ANTES de paginar - basado en todos los deudores)
 	summary := s.calculateSummary(debtors)
+	totalCount := len(debtors)
 
-	// 8. Retornar respuesta
+	// 8. Aplicar paginación
+	page := inputParams.Page
+	pageSize := inputParams.PageSize
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+
+	startIdx := (page - 1) * pageSize
+	endIdx := startIdx + pageSize
+
+	// Asegurarse de no salir de los límites
+	if startIdx > len(debtors) {
+		debtors = []*input.Debtor{}
+	} else {
+		if endIdx > len(debtors) {
+			endIdx = len(debtors)
+		}
+		debtors = debtors[startIdx:endIdx]
+	}
+
+	// 9. Retornar respuesta
 	return &input.DelinquentReportResponse{
 		Debtors:     debtors,
+		TotalCount:  totalCount,
 		Summary:     summary,
 		GeneratedAt: time.Now(),
 	}, nil

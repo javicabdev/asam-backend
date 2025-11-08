@@ -150,6 +150,7 @@ type ComplexityRoot struct {
 	DelinquentReportResponse struct {
 		Debtors     func(childComplexity int) int
 		GeneratedAt func(childComplexity int) int
+		PageInfo    func(childComplexity int) int
 		Summary     func(childComplexity int) int
 	}
 
@@ -958,6 +959,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.DelinquentReportResponse.GeneratedAt(childComplexity), true
+	case "DelinquentReportResponse.pageInfo":
+		if e.complexity.DelinquentReportResponse.PageInfo == nil {
+			break
+		}
+
+		return e.complexity.DelinquentReportResponse.PageInfo(childComplexity), true
 	case "DelinquentReportResponse.summary":
 		if e.complexity.DelinquentReportResponse.Summary == nil {
 			break
@@ -3197,19 +3204,29 @@ input DelinquentReportInput {
     Default: "DAYS_DESC" (más antiguas primero)
     """
     sortBy: String
+
+    """
+    Paginación
+    """
+    pagination: PaginationInput
 }
 
 """
-Respuesta del informe de morosos
+Respuesta del informe de morosos con paginación
 """
 type DelinquentReportResponse {
     """
-    Lista de deudores (socios o familias)
+    Lista de deudores (socios o familias) paginados
     """
     debtors: [Debtor!]!
 
     """
-    Estadísticas generales del informe
+    Información de paginación
+    """
+    pageInfo: PageInfo!
+
+    """
+    Estadísticas generales del informe (basadas en TODOS los deudores, no solo la página actual)
     """
     summary: DelinquentSummary!
 
@@ -6205,6 +6222,43 @@ func (ec *executionContext) fieldContext_DelinquentReportResponse_debtors(_ cont
 				return ec.fieldContext_Debtor_lastPaymentAmount(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Debtor", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DelinquentReportResponse_pageInfo(ctx context.Context, field graphql.CollectedField, obj *model.DelinquentReportResponse) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DelinquentReportResponse_pageInfo,
+		func(ctx context.Context) (any, error) {
+			return obj.PageInfo, nil
+		},
+		nil,
+		ec.marshalNPageInfo2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPageInfo,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DelinquentReportResponse_pageInfo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DelinquentReportResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "hasNextPage":
+				return ec.fieldContext_PageInfo_hasNextPage(ctx, field)
+			case "hasPreviousPage":
+				return ec.fieldContext_PageInfo_hasPreviousPage(ctx, field)
+			case "totalCount":
+				return ec.fieldContext_PageInfo_totalCount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PageInfo", field.Name)
 		},
 	}
 	return fc, nil
@@ -12887,6 +12941,8 @@ func (ec *executionContext) fieldContext_Query_getDelinquentReport(ctx context.C
 			switch field.Name {
 			case "debtors":
 				return ec.fieldContext_DelinquentReportResponse_debtors(ctx, field)
+			case "pageInfo":
+				return ec.fieldContext_DelinquentReportResponse_pageInfo(ctx, field)
 			case "summary":
 				return ec.fieldContext_DelinquentReportResponse_summary(ctx, field)
 			case "generatedAt":
@@ -15807,7 +15863,7 @@ func (ec *executionContext) unmarshalInputDelinquentReportInput(ctx context.Cont
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"cutoffDate", "minAmount", "debtorType", "sortBy"}
+	fieldsInOrder := [...]string{"cutoffDate", "minAmount", "debtorType", "sortBy", "pagination"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -15842,6 +15898,13 @@ func (ec *executionContext) unmarshalInputDelinquentReportInput(ctx context.Cont
 				return it, err
 			}
 			it.SortBy = data
+		case "pagination":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("pagination"))
+			data, err := ec.unmarshalOPaginationInput2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPaginationInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Pagination = data
 		}
 	}
 
@@ -17416,6 +17479,11 @@ func (ec *executionContext) _DelinquentReportResponse(ctx context.Context, sel a
 			out.Values[i] = graphql.MarshalString("DelinquentReportResponse")
 		case "debtors":
 			out.Values[i] = ec._DelinquentReportResponse_debtors(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "pageInfo":
+			out.Values[i] = ec._DelinquentReportResponse_pageInfo(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

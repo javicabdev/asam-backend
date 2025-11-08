@@ -181,13 +181,17 @@ type DelinquentReportInput struct {
 	// Valores: "AMOUNT_DESC" | "AMOUNT_ASC" | "DAYS_DESC" | "DAYS_ASC" | "NAME_ASC"
 	// Default: "DAYS_DESC" (más antiguas primero)
 	SortBy *string `json:"sortBy,omitempty"`
+	// Paginación
+	Pagination *PaginationInput `json:"pagination,omitempty"`
 }
 
-// Respuesta del informe de morosos
+// Respuesta del informe de morosos con paginación
 type DelinquentReportResponse struct {
-	// Lista de deudores (socios o familias)
+	// Lista de deudores (socios o familias) paginados
 	Debtors []*Debtor `json:"debtors"`
-	// Estadísticas generales del informe
+	// Información de paginación
+	PageInfo *PageInfo `json:"pageInfo"`
+	// Estadísticas generales del informe (basadas en TODOS los deudores, no solo la página actual)
 	Summary *DelinquentSummary `json:"summary"`
 	// Fecha en que se generó el informe
 	GeneratedAt time.Time `json:"generatedAt"`

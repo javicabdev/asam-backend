@@ -28,13 +28,22 @@ func (r *reportResolver) GetDelinquentReport(ctx context.Context, inputParams *m
 	}
 
 	// Convertir input GraphQL a input del servicio
-	serviceInput := input.DelinquentReportInput{}
+	serviceInput := input.DelinquentReportInput{
+		Page:     1,
+		PageSize: 10,
+	}
 
 	if inputParams != nil {
 		serviceInput.CutoffDate = inputParams.CutoffDate
 		serviceInput.MinAmount = inputParams.MinAmount
 		serviceInput.DebtorType = inputParams.DebtorType
 		serviceInput.SortBy = inputParams.SortBy
+
+		// Extraer paginación
+		if inputParams.Pagination != nil {
+			serviceInput.Page = inputParams.Pagination.Page
+			serviceInput.PageSize = inputParams.Pagination.PageSize
+		}
 	}
 
 	// Llamar al servicio
@@ -43,19 +52,31 @@ func (r *reportResolver) GetDelinquentReport(ctx context.Context, inputParams *m
 		return nil, err
 	}
 
-	// Convertir respuesta del servicio a GraphQL
-	return mapDelinquentReportToGraphQL(report), nil
+	// Convertir respuesta del servicio a GraphQL con pageInfo
+	return mapDelinquentReportToGraphQL(report, serviceInput.Page, serviceInput.PageSize), nil
 }
 
 // mapDelinquentReportToGraphQL convierte la respuesta del servicio a modelo GraphQL
-func mapDelinquentReportToGraphQL(report *input.DelinquentReportResponse) *model.DelinquentReportResponse {
+func mapDelinquentReportToGraphQL(report *input.DelinquentReportResponse, page int, pageSize int) *model.DelinquentReportResponse {
 	debtors := make([]*model.Debtor, len(report.Debtors))
 	for i, debtor := range report.Debtors {
 		debtors[i] = mapDebtorToGraphQL(debtor)
 	}
 
+	// Calcular paginación
+	totalPages := (report.TotalCount + pageSize - 1) / pageSize
+	hasNextPage := page < totalPages
+	hasPreviousPage := page > 1
+
+	pageInfo := &model.PageInfo{
+		HasNextPage:     hasNextPage,
+		HasPreviousPage: hasPreviousPage,
+		TotalCount:      report.TotalCount,
+	}
+
 	return &model.DelinquentReportResponse{
 		Debtors:     debtors,
+		PageInfo:    pageInfo,
 		Summary:     mapSummaryToGraphQL(&report.Summary),
 		GeneratedAt: report.GeneratedAt,
 	}

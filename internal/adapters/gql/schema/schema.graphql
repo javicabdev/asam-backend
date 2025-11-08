@@ -669,19 +669,29 @@ input DelinquentReportInput {
     Default: "DAYS_DESC" (más antiguas primero)
     """
     sortBy: String
+
+    """
+    Paginación
+    """
+    pagination: PaginationInput
 }
 
 """
-Respuesta del informe de morosos
+Respuesta del informe de morosos con paginación
 """
 type DelinquentReportResponse {
     """
-    Lista de deudores (socios o familias)
+    Lista de deudores (socios o familias) paginados
     """
     debtors: [Debtor!]!
 
     """
-    Estadísticas generales del informe
+    Información de paginación
+    """
+    pageInfo: PageInfo!
+
+    """
+    Estadísticas generales del informe (basadas en TODOS los deudores, no solo la página actual)
     """
     summary: DelinquentSummary!
 

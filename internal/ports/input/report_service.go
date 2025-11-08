@@ -16,11 +16,14 @@ type DelinquentReportInput struct {
 	MinAmount   *float64
 	DebtorType  *string
 	SortBy      *string
+	Page        int
+	PageSize    int
 }
 
 // DelinquentReportResponse contiene la respuesta del reporte de morosos
 type DelinquentReportResponse struct {
 	Debtors     []*Debtor
+	TotalCount  int
 	Summary     DelinquentSummary
 	GeneratedAt time.Time
 }
