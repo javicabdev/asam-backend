@@ -387,111 +387,10 @@ func (s *dashboardService) GetRecentActivity(ctx context.Context, limit int) ([]
 
 	activities := make([]*input.RecentActivity, 0)
 
-	// Get recent members
-	memberFilters := output.MemberFilters{
-		Page:     1,
-		PageSize: 100, // Get last 100 members
-		OrderBy:  "registration_date DESC",
-	}
-
-	members, _, err := s.memberRepo.List(ctx, memberFilters)
-	if err != nil {
-		s.appLogger.Error("Error getting members for activity", zap.Error(err))
-		return nil, errors.InternalError("error getting members", err)
-	}
-
-	// Add member registrations to activities
-	for _, member := range members {
-		// Generate unique ID for this activity type
-		activityID := fmt.Sprintf("member-%d", member.ID)
-
-		activity := &input.RecentActivity{
-			ID:              activityID,
-			Type:            input.ActivityMemberRegistered,
-			Description:     fmt.Sprintf("Nuevo miembro registrado: %s %s", member.Name, member.Surnames),
-			Timestamp:       member.RegistrationDate,
-			RelatedMemberID: &member.ID,
-		}
-
-		// Check if member was deactivated
-		if member.State == models.EstadoInactivo && member.LeavingDate != nil {
-			activity.Type = input.ActivityMemberDeactivated
-			activity.Description = fmt.Sprintf("Miembro dado de baja: %s %s", member.Name, member.Surnames)
-			activity.Timestamp = *member.LeavingDate
-		}
-
-		activities = append(activities, activity)
-	}
-
-	// Get recent families
-	families, _, err := s.familyRepo.List(ctx, 1, 50, nil, "created_at DESC")
-	if err != nil {
-		s.appLogger.Error("Error getting families for activity", zap.Error(err))
-		// Don't return error, continue with other activities
-	} else {
-		// Add family creations to activities
-		for _, family := range families {
-			// Generate unique ID for this activity type
-			activityID := fmt.Sprintf("family-%d", family.ID)
-
-			// Generate a more descriptive name using spouse names
-			description := fmt.Sprintf("Nueva familia: %s", family.NumeroSocio)
-			if family.EsposoNombre != "" || family.EsposaNombre != "" {
-				names := make([]string, 0, 2)
-				if family.EsposoNombre != "" {
-					names = append(names, family.EsposoNombre)
-				}
-				if family.EsposaNombre != "" {
-					names = append(names, family.EsposaNombre)
-				}
-				if len(names) > 0 {
-					description = fmt.Sprintf("Nueva familia: %s", strings.Join(names, " y "))
-				}
-			}
-
-			activity := &input.RecentActivity{
-				ID:              activityID,
-				Type:            input.ActivityFamilyCreated,
-				Description:     description,
-				Timestamp:       family.CreatedAt,
-				RelatedFamilyID: &family.ID,
-			}
-			activities = append(activities, activity)
-		}
-	}
-
-	// Get recent transactions
-	transactionFilter := output.CashFlowFilter{
-		Page:     1,
-		PageSize: 50,
-		OrderBy:  "date DESC",
-	}
-
-	transactions, err := s.cashflowRepo.List(ctx, transactionFilter)
-	if err != nil {
-		s.appLogger.Error("Error getting transactions for activity", zap.Error(err))
-		// Don't return error, continue with other activities
-	} else {
-		// Add transactions to activities
-		for _, transaction := range transactions {
-			// Generate unique ID for this activity type
-			activityID := fmt.Sprintf("transaction-%d", transaction.ID)
-
-			activity := &input.RecentActivity{
-				ID:          activityID,
-				Type:        input.ActivityTransactionRecorded,
-				Description: fmt.Sprintf("Transacción registrada: %s - €%.2f", transaction.Detail, transaction.Amount),
-				Timestamp:   transaction.Date,
-				Amount:      &transaction.Amount,
-			}
-
-			if transaction.MemberID != nil {
-				activity.RelatedMemberID = transaction.MemberID
-			}
-
-			activities = append(activities, activity)
-		}
-	}
+	// Get activities from different sources
+	s.addMemberActivities(ctx, &activities)
+	s.addFamilyActivities(ctx, &activities)
+	s.addTransactionActivities(ctx, &activities)
 
 	// Sort activities by timestamp (most recent first)
 	s.sortActivitiesByTimestamp(activities)
@@ -503,6 +402,116 @@ func (s *dashboardService) GetRecentActivity(ctx context.Context, limit int) ([]
 
 	s.appLogger.Info("Recent activity retrieved successfully", zap.Int("count", len(activities)))
 	return activities, nil
+}
+
+// addMemberActivities adds member registration and deactivation activities
+func (s *dashboardService) addMemberActivities(ctx context.Context, activities *[]*input.RecentActivity) {
+	memberFilters := output.MemberFilters{
+		Page:     1,
+		PageSize: 100,
+		OrderBy:  "registration_date DESC",
+	}
+
+	members, _, err := s.memberRepo.List(ctx, memberFilters)
+	if err != nil {
+		s.appLogger.Error("Error getting members for activity", zap.Error(err))
+		return
+	}
+
+	for _, member := range members {
+		activityID := fmt.Sprintf("member-%d", member.ID)
+		activity := &input.RecentActivity{
+			ID:              activityID,
+			Type:            input.ActivityMemberRegistered,
+			Description:     fmt.Sprintf("Nuevo miembro registrado: %s %s", member.Name, member.Surnames),
+			Timestamp:       member.RegistrationDate,
+			RelatedMemberID: &member.ID,
+		}
+
+		if member.State == models.EstadoInactivo && member.LeavingDate != nil {
+			activity.Type = input.ActivityMemberDeactivated
+			activity.Description = fmt.Sprintf("Miembro dado de baja: %s %s", member.Name, member.Surnames)
+			activity.Timestamp = *member.LeavingDate
+		}
+
+		*activities = append(*activities, activity)
+	}
+}
+
+// addFamilyActivities adds family creation activities
+func (s *dashboardService) addFamilyActivities(ctx context.Context, activities *[]*input.RecentActivity) {
+	families, _, err := s.familyRepo.List(ctx, 1, 50, nil, "created_at DESC")
+	if err != nil {
+		s.appLogger.Error("Error getting families for activity", zap.Error(err))
+		return
+	}
+
+	for _, family := range families {
+		activityID := fmt.Sprintf("family-%d", family.ID)
+		description := s.buildFamilyDescription(family)
+
+		activity := &input.RecentActivity{
+			ID:              activityID,
+			Type:            input.ActivityFamilyCreated,
+			Description:     description,
+			Timestamp:       family.CreatedAt,
+			RelatedFamilyID: &family.ID,
+		}
+		*activities = append(*activities, activity)
+	}
+}
+
+// buildFamilyDescription generates a descriptive name for a family using spouse names
+func (s *dashboardService) buildFamilyDescription(family *models.Family) string {
+	if family.EsposoNombre == "" && family.EsposaNombre == "" {
+		return fmt.Sprintf("Nueva familia: %s", family.NumeroSocio)
+	}
+
+	names := make([]string, 0, 2)
+	if family.EsposoNombre != "" {
+		names = append(names, family.EsposoNombre)
+	}
+	if family.EsposaNombre != "" {
+		names = append(names, family.EsposaNombre)
+	}
+
+	if len(names) > 0 {
+		return fmt.Sprintf("Nueva familia: %s", strings.Join(names, " y "))
+	}
+
+	return fmt.Sprintf("Nueva familia: %s", family.NumeroSocio)
+}
+
+// addTransactionActivities adds cash flow transaction activities
+func (s *dashboardService) addTransactionActivities(ctx context.Context, activities *[]*input.RecentActivity) {
+	transactionFilter := output.CashFlowFilter{
+		Page:     1,
+		PageSize: 50,
+		OrderBy:  "date DESC",
+	}
+
+	transactions, err := s.cashflowRepo.List(ctx, transactionFilter)
+	if err != nil {
+		s.appLogger.Error("Error getting transactions for activity", zap.Error(err))
+		return
+	}
+
+	for _, transaction := range transactions {
+		activityID := fmt.Sprintf("transaction-%d", transaction.ID)
+		activity := &input.RecentActivity{
+			ID:          activityID,
+			Type:        input.ActivityTransactionRecorded,
+			Description: fmt.Sprintf("Transacción registrada: %s - €%.2f", transaction.Detail, transaction.Amount),
+			Timestamp:   transaction.Date,
+			Amount:      &transaction.Amount,
+		}
+
+		if transaction.MemberID != nil {
+			activity.RelatedMemberID = transaction.MemberID
+		}
+
+		*activities = append(*activities, activity)
+	}
 }
 
 // sortActivitiesByTimestamp sorts activities by timestamp in descending order
