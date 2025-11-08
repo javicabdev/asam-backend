@@ -213,10 +213,10 @@ func (r *queryResolver) mapPaymentFilterToDomain(filter *model.PaymentFilter) (i
 			orderBy = fmt.Sprintf("%s %s", dbField, filter.Sort.Direction)
 		}
 
-		// Status filter
+		// Status filter - Convert GraphQL enum (uppercase) to domain model (lowercase)
 		if filter.Status != nil {
-			status := *filter.Status
-			filters.Status = &status
+			statusLower := models.PaymentStatus(strings.ToLower(string(*filter.Status)))
+			filters.Status = &statusLower
 		}
 
 		// Payment method filter
