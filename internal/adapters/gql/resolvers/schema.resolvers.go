@@ -14,7 +14,7 @@ import (
 	"github.com/javicabdev/asam-backend/internal/adapters/gql/model"
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/domain/services/validation"
-	"github.com/javicabdev/asam-backend/internal/ports/input"
+	inputPorts "github.com/javicabdev/asam-backend/internal/ports/input"
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 )
 
@@ -511,17 +511,17 @@ func (r *mutationResolver) RegisterFee(ctx context.Context, year int, baseAmount
 }
 
 // GenerateAnnualFees is the resolver for the generateAnnualFees field.
-func (r *mutationResolver) GenerateAnnualFees(ctx context.Context, graphqlInput model.GenerateAnnualFeesInput) (*model.GenerateAnnualFeesResponse, error) {
+func (r *mutationResolver) GenerateAnnualFees(ctx context.Context, input model.GenerateAnnualFeesInput) (*model.GenerateAnnualFeesResponse, error) {
 	// Solo ADMIN puede generar cuotas anuales
 	if err := middleware.MustBeAdmin(ctx); err != nil {
 		return nil, err
 	}
 
 	// Convertir input GraphQL a request del servicio
-	req := &input.GenerateAnnualFeesRequest{
-		Year:           graphqlInput.Year,
-		BaseFeeAmount:  graphqlInput.BaseFeeAmount,
-		FamilyFeeExtra: graphqlInput.FamilyFeeExtra,
+	req := &inputPorts.GenerateAnnualFeesRequest{
+		Year:           input.Year,
+		BaseFeeAmount:  input.BaseFeeAmount,
+		FamilyFeeExtra: input.FamilyFeeExtra,
 	}
 
 	// Llamar al servicio
@@ -941,7 +941,7 @@ func (r *queryResolver) SearchMembers(ctx context.Context, criteria string) ([]*
 	// Si memberID es nil, es admin - hacer búsqueda completa
 	if memberID == nil {
 		// 1) Construir un MemberFilters con pageSize muy grande
-		domainFilter := input.MemberFilters{
+		domainFilter := inputPorts.MemberFilters{
 			SearchTerm: &criteria,
 			Page:       1,
 			PageSize:   999999, // suposición: "sin tope"
@@ -1467,7 +1467,7 @@ func (r *queryResolver) GetTransactions(ctx context.Context, filter *model.Trans
 		filterMemberID = memberID
 	}
 
-	cfFilter := input.CashFlowFilter{
+	cfFilter := inputPorts.CashFlowFilter{
 		StartDate:     startDate,
 		EndDate:       endDate,
 		OperationType: operationType,
