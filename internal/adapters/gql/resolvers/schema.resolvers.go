@@ -809,12 +809,31 @@ func (r *queryResolver) GetUser(ctx context.Context, id string) (*models.User, e
 }
 
 // ListUsers is the resolver for the listUsers field.
-func (r *queryResolver) ListUsers(ctx context.Context, page *int, pageSize *int) ([]*models.User, error) {
+func (r *queryResolver) ListUsers(ctx context.Context, page *int, pageSize *int) (*model.UserConnection, error) {
 	// Solo ADMIN puede listar usuarios
 	if err := middleware.MustBeAdmin(ctx); err != nil {
 		return nil, err
 	}
-	return r.Resolver.ListUsers(ctx, page, pageSize)
+
+	// Default pagination
+	pageNum := 1
+	size := 10
+
+	if page != nil && *page > 0 {
+		pageNum = *page
+	}
+	if pageSize != nil && *pageSize > 0 && *pageSize <= 100 {
+		size = *pageSize
+	}
+
+	// Get users from service
+	users, totalCount, err := r.Resolver.ListUsers(ctx, &pageNum, &size)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build and return connection
+	return r.buildUserConnection(users, totalCount, pageNum, size), nil
 }
 
 // GetCurrentUser is the resolver for the getCurrentUser field.

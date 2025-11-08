@@ -448,6 +448,11 @@ type UpdateUserInput struct {
 	MemberID *string   `json:"memberId,omitempty"`
 }
 
+type UserConnection struct {
+	Nodes    []*models.User `json:"nodes"`
+	PageInfo *PageInfo      `json:"pageInfo"`
+}
+
 type ActivityType string
 
 const (

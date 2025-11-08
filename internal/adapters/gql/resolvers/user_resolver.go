@@ -28,10 +28,10 @@ func (r *userResolver) GetUser(ctx context.Context, id string) (*models.User, er
 }
 
 // ListUsers retrieves a paginated list of users (Admin only)
-func (r *userResolver) ListUsers(ctx context.Context, page *int, pageSize *int) ([]*models.User, error) {
+func (r *userResolver) ListUsers(ctx context.Context, page *int, pageSize *int) ([]*models.User, int64, error) {
 	// Check admin permission
 	if err := middleware.MustBeAdmin(ctx); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	// Default pagination

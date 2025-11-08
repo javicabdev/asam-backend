@@ -289,6 +289,11 @@ type PaymentConnection {
     pageInfo: PageInfo!
 }
 
+type UserConnection {
+    nodes: [User!]!
+    pageInfo: PageInfo!
+}
+
 # Query principal
 type Query {
     # Health check - no authentication required
@@ -297,7 +302,7 @@ type Query {
     
     # User Queries (Admin only)
     getUser(id: ID!): User
-    listUsers(page: Int = 1, pageSize: Int = 10): [User!]!
+    listUsers(page: Int = 1, pageSize: Int = 10): UserConnection!
     getCurrentUser: User!
     
     # Member Queries

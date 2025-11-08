@@ -24,7 +24,7 @@ type UserService interface {
 	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
 
 	// ListUsers retrieves a paginated list of users
-	ListUsers(ctx context.Context, page, pageSize int) ([]*models.User, error)
+	ListUsers(ctx context.Context, page, pageSize int) ([]*models.User, int64, error)
 
 	// ChangePassword changes a user's password
 	ChangePassword(ctx context.Context, userID uint, currentPassword, newPassword string) error

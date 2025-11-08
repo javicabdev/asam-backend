@@ -137,7 +137,7 @@ func (r *Resolver) GetUser(ctx context.Context, id string) (*models.User, error)
 }
 
 // ListUsers retrieves a list of users
-func (r *Resolver) ListUsers(ctx context.Context, page *int, pageSize *int) ([]*models.User, error) {
+func (r *Resolver) ListUsers(ctx context.Context, page *int, pageSize *int) ([]*models.User, int64, error) {
 	return (&userResolver{r}).ListUsers(ctx, page, pageSize)
 }
 

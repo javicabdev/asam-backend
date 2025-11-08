@@ -318,7 +318,7 @@ func (s *userService) GetUserByEmail(ctx context.Context, email string) (*models
 }
 
 // ListUsers retrieves a paginated list of users
-func (s *userService) ListUsers(ctx context.Context, page, pageSize int) ([]*models.User, error) {
+func (s *userService) ListUsers(ctx context.Context, page, pageSize int) ([]*models.User, int64, error) {
 	// Validate pagination parameters
 	if page < 1 {
 		page = 1
@@ -328,9 +328,9 @@ func (s *userService) ListUsers(ctx context.Context, page, pageSize int) ([]*mod
 	}
 
 	// Get users from repository
-	users, _, err := s.userRepo.ListUsers(ctx, page, pageSize)
+	users, totalCount, err := s.userRepo.ListUsers(ctx, page, pageSize)
 	if err != nil {
-		return nil, errors.DB(err, "error listing users")
+		return nil, 0, errors.DB(err, "error listing users")
 	}
 
 	// Clear passwords before returning
@@ -338,7 +338,7 @@ func (s *userService) ListUsers(ctx context.Context, page, pageSize int) ([]*mod
 		user.Password = ""
 	}
 
-	return users, nil
+	return users, totalCount, nil
 }
 
 // ChangePassword changes a user's password
