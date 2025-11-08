@@ -2,58 +2,113 @@
 
 ## Overview
 
-The ASAM backend now supports using email addresses as usernames. This provides more flexibility for user authentication and allows users to log in with their email addresses.
+The ASAM backend supports using email addresses as usernames. This provides flexibility for user authentication and allows users to log in with their email addresses instead of traditional usernames.
 
 ## Features
 
 ### 1. Username Validation
 - Supports both traditional usernames and email addresses
 - Traditional usernames: 3-100 characters, alphanumeric with `_`, `-`, `.`
-- Email usernames: Must be valid email format, max 100 characters total
+- Email usernames: Must be valid email format (basic validation), max 100 characters total
+- Validation automatically detects format based on presence of `@` symbol
 
-### 2. Email Validation Rules
-- Must contain exactly one `@` symbol
-- Local part (before @): 1-64 characters
-- Domain part (after @): 3-255 characters
-- No consecutive dots (..)
-- Cannot start or end with dots
-- Must have a valid TLD (e.g., .com, .org, .co.uk)
+### 2. Email Validation
+- Must contain `@` symbol
+- Basic email format validation using regex pattern
+- Pattern: `^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`
+- Automatically normalized to lowercase for storage and comparison
 
 ### 3. Utility Functions
 
 Located in `pkg/utils/email.go`:
 
-- `IsEmail(str string) bool` - Checks if a string is a valid email
-- `NormalizeEmail(email string) string` - Converts to lowercase and trims
-- `ExtractUsernameFromEmail(email string) string` - Gets the local part
-- `ObfuscateEmail(email string) string` - Partially hides email for privacy
+- `IsEmail(str string) bool` - Checks if a string is a valid email using regex
+- `NormalizeEmail(email string) string` - Converts to lowercase and trims whitespace
+- `ExtractUsernameFromEmail(email string) string` - Extracts the local part (before @)
+- `ObfuscateEmail(email string) string` - Partially hides email for privacy (e.g., `j***e@example.com`)
 
-## Database Changes
+**Note:** These utility functions are available for general use, but the user service uses its own internal validation methods.
 
-### Migration Required
-Run migration `003_increase_username_size.sql` to update the username field size:
+## Database Schema
+
+### Current Schema
+The `users` table already supports email addresses as usernames:
 
 ```sql
--- For MySQL/MariaDB
-ALTER TABLE users MODIFY COLUMN username VARCHAR(100) NOT NULL;
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(255) NOT NULL UNIQUE,  -- Supports both usernames and emails
+    email VARCHAR(255) NOT NULL UNIQUE,     -- Separate email field
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'user',
+    ...
+);
+```
 
--- For PostgreSQL
-ALTER TABLE users ALTER COLUMN username TYPE VARCHAR(100);
+**No migration required** - The initial schema already allocates sufficient space (255 characters) for email addresses.
+
+## Implementation Details
+
+### Validation Flow
+
+The validation is implemented in `internal/domain/services/user_service.go`:
+
+```go
+// validateUsername (line 750) - Main validation entry point
+func (s *userService) validateUsername(username string) error {
+    // 1. Trim whitespace and check length (3-100 characters)
+    // 2. Detect if username contains '@'
+    // 3. If contains '@': validate as email
+    // 4. Otherwise: validate as regular username
+}
+
+// validateEmail (line 802) - Email format validation
+func (s *userService) validateEmail(email string) error {
+    // Uses regex pattern for basic email validation
+    // Normalizes to lowercase before storage
+}
+
+// validateRegularUsername (line 784) - Username validation
+func (s *userService) validateRegularUsername(username string) error {
+    // Allows: a-z, A-Z, 0-9, underscore, hyphen, dot
+}
 ```
 
 ## Usage Examples
 
-### Creating a User with Email
+### Creating Users via GraphQL
 
-```go
-// Traditional username
-user, err := userService.CreateUser(ctx, "john_doe", "SecurePass123!", models.RoleUser)
+```graphql
+# Traditional username
+mutation {
+  createUser(input: {
+    username: "john_doe"
+    email: "john@example.com"
+    password: "SecurePass123!"
+    role: USER
+  }) {
+    id
+    username
+    email
+  }
+}
 
-// Email as username
-user, err := userService.CreateUser(ctx, "john.doe@example.com", "SecurePass123!", models.RoleUser)
+# Email as username
+mutation {
+  createUser(input: {
+    username: "john.doe@example.com"
+    email: "john.doe@example.com"
+    password: "SecurePass123!"
+    role: USER
+  }) {
+    id
+    username
+    email
+  }
+}
 ```
 
-### Login with Email
+### Login with Email or Username
 
 ```graphql
 mutation {
@@ -63,56 +118,67 @@ mutation {
     user {
       id
       username
+      email
       role
     }
   }
 }
 ```
 
-## Testing
-
-Run the email functionality tests:
-
-```bash
-# Windows PowerShell
-.\scripts\test-email-functionality.ps1
-
-# Linux/Mac
-go test -v ./test/pkg/utils/... ./test/internal/domain/services/... -run '(TestUserService.*Email|TestEmail)'
-```
-
 ## Security Considerations
 
-1. **Email Privacy**: Use `ObfuscateEmail()` when displaying emails in logs or UI
-2. **Case Sensitivity**: Emails are normalized to lowercase for consistency
-3. **Validation**: Strict validation prevents email injection attacks
-4. **Database**: Unique index on username prevents duplicate emails
+1. **Case Insensitivity**: Email addresses are automatically normalized to lowercase before storage to ensure case-insensitive matching
+2. **Unique Constraint**: Database enforces unique constraint on username field, preventing duplicate emails
+3. **Validation**: Basic regex validation prevents malformed email addresses
+4. **Separate Email Field**: Users table maintains both `username` and `email` fields - when using email as username, typically both fields contain the same value
 
 ## Best Practices
 
-1. **Normalization**: Always normalize emails before storing:
-   ```go
-   normalizedEmail := utils.NormalizeEmail(userInput)
+### For API Consumers
+
+1. **Normalization**: The backend automatically normalizes emails to lowercase
+   ```graphql
+   # Input: John.Doe@Example.COM
+   # Stored as: john.doe@example.com
    ```
 
-2. **Display**: When showing emails in UI:
-   ```go
-   displayEmail := utils.ObfuscateEmail(user.Username)
-   // Shows: j***e@example.com
-   ```
+2. **Validation**: Both formats are accepted in username field:
+   - Traditional: `john_doe`
+   - Email: `john.doe@example.com`
 
-3. **Type Detection**: Check if username is email:
+3. **Login**: Users can login with either their username or email (if used as username)
+
+### For Developers
+
+1. **Using Utility Functions**: Available in `pkg/utils/email.go` for general email handling:
    ```go
-   if utils.IsEmail(username) {
-       // Handle as email
-   } else {
-       // Handle as regular username
+   import "github.com/javicabdev/asam-backend/pkg/utils"
+
+   // Check if string is email
+   if utils.IsEmail(input) {
+       normalized := utils.NormalizeEmail(input)
    }
+
+   // Obfuscate for display
+   safe := utils.ObfuscateEmail("john@example.com")
+   // Returns: "j***n@example.com"
    ```
+
+2. **Service Validation**: User service has built-in validation - no need to pre-validate:
+   ```go
+   // Service handles validation internally
+   user, err := userService.CreateUser(ctx, username, password, role)
+   ```
+
+## Limitations
+
+1. **Basic Validation**: Uses simple regex pattern, doesn't validate if email domain actually exists
+2. **No MX Record Check**: Doesn't verify if email domain has valid MX records
+3. **No Verification**: Email addresses are not verified (no confirmation email sent)
 
 ## Future Enhancements
 
-1. **Email Verification**: Add email verification workflow
-2. **Multiple Emails**: Allow users to have multiple email addresses
-3. **OAuth Integration**: Use email for social login matching
-4. **Password Recovery**: Implement password reset via email
+1. **Email Verification**: Implement email verification workflow with confirmation tokens
+2. **Enhanced Validation**: Add MX record validation and disposable email detection
+3. **Password Recovery**: Implement password reset via email functionality
+4. **OAuth Integration**: Use email for social login matching
