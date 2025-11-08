@@ -53,7 +53,7 @@ func TestRunningBalance_Case1_NoFiltersNoPagination(t *testing.T) {
 		PageSize: 100,
 		OrderBy:  "date ASC",
 	}
-	movements, err := service.GetMovementsByPeriod(ctx, filter)
+	movements, _, err := service.GetMovementsByPeriod(ctx, filter)
 
 	// Assert
 	require.NoError(t, err)
@@ -112,7 +112,7 @@ func TestRunningBalance_Case2_WithDateFilter(t *testing.T) {
 		PageSize:  100,
 		OrderBy:   "date ASC",
 	}
-	movements, err := service.GetMovementsByPeriod(ctx, filter)
+	movements, _, err := service.GetMovementsByPeriod(ctx, filter)
 
 	// Assert
 	require.NoError(t, err)
@@ -172,7 +172,7 @@ func TestRunningBalance_Case3_WithPagination(t *testing.T) {
 		PageSize: 2,
 		OrderBy:  "date ASC",
 	}
-	movements, err := service.GetMovementsByPeriod(ctx, filter)
+	movements, _, err := service.GetMovementsByPeriod(ctx, filter)
 
 	// Assert
 	require.NoError(t, err)
@@ -230,7 +230,7 @@ func TestRunningBalance_Case4_FilterByOperationType(t *testing.T) {
 		PageSize:      100,
 		OrderBy:       "date ASC",
 	}
-	movements, err := service.GetMovementsByPeriod(ctx, filter)
+	movements, _, err := service.GetMovementsByPeriod(ctx, filter)
 
 	// Assert
 	require.NoError(t, err)
@@ -283,7 +283,7 @@ func TestRunningBalance_Case5_NegativeBalance(t *testing.T) {
 		PageSize: 100,
 		OrderBy:  "date ASC",
 	}
-	movements, err := service.GetMovementsByPeriod(ctx, filter)
+	movements, _, err := service.GetMovementsByPeriod(ctx, filter)
 
 	// Assert
 	require.NoError(t, err)
@@ -315,7 +315,7 @@ func TestRunningBalance_Case6_EmptyResult(t *testing.T) {
 		Page:      1,
 		PageSize:  100,
 	}
-	movements, err := service.GetMovementsByPeriod(ctx, filter)
+	movements, _, err := service.GetMovementsByPeriod(ctx, filter)
 
 	// Assert
 	require.NoError(t, err)
