@@ -42,11 +42,8 @@ func NewReportService(
 
 // GetDelinquentReport genera el reporte de morosos
 func (s *reportService) GetDelinquentReport(ctx context.Context, inputParams input.DelinquentReportInput) (*input.DelinquentReportResponse, error) {
-	// 1. Establecer fecha de corte (default: hoy)
-	cutoffDate := time.Now()
-	if inputParams.CutoffDate != nil {
-		cutoffDate = *inputParams.CutoffDate
-	}
+	// 1. Establecer fecha de corte
+	cutoffDate := s.getCutoffDate(inputParams)
 
 	// 2. Obtener todos los pagos PENDIENTES
 	pendingPayments, err := s.reportRepo.GetPendingPayments(ctx)
@@ -54,81 +51,108 @@ func (s *reportService) GetDelinquentReport(ctx context.Context, inputParams inp
 		return nil, errors.DB(err, "error obteniendo pagos pendientes")
 	}
 
-	// 3. Agrupar pagos por deudor (member_id o family_id)
+	// 3. Agrupar pagos por deudor
+	debtorMap := s.buildDebtorMap(ctx, pendingPayments, cutoffDate)
+
+	// 4. Convertir map a slice y aplicar filtros
+	debtors := s.processDebtors(debtorMap, inputParams)
+
+	// 5. Calcular resumen estadístico
+	summary := s.calculateSummary(debtors)
+	totalCount := len(debtors)
+
+	// 6. Aplicar paginación
+	debtors = s.paginateDebtors(debtors, inputParams)
+
+	// 7. Retornar respuesta
+	return &input.DelinquentReportResponse{
+		Debtors:     debtors,
+		TotalCount:  totalCount,
+		Summary:     summary,
+		GeneratedAt: time.Now(),
+	}, nil
+}
+
+// getCutoffDate obtiene la fecha de corte para el reporte
+func (s *reportService) getCutoffDate(inputParams input.DelinquentReportInput) time.Time {
+	if inputParams.CutoffDate != nil {
+		return *inputParams.CutoffDate
+	}
+	return time.Now()
+}
+
+// buildDebtorMap agrupa pagos por deudor
+func (s *reportService) buildDebtorMap(ctx context.Context, pendingPayments []models.Payment, cutoffDate time.Time) map[string]*input.Debtor {
 	debtorMap := make(map[string]*input.Debtor)
 
 	for i := range pendingPayments {
 		payment := &pendingPayments[i]
 
-		// Determinar el tipo de deudor
-		var debtorKey string
-		var entityID uint
-
-		if payment.MemberID != 0 {
-			debtorKey = fmt.Sprintf("member_%d", payment.MemberID)
-			entityID = payment.MemberID
-		} else {
-			// Skip pagos sin member_id (datos inconsistentes)
-			continue
+		if payment.MemberID == 0 {
+			continue // Skip pagos sin member_id
 		}
 
-		// Si el deudor no existe en el map, crearlo
+		debtorKey := fmt.Sprintf("member_%d", payment.MemberID)
+
+		// Crear deudor si no existe
 		if _, exists := debtorMap[debtorKey]; !exists {
-			debtor, err := s.createDebtor(ctx, entityID)
-			if err != nil {
-				// Log y continuar con el siguiente deudor
+			debtor, err := s.createDebtor(ctx, payment.MemberID)
+			if err != nil || debtor == nil {
 				continue
 			}
-			if debtor != nil {
-				debtorMap[debtorKey] = debtor
-			}
+			debtorMap[debtorKey] = debtor
 		}
 
-		// Añadir el pago pendiente al deudor
-		daysOverdue := int(cutoffDate.Sub(payment.CreatedAt).Hours() / 24)
-
-		pendingPayment := &input.PendingPayment{
-			ID:          payment.ID,
-			Amount:      payment.Amount,
-			CreatedAt:   payment.CreatedAt,
-			DaysOverdue: daysOverdue,
-		}
-		if payment.Notes != "" {
-			pendingPayment.Notes = &payment.Notes
-		}
-
-		debtorMap[debtorKey].PendingPayments = append(
-			debtorMap[debtorKey].PendingPayments,
-			pendingPayment,
-		)
-
-		debtorMap[debtorKey].TotalDebt += payment.Amount
-
-		// Actualizar el pago más antiguo
-		if debtorMap[debtorKey].OldestDebtDate.IsZero() ||
-			payment.CreatedAt.Before(debtorMap[debtorKey].OldestDebtDate) {
-			debtorMap[debtorKey].OldestDebtDate = payment.CreatedAt
-			debtorMap[debtorKey].OldestDebtDays = daysOverdue
-		}
+		// Añadir pago al deudor
+		s.addPaymentToDebtor(debtorMap[debtorKey], payment, cutoffDate)
 	}
 
-	// 4. Convertir map a slice
+	return debtorMap
+}
+
+// addPaymentToDebtor añade un pago pendiente a un deudor
+func (s *reportService) addPaymentToDebtor(debtor *input.Debtor, payment *models.Payment, cutoffDate time.Time) {
+	daysOverdue := int(cutoffDate.Sub(payment.CreatedAt).Hours() / 24)
+
+	pendingPayment := &input.PendingPayment{
+		ID:          payment.ID,
+		Amount:      payment.Amount,
+		CreatedAt:   payment.CreatedAt,
+		DaysOverdue: daysOverdue,
+	}
+	if payment.Notes != "" {
+		pendingPayment.Notes = &payment.Notes
+	}
+
+	debtor.PendingPayments = append(debtor.PendingPayments, pendingPayment)
+	debtor.TotalDebt += payment.Amount
+
+	// Actualizar el pago más antiguo
+	if debtor.OldestDebtDate.IsZero() || payment.CreatedAt.Before(debtor.OldestDebtDate) {
+		debtor.OldestDebtDate = payment.CreatedAt
+		debtor.OldestDebtDays = daysOverdue
+	}
+}
+
+// processDebtors convierte el map a slice y aplica filtros y ordenamiento
+func (s *reportService) processDebtors(debtorMap map[string]*input.Debtor, inputParams input.DelinquentReportInput) []*input.Debtor {
+	// Convertir map a slice
 	debtors := make([]*input.Debtor, 0, len(debtorMap))
 	for _, debtor := range debtorMap {
 		debtors = append(debtors, debtor)
 	}
 
-	// 5. Aplicar filtros
+	// Aplicar filtros
 	debtors = s.applyFilters(debtors, inputParams)
 
-	// 6. Ordenar según inputParams.SortBy
+	// Ordenar
 	debtors = s.sortDebtors(debtors, inputParams.SortBy)
 
-	// 7. Calcular resumen estadístico (ANTES de paginar - basado en todos los deudores)
-	summary := s.calculateSummary(debtors)
-	totalCount := len(debtors)
+	return debtors
+}
 
-	// 8. Aplicar paginación
+// paginateDebtors aplica paginación a la lista de deudores
+func (s *reportService) paginateDebtors(debtors []*input.Debtor, inputParams input.DelinquentReportInput) []*input.Debtor {
 	page := inputParams.Page
 	pageSize := inputParams.PageSize
 	if page < 1 {
@@ -141,23 +165,15 @@ func (s *reportService) GetDelinquentReport(ctx context.Context, inputParams inp
 	startIdx := (page - 1) * pageSize
 	endIdx := startIdx + pageSize
 
-	// Asegurarse de no salir de los límites
 	if startIdx > len(debtors) {
-		debtors = []*input.Debtor{}
-	} else {
-		if endIdx > len(debtors) {
-			endIdx = len(debtors)
-		}
-		debtors = debtors[startIdx:endIdx]
+		return []*input.Debtor{}
 	}
 
-	// 9. Retornar respuesta
-	return &input.DelinquentReportResponse{
-		Debtors:     debtors,
-		TotalCount:  totalCount,
-		Summary:     summary,
-		GeneratedAt: time.Now(),
-	}, nil
+	if endIdx > len(debtors) {
+		endIdx = len(debtors)
+	}
+
+	return debtors[startIdx:endIdx]
 }
 
 // createDebtor crea un nuevo deudor con su información

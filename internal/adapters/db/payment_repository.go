@@ -215,82 +215,128 @@ func (r *paymentRepository) HasInitialPayment(ctx context.Context, memberID *uin
 func (r *paymentRepository) FindAll(ctx context.Context, filters *output.PaymentRepositoryFilters) ([]models.Payment, error) {
 	var payments []models.Payment
 
-	// Determine if we need JOINs for sorting
-	needsJoins := filters != nil && filters.OrderBy != "" &&
-		(strings.Contains(filters.OrderBy, "Member__") || strings.Contains(filters.OrderBy, "MembershipFee__"))
-
-	query := r.db.WithContext(ctx)
-
-	if needsJoins {
-		// Use JOINs when sorting by related fields
-		query = query.
-			Select("payments.*"). // Only select payment columns to avoid ambiguity
-			Joins("LEFT JOIN members ON members.id = payments.member_id").
-			Joins("LEFT JOIN membership_fees ON membership_fees.id = payments.membership_fee_id").
-			Preload("Member").
-			Preload("MembershipFee")
-	} else {
-		// Use Preload for standard queries
-		query = query.
-			Preload("Member").
-			Preload("MembershipFee")
-	}
-
-	if filters != nil {
-		// Apply status filter
-		if filters.Status != nil {
-			query = query.Where("payments.status = ?", *filters.Status)
-		}
-
-		// Apply payment method filter (case-insensitive partial match)
-		if filters.PaymentMethod != nil && *filters.PaymentMethod != "" {
-			query = query.Where("LOWER(payments.payment_method) LIKE LOWER(?)", "%"+*filters.PaymentMethod+"%")
-		}
-
-		// Apply date range filters
-		if filters.StartDate != nil {
-			query = query.Where("payments.payment_date >= ?", *filters.StartDate)
-		}
-		if filters.EndDate != nil {
-			query = query.Where("payments.payment_date <= ?", *filters.EndDate)
-		}
-
-		// Apply amount range filters
-		if filters.MinAmount != nil {
-			query = query.Where("payments.amount >= ?", *filters.MinAmount)
-		}
-		if filters.MaxAmount != nil {
-			query = query.Where("payments.amount <= ?", *filters.MaxAmount)
-		}
-
-		// Apply member filter
-		if filters.MemberID != nil {
-			query = query.Where("payments.member_id = ?", *filters.MemberID)
-		}
-
-		// Apply ordering
-		if filters.OrderBy != "" {
-			// Replace preload aliases with actual JOIN column names
-			orderBy := filters.OrderBy
-			orderBy = strings.ReplaceAll(orderBy, "Member__", "members.")
-			orderBy = strings.ReplaceAll(orderBy, "MembershipFee__", "membership_fees.")
-			query = query.Order(orderBy)
-		}
-
-		// Apply pagination
-		if filters.Limit > 0 {
-			query = query.Limit(filters.Limit)
-		}
-		if filters.Offset > 0 {
-			query = query.Offset(filters.Offset)
-		}
-	}
+	query := r.buildBaseQuery(ctx, filters)
+	query = r.applyFilters(query, filters)
+	query = r.applyPagination(query, filters)
 
 	if err := query.Find(&payments).Error; err != nil {
 		return nil, appErrors.DB(err, "error finding payments")
 	}
 
 	return payments, nil
+}
+
+// buildBaseQuery constructs the base query with joins and preloads
+func (r *paymentRepository) buildBaseQuery(ctx context.Context, filters *output.PaymentRepositoryFilters) *gorm.DB {
+	query := r.db.WithContext(ctx)
+
+	// Determine if we need JOINs for sorting
+	needsJoins := filters != nil && filters.OrderBy != "" &&
+		(strings.Contains(filters.OrderBy, "Member__") || strings.Contains(filters.OrderBy, "MembershipFee__"))
+
+	if needsJoins {
+		// Use JOINs when sorting by related fields
+		return query.
+			Select("payments.*"). // Only select payment columns to avoid ambiguity
+			Joins("LEFT JOIN members ON members.id = payments.member_id").
+			Joins("LEFT JOIN membership_fees ON membership_fees.id = payments.membership_fee_id").
+			Preload("Member").
+			Preload("MembershipFee")
+	}
+
+	// Use Preload for standard queries
+	return query.
+		Preload("Member").
+		Preload("MembershipFee")
+}
+
+// applyFilters applies all filters to the query
+func (r *paymentRepository) applyFilters(query *gorm.DB, filters *output.PaymentRepositoryFilters) *gorm.DB {
+	if filters == nil {
+		return query
+	}
+
+	query = r.applyStatusFilter(query, filters)
+	query = r.applyPaymentMethodFilter(query, filters)
+	query = r.applyDateRangeFilters(query, filters)
+	query = r.applyAmountRangeFilters(query, filters)
+	query = r.applyMemberFilter(query, filters)
+	query = r.applyOrdering(query, filters)
+
+	return query
+}
+
+// applyStatusFilter applies status filter
+func (r *paymentRepository) applyStatusFilter(query *gorm.DB, filters *output.PaymentRepositoryFilters) *gorm.DB {
+	if filters.Status != nil {
+		return query.Where("payments.status = ?", *filters.Status)
+	}
+	return query
+}
+
+// applyPaymentMethodFilter applies payment method filter
+func (r *paymentRepository) applyPaymentMethodFilter(query *gorm.DB, filters *output.PaymentRepositoryFilters) *gorm.DB {
+	if filters.PaymentMethod != nil && *filters.PaymentMethod != "" {
+		return query.Where("LOWER(payments.payment_method) LIKE LOWER(?)", "%"+*filters.PaymentMethod+"%")
+	}
+	return query
+}
+
+// applyDateRangeFilters applies date range filters
+func (r *paymentRepository) applyDateRangeFilters(query *gorm.DB, filters *output.PaymentRepositoryFilters) *gorm.DB {
+	if filters.StartDate != nil {
+		query = query.Where("payments.payment_date >= ?", *filters.StartDate)
+	}
+	if filters.EndDate != nil {
+		query = query.Where("payments.payment_date <= ?", *filters.EndDate)
+	}
+	return query
+}
+
+// applyAmountRangeFilters applies amount range filters
+func (r *paymentRepository) applyAmountRangeFilters(query *gorm.DB, filters *output.PaymentRepositoryFilters) *gorm.DB {
+	if filters.MinAmount != nil {
+		query = query.Where("payments.amount >= ?", *filters.MinAmount)
+	}
+	if filters.MaxAmount != nil {
+		query = query.Where("payments.amount <= ?", *filters.MaxAmount)
+	}
+	return query
+}
+
+// applyMemberFilter applies member filter
+func (r *paymentRepository) applyMemberFilter(query *gorm.DB, filters *output.PaymentRepositoryFilters) *gorm.DB {
+	if filters.MemberID != nil {
+		return query.Where("payments.member_id = ?", *filters.MemberID)
+	}
+	return query
+}
+
+// applyOrdering applies ordering to the query
+func (r *paymentRepository) applyOrdering(query *gorm.DB, filters *output.PaymentRepositoryFilters) *gorm.DB {
+	if filters.OrderBy != "" {
+		// Replace preload aliases with actual JOIN column names
+		orderBy := filters.OrderBy
+		orderBy = strings.ReplaceAll(orderBy, "Member__", "members.")
+		orderBy = strings.ReplaceAll(orderBy, "MembershipFee__", "membership_fees.")
+		return query.Order(orderBy)
+	}
+	return query
+}
+
+// applyPagination applies pagination to the query
+func (r *paymentRepository) applyPagination(query *gorm.DB, filters *output.PaymentRepositoryFilters) *gorm.DB {
+	if filters == nil {
+		return query
+	}
+
+	if filters.Limit > 0 {
+		query = query.Limit(filters.Limit)
+	}
+	if filters.Offset > 0 {
+		query = query.Offset(filters.Offset)
+	}
+	return query
 }
 
 // CountAll returns the total count of payments matching the given filters
