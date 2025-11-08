@@ -10,6 +10,17 @@ import (
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 )
 
+// paymentSortFieldMap mapea los nombres de campo del frontend a las columnas de BD
+var paymentSortFieldMap = map[string]string{
+	"memberNumber":      "Member__membership_number",      // Preload alias
+	"memberName":        "Member__name",                   // Ordenar por nombre
+	"amount":            "payments.amount",
+	"membershipFeeYear": "MembershipFee__year",            // Preload alias
+	"paymentDate":       "payments.payment_date",
+	"paymentMethod":     "payments.payment_method",
+	"status":            "payments.status",
+}
+
 // parseID convierte un ID de string a uint
 func parseID(id string) (uint, error) {
 	parsed, err := strconv.ParseUint(id, 10, 64)
@@ -191,9 +202,15 @@ func (r *queryResolver) mapPaymentFilterToDomain(filter *model.PaymentFilter) (i
 			pageSize = filter.Pagination.PageSize
 		}
 
-		// Sorting
+		// Sorting with field mapping
 		if filter.Sort != nil {
-			orderBy = fmt.Sprintf("%s %s", filter.Sort.Field, filter.Sort.Direction)
+			// Map frontend field to database column
+			dbField, ok := paymentSortFieldMap[filter.Sort.Field]
+			if !ok {
+				// Campo no válido, usar default
+				dbField = "payments.payment_date"
+			}
+			orderBy = fmt.Sprintf("%s %s", dbField, filter.Sort.Direction)
 		}
 
 		// Status filter

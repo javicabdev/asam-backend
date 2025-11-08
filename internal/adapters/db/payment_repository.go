@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -214,9 +215,26 @@ func (r *paymentRepository) HasInitialPayment(ctx context.Context, memberID *uin
 func (r *paymentRepository) FindAll(ctx context.Context, filters *output.PaymentRepositoryFilters) ([]models.Payment, error) {
 	var payments []models.Payment
 
-	query := r.db.WithContext(ctx).
-		Preload("Member").
-		Preload("MembershipFee")
+	// Determine if we need JOINs for sorting
+	needsJoins := filters != nil && filters.OrderBy != "" &&
+		(strings.Contains(filters.OrderBy, "Member__") || strings.Contains(filters.OrderBy, "MembershipFee__"))
+
+	query := r.db.WithContext(ctx)
+
+	if needsJoins {
+		// Use JOINs when sorting by related fields
+		query = query.
+			Select("payments.*"). // Only select payment columns to avoid ambiguity
+			Joins("LEFT JOIN members ON members.id = payments.member_id").
+			Joins("LEFT JOIN membership_fees ON membership_fees.id = payments.membership_fee_id").
+			Preload("Member").
+			Preload("MembershipFee")
+	} else {
+		// Use Preload for standard queries
+		query = query.
+			Preload("Member").
+			Preload("MembershipFee")
+	}
 
 	if filters != nil {
 		// Apply status filter
@@ -252,7 +270,11 @@ func (r *paymentRepository) FindAll(ctx context.Context, filters *output.Payment
 
 		// Apply ordering
 		if filters.OrderBy != "" {
-			query = query.Order(filters.OrderBy)
+			// Replace preload aliases with actual JOIN column names
+			orderBy := filters.OrderBy
+			orderBy = strings.ReplaceAll(orderBy, "Member__", "members.")
+			orderBy = strings.ReplaceAll(orderBy, "MembershipFee__", "membership_fees.")
+			query = query.Order(orderBy)
 		}
 
 		// Apply pagination
