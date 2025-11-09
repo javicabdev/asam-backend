@@ -105,10 +105,14 @@ linters:
         linters:
           - gochecknoinits
 
-      # Reduce revive noise in cmd
+      # Reduce noise in cmd utility scripts
       - path: cmd/.*\.go
         linters:
           - revive
+          - gocyclo
+          - goconst
+          - staticcheck
+          - govet
 
       # Exclude generated files
       - path: '.*\.pb\.go$'
