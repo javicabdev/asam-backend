@@ -5,9 +5,12 @@ package monitoring
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/pprof"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -47,10 +50,20 @@ func NewMemoryMonitor(
 ) *MemoryMonitor {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// Create output directory if it doesn't exist
+	// Validate and sanitize output directory if provided
 	if outputDir != "" {
-		if err := os.MkdirAll(outputDir, 0750); err != nil {
-			log.Error("Failed to create memory profile output directory", zap.Error(err))
+		// Security: Check for directory traversal attempts BEFORE cleaning
+		if strings.Contains(outputDir, "..") {
+			log.Error("Invalid output directory: contains directory traversal", zap.String("path", outputDir))
+			outputDir = "" // Disable file output for security
+		} else {
+			// Clean the path to normalize it
+			outputDir = filepath.Clean(outputDir)
+
+			// Create output directory if it doesn't exist
+			if err := os.MkdirAll(outputDir, 0750); err != nil {
+				log.Error("Failed to create memory profile output directory", zap.Error(err))
+			}
 		}
 	}
 
@@ -136,10 +149,23 @@ func (m *MemoryMonitor) captureHeapProfile(level string) {
 		return
 	}
 
-	timestamp := time.Now().Format("20060102-150405")
-	filename := m.outputDir + "/heap-" + level + "-" + timestamp + ".pprof"
+	// Validate level parameter (defense in depth)
+	if level != "alert" && level != "critical" {
+		m.logger.Error("Invalid profile level", zap.String("level", level))
+		return
+	}
 
-	//nolint:gosec // G304: Filename is constructed from controlled inputs (timestamp and level)
+	timestamp := time.Now().Format("20060102-150405")
+
+	// Use filepath.Join for secure path construction
+	filename := filepath.Join(m.outputDir, fmt.Sprintf("heap-%s-%s.pprof", level, timestamp))
+
+	// Security: Double-check the resulting path is still within outputDir
+	if !m.isValidOutputPath(filename) {
+		m.logger.Error("Invalid output path detected", zap.String("path", filename))
+		return
+	}
+
 	f, err := os.Create(filename)
 	if err != nil {
 		m.logger.Error("Failed to create memory profile", zap.Error(err))
@@ -158,8 +184,14 @@ func (m *MemoryMonitor) captureHeapProfile(level string) {
 	}
 
 	// Also save memory stats as JSON
-	statsFilename := m.outputDir + "/memstats-" + level + "-" + timestamp + ".json"
-	//nolint:gosec // G304: Filename is constructed from controlled inputs (timestamp and level)
+	statsFilename := filepath.Join(m.outputDir, fmt.Sprintf("memstats-%s-%s.json", level, timestamp))
+
+	// Security: Double-check the resulting path is still within outputDir
+	if !m.isValidOutputPath(statsFilename) {
+		m.logger.Error("Invalid stats output path detected", zap.String("path", statsFilename))
+		return
+	}
+
 	statsFile, err := os.Create(statsFilename)
 	if err != nil {
 		m.logger.Error("Failed to create memory stats file", zap.Error(err))
@@ -180,6 +212,28 @@ func (m *MemoryMonitor) captureHeapProfile(level string) {
 	if _, err := statsFile.Write(statsData); err != nil {
 		m.logger.Error("Failed to write memory stats", zap.Error(err))
 	}
+}
+
+// isValidOutputPath ensures the path is within the configured output directory
+// This prevents directory traversal attacks
+func (m *MemoryMonitor) isValidOutputPath(path string) bool {
+	// Clean both paths
+	cleanPath := filepath.Clean(path)
+	cleanOutputDir := filepath.Clean(m.outputDir)
+
+	// Get absolute paths for comparison
+	absPath, err := filepath.Abs(cleanPath)
+	if err != nil {
+		return false
+	}
+
+	absOutputDir, err := filepath.Abs(cleanOutputDir)
+	if err != nil {
+		return false
+	}
+
+	// Ensure the file path starts with the output directory
+	return strings.HasPrefix(absPath, absOutputDir)
 }
 
 // triggerGarbageCollection manually triggers garbage collection
