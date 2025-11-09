@@ -19,6 +19,7 @@
 - **[Seguridad (SAST/DAST)](docs/SAST-DAST-GUIDE.md)** - Guía completa de seguridad estática y dinámica
 - **[Política de Seguridad](SECURITY.md)** - Política de seguridad del proyecto
 - **[Uso de DAST](docs/DAST-USAGE.md)** - Guía práctica de escaneo dinámico con OWASP ZAP
+- **[Configuración de Branch Protection](docs/BRANCH-PROTECTION-SETUP.md)** - Guía para proteger la rama main
 
 ## Pipeline de CI/CD
 
