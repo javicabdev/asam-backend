@@ -1,0 +1,23 @@
+# ZAP Scanning Rules Configuration
+# Format: <alert_id>	<threshold>	<action>
+#
+# Thresholds: IGNORE, INFO, WARN, FAIL
+#
+# This file allows you to customize how ZAP treats specific findings:
+# - IGNORE: Don't report this alert
+# - INFO: Report as informational only
+# - WARN: Report as warning (doesn't fail the build)
+# - FAIL: Report and fail the build
+
+# Example: Ignore false positives
+# 10010	IGNORE	(Example: X-Frame-Options header missing)
+# 10011	WARN	(Example: X-Content-Type-Options header missing)
+
+# Cloudflare or CDN related (often false positives)
+# 10049	IGNORE	(Storable and Cacheable Content)
+# 10015	IGNORE	(Re-examine Cache-control Directives)
+
+# Common false positives for APIs
+# 10038	IGNORE	(Content Security Policy)
+
+# Default: All alerts are treated as WARN (won't fail the build but will be reported)

@@ -18,6 +18,7 @@
 - [Generación de Cuotas Anuales](docs/annual_fee_generation/README.md) - Sistema de generación automática de cuotas anuales
 - **[Seguridad (SAST/DAST)](docs/SAST-DAST-GUIDE.md)** - Guía completa de seguridad estática y dinámica
 - **[Política de Seguridad](SECURITY.md)** - Política de seguridad del proyecto
+- **[Uso de DAST](docs/DAST-USAGE.md)** - Guía práctica de escaneo dinámico con OWASP ZAP
 
 ## Pipeline de CI/CD
 
