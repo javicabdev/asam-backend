@@ -101,6 +101,12 @@ jobs:
         with:
           args: '-no-fail -fmt sarif -out gosec-results.sarif ./...'
 
+      - name: Install jq for SARIF processing
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Fix SARIF format
+        run: .github/scripts/fix-sarif.sh gosec-results.sarif
+
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@v3
         if: always()
