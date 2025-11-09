@@ -260,6 +260,27 @@ lint:
 	@$(GOLINT) run --timeout=5m
 	@echo "${GREEN}✅ Linting complete - no issues found!${NC}"
 
+## security: Run security scan with gosec (SAST)
+.PHONY: security
+security:
+	@echo "🔒 Running gosec security scanner..."
+	@if ! command -v gosec &> /dev/null; then \
+		echo "${RED}❌ gosec not found!${NC}"; \
+		echo "${YELLOW}Install it with: make tools${NC}"; \
+		exit 1; \
+	fi
+	@gosec -fmt=json -out=gosec-report.json ./...
+	@gosec -fmt=text ./...
+	@echo "${GREEN}✅ Security scan complete!${NC}"
+	@echo "${YELLOW}📄 Full report saved to: gosec-report.json${NC}"
+
+## security-ci: Run security scan with SARIF output for CI/CD
+.PHONY: security-ci
+security-ci:
+	@echo "🔒 Running gosec for CI/CD..."
+	@gosec -no-fail -fmt sarif -out gosec-results.sarif ./...
+	@echo "${GREEN}✅ Security scan complete (SARIF format)${NC}"
+
 ## lint-fix: Run linter and auto-fix issues
 .PHONY: lint-fix
 lint-fix:

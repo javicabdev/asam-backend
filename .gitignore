@@ -73,6 +73,7 @@ _archived/
 # Archivos de seguridad locales
 gosec-report.json
 gosec-report.txt
+gosec-results.sarif
 /github-actions-sa-key.json
 /docsTemp/
 .DS_Store

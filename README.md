@@ -16,6 +16,8 @@
 - [Configuración de GitHub Secrets](docs/github-secrets-setup.md) - Guía para configurar los secretos en GitHub
 - [Compatibilidad con Apollo Client](docs/apollo-client-compatibility.md) - Manejo del campo __typename para Apollo Client
 - [Generación de Cuotas Anuales](docs/annual_fee_generation/README.md) - Sistema de generación automática de cuotas anuales
+- **[Seguridad (SAST/DAST)](docs/SAST-DAST-GUIDE.md)** - Guía completa de seguridad estática y dinámica
+- **[Política de Seguridad](SECURITY.md)** - Política de seguridad del proyecto
 
 ## Pipeline de CI/CD
 
