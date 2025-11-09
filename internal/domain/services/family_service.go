@@ -14,10 +14,10 @@ import (
 
 // Reemplazamos las variables de error estándar con constantes para centralizar los mensajes
 const (
-	msgFamilyNotFound      = "familia no encontrada"
+	msgFamilyNotFound      = "familia" // errors.NotFound añade "no encontrada" automáticamente
 	msgInvalidFamilyData   = "datos de familia inválidos"
 	msgInvalidFamiliarData = "datos de familiar inválidos"
-	msgMemberNotFound      = "miembro no encontrado"
+	msgMemberNotFound      = "miembro" // errors.NotFound añade "no encontrada" automáticamente
 )
 
 type familyService struct {
