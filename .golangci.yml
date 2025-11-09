@@ -125,6 +125,13 @@ linters:
           - staticcheck
           - unused
 
+      # Exclude gosec G304 in memory.go - paths are validated with multiple layers
+      # See memory.go lines 55-67 (input validation) and isValidOutputPath()
+      - path: pkg/monitoring/memory\.go
+        text: "G304.*Potential file inclusion"
+        linters:
+          - gosec
+
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
