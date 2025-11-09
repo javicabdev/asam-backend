@@ -158,11 +158,9 @@ func TestMemoryMonitor_CaptureHeapProfile_ValidLevel(t *testing.T) {
 				t.Fatalf("Failed to read temp dir: %v", err)
 			}
 
-			// Should create 2 files: .pprof and .json
-			expectedFiles := 2 * len(validLevels)
-			if len(files) < expectedFiles {
-				// Note: This might be flaky, so we just check files were created
-				// A more robust test would check specific file patterns
+			// Should create at least some files (note: exact count may vary)
+			if len(files) == 0 {
+				t.Error("Expected at least some profile files to be created, but none were found")
 			}
 		})
 	}
