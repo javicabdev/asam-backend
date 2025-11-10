@@ -5,6 +5,23 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.2.0] - 2025-11-10
+
+### Fixed
+- Corregidos nombres de columnas en query de métricas de morosos (defaulters)
+  - `m.numero_socio` → `m.membership_number`
+  - `m.correo_electronico` → `m.email`
+  - `m.full_name` → `CONCAT(m.name, ' ', m.surnames)`
+- Organización de scripts temporales en `cmptemp/` para mejorar estructura del proyecto
+- Solo `cmd/api` y `cmd/migrate` permanecen en el repositorio
+
+### Technical
+- Configuración de linter optimizada para escanear solo directorios relevantes
+- Scripts de desarrollo movidos a `cmptemp/` (ignorados por git)
+- Mantenimiento de `cmd/migrate` en repositorio para compatibilidad con CI/CD
+
+---
+
 ## [1.1.0] - 2025-11-10
 
 ### Added
