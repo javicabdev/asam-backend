@@ -586,7 +586,7 @@ func (r *paymentRepository) GetDefaultersData(ctx context.Context) ([]output.Def
 	SELECT
 		m.id as member_id,
 		m.membership_number as numero_socio,
-		m.full_name,
+		CONCAT(m.name, ' ', m.surnames) as full_name,
 		COALESCE(m.email, '') as email,
 		mwo.overdue_count,
 		mwo.oldest_pending_due,
