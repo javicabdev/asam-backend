@@ -1316,6 +1316,23 @@ func (r *queryResolver) ListMembershipFees(ctx context.Context, page *int, pageS
 	return fees, nil
 }
 
+// ListAnnualFees is the resolver for the listAnnualFees field.
+func (r *queryResolver) ListAnnualFees(ctx context.Context) ([]*models.MembershipFee, error) {
+	// Solo ADMIN puede listar cuotas
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+
+	// Llamar al servicio sin paginación (retorna todas las cuotas)
+	// Usamos un pageSize grande para obtener todas
+	fees, _, err := r.paymentService.ListMembershipFees(ctx, 1, 1000)
+	if err != nil {
+		return nil, err
+	}
+
+	return fees, nil
+}
+
 // GetPendingFees is the resolver for the getPendingFees field.
 func (r *queryResolver) GetPendingFees(ctx context.Context) ([]*models.MembershipFee, error) {
 	// Solo ADMIN puede consultar cuotas pendientes
