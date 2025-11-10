@@ -100,7 +100,7 @@ go mod download
 ### Migration Issues
 ```bash
 # Check migration status
-go run cmptemp/migrate/main.go -cmd version
+go run cmd/migrate/main.go -cmd version
 
 # Reset database (development only!)
 ./scripts/dev/fresh-database-setup.sh
@@ -109,7 +109,7 @@ go run cmptemp/migrate/main.go -cmd version
 ## Development Workflow
 
 1. **Start Database**: `docker-compose up -d`
-2. **Run Migrations**: `go run cmptemp/migrate/main.go -cmd up`
+2. **Run Migrations**: `go run cmd/migrate/main.go -cmd up`
 3. **Seed Data**: `go run cmptemp/seed/main.go`
 4. **Start API**: `make run` or `go run cmd/api/main.go`
 5. **GraphQL Playground**: http://localhost:8080/graphql

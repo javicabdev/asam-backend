@@ -87,7 +87,7 @@ Una vez instaladas las dependencias, puedes usar el script principal:
 Si prefieres usar directamente el código Go:
 
 ```bash
-go run cmptemp/migrate/main.go -env=local -cmd=up
+go run cmd/migrate/main.go -env=local -cmd=up
 ```
 
 #### Entornos Disponibles
@@ -113,7 +113,7 @@ Los comandos disponibles son:
 
 ### Implementación Técnica
 
-Internamente, el sistema utiliza la biblioteca `github.com/golang-migrate/migrate/v4` para ejecutar las migraciones. La implementación principal se encuentra en el paquete `cmptemp/migrate/`.
+Internamente, el sistema utiliza la biblioteca `github.com/golang-migrate/migrate/v4` para ejecutar las migraciones. La implementación principal se encuentra en el paquete `cmd/migrate/`.
 
 ## Generación de Datos de Prueba (Seeding)
 
@@ -202,7 +202,7 @@ Para entornos de integración continua, puedes ejecutar los comandos Go directam
 
 ```go
 // Ejecutar migraciones
-go run cmptemp/migrate/main.go -env=local -cmd=up
+go run cmd/migrate/main.go -env=local -cmd=up
 
 // Ejecutar seed
 go run cmptemp/seed/main.go -env=local -type=minimal

@@ -7,8 +7,6 @@ run:
   build-tags: []
   modules-download-mode: readonly
   allow-parallel-runners: false
-  skip-dirs:
-    - cmptemp
 
 linters:
   enable:

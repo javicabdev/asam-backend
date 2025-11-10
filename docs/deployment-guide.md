@@ -106,7 +106,7 @@ export DB_NAME=$(gcloud secrets versions access latest --secret=db-name)
 export DB_SSL_MODE=require
 
 # Ejecutar migraciones
-go run cmptemp/migrate/main.go -cmd up
+go run cmd/migrate/main.go -cmd up
 ```
 
 ### Paso 6: Desplegar aplicación

@@ -11,7 +11,7 @@
 Primero asegúrate de que la base de datos está actualizada:
 
 ```bash
-go run cmptemp/migrate/main.go -cmd up
+go run cmd/migrate/main.go -cmd up
 ```
 
 ### 2. Configurar las credenciales del administrador

@@ -121,14 +121,14 @@ clean:
 .PHONY: db-migrate
 db-migrate:
 	@echo "🔄 Running database migrations..."
-	@$(DOCKER_COMPOSE) exec api go run ./cmptemp/migrate up
+	@$(DOCKER_COMPOSE) exec api go run ./cmd/migrate up
 	@echo "✅ Migrations complete"
 
 ## db-rollback: Rollback last migration
 .PHONY: db-rollback
 db-rollback:
 	@echo "⏪ Rolling back last migration..."
-	@$(DOCKER_COMPOSE) exec api go run ./cmptemp/migrate down 1
+	@$(DOCKER_COMPOSE) exec api go run ./cmd/migrate down 1
 	@echo "✅ Rollback complete"
 
 ## db-reset: Reset database (drop all tables and re-migrate)
