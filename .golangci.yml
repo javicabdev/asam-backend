@@ -114,6 +114,16 @@ linters:
           - staticcheck
           - govet
 
+      # Exclude cleanup-db script (utility/maintenance script)
+      - path: cmd/cleanup-db/.*\.go
+        linters:
+          - errcheck
+          - gocritic
+          - gosec
+          - noctx
+          - unparam
+          - rowserrcheck
+
       # Exclude generated files
       - path: '.*\.pb\.go$'
         linters:
