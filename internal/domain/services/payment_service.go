@@ -580,6 +580,33 @@ func (s *paymentService) GetMembershipFee(ctx context.Context, year, _ int) (*mo
 	return fee, nil
 }
 
+func (s *paymentService) ListMembershipFees(ctx context.Context, page, pageSize int) ([]*models.MembershipFee, int, error) {
+	// Validar paginación
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	// Calcular offset
+	offset := (page - 1) * pageSize
+
+	// Obtener cuotas del repositorio
+	fees, total, err := s.membershipFeeRepo.FindAll(ctx, pageSize, offset)
+	if err != nil {
+		return nil, 0, errors.DB(err, "error listando cuotas de membresía")
+	}
+
+	// Convertir a slice de punteros
+	result := make([]*models.MembershipFee, len(fees))
+	for i := range fees {
+		result[i] = &fees[i]
+	}
+
+	return result, int(total), nil
+}
+
 func (s *paymentService) UpdateFeeAmount(ctx context.Context, feeID uint, newAmount float64) error {
 	// Validar monto
 	if newAmount <= 0 {

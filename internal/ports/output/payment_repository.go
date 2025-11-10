@@ -64,6 +64,7 @@ type MembershipFeeRepository interface {
 	FindByID(ctx context.Context, id uint) (*models.MembershipFee, error)
 	FindByYear(ctx context.Context, year int) (*models.MembershipFee, error)
 	FindPendingByMember(ctx context.Context, memberID uint) ([]models.MembershipFee, error)
+	FindAll(ctx context.Context, limit, offset int) ([]models.MembershipFee, int64, error)
 
 	// Transaction support
 	FindByYearWithTx(ctx context.Context, tx Transaction, year int) (*models.MembershipFee, error)

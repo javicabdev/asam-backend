@@ -364,6 +364,7 @@ type ComplexityRoot struct {
 		GetTransactions          func(childComplexity int, filter *model.TransactionFilter) int
 		GetUser                  func(childComplexity int, id string) int
 		Health                   func(childComplexity int) int
+		ListAnnualFees           func(childComplexity int) int
 		ListFamilies             func(childComplexity int, filter *model.FamilyFilter) int
 		ListMembers              func(childComplexity int, filter *model.MemberFilter) int
 		ListMembershipFees       func(childComplexity int, page *int, pageSize *int) int
@@ -510,6 +511,7 @@ type QueryResolver interface {
 	ListPayments(ctx context.Context, filter *model.PaymentFilter) (*model.PaymentConnection, error)
 	GetMembershipFee(ctx context.Context, year int) (*models.MembershipFee, error)
 	ListMembershipFees(ctx context.Context, page *int, pageSize *int) ([]*models.MembershipFee, error)
+	ListAnnualFees(ctx context.Context) ([]*models.MembershipFee, error)
 	GetPendingFees(ctx context.Context) ([]*models.MembershipFee, error)
 	GetCashFlow(ctx context.Context, id string) (*models.CashFlow, error)
 	CashFlowBalance(ctx context.Context) (*model.CashFlowBalance, error)
@@ -2160,6 +2162,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.Health(childComplexity), true
+	case "Query.listAnnualFees":
+		if e.complexity.Query.ListAnnualFees == nil {
+			break
+		}
+
+		return e.complexity.Query.ListAnnualFees(childComplexity), true
 	case "Query.listFamilies":
 		if e.complexity.Query.ListFamilies == nil {
 			break
@@ -2862,6 +2870,7 @@ type Query {
     # MembershipFee Queries
     getMembershipFee(year: Int!): MembershipFee
     listMembershipFees(page: Int = 1, pageSize: Int = 10): [MembershipFee!]!
+    listAnnualFees: [MembershipFee!]!  # Alias simplificado sin paginación
     getPendingFees: [MembershipFee!]!
 
     # CashFlow Queries
@@ -12390,6 +12399,47 @@ func (ec *executionContext) fieldContext_Query_listMembershipFees(ctx context.Co
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_listAnnualFees(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_listAnnualFees,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().ListAnnualFees(ctx)
+		},
+		nil,
+		ec.marshalNMembershipFee2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐMembershipFeeᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_listAnnualFees(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_MembershipFee_id(ctx, field)
+			case "year":
+				return ec.fieldContext_MembershipFee_year(ctx, field)
+			case "base_fee_amount":
+				return ec.fieldContext_MembershipFee_base_fee_amount(ctx, field)
+			case "family_fee_extra":
+				return ec.fieldContext_MembershipFee_family_fee_extra(ctx, field)
+			case "due_date":
+				return ec.fieldContext_MembershipFee_due_date(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MembershipFee", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_getPendingFees(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -19928,6 +19978,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_listMembershipFees(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "listAnnualFees":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_listAnnualFees(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

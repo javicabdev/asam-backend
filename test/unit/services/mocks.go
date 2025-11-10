@@ -457,6 +457,24 @@ func (m *MockMembershipFeeRepository) FindByYearWithTx(ctx context.Context, tx o
 	return fee, nil
 }
 
+func (m *MockMembershipFeeRepository) FindAll(ctx context.Context, limit, offset int) ([]models.MembershipFee, int64, error) {
+	// Return all stored fees for testing
+	total := int64(len(m.Fees))
+	result := make([]models.MembershipFee, 0)
+
+	for i, fee := range m.Fees {
+		if offset > 0 && i < offset {
+			continue
+		}
+		if limit > 0 && len(result) >= limit {
+			break
+		}
+		result = append(result, *fee)
+	}
+
+	return result, total, nil
+}
+
 func (m *MockMembershipFeeRepository) CreateWithTx(ctx context.Context, tx output.Transaction, fee *models.MembershipFee) error {
 	return errors.New("not implemented")
 }

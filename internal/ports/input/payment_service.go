@@ -30,6 +30,7 @@ type PaymentService interface {
 	// GenerateAnnualFees genera cuotas anuales para todos los socios activos
 	GenerateAnnualFees(ctx context.Context, req *GenerateAnnualFeesRequest) (*GenerateAnnualFeesResponse, error)
 	GetMembershipFee(ctx context.Context, year, month int) (*models.MembershipFee, error)
+	ListMembershipFees(ctx context.Context, page, pageSize int) ([]*models.MembershipFee, int, error)
 	UpdateFeeAmount(ctx context.Context, feeID uint, newAmount float64) error
 
 	GetMemberStatement(ctx context.Context, memberID uint) (*AccountStatement, error)

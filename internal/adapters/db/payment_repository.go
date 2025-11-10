@@ -523,6 +523,34 @@ func (r *membershipFeeRepository) CreateWithTx(ctx context.Context, tx output.Tr
 	return nil
 }
 
+// FindAll retrieves all membership fees with pagination, ordered by year descending
+func (r *membershipFeeRepository) FindAll(ctx context.Context, limit, offset int) ([]models.MembershipFee, int64, error) {
+	var fees []models.MembershipFee
+	var total int64
+
+	// Count total
+	if err := r.db.WithContext(ctx).Model(&models.MembershipFee{}).Count(&total).Error; err != nil {
+		return nil, 0, appErrors.DB(err, "error counting membership fees")
+	}
+
+	// Get paginated results ordered by year descending (most recent first)
+	query := r.db.WithContext(ctx).
+		Order("year DESC")
+
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+	if offset > 0 {
+		query = query.Offset(offset)
+	}
+
+	if err := query.Find(&fees).Error; err != nil {
+		return nil, 0, appErrors.DB(err, "error finding membership fees")
+	}
+
+	return fees, total, nil
+}
+
 // GetDefaultersData obtiene información agregada de socios morosos en una sola query optimizada.
 // Usa CTEs y agregaciones SQL para evitar el problema N+1 de hacer una query por cada miembro.
 func (r *paymentRepository) GetDefaultersData(ctx context.Context) ([]output.DefaulterData, error) {

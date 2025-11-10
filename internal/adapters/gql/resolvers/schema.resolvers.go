@@ -1296,9 +1296,24 @@ func (r *queryResolver) ListMembershipFees(ctx context.Context, page *int, pageS
 		return nil, err
 	}
 
-	// TODO: Implementar método FindAll en el repositorio cuando sea necesario
-	// Por ahora retornamos un error de operación inválida
-	return nil, appErrors.New(appErrors.ErrInvalidOperation, "listMembershipFees no implementado aún")
+	// Valores por defecto
+	pageNum := 1
+	pageSizeNum := 10
+
+	if page != nil && *page > 0 {
+		pageNum = *page
+	}
+	if pageSize != nil && *pageSize > 0 {
+		pageSizeNum = *pageSize
+	}
+
+	// Llamar al servicio
+	fees, _, err := r.paymentService.ListMembershipFees(ctx, pageNum, pageSizeNum)
+	if err != nil {
+		return nil, err
+	}
+
+	return fees, nil
 }
 
 // GetPendingFees is the resolver for the getPendingFees field.
