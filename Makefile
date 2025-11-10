@@ -121,14 +121,14 @@ clean:
 .PHONY: db-migrate
 db-migrate:
 	@echo "🔄 Running database migrations..."
-	@$(DOCKER_COMPOSE) exec api go run ./cmd/migrate up
+	@$(DOCKER_COMPOSE) exec api go run ./cmptemp/migrate up
 	@echo "✅ Migrations complete"
 
 ## db-rollback: Rollback last migration
 .PHONY: db-rollback
 db-rollback:
 	@echo "⏪ Rolling back last migration..."
-	@$(DOCKER_COMPOSE) exec api go run ./cmd/migrate down 1
+	@$(DOCKER_COMPOSE) exec api go run ./cmptemp/migrate down 1
 	@echo "✅ Rollback complete"
 
 ## db-reset: Reset database (drop all tables and re-migrate)
@@ -159,7 +159,7 @@ db-shell:
 .PHONY: generate
 generate:
 	@echo "🔧 Generating GraphQL code..."
-	@$(GO) run ./cmd/generate
+	@$(GO) run ./cmptemp/generate
 	@echo "✅ Code generation complete"
 
 ## generate-mocks: Generate mocks for testing
@@ -375,28 +375,28 @@ docker-run:
 .PHONY: maintenance-cleanup
 maintenance-cleanup:
 	@echo "🧹 Cleaning up expired tokens..."
-	@$(GO) run ./cmd/maintenance -cleanup-tokens -report
+	@$(GO) run ./cmptemp/maintenance -cleanup-tokens -report
 	@echo "✅ Token cleanup complete"
 
 ## maintenance-limit: Enforce token limit per user
 .PHONY: maintenance-limit
 maintenance-limit:
 	@echo "🔒 Enforcing token limits..."
-	@$(GO) run ./cmd/maintenance -enforce-token-limit -report
+	@$(GO) run ./cmptemp/maintenance -enforce-token-limit -report
 	@echo "✅ Token limit enforcement complete"
 
 ## maintenance-all: Run all maintenance tasks
 .PHONY: maintenance-all
 maintenance-all:
 	@echo "🔧 Running all maintenance tasks..."
-	@$(GO) run ./cmd/maintenance -all -report
+	@$(GO) run ./cmptemp/maintenance -all -report
 	@echo "✅ All maintenance tasks complete"
 
 ## maintenance-dry: Dry run of maintenance tasks
 .PHONY: maintenance-dry
 maintenance-dry:
 	@echo "👀 Running maintenance dry run..."
-	@$(GO) run ./cmd/maintenance -all -dry-run -report
+	@$(GO) run ./cmptemp/maintenance -all -dry-run -report
 
 ## Utility commands
 ## ─────────────────────────────────────────────────────────────────

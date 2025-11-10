@@ -168,7 +168,7 @@ jobs:
           PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
 
       - name: Run database migrations
-        run: go run cmd/migrate/main.go -cmd up
+        run: go run cmptemp/migrate/main.go -cmd up
         env:
           DB_HOST: localhost
           DB_PORT: ${{ env.POSTGRES_PORT }}

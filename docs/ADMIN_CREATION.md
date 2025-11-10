@@ -11,7 +11,7 @@
 Primero asegúrate de que la base de datos está actualizada:
 
 ```bash
-go run cmd/migrate/main.go -cmd up
+go run cmptemp/migrate/main.go -cmd up
 ```
 
 ### 2. Configurar las credenciales del administrador
@@ -44,13 +44,13 @@ Ejecuta el comando de creación:
 
 ```bash
 # Para entorno local
-go run cmd/create-admin/main.go -env local
+go run cmptemp/create-admin/main.go -env local
 
 # Para entorno Aiven
-go run cmd/create-admin/main.go -env aiven
+go run cmptemp/create-admin/main.go -env aiven
 
 # Para actualizar un admin existente
-go run cmd/create-admin/main.go -env local -force
+go run cmptemp/create-admin/main.go -env local -force
 ```
 
 ### 4. Verificación de email
@@ -70,12 +70,12 @@ También puedes pasar las credenciales directamente sin modificar el archivo `.e
 ADMIN_EMAIL=admin@tudominio.com \
 ADMIN_PASSWORD=ContraseñaSegura123! \
 ADMIN_USERNAME=admin \
-go run cmd/create-admin/main.go -env local
+go run cmptemp/create-admin/main.go -env local
 
 # Sin username (usará el email como username)
 ADMIN_EMAIL=admin@tudominio.com \
 ADMIN_PASSWORD=ContraseñaSegura123! \
-go run cmd/create-admin/main.go -env local
+go run cmptemp/create-admin/main.go -env local
 ```
 
 ## Ejemplos de Uso
@@ -85,7 +85,7 @@ go run cmd/create-admin/main.go -env local
 ADMIN_EMAIL=juan.perez@empresa.com \
 ADMIN_PASSWORD=SuperSegura2024! \
 ADMIN_USERNAME=juanp \
-go run cmd/create-admin/main.go -env local
+go run cmptemp/create-admin/main.go -env local
 ```
 Resultado:
 - Login con: `juanp`
@@ -95,7 +95,7 @@ Resultado:
 ```bash
 ADMIN_EMAIL=admin@empresa.com \
 ADMIN_PASSWORD=AdminPass2024! \
-go run cmd/create-admin/main.go -env local
+go run cmptemp/create-admin/main.go -env local
 ```
 Resultado:
 - Login con: `admin@empresa.com`
@@ -123,7 +123,7 @@ En producción, considera usar:
 ### Error: "Admin user already exists"
 Usa la flag `-force` para actualizar el usuario existente:
 ```bash
-go run cmd/create-admin/main.go -env local -force
+go run cmptemp/create-admin/main.go -env local -force
 ```
 
 ### Error: "ADMIN_EMAIL environment variable is required"

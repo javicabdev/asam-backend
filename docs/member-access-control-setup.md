@@ -31,7 +31,7 @@ migrate -path ./migrations -database "postgres://user:password@localhost:5432/as
 Agrega el siguiente código a tu archivo de seeds principal o ejecuta directamente:
 
 ```go
-// En cmd/seed/main.go o similar
+// En cmptemp/seed/main.go o similar
 package main
 
 import (

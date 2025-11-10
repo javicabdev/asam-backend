@@ -13,7 +13,7 @@ fi
 
 # Generar código GraphQL si es necesario
 echo "📦 Generando código GraphQL..."
-go run ./cmd/generate/main.go
+go run ./cmptemp/generate/main.go
 
 # Formatear código
 echo "🎨 Formateando código con gofmt..."

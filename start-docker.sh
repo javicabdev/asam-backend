@@ -144,7 +144,7 @@ echo -e "${GRAY}   Verificando y aplicando todas las migraciones...${NC}"
 
 # Intentar ejecutar migraciones con el comando Go
 echo -e "${GRAY}   Ejecutando migraciones...${NC}"
-docker-compose exec -T api go run ./cmd/migrate -env local up
+docker-compose exec -T api go run ./cmptemp/migrate -env local up
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✅ Migraciones ejecutadas con éxito${NC}"

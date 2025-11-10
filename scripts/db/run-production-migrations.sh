@@ -50,7 +50,7 @@ echo ""
 echo "Ejecutando comando: $COMMAND"
 echo ""
 
-go run cmd/migrate/main.go -cmd $COMMAND
+go run cmptemp/migrate/main.go -cmd $COMMAND
 
 if [ $? -eq 0 ]; then
     echo ""

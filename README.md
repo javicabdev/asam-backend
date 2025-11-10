@@ -60,7 +60,7 @@ Para crear un usuario administrador:
 # Configurar credenciales en variables de entorno
 ADMIN_EMAIL=admin@tudominio.com \
 ADMIN_PASSWORD=ContraseñaSegura123! \
-go run cmd/create-admin/main.go -env local
+go run cmptemp/create-admin/main.go -env local
 ```
 
 Consulta [docs/ADMIN_CREATION.md](docs/ADMIN_CREATION.md) para instrucciones detalladas sobre la creación segura de usuarios administradores.
@@ -131,7 +131,7 @@ Este proyecto utiliza GraphQL con la herramienta [gqlgen](https://github.com/99d
 
 ```bash
 # Usando el script proporcionado
-go run ./cmd/generate
+go run ./cmptemp/generate
 ```
 
 El script se encarga de ejecutar el generador de código de GraphQL, creando los archivos necesarios en los directorios:

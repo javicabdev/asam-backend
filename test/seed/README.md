@@ -43,28 +43,28 @@ El sistema incluye un comando para ejecutar el seeding desde la línea de comand
 
 ```bash
 # Seed con dataset mínimo en la base de datos local (por defecto)
-go run cmd/seed/main.go
+go run cmptemp/seed/main.go
 
 # Seed con dataset mínimo en la base de datos Aiven
-go run cmd/seed/main.go -env=aiven
+go run cmptemp/seed/main.go -env=aiven
 
 # Seed con dataset mínimo en ambas bases de datos (local y Aiven)
-go run cmd/seed/main.go -env=all
+go run cmptemp/seed/main.go -env=all
 
 # Seed con dataset completo en ambas bases de datos
-go run cmd/seed/main.go -env=all -type=full
+go run cmptemp/seed/main.go -env=all -type=full
 
 # Seed con escenario específico en la base de datos local
-go run cmd/seed/main.go -env=local -type=scenario -scenario=payment_overdue
+go run cmptemp/seed/main.go -env=local -type=scenario -scenario=payment_overdue
 
 # Solo limpiar ambas bases de datos
-go run cmd/seed/main.go -env=all -clean
+go run cmptemp/seed/main.go -env=all -clean
 
 # Seed personalizado con cantidades específicas en la base de datos local
-go run cmd/seed/main.go -env=local -type=custom -members=50 -families=20 -payments=100
+go run cmptemp/seed/main.go -env=local -type=custom -members=50 -families=20 -payments=100
 
 # Usar una semilla específica para reproducibilidad
-go run cmd/seed/main.go -env=local -seed=12345
+go run cmptemp/seed/main.go -env=local -seed=12345
 ```
 
 ### Entornos disponibles

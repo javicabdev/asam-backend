@@ -54,19 +54,19 @@ TOKEN_CLEANUP_INTERVAL=24h
 
 ```bash
 # Ejecutar todas las tareas de mantenimiento
-go run cmd/maintenance/main.go -all
+go run cmptemp/maintenance/main.go -all
 
 # Solo limpiar tokens expirados
-go run cmd/maintenance/main.go -cleanup-tokens
+go run cmptemp/maintenance/main.go -cleanup-tokens
 
 # Solo aplicar límite de tokens
-go run cmd/maintenance/main.go -enforce-token-limit -token-limit=3
+go run cmptemp/maintenance/main.go -enforce-token-limit -token-limit=3
 
 # Modo dry-run (ver qué se haría sin ejecutar)
-go run cmd/maintenance/main.go -all -dry-run
+go run cmptemp/maintenance/main.go -all -dry-run
 
 # Generar reporte
-go run cmd/maintenance/main.go -all -report
+go run cmptemp/maintenance/main.go -all -report
 ```
 
 ### Scripts de Conveniencia

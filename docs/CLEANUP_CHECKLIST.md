@@ -36,7 +36,7 @@
 
 - [ ] Ejecutar dry-run del script de limpieza
   ```bash
-  go run cmd/cleanup-db/main.go -env production -keep-users "Babacar,javi" -dry-run
+  go run cmptemp/cleanup-db/main.go -env production -keep-users "Babacar,javi" -dry-run
   ```
   - [ ] Revisar números mostrados
   - [ ] Anotar cantidad de registros a eliminar:
@@ -67,7 +67,7 @@
 
 - [ ] **PASO 1:** Ejecutar script de limpieza
   ```bash
-  go run cmd/cleanup-db/main.go -env production -keep-users "Babacar,javi"
+  go run cmptemp/cleanup-db/main.go -env production -keep-users "Babacar,javi"
   ```
 
 - [ ] Escribir `DELETE ALL` cuando se solicite
@@ -167,7 +167,7 @@ Después de las pruebas beta, se espera eliminar aproximadamente:
 
 - Aiven Support: https://console.aiven.io
 - Documentación: /docs/DATABASE_CLEANUP_PROCEDURE.md
-- Script: /cmd/cleanup-db/main.go
+- Script: /cmptemp/cleanup-db/main.go
 
 ---
 
