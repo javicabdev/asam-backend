@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS payments (
     id SERIAL PRIMARY KEY,
     member_id INTEGER NOT NULL,  -- Required: for families, use family.miembro_origen_id
     amount DECIMAL(10,2) NOT NULL,
-    payment_date DATE,  -- NULL for pending payments
+    payment_date TIMESTAMP WITH TIME ZONE,  -- NULL for pending payments, stores complete timestamp
     status VARCHAR(255) NOT NULL,
     payment_method VARCHAR(255) NOT NULL,
     notes TEXT,
@@ -500,7 +500,7 @@ COMMENT ON COLUMN members.identity_card IS 'Identity card number (DNI/NIE). Must
 COMMENT ON COLUMN membership_fees.year IS 'Year of the membership fee. UNIQUE constraint ensures only one fee per year';
 COMMENT ON COLUMN membership_fees.due_date IS 'Due date for the fee payment. Always set to December 31st of the year';
 COMMENT ON COLUMN payments.member_id IS 'Member associated with the payment. For family payments, use family.miembro_origen_id';
-COMMENT ON COLUMN payments.payment_date IS 'Date when the payment was made. NULL for pending payments, set when payment status changes to paid';
+COMMENT ON COLUMN payments.payment_date IS 'Date and time when the payment was made. NULL for pending payments, set when payment status changes to paid. Stores complete timestamp including hours, minutes, and seconds';
 COMMENT ON COLUMN payments.membership_fee_id IS 'Links to the annual fee this payment is for. Initial payments will have this set';
 COMMENT ON COLUMN cash_flows.payment_id IS 'Links to payment record. Must be unique when not NULL (one cash_flow per payment)';
 COMMENT ON COLUMN users.email IS 'User email address, required for notifications and authentication';
