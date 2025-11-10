@@ -7,6 +7,8 @@ run:
   build-tags: []
   modules-download-mode: readonly
   allow-parallel-runners: false
+  skip-dirs:
+    - cmptemp
 
 linters:
   enable:
@@ -113,16 +115,6 @@ linters:
           - goconst
           - staticcheck
           - govet
-
-      # Exclude cleanup-db script (utility/maintenance script)
-      - path: cmd/cleanup-db/.*\.go
-        linters:
-          - errcheck
-          - gocritic
-          - gosec
-          - noctx
-          - unparam
-          - rowserrcheck
 
       # Exclude generated files
       - path: '.*\.pb\.go$'

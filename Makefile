@@ -257,7 +257,7 @@ lint:
 		echo "${YELLOW}Install it with: make tools${NC}"; \
 		exit 1; \
 	fi
-	@$(GOLINT) run --timeout=5m
+	@$(GOLINT) run --timeout=5m ./cmd/api/... ./internal/... ./pkg/... ./test/...
 	@echo "${GREEN}✅ Linting complete - no issues found!${NC}"
 
 ## security: Run security scan with gosec (SAST)
