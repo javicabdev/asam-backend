@@ -81,6 +81,7 @@ type CreateMemberInput struct {
 	Poblacion          string         `json:"poblacion"`
 	Provincia          *string        `json:"provincia,omitempty"`
 	Pais               *string        `json:"pais,omitempty"`
+	FechaAlta          *time.Time     `json:"fecha_alta,omitempty"`
 	FechaNacimiento    *time.Time     `json:"fecha_nacimiento,omitempty"`
 	DocumentoIdentidad *string        `json:"documento_identidad,omitempty"`
 	CorreoElectronico  *string        `json:"correo_electronico,omitempty"`

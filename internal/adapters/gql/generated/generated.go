@@ -2967,6 +2967,7 @@ input CreateMemberInput {
     poblacion: String!
     provincia: String
     pais: String
+    fecha_alta: Time  # Fecha de alta del socio (por defecto: fecha actual)
     fecha_nacimiento: Time
     documento_identidad: String
     correo_electronico: String
@@ -15683,7 +15684,7 @@ func (ec *executionContext) unmarshalInputCreateMemberInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"numero_socio", "tipo_membresia", "nombre", "apellidos", "calle_numero_piso", "codigo_postal", "poblacion", "provincia", "pais", "fecha_nacimiento", "documento_identidad", "correo_electronico", "profesion", "nacionalidad", "observaciones"}
+	fieldsInOrder := [...]string{"numero_socio", "tipo_membresia", "nombre", "apellidos", "calle_numero_piso", "codigo_postal", "poblacion", "provincia", "pais", "fecha_alta", "fecha_nacimiento", "documento_identidad", "correo_electronico", "profesion", "nacionalidad", "observaciones"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -15753,6 +15754,13 @@ func (ec *executionContext) unmarshalInputCreateMemberInput(ctx context.Context,
 				return it, err
 			}
 			it.Pais = data
+		case "fecha_alta":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fecha_alta"))
+			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.FechaAlta = data
 		case "fecha_nacimiento":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fecha_nacimiento"))
 			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)

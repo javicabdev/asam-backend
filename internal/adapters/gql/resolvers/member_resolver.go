@@ -60,6 +60,12 @@ func (r *memberResolver) mapCreateInputToMember(input *model.CreateMemberInput) 
 		return nil, err
 	}
 
+	// Use provided registration date or default to now
+	registrationDate := time.Now()
+	if input.FechaAlta != nil {
+		registrationDate = *input.FechaAlta
+	}
+
 	member := &models.Member{
 		MembershipNumber: input.NumeroSocio,
 		MembershipType:   tipoMembresia,
@@ -69,7 +75,7 @@ func (r *memberResolver) mapCreateInputToMember(input *model.CreateMemberInput) 
 		Postcode:         input.CodigoPostal,
 		City:             input.Poblacion,
 		State:            models.EstadoActivo,
-		RegistrationDate: time.Now(),
+		RegistrationDate: registrationDate,
 		BirthDate:        input.FechaNacimiento,
 	}
 

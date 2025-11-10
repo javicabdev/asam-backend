@@ -432,6 +432,7 @@ input CreateMemberInput {
     poblacion: String!
     provincia: String
     pais: String
+    fecha_alta: Time  # Fecha de alta del socio (por defecto: fecha actual)
     fecha_nacimiento: Time
     documento_identidad: String
     correo_electronico: String

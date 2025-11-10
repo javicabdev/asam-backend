@@ -518,6 +518,14 @@ func (s *paymentService) generatePaymentForMember(ctx context.Context, member *m
 	isFamily := member.IsFamiliar()
 	detail.Amount = fee.Calculate(isFamily)
 
+	// Verificar si el año de la cuota es anterior al año de alta del socio
+	memberRegistrationYear := member.RegistrationDate.Year()
+	if fee.Year < memberRegistrationYear {
+		detail.WasCreated = false
+		detail.Error = ""
+		return detail
+	}
+
 	// Verificar si ya existe un pago para este socio y año
 	// Buscamos pagos del año completo
 	yearStart := time.Date(fee.Year, 1, 1, 0, 0, 0, 0, time.UTC)

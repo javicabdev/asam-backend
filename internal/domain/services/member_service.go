@@ -518,58 +518,100 @@ func (s *memberService) logSuccess(ctx context.Context, member *models.Member) {
 		zap.Uint("member_id", member.ID))
 }
 
-// createPendingPayment creates a pending payment for a newly created member
+// createPendingPayment creates pending payments for all years from registration date to current year
 func (s *memberService) createPendingPayment(ctx context.Context, tx output.Transaction, member *models.Member) error {
 	currentYear := time.Now().Year()
+	registrationYear := member.RegistrationDate.Year()
 
-	// Get the annual membership fee for the current year
-	fee, err := s.membershipFeeRepo.FindByYearWithTx(ctx, tx, currentYear)
-	if err != nil {
-		s.appLogger.Error("Error fetching membership fee",
-			zap.Int("year", currentYear),
-			zap.Error(err))
-		return errors.DB(err, "error obteniendo cuota de socio")
+	// Validate that membership fees exist for all required years
+	missingYears := []int{}
+	for year := registrationYear; year <= currentYear; year++ {
+		fee, err := s.membershipFeeRepo.FindByYearWithTx(ctx, tx, year)
+		if err != nil {
+			s.appLogger.Error("Error fetching membership fee",
+				zap.Int("year", year),
+				zap.Error(err))
+			return errors.DB(err, fmt.Sprintf("error obteniendo cuota del año %d", year))
+		}
+
+		if fee == nil {
+			missingYears = append(missingYears, year)
+		}
 	}
 
-	if fee == nil {
-		s.appLogger.Warn("No membership fee found for current year",
-			zap.Int("year", currentYear))
-		return errors.New(errors.ErrNotFound, fmt.Sprintf("no existe cuota para el año %d", currentYear))
+	// If any fees are missing, return validation error
+	if len(missingYears) > 0 {
+		s.appLogger.Warn("Missing membership fees for registration",
+			zap.Ints("missing_years", missingYears),
+			zap.String("numero_socio", member.MembershipNumber))
+
+		yearsStr := ""
+		for i, year := range missingYears {
+			if i > 0 {
+				yearsStr += ", "
+			}
+			yearsStr += fmt.Sprintf("%d", year)
+		}
+
+		return errors.NewValidationError(
+			"No se puede dar de alta el socio porque faltan cuotas anuales",
+			map[string]string{
+				"missing_years": fmt.Sprintf("No existen cuotas para los años: %s", yearsStr),
+			},
+		)
 	}
 
-	// Determine payment amount based on membership type
+	// Create pending payments for all years from registration to current
 	isFamily := member.MembershipType == models.TipoMembresiaPFamiliar
-	amount := fee.Calculate(isFamily)
+	paymentsCreated := 0
 
-	// Create the pending payment
-	payment := &models.Payment{
-		MemberID:        member.ID,
-		Amount:          amount,
-		PaymentDate:     nil, // Nil indicates pending payment
-		Status:          models.PaymentStatusPending,
-		PaymentMethod:   "",
-		Notes:           "",
-		MembershipFeeID: &fee.ID,
+	for year := registrationYear; year <= currentYear; year++ {
+		fee, err := s.membershipFeeRepo.FindByYearWithTx(ctx, tx, year)
+		if err != nil {
+			s.appLogger.Error("Error fetching membership fee",
+				zap.Int("year", year),
+				zap.Error(err))
+			return errors.DB(err, fmt.Sprintf("error obteniendo cuota del año %d", year))
+		}
+
+		// Calculate amount based on membership type
+		amount := fee.Calculate(isFamily)
+
+		// Create the pending payment
+		payment := &models.Payment{
+			MemberID:        member.ID,
+			Amount:          amount,
+			PaymentDate:     nil, // Nil indicates pending payment
+			Status:          models.PaymentStatusPending,
+			PaymentMethod:   "",
+			Notes:           fmt.Sprintf("Cuota anual %d", year),
+			MembershipFeeID: &fee.ID,
+		}
+
+		if err := payment.Validate(); err != nil {
+			s.appLogger.Error("Payment validation failed",
+				zap.Uint("member_id", member.ID),
+				zap.Int("year", year),
+				zap.Error(err))
+			return errors.Validation("Error validando pago", "", err.Error())
+		}
+
+		if err := s.paymentRepository.CreateWithTx(ctx, tx, payment); err != nil {
+			s.appLogger.Error("Failed to create pending payment",
+				zap.Uint("member_id", member.ID),
+				zap.Int("year", year),
+				zap.Error(err))
+			return errors.DB(err, fmt.Sprintf("error creando pago pendiente del año %d", year))
+		}
+
+		paymentsCreated++
 	}
 
-	if err := payment.Validate(); err != nil {
-		s.appLogger.Error("Payment validation failed",
-			zap.Uint("member_id", member.ID),
-			zap.Error(err))
-		return errors.Validation("Error validando pago", "", err.Error())
-	}
-
-	if err := s.paymentRepository.CreateWithTx(ctx, tx, payment); err != nil {
-		s.appLogger.Error("Failed to create pending payment",
-			zap.Uint("member_id", member.ID),
-			zap.Error(err))
-		return errors.DB(err, "error creando pago pendiente")
-	}
-
-	s.appLogger.Info("Pending payment created successfully",
+	s.appLogger.Info("Pending payments created successfully",
 		zap.Uint("member_id", member.ID),
-		zap.Uint("payment_id", payment.ID),
-		zap.Float64("amount", payment.Amount))
+		zap.Int("payments_created", paymentsCreated),
+		zap.Int("from_year", registrationYear),
+		zap.Int("to_year", currentYear))
 
 	return nil
 }
