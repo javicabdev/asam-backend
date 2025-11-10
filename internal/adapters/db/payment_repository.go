@@ -585,9 +585,9 @@ func (r *paymentRepository) GetDefaultersData(ctx context.Context) ([]output.Def
 	-- Query principal: Unir con datos del miembro
 	SELECT
 		m.id as member_id,
-		m.numero_socio,
+		m.membership_number as numero_socio,
 		m.full_name,
-		COALESCE(m.correo_electronico, '') as email,
+		COALESCE(m.email, '') as email,
 		mwo.overdue_count,
 		mwo.oldest_pending_due,
 		COALESCE(pa.total_paid, 0) as total_paid,
