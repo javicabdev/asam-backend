@@ -5,6 +5,24 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.3.0] - 2025-11-11
+
+### Added
+- Parámetro opcional `amount` en mutación `confirmPayment`
+  - Permite actualizar el monto del pago al momento de confirmarlo
+  - Si no se proporciona, mantiene el valor actual del pago
+  - Validación automática que el monto sea mayor que cero
+  - Actualización condicional: solo modifica si el valor es diferente al actual
+
+### Technical
+- Actualizado schema GraphQL con nuevo parámetro opcional `amount: Float`
+- Lógica de validación de monto en `payment_service.go`
+- Interfaz `PaymentService` actualizada con nuevo parámetro
+- Código generado por gqlgen actualizado automáticamente
+- Resolver GraphQL modificado para pasar el parámetro al servicio
+
+---
+
 ## [1.2.0] - 2025-11-10
 
 ### Fixed
