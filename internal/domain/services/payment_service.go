@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -256,7 +257,7 @@ func (s *paymentService) CancelPayment(ctx context.Context, paymentID uint, reas
 }
 
 // ConfirmPayment confirms a pending payment by changing its status to PAID
-func (s *paymentService) ConfirmPayment(ctx context.Context, paymentID uint, paymentMethod string, paymentDate *time.Time, notes *string) (*models.Payment, error) {
+func (s *paymentService) ConfirmPayment(ctx context.Context, paymentID uint, paymentMethod string, paymentDate *time.Time, notes *string, amount *float64) (*models.Payment, error) {
 	// Get existing payment
 	payment, err := s.paymentRepo.FindByID(ctx, paymentID)
 	if err != nil {
@@ -283,6 +284,19 @@ func (s *paymentService) ConfirmPayment(ctx context.Context, paymentID uint, pay
 			"payment_method",
 			"empty",
 		)
+	}
+
+	// Update amount if provided and different from current amount
+	if amount != nil && *amount != payment.Amount {
+		// Validate amount is positive
+		if *amount <= 0 {
+			return nil, errors.Validation(
+				"Amount must be greater than zero",
+				"amount",
+				fmt.Sprintf("%f", *amount),
+			)
+		}
+		payment.Amount = *amount
 	}
 
 	// Update payment status, date and payment method
