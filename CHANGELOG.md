@@ -5,6 +5,73 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.5.1] - 2025-11-13
+
+### Added
+
+#### Actualización Automática de Pagos Pendientes
+- **Sincronización inteligente**: Al cambiar el monto de una cuota anual (ej: 35€ → 40€), los pagos pendientes se actualizan automáticamente
+- **Respeto a pagos confirmados**: Solo actualiza pagos en estado PENDING, los pagos PAID no se modifican
+- **Auditoría clara**: Nota "Cuota anual actualizada automáticamente" en pagos modificados
+- Elimina inconsistencias entre cuotas y pagos pendientes
+
+### Fixed
+
+#### Tests de Integración
+- Corregido error de compilación en `payment_cashflow_sync_test.go`
+  - Variable global `testDB` reemplazada por patrón correcto `setupTestDB(t)`
+  - Agregadas funciones helper para repositorios en tests
+  - Modelo `Member` corregido con todos los campos obligatorios
+
+#### GraphQL Resolver - GenerateAnnualFees
+- Corregido error "the requested element is null" en campo `error` nullable
+  - Solo crea puntero cuando hay error real
+  - Retorna `nil` cuando no hay error (cumple schema GraphQL)
+
+#### Métricas de Defaulters
+- Eliminada referencia a columna `deleted_at` inexistente en tabla `members`
+  - Tabla `members` no usa soft delete
+  - Error: "column m.deleted_at does not exist" ya no ocurre
+
+#### GraphQL Resolver - UpdatePayment
+- Corregido error "member is null" al actualizar pagos
+  - Resolver ahora recarga el payment con todas sus relaciones después de actualizar
+  - Campo `member: Member!` siempre retorna objeto completo (no null)
+  - Previene pérdida de información de socio y cuota al editar
+
+### Technical
+
+#### Tests
+- Implementado método `Update()` en `MockPaymentRepository` para permitir tests de actualización
+- Tests de idempotencia ahora verifican correctamente la actualización de pagos
+
+#### Mejoras en Integridad de Datos
+- `generatePaymentForMember()` ahora detecta cambios en monto y actualiza pagos pendientes
+- Uso correcto de `Preload()` en GORM para cargar relaciones requeridas por GraphQL
+- Consistencia mejorada entre estado de cuotas y pagos generados
+
+### Casos de Uso
+
+#### Escenario: Ajuste de Cuota Anual
+```
+1. Admin genera cuotas 2025 con 35€ → Crea pagos pendientes de 35€
+2. Admin cambia cuotas 2025 a 40€ → Actualiza automáticamente pagos pendientes a 40€
+3. Los pagos ya confirmados mantienen su monto original
+```
+
+#### Antes vs Después
+**Antes (v1.5.0)**:
+- Cambiar monto de cuota no actualizaba pagos pendientes
+- Socio veía monto antiguo (35€) aunque la cuota fuera 40€
+- Requerías eliminar y recrear pagos manualmente
+
+**Después (v1.5.1)**:
+- Cambiar monto de cuota actualiza automáticamente pagos pendientes
+- Socio siempre ve el monto correcto
+- Sincronización transparente y automática
+
+---
+
 ## [1.5.0] - 2025-11-12
 
 ### Added
