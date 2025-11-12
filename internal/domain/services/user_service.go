@@ -103,8 +103,8 @@ func (s *userService) applyUserUpdates(ctx context.Context, user *models.User, u
 	}
 
 	// Update email if provided
-	if email, ok := updates["email"].(string); ok {
-		user.Email = strings.TrimSpace(email)
+	if err := s.updateEmail(ctx, user, updates); err != nil {
+		return err
 	}
 
 	// Update password if provided
@@ -153,6 +153,45 @@ func (s *userService) updateUsername(ctx context.Context, user *models.User, upd
 	}
 
 	user.Username = username
+	return nil
+}
+
+// updateEmail handles email update logic
+func (s *userService) updateEmail(ctx context.Context, user *models.User, updates map[string]interface{}) error {
+	email, ok := updates["email"].(string)
+	if !ok || email == "" {
+		return nil
+	}
+
+	// Normalize email
+	email = strings.TrimSpace(strings.ToLower(email))
+
+	// Check if email is changing
+	if email != user.Email {
+		// Check if new email is available
+		existingUser, err := s.userRepo.FindByEmail(ctx, email)
+		if err != nil && !errors.IsNotFoundError(err) {
+			return errors.DB(err, "error checking email availability")
+		}
+		if existingUser != nil && existingUser.ID != user.ID {
+			return errors.NewValidationError(
+				"Email already exists",
+				map[string]string{"email": "This email is already in use"},
+			)
+		}
+
+		// Reset email verification status when email changes
+		user.EmailVerified = false
+		user.EmailVerifiedAt = nil
+
+		s.logger.Info("Email changed, verification status reset",
+			zap.Uint("user_id", user.ID),
+			zap.String("old_email", user.Email),
+			zap.String("new_email", email),
+		)
+	}
+
+	user.Email = email
 	return nil
 }
 
