@@ -125,6 +125,21 @@ func setupCashFlowService(repo output.CashFlowRepository) *services.CashFlowServ
 	return services.NewCashFlowService(repo)
 }
 
+// setupPaymentRepository crea una instancia del repositorio de Payment
+func setupPaymentRepository(database *gorm.DB) output.PaymentRepository {
+	return db.NewPaymentRepository(database)
+}
+
+// setupMemberRepository crea una instancia del repositorio de Member
+func setupMemberRepository(database *gorm.DB) output.MemberRepository {
+	return db.NewMemberRepository(database)
+}
+
+// setupMembershipFeeRepository crea una instancia del repositorio de MembershipFee
+func setupMembershipFeeRepository(database *gorm.DB) output.MembershipFeeRepository {
+	return db.NewMembershipFeeRepository(database)
+}
+
 // getEnvOrDefault obtiene una variable de entorno o retorna un valor por defecto
 func getEnvOrDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
