@@ -155,7 +155,15 @@ func (r *paymentResolver) updatePayment(ctx context.Context, payment *models.Pay
 	if err != nil {
 		return nil, appErrors.Wrap(err, appErrors.ErrInternalError, "Error updating payment and syncing cashflow")
 	}
-	return payment, nil
+
+	// Reload the payment to get all relationships (Member, MembershipFee, etc.)
+	// This is necessary because GraphQL schema requires member to be non-null
+	updatedPayment, err := r.paymentService.GetPayment(ctx, payment.ID)
+	if err != nil {
+		return nil, appErrors.Wrap(err, appErrors.ErrDatabaseError, "Error retrieving updated payment")
+	}
+
+	return updatedPayment, nil
 }
 
 // MembershipFee resolver para el campo membership_fee en Payment
