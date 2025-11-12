@@ -48,6 +48,11 @@ type CashFlowRepository interface {
 	// - Los filtros aplicados (operation_type, member_id, etc.)
 	// - El ordenamiento cronológico (date ASC, created_at ASC)
 	ListWithRunningBalance(ctx context.Context, filter CashFlowFilter) ([]*models.CashFlow, error)
+
+	// UpdateCashFlowAndSyncPayment actualiza un cashflow y sincroniza su payment asociado en una transacción
+	// Si el cashflow tiene un payment vinculado (PaymentID != nil), lo actualiza con los mismos datos
+	// Garantiza consistencia de datos mediante transacción ACID
+	UpdateCashFlowAndSyncPayment(ctx context.Context, cashFlow *models.CashFlow) error
 }
 
 // CashFlowFilter define los filtros disponibles para buscar movimientos

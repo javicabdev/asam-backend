@@ -27,6 +27,15 @@ type PaymentRepository interface {
 
 	// Transaction support
 	CreateWithTx(ctx context.Context, tx Transaction, payment *models.Payment) error
+
+	// UpdatePaymentAndSyncCashFlow actualiza un payment y sincroniza su cashflow asociado en una transacción
+	// Si el payment tiene un cashflow vinculado, lo actualiza con los mismos datos
+	// Garantiza consistencia de datos mediante transacción ACID
+	UpdatePaymentAndSyncCashFlow(ctx context.Context, payment *models.Payment) error
+
+	// ConfirmPaymentWithTransaction confirma un payment y crea su cashflow en una transacción atómica
+	// Garantiza que ambos Payment y CashFlow se crean/actualizan juntos o ninguno
+	ConfirmPaymentWithTransaction(ctx context.Context, payment *models.Payment) error
 }
 
 // DefaulterData contiene información agregada de un socio moroso

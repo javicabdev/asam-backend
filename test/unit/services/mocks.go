@@ -371,6 +371,14 @@ func (m *MockPaymentRepository) HasPendingPayments(ctx context.Context, memberID
 	return false, nil
 }
 
+func (m *MockPaymentRepository) UpdatePaymentAndSyncCashFlow(ctx context.Context, payment *models.Payment) error {
+	return errors.New("not implemented")
+}
+
+func (m *MockPaymentRepository) ConfirmPaymentWithTransaction(ctx context.Context, payment *models.Payment) error {
+	return errors.New("not implemented")
+}
+
 // MockMembershipFeeRepository simulates a membership fee repository for testing
 type MockMembershipFeeRepository struct {
 	FindCurrentYearFunc func(ctx context.Context) (*models.MembershipFee, error)

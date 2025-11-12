@@ -479,6 +479,10 @@ func (m *MockCashFlowRepository) ListWithRunningBalance(ctx context.Context, fil
 	return nil, nil
 }
 
+func (m *MockCashFlowRepository) UpdateCashFlowAndSyncPayment(ctx context.Context, cashFlow *models.CashFlow) error {
+	return nil
+}
+
 func init() {
 	// Ensure testutils package is used
 	_ = testutils.TimePtr(time.Now())

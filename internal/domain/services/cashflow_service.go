@@ -135,6 +135,21 @@ func (s *CashFlowService) UpdateMovement(ctx context.Context, movement *models.C
 	return nil
 }
 
+// UpdateMovementAndSyncPayment actualiza un cashflow y sincroniza su payment asociado en una transacción
+func (s *CashFlowService) UpdateMovementAndSyncPayment(ctx context.Context, movement *models.CashFlow) error {
+	// Validar el movimiento
+	if err := movement.Validate(); err != nil {
+		return errors.Validation("Error validating movement", "", err.Error())
+	}
+
+	// Delegar al repositorio que maneja la transacción
+	if err := s.repository.UpdateCashFlowAndSyncPayment(ctx, movement); err != nil {
+		return errors.DB(err, "error actualizando movimiento y sincronizando pago")
+	}
+
+	return nil
+}
+
 // DeleteMovement implementa el borrado de un movimiento
 func (s *CashFlowService) DeleteMovement(ctx context.Context, id uint) error {
 	if err := s.repository.Delete(ctx, id); err != nil {

@@ -27,6 +27,9 @@ type PaymentService interface {
 	GetMemberPayments(ctx context.Context, memberID uint) ([]*models.Payment, error)
 	GetFamilyPayments(ctx context.Context, familyID uint) ([]*models.Payment, error)
 
+	// UpdatePaymentAndSyncCashFlow actualiza un payment y sincroniza su cashflow asociado en una transacción
+	UpdatePaymentAndSyncCashFlow(ctx context.Context, payment *models.Payment) error
+
 	// GenerateAnnualFees genera cuotas anuales para todos los socios activos
 	GenerateAnnualFees(ctx context.Context, req *GenerateAnnualFeesRequest) (*GenerateAnnualFeesResponse, error)
 	GetMembershipFee(ctx context.Context, year, month int) (*models.MembershipFee, error)

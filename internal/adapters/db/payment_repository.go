@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -71,6 +72,112 @@ func (r *paymentRepository) Update(ctx context.Context, payment *models.Payment)
 	}
 
 	return nil
+}
+
+// UpdatePaymentAndSyncCashFlow actualiza un payment y sincroniza su cashflow asociado en una transacción
+func (r *paymentRepository) UpdatePaymentAndSyncCashFlow(ctx context.Context, payment *models.Payment) error {
+	if err := payment.Validate(); err != nil {
+		if appErr, ok := appErrors.AsAppError(err); ok {
+			return appErr
+		}
+		return appErrors.Validation("invalid payment data", "", err.Error())
+	}
+
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 1. Actualizar el payment
+		result := tx.Save(payment)
+		if result.Error != nil {
+			return appErrors.DB(result.Error, "error updating payment")
+		}
+
+		if result.RowsAffected == 0 {
+			return appErrors.NotFound("payment", nil)
+		}
+
+		// 2. Buscar si existe un cashflow vinculado
+		var cashFlow models.CashFlow
+		err := tx.Where("payment_id = ?", payment.ID).First(&cashFlow).Error
+
+		if err != nil {
+			// Si no existe cashflow, no hay nada que sincronizar
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil // Éxito, solo se actualizó el payment
+			}
+			return appErrors.DB(err, "error checking for linked cashflow")
+		}
+
+		// 3. Sincronizar el cashflow con los datos del payment
+		// Solo si el payment está confirmado (tiene payment_date)
+		if payment.PaymentDate != nil {
+			oldAmount := cashFlow.Amount
+			cashFlow.Amount = payment.Amount
+			cashFlow.Date = *payment.PaymentDate
+			cashFlow.Detail = fmt.Sprintf("Pago de cuota - %s", payment.Notes)
+
+			result = tx.Save(&cashFlow)
+			if result.Error != nil {
+				return appErrors.DB(result.Error, "error syncing linked cashflow")
+			}
+
+			// Log sync for audit trail
+			if oldAmount != payment.Amount {
+				fmt.Printf("[SYNC] Payment %d → CashFlow %d: amount %.2f → %.2f\n",
+					payment.ID, cashFlow.ID, oldAmount, payment.Amount)
+			}
+		}
+
+		return nil
+	})
+}
+
+// ConfirmPaymentWithTransaction confirma un payment y crea su cashflow en una transacción atómica
+func (r *paymentRepository) ConfirmPaymentWithTransaction(ctx context.Context, payment *models.Payment) error {
+	if err := payment.Validate(); err != nil {
+		if appErr, ok := appErrors.AsAppError(err); ok {
+			return appErr
+		}
+		return appErrors.Validation("invalid payment data", "", err.Error())
+	}
+
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 1. Actualizar el payment
+		result := tx.Save(payment)
+		if result.Error != nil {
+			return appErrors.DB(result.Error, "error confirming payment")
+		}
+
+		if result.RowsAffected == 0 {
+			return appErrors.NotFound("payment", nil)
+		}
+
+		// 2. Verificar si ya existe un cashflow (idempotencia)
+		var existingCashFlow models.CashFlow
+		err := tx.Where("payment_id = ?", payment.ID).First(&existingCashFlow).Error
+
+		if err == nil {
+			// Ya existe cashflow, no crear duplicado (idempotencia)
+			return nil
+		}
+
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			// Error diferente a "no encontrado"
+			return appErrors.DB(err, "error checking existing cashflow")
+		}
+
+		// 3. No existe cashflow, crearlo
+		if payment.PaymentDate != nil {
+			cashFlow, err := models.NewFromPayment(payment)
+			if err != nil {
+				return appErrors.Wrap(err, appErrors.ErrInvalidOperation, "error creating cash flow from payment")
+			}
+
+			if err := tx.Create(cashFlow).Error; err != nil {
+				return appErrors.DB(err, "error creating cash flow entry")
+			}
+		}
+
+		return nil
+	})
 }
 
 func (r *paymentRepository) Delete(ctx context.Context, id uint) error {

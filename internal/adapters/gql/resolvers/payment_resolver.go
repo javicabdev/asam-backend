@@ -130,7 +130,7 @@ func (r *paymentResolver) createPayment(ctx context.Context, payment *models.Pay
 	return payment, nil
 }
 
-// updatePayment actualiza un pago existente
+// updatePayment actualiza un pago existente y sincroniza automáticamente el cashflow vinculado
 func (r *paymentResolver) updatePayment(ctx context.Context, payment *models.Payment) (*models.Payment, error) {
 	// Check if payment exists and is not cancelled
 	existingPayment, err := r.paymentService.GetPayment(ctx, payment.ID)
@@ -149,10 +149,11 @@ func (r *paymentResolver) updatePayment(ctx context.Context, payment *models.Pay
 		)
 	}
 
-	// Update the payment
-	err = r.paymentService.RegisterPayment(ctx, payment)
+	// Update the payment and sync with cashflow using transaction
+	// This ensures Payment and CashFlow stay in sync
+	err = r.paymentService.UpdatePaymentAndSyncCashFlow(ctx, payment)
 	if err != nil {
-		return nil, appErrors.Wrap(err, appErrors.ErrInternalError, "Error updating payment")
+		return nil, appErrors.Wrap(err, appErrors.ErrInternalError, "Error updating payment and syncing cashflow")
 	}
 	return payment, nil
 }

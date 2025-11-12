@@ -96,6 +96,63 @@ func (r *cashFlowRepository) Update(ctx context.Context, cashFlow *models.CashFl
 	return nil
 }
 
+// UpdateCashFlowAndSyncPayment actualiza un cashflow y sincroniza su payment asociado en una transacción
+func (r *cashFlowRepository) UpdateCashFlowAndSyncPayment(ctx context.Context, cashFlow *models.CashFlow) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 1. Actualizar el cashflow
+		result := tx.Save(cashFlow)
+		if result.Error != nil {
+			if IsConstraintViolationError(result.Error) {
+				return appErrors.New(appErrors.ErrInvalidOperation, "invalid operation due to constraint violation")
+			}
+			return appErrors.DB(result.Error, "error updating cash flow")
+		}
+
+		if result.RowsAffected == 0 {
+			return appErrors.NotFound("cash flow", nil)
+		}
+
+		// 2. Si tiene un payment vinculado, sincronizarlo
+		if cashFlow.PaymentID != nil {
+			var payment models.Payment
+			err := tx.First(&payment, *cashFlow.PaymentID).Error
+
+			if err != nil {
+				// Si no existe el payment, es un error de integridad
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return appErrors.New(appErrors.ErrInvalidOperation, "linked payment not found")
+				}
+				return appErrors.DB(err, "error checking for linked payment")
+			}
+
+			// 3. Sincronizar datos del payment con el cashflow
+			// Solo actualizar si el payment está en estado PAID
+			if payment.Status == models.PaymentStatusPaid {
+				oldAmount := payment.Amount
+				payment.Amount = cashFlow.Amount
+				payment.PaymentDate = &cashFlow.Date
+				// Actualizar notes solo si el cashflow tiene detail
+				if cashFlow.Detail != "" {
+					payment.Notes = cashFlow.Detail
+				}
+
+				result = tx.Save(&payment)
+				if result.Error != nil {
+					return appErrors.DB(result.Error, "error syncing linked payment")
+				}
+
+				// Log sync for audit trail
+				if oldAmount != cashFlow.Amount {
+					fmt.Printf("[SYNC] CashFlow %d → Payment %d: amount %.2f → %.2f\n",
+						cashFlow.ID, payment.ID, oldAmount, cashFlow.Amount)
+				}
+			}
+		}
+
+		return nil
+	})
+}
+
 // Delete implementa el borrado suave de un movimiento
 func (r *cashFlowRepository) Delete(ctx context.Context, id uint) error {
 	result := r.db.WithContext(ctx).Delete(&models.CashFlow{}, id)

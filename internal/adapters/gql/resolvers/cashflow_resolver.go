@@ -161,9 +161,10 @@ func (r *cashFlowResolver) createTransaction(ctx context.Context, transaction *m
 
 // updateTransaction actualiza una transacción existente
 func (r *cashFlowResolver) updateTransaction(ctx context.Context, transaction *models.CashFlow) (*models.CashFlow, error) {
-	err := r.cashFlowService.UpdateMovement(ctx, transaction)
+	// Use the synchronized update method to keep Payment and CashFlow in sync
+	err := r.cashFlowService.UpdateMovementAndSyncPayment(ctx, transaction)
 	if err != nil {
-		return nil, appErrors.Wrap(err, appErrors.ErrInternalError, "Error processing transaction")
+		return nil, appErrors.Wrap(err, appErrors.ErrInternalError, "Error processing transaction and syncing payment")
 	}
 	return transaction, nil
 }

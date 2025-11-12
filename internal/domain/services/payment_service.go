@@ -257,6 +257,7 @@ func (s *paymentService) CancelPayment(ctx context.Context, paymentID uint, reas
 }
 
 // ConfirmPayment confirms a pending payment by changing its status to PAID
+// Uses a database transaction to ensure Payment and CashFlow are created/updated atomically
 func (s *paymentService) ConfirmPayment(ctx context.Context, paymentID uint, paymentMethod string, paymentDate *time.Time, notes *string, amount *float64) (*models.Payment, error) {
 	// Get existing payment
 	payment, err := s.paymentRepo.FindByID(ctx, paymentID)
@@ -332,18 +333,14 @@ func (s *paymentService) ConfirmPayment(ctx context.Context, paymentID uint, pay
 		payment.Notes = *notes
 	}
 
-	// Save to database
-	err = s.paymentRepo.Update(ctx, payment)
+	// Use transactional method to ensure Payment and CashFlow are updated/created atomically
+	// This guarantees data consistency - both succeed or both fail (rollback)
+	err = s.paymentRepo.ConfirmPaymentWithTransaction(ctx, payment)
 	if err != nil {
-		return nil, errors.DB(err, "failed to confirm payment")
+		return nil, errors.Wrap(err, errors.ErrInternalError, "failed to confirm payment with transaction")
 	}
 
-	// Crear entrada automática en cash_flows
-	if err := s.createCashFlowForPayment(ctx, payment); err != nil {
-		// Log error but don't fail the confirmation
-		log.Printf("Warning: Failed to create cash flow entry for payment %d: %v", payment.ID, err)
-	}
-
+	log.Printf("Payment %d confirmed successfully with synchronized cashflow", payment.ID)
 	return payment, nil
 }
 
@@ -358,6 +355,17 @@ func (s *paymentService) GetPayment(ctx context.Context, paymentID uint) (*model
 	}
 
 	return payment, nil
+}
+
+// UpdatePaymentAndSyncCashFlow actualiza un payment y sincroniza su cashflow asociado en una transacción
+func (s *paymentService) UpdatePaymentAndSyncCashFlow(ctx context.Context, payment *models.Payment) error {
+	// Validar el pago
+	if err := s.validatePayment(ctx, payment); err != nil {
+		return err
+	}
+
+	// Delegar al repositorio que maneja la transacción
+	return s.paymentRepo.UpdatePaymentAndSyncCashFlow(ctx, payment)
 }
 
 func (s *paymentService) GetMemberPayments(ctx context.Context, memberID uint) ([]*models.Payment, error) {
@@ -826,37 +834,4 @@ func (s *paymentService) ListPayments(ctx context.Context, filters input.Payment
 	}
 
 	return result, int(total), nil
-}
-
-// createCashFlowForPayment crea automáticamente una entrada en cash_flows cuando se confirma un pago
-func (s *paymentService) createCashFlowForPayment(ctx context.Context, payment *models.Payment) error {
-	// Verificar que el pago tiene una fecha de pago
-	if payment.PaymentDate == nil {
-		return errors.New(errors.ErrInvalidOperation, "payment date is required for cash flow creation")
-	}
-
-	// Verificar si ya existe un cash_flow para este pago (idempotencia)
-	exists, err := s.cashFlowRepo.ExistsByPaymentID(ctx, payment.ID)
-	if err != nil {
-		return errors.DB(err, "failed to check existing cash flow")
-	}
-
-	if exists {
-		log.Printf("Info: Cash flow already exists for payment %d, skipping creation", payment.ID)
-		return nil
-	}
-
-	// Crear el cash flow usando el helper del modelo
-	cashFlow, err := models.NewFromPayment(payment)
-	if err != nil {
-		return errors.Wrap(err, errors.ErrInvalidOperation, "failed to create cash flow from payment")
-	}
-
-	// Guardar en la base de datos
-	if err := s.cashFlowRepo.Create(ctx, cashFlow); err != nil {
-		return errors.DB(err, "failed to save cash flow entry")
-	}
-
-	log.Printf("Info: Cash flow entry created successfully for payment %d", payment.ID)
-	return nil
 }

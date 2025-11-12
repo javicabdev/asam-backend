@@ -16,6 +16,9 @@ type CashFlowService interface {
 	DeleteMovement(ctx context.Context, id uint) error
 	GetMovementsByPeriod(ctx context.Context, filter CashFlowFilter) ([]*models.CashFlow, int, error)
 
+	// UpdateMovementAndSyncPayment actualiza un cashflow y sincroniza su payment asociado en una transacción
+	UpdateMovementAndSyncPayment(ctx context.Context, movement *models.CashFlow) error
+
 	// GetCurrentBalance Gestión de balance
 	GetCurrentBalance(ctx context.Context) (*BalanceReport, error)
 	GetBalanceByPeriod(ctx context.Context, startDate, endDate time.Time) (*BalanceReport, error)
