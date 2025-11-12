@@ -508,14 +508,19 @@ func (r *mutationResolver) GenerateAnnualFees(ctx context.Context, input model.G
 
 	// Convertir detalles
 	for i, detail := range result.Details {
-		errorMsg := detail.Error
+		// Solo crear puntero a error si el string no está vacío
+		var errorPtr *string
+		if detail.Error != "" {
+			errorPtr = &detail.Error
+		}
+
 		response.Details[i] = &model.PaymentGenerationDetail{
 			MemberID:     fmt.Sprintf("%d", detail.MemberID),
 			MemberNumber: detail.MemberNumber,
 			MemberName:   detail.MemberName,
 			Amount:       detail.Amount,
 			WasCreated:   detail.WasCreated,
-			Error:        &errorMsg,
+			Error:        errorPtr,
 		}
 	}
 
