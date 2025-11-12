@@ -5,6 +5,87 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.4.0] - 2025-11-12
+
+### Added
+
+#### Sliding Expiration para Sesiones de Usuario
+- **Sistema de expiración deslizante (sliding expiration)** que extiende automáticamente las sesiones cuando el usuario está activo
+- Las sesiones se extienden automáticamente con cada refresh de token, mejorando la experiencia de usuario
+- **Límite absoluto de 30 días** desde el login inicial (configurable)
+- **Timeout de inactividad de 7 días** - sesiones expiran si no se usan durante este período
+- **Ventana de extensión de 24 horas** - cada refresh extiende la sesión por este tiempo
+- Campo `last_used_at` actualizado automáticamente en cada uso del token
+
+#### Nuevas Variables de Entorno
+- `TOKEN_SLIDING_EXPIRATION=true` - Habilitar/deshabilitar sliding expiration
+- `TOKEN_SLIDING_WINDOW=24h` - Tiempo de extensión en cada refresh
+- `TOKEN_ABSOLUTE_MAX_LIFETIME=720h` - Límite absoluto de sesión (30 días)
+- `TOKEN_INACTIVITY_TIMEOUT=168h` - Timeout por inactividad (7 días)
+
+### Technical
+
+#### Repositorio de Tokens
+- Nuevo método `GetRefreshToken(uuid)` - Obtiene información completa del token
+- Nuevo método `ExtendTokenExpiration(uuid, newExpires)` - Extiende la expiración del token
+
+#### Servicio de Autenticación
+- Lógica de sliding expiration implementada en `RefreshToken()`
+- Método `shouldApplySlidingExpiration()` - Verifica políticas de extensión
+- Método `createNewRefreshTokenWithSlidingExpiration()` - Crea tokens con extensión
+- Logging detallado de extensiones y límites alcanzados
+
+### Security
+
+#### Políticas de Seguridad
+- **Límite absoluto**: Fuerza nuevo login después de 30 días, independientemente de la actividad
+- **Detección de inactividad**: Expira sesiones no utilizadas en 7+ días
+- **Trazabilidad mejorada**: Campo `last_used_at` permite auditoría de uso de sesiones
+- **Configuración flexible**: Permite ajustar políticas según necesidades de seguridad
+
+### Casos de Uso
+
+#### Escenario 1: Usuario Activo Diario
+```
+Día 1: Login → Token expira en 24h
+Día 2: Refresh → Token se extiende +24h (expira día 3)
+Día 3-29: Uso continuo → Token se extiende cada vez
+Día 30: Refresh → Límite absoluto alcanzado → REQUIERE LOGIN
+```
+
+#### Escenario 2: Usuario Inactivo
+```
+Día 1: Login → Token expira en 24h
+Días 2-7: Sin actividad
+Día 8: Usuario intenta acceder → Token expiró por inactividad → REQUIERE LOGIN
+```
+
+#### Escenario 3: Configuración Deshabilitada
+```
+TOKEN_SLIDING_EXPIRATION=false
+Comportamiento tradicional: Token expira en tiempo fijo (JWT_REFRESH_TTL)
+```
+
+### Configuration Examples
+
+#### Aplicación Pública (Alta Seguridad)
+```env
+TOKEN_SLIDING_EXPIRATION=true
+TOKEN_SLIDING_WINDOW=12h          # Extensión corta
+TOKEN_ABSOLUTE_MAX_LIFETIME=168h  # 7 días máximo
+TOKEN_INACTIVITY_TIMEOUT=24h      # 1 día sin uso
+```
+
+#### Aplicación Interna (Mayor Conveniencia)
+```env
+TOKEN_SLIDING_EXPIRATION=true
+TOKEN_SLIDING_WINDOW=24h          # Extensión de 1 día
+TOKEN_ABSOLUTE_MAX_LIFETIME=720h  # 30 días máximo
+TOKEN_INACTIVITY_TIMEOUT=168h     # 7 días sin uso
+```
+
+---
+
 ## [1.3.0] - 2025-11-11
 
 ### Added
