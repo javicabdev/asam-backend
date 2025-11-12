@@ -335,48 +335,20 @@ func (s *authService) logSuccessfulLogin(user *models.User) {
 }
 
 func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*input.TokenDetails, error) {
-	// 1. Validar refresh token
-	token, err := s.jwtUtil.ValidateToken(refreshToken, true)
+	// 1. Validar y extraer información del token
+	refreshUUID, userID, err := s.validateAndExtractTokenClaims(refreshToken)
 	if err != nil {
-		return nil, errors.Wrap(err, errors.ErrUnauthorized, "refresh token inválido")
+		return nil, err
 	}
 
-	// 2. Extraer claims
-	claims, err := s.jwtUtil.ExtractClaims(token)
+	// 2. Validar token en BD y obtener información completa
+	existingToken, err := s.validateAndGetRefreshToken(ctx, refreshUUID, userID)
 	if err != nil {
-		return nil, errors.Wrap(err, errors.ErrInternalError, "error extrayendo claims")
+		return nil, err
 	}
 
-	// 3. Verificar que el refresh token exista en BD
-	refreshUUID, ok := claims["uuid"].(string)
-	if !ok {
-		return nil, errors.NewBusinessError(errors.ErrUnauthorized, "uuid no encontrado en token")
-	}
-
-	userID, ok := claims["user_id"].(float64)
-	if !ok {
-		return nil, errors.NewBusinessError(errors.ErrUnauthorized, "user_id no encontrado en token")
-	}
-
-	// Validate that userID is not negative before conversion to uint
-	if userID < 0 {
-		return nil, errors.NewBusinessError(errors.ErrUnauthorized, "invalid user_id: negative value")
-	}
-
-	// 4. Verificar token en BD
-	err = s.tokenRepo.ValidateRefreshToken(ctx, refreshUUID, uint(userID))
-	if err != nil {
-		return nil, errors.Wrap(err, errors.ErrUnauthorized, "refresh token no válido")
-	}
-
-	// 5. Obtener el token actual para verificar políticas de sliding expiration
-	existingToken, err := s.tokenRepo.GetRefreshToken(ctx, refreshUUID)
-	if err != nil {
-		return nil, errors.Wrap(err, errors.ErrInternalError, "error obteniendo token existente")
-	}
-
-	// 6. Obtener usuario para verificar rol
-	user, err := s.userRepo.FindByID(ctx, uint(userID))
+	// 3. Obtener usuario
+	user, err := s.userRepo.FindByID(ctx, userID)
 	if err != nil {
 		return nil, errors.DB(err, "error obteniendo usuario")
 	}
@@ -384,54 +356,14 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*i
 		return nil, errors.NewBusinessError(errors.ErrNotFound, "usuario no encontrado")
 	}
 
-	// 7. Decidir si usar sliding expiration o crear un nuevo token
-	var td *auth.TokenDetails
-	var shouldExtendToken bool
-
-	if s.slidingExpiration {
-		shouldExtendToken, err = s.shouldApplySlidingExpiration(existingToken)
-		if err != nil {
-			// Si hay un error al verificar, mejor crear un nuevo token
-			s.logger.Warn("Error checking sliding expiration eligibility, creating new token",
-				zap.Error(err),
-				zap.Uint("user_id", user.ID),
-			)
-			shouldExtendToken = false
-		}
+	// 4. Generar nuevo token (con o sin sliding expiration)
+	td, err := s.generateRefreshTokenWithPolicy(ctx, existingToken, user)
+	if err != nil {
+		return nil, err
 	}
 
-	if shouldExtendToken {
-		// Extender el token existente (sliding expiration)
-		// Creamos un nuevo token pero con una expiración extendida
-		td, err = s.createNewRefreshTokenWithSlidingExpiration(ctx, existingToken, user)
-		if err != nil {
-			return nil, err
-		}
-		s.logger.Info("Token extended using sliding expiration",
-			zap.Uint("user_id", user.ID),
-			zap.Int64("new_expires_at", td.RtExpires),
-		)
-	} else {
-		// Crear un nuevo token (comportamiento tradicional)
-		td, err = s.createNewRefreshToken(ctx, existingToken, user)
-		if err != nil {
-			return nil, err
-		}
-		s.logger.Info("New token created (sliding expiration limit reached or disabled)",
-			zap.Uint("user_id", user.ID),
-		)
-	}
-
-	// Aplicar límite de tokens por usuario si está configurado
-	if s.maxTokensPerUser > 0 {
-		if err := s.tokenRepo.EnforceTokenLimitPerUser(ctx, s.maxTokensPerUser); err != nil {
-			// Log el error pero no fallar el refresh
-			s.logger.Warn("Failed to enforce token limit after refresh",
-				zap.Error(err),
-				zap.Uint("user_id", user.ID),
-			)
-		}
-	}
+	// 5. Aplicar límite de tokens por usuario si está configurado
+	s.enforceTokenLimitIfConfigured(ctx, user.ID)
 
 	// Convertir auth.TokenDetails a input.TokenDetails
 	return &input.TokenDetails{
@@ -444,8 +376,89 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*i
 	}, nil
 }
 
+// validateAndExtractTokenClaims valida el JWT y extrae los claims necesarios
+func (s *authService) validateAndExtractTokenClaims(refreshToken string) (uuid string, userID uint, err error) {
+	token, err := s.jwtUtil.ValidateToken(refreshToken, true)
+	if err != nil {
+		return "", 0, errors.Wrap(err, errors.ErrUnauthorized, "refresh token inválido")
+	}
+
+	claims, err := s.jwtUtil.ExtractClaims(token)
+	if err != nil {
+		return "", 0, errors.Wrap(err, errors.ErrInternalError, "error extrayendo claims")
+	}
+
+	refreshUUID, ok := claims["uuid"].(string)
+	if !ok {
+		return "", 0, errors.NewBusinessError(errors.ErrUnauthorized, "uuid no encontrado en token")
+	}
+
+	userIDFloat, ok := claims["user_id"].(float64)
+	if !ok {
+		return "", 0, errors.NewBusinessError(errors.ErrUnauthorized, "user_id no encontrado en token")
+	}
+
+	if userIDFloat < 0 {
+		return "", 0, errors.NewBusinessError(errors.ErrUnauthorized, "invalid user_id: negative value")
+	}
+
+	return refreshUUID, uint(userIDFloat), nil
+}
+
+// validateAndGetRefreshToken valida el token en BD y lo obtiene
+func (s *authService) validateAndGetRefreshToken(ctx context.Context, uuid string, userID uint) (*models.RefreshToken, error) {
+	if err := s.tokenRepo.ValidateRefreshToken(ctx, uuid, userID); err != nil {
+		return nil, errors.Wrap(err, errors.ErrUnauthorized, "refresh token no válido")
+	}
+
+	token, err := s.tokenRepo.GetRefreshToken(ctx, uuid)
+	if err != nil {
+		return nil, errors.Wrap(err, errors.ErrInternalError, "error obteniendo token existente")
+	}
+
+	return token, nil
+}
+
+// generateRefreshTokenWithPolicy decide y genera el token según políticas configuradas
+func (s *authService) generateRefreshTokenWithPolicy(ctx context.Context, existingToken *models.RefreshToken, user *models.User) (*auth.TokenDetails, error) {
+	shouldExtend := s.slidingExpiration && s.shouldApplySlidingExpiration(existingToken)
+
+	if shouldExtend {
+		td, err := s.createNewRefreshTokenWithSlidingExpiration(ctx, existingToken, user)
+		if err != nil {
+			return nil, err
+		}
+		s.logger.Info("Token extended using sliding expiration",
+			zap.Uint("user_id", user.ID),
+			zap.Int64("new_expires_at", td.RtExpires),
+		)
+		return td, nil
+	}
+
+	td, err := s.createNewRefreshToken(ctx, existingToken, user)
+	if err != nil {
+		return nil, err
+	}
+	s.logger.Info("New token created (sliding expiration limit reached or disabled)",
+		zap.Uint("user_id", user.ID),
+	)
+	return td, nil
+}
+
+// enforceTokenLimitIfConfigured aplica el límite de tokens si está configurado
+func (s *authService) enforceTokenLimitIfConfigured(ctx context.Context, userID uint) {
+	if s.maxTokensPerUser > 0 {
+		if err := s.tokenRepo.EnforceTokenLimitPerUser(ctx, s.maxTokensPerUser); err != nil {
+			s.logger.Warn("Failed to enforce token limit after refresh",
+				zap.Error(err),
+				zap.Uint("user_id", userID),
+			)
+		}
+	}
+}
+
 // shouldApplySlidingExpiration verifica si se deben aplicar las políticas de sliding expiration
-func (s *authService) shouldApplySlidingExpiration(token *models.RefreshToken) (bool, error) {
+func (s *authService) shouldApplySlidingExpiration(token *models.RefreshToken) bool {
 	now := time.Now()
 
 	// Verificar si ha excedido el tiempo máximo absoluto de vida
@@ -455,7 +468,7 @@ func (s *authService) shouldApplySlidingExpiration(token *models.RefreshToken) (
 			zap.Duration("token_age", tokenAge),
 			zap.Duration("max_lifetime", s.absoluteMaxLifetime),
 		)
-		return false, nil
+		return false
 	}
 
 	// Verificar si ha estado inactivo por mucho tiempo
@@ -465,10 +478,10 @@ func (s *authService) shouldApplySlidingExpiration(token *models.RefreshToken) (
 			zap.Duration("time_since_last_use", timeSinceLastUse),
 			zap.Duration("inactivity_timeout", s.inactivityTimeout),
 		)
-		return false, nil
+		return false
 	}
 
-	return true, nil
+	return true
 }
 
 // createNewRefreshTokenWithSlidingExpiration crea un nuevo token respetando sliding expiration limits
