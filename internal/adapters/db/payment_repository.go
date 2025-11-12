@@ -702,7 +702,6 @@ func (r *paymentRepository) GetDefaultersData(ctx context.Context) ([]output.Def
 	FROM members_with_overdue mwo
 	INNER JOIN members m ON m.id = mwo.member_id
 	LEFT JOIN payment_aggregations pa ON pa.member_id = mwo.member_id
-	WHERE m.deleted_at IS NULL
 	ORDER BY mwo.oldest_pending_due ASC
 	`
 
