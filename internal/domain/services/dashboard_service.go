@@ -202,7 +202,6 @@ func (s *dashboardService) calculatePaymentStats(ctx context.Context, stats *inp
 	return nil
 }
 
-
 // processPayments processes a list of payments and updates statistics
 func (s *dashboardService) processPayments(payments []models.Payment, stats *paymentStats, filters timeFilters) {
 	for _, payment := range payments {

@@ -72,6 +72,12 @@ type Config struct {
 	TokenCleanupEnabled  bool          `env:"TOKEN_CLEANUP_ENABLED,default=true"`
 	TokenCleanupInterval time.Duration `env:"TOKEN_CLEANUP_INTERVAL,default=24h"`
 
+	// Sliding Expiration Configuration
+	TokenSlidingExpiration   bool          `env:"TOKEN_SLIDING_EXPIRATION,default=true"`
+	TokenSlidingWindow       time.Duration `env:"TOKEN_SLIDING_WINDOW,default=24h"`         // Tiempo para extender el token
+	TokenAbsoluteMaxLifetime time.Duration `env:"TOKEN_ABSOLUTE_MAX_LIFETIME,default=720h"` // 30 días límite absoluto
+	TokenInactivityTimeout   time.Duration `env:"TOKEN_INACTIVITY_TIMEOUT,default=168h"`    // 7 días sin uso = expiración
+
 	// URL base de la aplicación
 	BaseURL string `env:"BASE_URL,default=http://localhost:5173"`
 }

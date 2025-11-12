@@ -75,12 +75,12 @@ type GenerateAnnualFeesRequest struct {
 
 // PaymentGenerationDetail contiene información sobre un pago individual generado
 type PaymentGenerationDetail struct {
-	MemberID       uint
-	MemberNumber   string
-	MemberName     string
-	Amount         float64
-	WasCreated     bool   // true si se creó, false si ya existía
-	Error          string // mensaje de error si falló
+	MemberID     uint
+	MemberNumber string
+	MemberName   string
+	Amount       float64
+	WasCreated   bool   // true si se creó, false si ya existía
+	Error        string // mensaje de error si falló
 }
 
 // GenerateAnnualFeesResponse contiene el resultado de generar cuotas anuales

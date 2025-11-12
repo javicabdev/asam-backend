@@ -12,10 +12,10 @@ import (
 
 // paymentSortFieldMap mapea los nombres de campo del frontend a las columnas de BD
 var paymentSortFieldMap = map[string]string{
-	"memberNumber":      "Member__membership_number",      // Preload alias
-	"memberName":        "Member__name",                   // Ordenar por nombre
+	"memberNumber":      "Member__membership_number", // Preload alias
+	"memberName":        "Member__name",              // Ordenar por nombre
 	"amount":            "payments.amount",
-	"membershipFeeYear": "MembershipFee__year",            // Preload alias
+	"membershipFeeYear": "MembershipFee__year", // Preload alias
 	"paymentDate":       "payments.payment_date",
 	"paymentMethod":     "payments.payment_method",
 	"status":            "payments.status",

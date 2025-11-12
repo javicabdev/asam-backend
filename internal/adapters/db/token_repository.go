@@ -187,3 +187,41 @@ func (r *tokenRepository) EnforceTokenLimitPerUser(ctx context.Context, maxToken
 
 	return nil
 }
+
+// GetRefreshToken retrieves a specific refresh token by UUID
+func (r *tokenRepository) GetRefreshToken(ctx context.Context, uuid string) (*models.RefreshToken, error) {
+	var token models.RefreshToken
+	result := r.db.WithContext(ctx).
+		Where("uuid = ?", uuid).
+		First(&token)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, appErrors.New(appErrors.ErrNotFound, "Token not found")
+		}
+		return nil, appErrors.DB(result.Error, "Error fetching refresh token")
+	}
+
+	return &token, nil
+}
+
+// ExtendTokenExpiration extends the expiration time of a refresh token
+func (r *tokenRepository) ExtendTokenExpiration(ctx context.Context, uuid string, newExpires int64) error {
+	result := r.db.WithContext(ctx).
+		Model(&models.RefreshToken{}).
+		Where("uuid = ?", uuid).
+		Updates(map[string]interface{}{
+			"expires_at":   newExpires,
+			"last_used_at": time.Now(),
+		})
+
+	if result.Error != nil {
+		return appErrors.DB(result.Error, "Error extending token expiration")
+	}
+
+	if result.RowsAffected == 0 {
+		return appErrors.New(appErrors.ErrNotFound, "Token not found for extension")
+	}
+
+	return nil
+}

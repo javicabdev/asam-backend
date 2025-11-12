@@ -132,10 +132,10 @@ func mapDebtorMemberInfoToGraphQL(member *input.DebtorMemberInfo) *model.DebtorM
 // mapDebtorFamilyInfoToGraphQL convierte información de familia a GraphQL
 func mapDebtorFamilyInfoToGraphQL(family *input.DebtorFamilyInfo) *model.DebtorFamilyInfo {
 	return &model.DebtorFamilyInfo{
-		ID:           uintToString(family.ID),
-		FamilyName:   family.FamilyName,
+		ID:            uintToString(family.ID),
+		FamilyName:    family.FamilyName,
 		PrimaryMember: mapDebtorMemberInfoToGraphQL(&family.PrimaryMember),
-		TotalMembers: family.TotalMembers,
+		TotalMembers:  family.TotalMembers,
 	}
 }
 

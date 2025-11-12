@@ -26,6 +26,13 @@ type authService struct {
 	verificationTokenRepo output.VerificationTokenRepository
 	emailVerificationSvc  input.EmailVerificationService
 	logger                logger.Logger
+
+	// Sliding expiration configuration
+	slidingExpiration   bool
+	slidingWindow       time.Duration
+	absoluteMaxLifetime time.Duration
+	inactivityTimeout   time.Duration
+	maxTokensPerUser    int
 }
 
 // NewAuthService crea una nueva instancia del servicio de autenticación
@@ -38,6 +45,11 @@ func NewAuthService(
 	verificationTokenRepo output.VerificationTokenRepository,
 	emailVerificationSvc input.EmailVerificationService,
 	logger logger.Logger,
+	slidingExpiration bool,
+	slidingWindow time.Duration,
+	absoluteMaxLifetime time.Duration,
+	inactivityTimeout time.Duration,
+	maxTokensPerUser int,
 ) input.AuthService {
 	return &authService{
 		userRepo:              userRepo,
@@ -47,6 +59,11 @@ func NewAuthService(
 		verificationTokenRepo: verificationTokenRepo,
 		emailVerificationSvc:  emailVerificationSvc,
 		logger:                logger,
+		slidingExpiration:     slidingExpiration,
+		slidingWindow:         slidingWindow,
+		absoluteMaxLifetime:   absoluteMaxLifetime,
+		inactivityTimeout:     inactivityTimeout,
+		maxTokensPerUser:      maxTokensPerUser,
 	}
 }
 
@@ -352,7 +369,13 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*i
 		return nil, errors.Wrap(err, errors.ErrUnauthorized, "refresh token no válido")
 	}
 
-	// 5. Obtener usuario para verificar rol
+	// 5. Obtener el token actual para verificar políticas de sliding expiration
+	existingToken, err := s.tokenRepo.GetRefreshToken(ctx, refreshUUID)
+	if err != nil {
+		return nil, errors.Wrap(err, errors.ErrInternalError, "error obteniendo token existente")
+	}
+
+	// 6. Obtener usuario para verificar rol
 	user, err := s.userRepo.FindByID(ctx, uint(userID))
 	if err != nil {
 		return nil, errors.DB(err, "error obteniendo usuario")
@@ -361,14 +384,119 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*i
 		return nil, errors.NewBusinessError(errors.ErrNotFound, "usuario no encontrado")
 	}
 
-	// 6. Generar nuevo par de tokens
+	// 7. Decidir si usar sliding expiration o crear un nuevo token
+	var td *auth.TokenDetails
+	var shouldExtendToken bool
+
+	if s.slidingExpiration {
+		shouldExtendToken, err = s.shouldApplySlidingExpiration(existingToken)
+		if err != nil {
+			// Si hay un error al verificar, mejor crear un nuevo token
+			s.logger.Warn("Error checking sliding expiration eligibility, creating new token",
+				zap.Error(err),
+				zap.Uint("user_id", user.ID),
+			)
+			shouldExtendToken = false
+		}
+	}
+
+	if shouldExtendToken {
+		// Extender el token existente (sliding expiration)
+		// Creamos un nuevo token pero con una expiración extendida
+		td, err = s.createNewRefreshTokenWithSlidingExpiration(ctx, existingToken, user)
+		if err != nil {
+			return nil, err
+		}
+		s.logger.Info("Token extended using sliding expiration",
+			zap.Uint("user_id", user.ID),
+			zap.Int64("new_expires_at", td.RtExpires),
+		)
+	} else {
+		// Crear un nuevo token (comportamiento tradicional)
+		td, err = s.createNewRefreshToken(ctx, existingToken, user)
+		if err != nil {
+			return nil, err
+		}
+		s.logger.Info("New token created (sliding expiration limit reached or disabled)",
+			zap.Uint("user_id", user.ID),
+		)
+	}
+
+	// Aplicar límite de tokens por usuario si está configurado
+	if s.maxTokensPerUser > 0 {
+		if err := s.tokenRepo.EnforceTokenLimitPerUser(ctx, s.maxTokensPerUser); err != nil {
+			// Log el error pero no fallar el refresh
+			s.logger.Warn("Failed to enforce token limit after refresh",
+				zap.Error(err),
+				zap.Uint("user_id", user.ID),
+			)
+		}
+	}
+
+	// Convertir auth.TokenDetails a input.TokenDetails
+	return &input.TokenDetails{
+		AccessToken:  td.AccessToken,
+		RefreshToken: td.RefreshToken,
+		AccessUUID:   td.AccessUUID,
+		RefreshUUID:  td.RefreshUUID,
+		AtExpires:    td.AtExpires,
+		RtExpires:    td.RtExpires,
+	}, nil
+}
+
+// shouldApplySlidingExpiration verifica si se deben aplicar las políticas de sliding expiration
+func (s *authService) shouldApplySlidingExpiration(token *models.RefreshToken) (bool, error) {
+	now := time.Now()
+
+	// Verificar si ha excedido el tiempo máximo absoluto de vida
+	tokenAge := now.Sub(token.CreatedAt)
+	if tokenAge >= s.absoluteMaxLifetime {
+		s.logger.Info("Token exceeded absolute max lifetime, requiring new login",
+			zap.Duration("token_age", tokenAge),
+			zap.Duration("max_lifetime", s.absoluteMaxLifetime),
+		)
+		return false, nil
+	}
+
+	// Verificar si ha estado inactivo por mucho tiempo
+	timeSinceLastUse := now.Sub(token.LastUsedAt)
+	if timeSinceLastUse >= s.inactivityTimeout {
+		s.logger.Info("Token exceeded inactivity timeout, requiring new login",
+			zap.Duration("time_since_last_use", timeSinceLastUse),
+			zap.Duration("inactivity_timeout", s.inactivityTimeout),
+		)
+		return false, nil
+	}
+
+	return true, nil
+}
+
+// createNewRefreshTokenWithSlidingExpiration crea un nuevo token respetando sliding expiration limits
+func (s *authService) createNewRefreshTokenWithSlidingExpiration(ctx context.Context, oldToken *models.RefreshToken, user *models.User) (*auth.TokenDetails, error) {
+	// Calcular nueva fecha de expiración (extender por sliding window desde ahora)
+	newExpires := time.Now().Add(s.slidingWindow).Unix()
+
+	// Asegurar que no exceda el límite absoluto desde la creación original
+	maxAllowedExpires := oldToken.CreatedAt.Add(s.absoluteMaxLifetime).Unix()
+	if newExpires > maxAllowedExpires {
+		newExpires = maxAllowedExpires
+		s.logger.Info("Sliding expiration capped at absolute max lifetime",
+			zap.Uint("user_id", user.ID),
+			zap.Time("max_allowed_expires", time.Unix(maxAllowedExpires, 0)),
+		)
+	}
+
+	// Generar nuevo par de tokens con la expiración calculada
 	td, err := s.jwtUtil.GenerateTokenPair(user.ID, string(user.Role))
 	if err != nil {
 		return nil, errors.Wrap(err, errors.ErrInternalError, "error generando nuevos tokens")
 	}
 
-	// 7. Actualizar refresh token en BD con información del contexto
-	err = s.tokenRepo.DeleteRefreshToken(ctx, refreshUUID)
+	// Actualizar la expiración del refresh token al valor calculado
+	td.RtExpires = newExpires
+
+	// Eliminar el token antiguo
+	err = s.tokenRepo.DeleteRefreshToken(ctx, oldToken.UUID)
 	if err != nil {
 		return nil, errors.Wrap(err, errors.ErrInternalError, "error eliminando refresh token antiguo")
 	}
@@ -385,20 +513,48 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*i
 		ctxWithInfo = context.WithValue(ctxWithInfo, constants.DeviceNameContextKey, device)
 	}
 
+	// Guardar el nuevo refresh token con la expiración extendida
+	err = s.tokenRepo.SaveRefreshToken(ctxWithInfo, td.RefreshUUID, user.ID, newExpires)
+	if err != nil {
+		return nil, errors.Wrap(err, errors.ErrInternalError, "error guardando nuevo refresh token")
+	}
+
+	return td, nil
+}
+
+// createNewRefreshToken crea un nuevo token de refresco (comportamiento tradicional)
+func (s *authService) createNewRefreshToken(ctx context.Context, oldToken *models.RefreshToken, user *models.User) (*auth.TokenDetails, error) {
+	// Generar nuevo par de tokens
+	td, err := s.jwtUtil.GenerateTokenPair(user.ID, string(user.Role))
+	if err != nil {
+		return nil, errors.Wrap(err, errors.ErrInternalError, "error generando nuevos tokens")
+	}
+
+	// Eliminar refresh token antiguo
+	err = s.tokenRepo.DeleteRefreshToken(ctx, oldToken.UUID)
+	if err != nil {
+		return nil, errors.Wrap(err, errors.ErrInternalError, "error eliminando refresh token antiguo")
+	}
+
+	// Preparar contexto con información adicional
+	ctxWithInfo := ctx
+	if ip := ctx.Value(constants.IPContextKey); ip != nil {
+		ctxWithInfo = context.WithValue(ctxWithInfo, constants.IPAddressContextKey, ip)
+	}
+	if ua := ctx.Value(constants.UserAgentContextKey); ua != nil {
+		ctxWithInfo = context.WithValue(ctxWithInfo, constants.UserAgentContextKey, ua)
+	}
+	if device, ok := ctx.Value(constants.DeviceNameContextKey).(string); ok {
+		ctxWithInfo = context.WithValue(ctxWithInfo, constants.DeviceNameContextKey, device)
+	}
+
+	// Guardar nuevo refresh token
 	err = s.tokenRepo.SaveRefreshToken(ctxWithInfo, td.RefreshUUID, user.ID, td.RtExpires)
 	if err != nil {
 		return nil, errors.Wrap(err, errors.ErrInternalError, "error guardando nuevo refresh token")
 	}
 
-	// Convertir auth.TokenDetails a input.TokenDetails
-	return &input.TokenDetails{
-		AccessToken:  td.AccessToken,
-		RefreshToken: td.RefreshToken,
-		AccessUUID:   td.AccessUUID,
-		RefreshUUID:  td.RefreshUUID,
-		AtExpires:    td.AtExpires,
-		RtExpires:    td.RtExpires,
-	}, nil
+	return td, nil
 }
 
 func (s *authService) ValidateToken(ctx context.Context, tokenString string) (*models.User, error) {

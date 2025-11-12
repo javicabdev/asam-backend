@@ -12,12 +12,12 @@ type ReportService interface {
 
 // DelinquentReportInput contiene los parámetros de entrada para el reporte de morosos
 type DelinquentReportInput struct {
-	CutoffDate  *time.Time
-	MinAmount   *float64
-	DebtorType  *string
-	SortBy      *string
-	Page        int
-	PageSize    int
+	CutoffDate *time.Time
+	MinAmount  *float64
+	DebtorType *string
+	SortBy     *string
+	Page       int
+	PageSize   int
 }
 
 // DelinquentReportResponse contiene la respuesta del reporte de morosos
@@ -73,10 +73,10 @@ type PendingPayment struct {
 
 // DelinquentSummary contiene el resumen estadístico del informe
 type DelinquentSummary struct {
-	TotalDebtors          int
-	IndividualDebtors     int
-	FamilyDebtors         int
-	TotalDebtAmount       float64
-	AverageDaysOverdue    int
-	AverageDebtPerDebtor  float64
+	TotalDebtors         int
+	IndividualDebtors    int
+	FamilyDebtors        int
+	TotalDebtAmount      float64
+	AverageDaysOverdue   int
+	AverageDebtPerDebtor float64
 }

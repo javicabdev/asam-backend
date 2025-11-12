@@ -36,6 +36,10 @@ type TokenRepository interface {
 	DeleteAllUserTokens(ctx context.Context, userID uint) error
 	GetUserActiveSessions(ctx context.Context, userID uint) ([]*models.RefreshToken, error)
 
+	// Sliding expiration support
+	GetRefreshToken(ctx context.Context, uuid string) (*models.RefreshToken, error)
+	ExtendTokenExpiration(ctx context.Context, uuid string, newExpires int64) error
+
 	// Maintenance
 	CleanupExpiredTokens(ctx context.Context) error
 	EnforceTokenLimitPerUser(ctx context.Context, maxTokens int) error

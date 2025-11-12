@@ -181,7 +181,7 @@ func (r *cashFlowRepository) GetBalance(ctx context.Context, memberID *uint) (*o
 	}
 
 	err := query.Select(
-		"COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) as total_income, "+
+		"COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) as total_income, " +
 			"COALESCE(SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END), 0) as total_expenses",
 	).Scan(&result).Error
 

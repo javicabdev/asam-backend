@@ -24,7 +24,7 @@ const (
 // Para pagos de miembros familiares, usar el member_id del miembro origen de la familia
 type Payment struct {
 	gorm.Model
-	MemberID        uint // Siempre requerido - para familias usar el miembro origen
+	MemberID        uint    // Siempre requerido - para familias usar el miembro origen
 	Member          *Member `gorm:"foreignKey:MemberID"`
 	Amount          float64
 	PaymentDate     *time.Time
@@ -42,7 +42,7 @@ type MembershipFee struct {
 	gorm.Model
 	Year           int
 	BaseFeeAmount  float64
-	FamilyFeeExtra float64 // Additional amount for family memberships
+	FamilyFeeExtra float64   // Additional amount for family memberships
 	DueDate        time.Time // Siempre 31 de diciembre del año
 }
 

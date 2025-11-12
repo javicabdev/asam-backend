@@ -641,8 +641,8 @@ func (r *paymentRepository) GetDefaultersData(ctx context.Context) ([]output.Def
 
 		// Cargar pending payments para todos los miembros morosos
 		var allPendingPayments []struct {
-			MemberID       uint
-			MembershipFee  models.MembershipFee
+			MemberID        uint
+			MembershipFee   models.MembershipFee
 			MembershipFeeID uint
 		}
 
