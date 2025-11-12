@@ -5,6 +5,70 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.5.0] - 2025-11-12
+
+### Added
+
+#### Sincronización Bidireccional Payment-CashFlow con Transacciones ACID
+- **Sincronización automática** entre Payment y CashFlow en ambas direcciones
+- **Transacciones ACID** que garantizan consistencia de datos
+- **Idempotencia** en operaciones de confirmación de pagos
+- **Logging de auditoría** con prefijo `[SYNC]` para troubleshooting
+
+#### Nuevos Métodos de Repositorio
+- `UpdatePaymentAndSyncCashFlow()` - Actualiza payment y sincroniza su cashflow en transacción
+- `UpdateCashFlowAndSyncPayment()` - Actualiza cashflow y sincroniza su payment en transacción
+- `ConfirmPaymentWithTransaction()` - Confirma payment y crea cashflow atómicamente
+
+#### Tests de Integración
+- `TestPaymentCashFlowSync_UpdatePayment` - Verifica sincronización payment → cashflow
+- `TestPaymentCashFlowSync_UpdateCashFlow` - Verifica sincronización cashflow → payment
+- `TestConfirmPaymentWithTransaction` - Verifica confirmación atómica con transacción
+
+### Fixed
+
+#### Reset Automático de Verificación de Email
+- **Reseteo automático** de `emailVerified` a `false` al cambiar email
+- **Reseteo automático** de `emailVerifiedAt` a `null` al cambiar email
+- **Validación de disponibilidad** del nuevo email antes de actualizar
+- **Logging de auditoría** para cambios de email con valores antiguo y nuevo
+- Normalización automática de emails (trim + lowercase)
+
+### Changed
+
+#### Resolvers GraphQL
+- `updatePayment` ahora usa método sincronizado para mantener consistencia con cashflow
+- `updateTransaction` ahora usa método sincronizado para mantener consistencia con payment
+- `updateUser` ahora resetea verificación automáticamente al cambiar email
+
+### Technical
+
+#### Mejoras en Integridad de Datos
+- Eliminada función obsoleta `createCashFlowForPayment` (reemplazada por transacciones)
+- Todos los métodos de sincronización usan `db.Transaction()` para garantizar atomicidad
+- Rollback automático en caso de error durante sincronización
+- Sin cambios requeridos en frontend - sincronización transparente
+
+#### Mejoras en User Service
+- Nueva función `updateEmail()` que maneja toda la lógica de actualización de email
+- Validación de duplicados de email antes de actualizar
+- Consistencia mejorada en normalización de emails
+
+### Security
+
+#### Garantías de Consistencia
+- **Atomicidad**: Payment y CashFlow se actualizan juntos o ninguno
+- **Consistencia**: Imposible que Payment y CashFlow tengan valores diferentes
+- **Aislamiento**: Transacciones protegen contra condiciones de carrera
+- **Durabilidad**: Cambios confirmados permanecen en la base de datos
+
+#### Auditoría de Email
+- Log detallado cuando se cambia el email de un usuario
+- Tracking de email antiguo y nuevo para investigación
+- Reset automático de verificación previene acceso con email no verificado
+
+---
+
 ## [1.4.0] - 2025-11-12
 
 ### Added
