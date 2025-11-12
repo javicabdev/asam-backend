@@ -310,7 +310,14 @@ func (m *MockPaymentRepository) Create(ctx context.Context, payment *models.Paym
 }
 
 func (m *MockPaymentRepository) Update(ctx context.Context, payment *models.Payment) error {
-	return errors.New("not implemented")
+	// Buscar el pago en el slice y actualizarlo
+	for i, p := range m.CreatedPayments {
+		if p.ID == payment.ID {
+			m.CreatedPayments[i] = payment
+			return nil
+		}
+	}
+	return errors.New("payment not found")
 }
 
 func (m *MockPaymentRepository) Delete(ctx context.Context, id uint) error {

@@ -563,6 +563,17 @@ func (s *paymentService) generatePaymentForMember(ctx context.Context, member *m
 	for _, payment := range existingPayments {
 		if payment.MembershipFeeID != nil && *payment.MembershipFeeID == fee.ID {
 			detail.WasCreated = false
+
+			// Si el pago está PENDIENTE y el monto cambió, actualizarlo
+			if payment.Status == models.PaymentStatusPending && payment.Amount != detail.Amount {
+				payment.Amount = detail.Amount
+				payment.Notes = "Cuota anual actualizada automáticamente"
+				if err := s.paymentRepo.Update(ctx, &payment); err != nil {
+					detail.Error = "error actualizando monto de pago pendiente: " + err.Error()
+					return detail
+				}
+			}
+
 			return detail
 		}
 	}
