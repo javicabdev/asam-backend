@@ -127,7 +127,10 @@ mutation UpdateUser($input: UpdateUserInput!) {
 }
 ```
 
-### Eliminar Usuario (Admin)
+### Eliminar Usuario Permanentemente (Admin)
+
+**⚠️ Borrado Permanente**: Esta mutación elimina el usuario de forma irreversible.
+
 ```graphql
 mutation DeleteUser($id: ID!) {
   deleteUser(id: $id) {
@@ -136,6 +139,32 @@ mutation DeleteUser($id: ID!) {
     error
   }
 }
+```
+
+**Recomendaciones para la UI**:
+```javascript
+// Siempre mostrar confirmación de doble paso
+const handleDeleteUser = async (userId) => {
+  const confirmed = window.confirm(
+    '⚠️ ¿Estás seguro de ELIMINAR PERMANENTEMENTE este usuario?\n' +
+    'Esta acción NO se puede deshacer.\n' +
+    'Se eliminarán todos los datos asociados (tokens, sesiones, etc.)'
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const result = await deleteUser({ variables: { id: userId } });
+    // Manejar éxito
+  } catch (error) {
+    // Manejar errores específicos
+    if (error.message.includes('associated member')) {
+      alert('No se puede eliminar: el usuario tiene un socio asociado.');
+    } else if (error.message.includes('last admin')) {
+      alert('No se puede eliminar el último administrador.');
+    }
+  }
+};
 ```
 
 ### Cambiar Contraseña

@@ -151,7 +151,14 @@ mutation ResetUserPassword {
 }
 ```
 
-### Eliminar Usuario (Solo Admin)
+### Eliminar Usuario Permanentemente (Solo Admin)
+
+**⚠️ IMPORTANTE**: Esta operación elimina el usuario de forma permanente de la base de datos. No se puede deshacer.
+
+**Restricciones**:
+- No se puede eliminar un usuario que tiene un socio (Member) asociado
+- No se puede eliminar el último administrador del sistema
+- Se eliminarán automáticamente todos los tokens asociados (RefreshTokens, VerificationTokens)
 
 ```graphql
 mutation DeleteUser {
@@ -162,6 +169,10 @@ mutation DeleteUser {
   }
 }
 ```
+
+**Posibles errores**:
+- `"Cannot delete user with associated member. Please remove member association first"` - El usuario tiene un socio asociado
+- `"Cannot delete the last admin user"` - Intento de eliminar el último admin
 
 ## 4. Integración en Frontend
 

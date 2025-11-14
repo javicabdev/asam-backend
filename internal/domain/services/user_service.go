@@ -268,7 +268,7 @@ func (s *userService) updateIsActive(user *models.User, updates map[string]inter
 	}
 }
 
-// DeleteUser deletes a user by ID
+// DeleteUser permanently deletes a user from the database
 func (s *userService) DeleteUser(ctx context.Context, id uint) error {
 	// Check if user exists
 	user, err := s.userRepo.FindByID(ctx, id)
@@ -281,21 +281,26 @@ func (s *userService) DeleteUser(ctx context.Context, id uint) error {
 
 	// Prevent deleting the last admin
 	if user.Role == models.RoleAdmin {
-		// Count remaining admins (this would need a new repository method)
-		// For now, we'll just log a warning
+		adminCount, err := s.userRepo.CountUsersByRole(ctx, models.RoleAdmin)
+		if err != nil {
+			s.logger.Warn("Could not count admin users", zap.Error(err))
+		} else if adminCount <= 1 {
+			return errors.New(errors.ErrInvalidOperation, "Cannot delete the last admin user")
+		}
+
 		s.logger.Warn("Deleting an admin user",
 			zap.Uint("user_id", user.ID),
 			zap.String("username", user.Username),
 		)
 	}
 
-	// Soft delete by deactivating the user
-	user.IsActive = false
-	if err := s.userRepo.Update(ctx, user); err != nil {
+	// Permanently delete the user (will cascade delete tokens)
+	// This will fail if user has member_id set due to OnDelete:RESTRICT constraint
+	if err := s.userRepo.Delete(ctx, id); err != nil {
 		return errors.DB(err, "error deleting user")
 	}
 
-	s.logger.Info("User deleted successfully",
+	s.logger.Info("User permanently deleted",
 		zap.Uint("user_id", user.ID),
 		zap.String("username", user.Username),
 	)

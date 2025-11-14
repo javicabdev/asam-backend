@@ -55,7 +55,9 @@ El sistema de autenticación del proyecto ASAM Backend está **completamente imp
 - **Mutations GraphQL**:
   - `createUser`: Crear nuevos usuarios (Admin)
   - `updateUser`: Actualizar usuarios existentes (Admin)
-  - `deleteUser`: Eliminar usuarios - soft delete (Admin)
+  - `deleteUser`: Eliminar usuarios permanentemente - hard delete (Admin)
+    - **Nota**: Elimina el usuario y todos sus tokens asociados de forma permanente
+    - **Restricciones**: No permite eliminar usuarios con Member asociado (OnDelete:RESTRICT) ni el último admin
   - `changePassword`: Cambiar contraseña propia
   - `resetUserPassword`: Resetear contraseña de usuario (Admin)
 - **Validaciones**:

@@ -207,3 +207,36 @@ func (r *userRepository) CountUsersByRole(ctx context.Context, role models.Role)
 
 	return count, nil
 }
+
+// Delete permanently deletes a user from the database
+// This will fail if the user has a member_id set due to OnDelete:RESTRICT constraint
+func (r *userRepository) Delete(ctx context.Context, userID uint) error {
+	// Start a transaction to ensure atomicity
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// First, delete all refresh tokens associated with this user
+		if err := tx.Where("user_id = ?", userID).Delete(&models.RefreshToken{}).Error; err != nil {
+			return appErrors.DB(err, "Error deleting user refresh tokens")
+		}
+
+		// Delete all verification tokens associated with this user
+		if err := tx.Unscoped().Where("user_id = ?", userID).Delete(&models.VerificationToken{}).Error; err != nil {
+			return appErrors.DB(err, "Error deleting user verification tokens")
+		}
+
+		// Now delete the user
+		// This will fail if user has member_id set (OnDelete:RESTRICT constraint)
+		result := tx.Unscoped().Delete(&models.User{}, userID)
+		if result.Error != nil {
+			if IsConstraintViolationError(result.Error) {
+				return appErrors.New(appErrors.ErrInvalidOperation, "Cannot delete user with associated member. Please remove member association first")
+			}
+			return appErrors.DB(result.Error, "Error deleting user")
+		}
+
+		if result.RowsAffected == 0 {
+			return appErrors.NotFound("user", nil)
+		}
+
+		return nil
+	})
+}

@@ -5,6 +5,39 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
+## [Unreleased]
+
+### Changed
+
+#### ⚠️ BREAKING: DeleteUser ahora es Hard Delete
+- **Cambio de comportamiento**: `deleteUser` mutation ahora elimina usuarios **permanentemente** de la base de datos
+  - **Antes**: Desactivaba el usuario (soft delete) poniendo `is_active = false`
+  - **Ahora**: Elimina el registro completamente (hard delete) junto con todos sus tokens
+- **Borrado en cascada**: Elimina automáticamente RefreshTokens y VerificationTokens asociados
+- **Protecciones implementadas**:
+  - No permite eliminar usuarios con Member asociado (constraint `OnDelete:RESTRICT`)
+  - Previene eliminar el último administrador del sistema
+  - Validación mejorada con conteo de administradores activos
+- **Impacto en frontend**:
+  - La API GraphQL no cambia, sigue siendo `deleteUser(id: ID!)`
+  - Se recomienda actualizar mensajes de confirmación para advertir sobre borrado permanente
+  - Implementar manejo de errores específicos para restricciones
+
+### Fixed
+
+#### DeleteUser Database Error
+- Corregido error `"Error updating user"` al intentar eliminar usuarios
+  - **Causa**: El método Update intentaba guardar asociaciones preloaded (Member)
+  - **Solución**: Implementado método `Delete()` específico con transacción atómica
+- Implementada transacción para garantizar atomicidad en borrado
+
+### Technical
+
+#### Repository Layer
+- Agregado método `Delete(ctx context.Context, userID uint) error` en `UserRepository` interface
+- Implementación en `user_repository.go` usa transacciones GORM para borrado atómico
+- Mejor manejo de errores con detección de violaciones de constraints
+
 ## [1.5.1] - 2025-11-13
 
 ### Added
