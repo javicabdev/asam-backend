@@ -5,6 +5,123 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.7.0] - 2025-11-15
+
+### Added
+
+#### Sistema de Gestión de Teléfonos
+- **Soporte completo para múltiples teléfonos**: Miembros, familias y familiares ahora pueden registrar múltiples números de teléfono
+- **Relación polimórfica**: Utiliza tabla `telephones` con campos `contactable_id` y `contactable_type`
+- **GraphQL integrado**:
+  - Nuevo tipo `Telephone` con campos `id` y `numero_telefono`
+  - Nuevo input `TelephoneInput` para crear/actualizar
+  - Campo `telefonos: [Telephone!]` agregado a `Member`, `Family` y `Familiar`
+  - Soporte en todos los inputs: `CreateMemberInput`, `UpdateMemberInput`, `CreateFamilyInput`, `UpdateFamilyInput`, `FamiliarInput`
+- **CRUD completo**:
+  - Crear miembros/familias/familiares con teléfonos
+  - Actualizar teléfonos (reemplazo completo del array)
+  - Obtener teléfonos automáticamente en queries
+  - Eliminar todos los teléfonos enviando array vacío
+- **Nombres en español**: Campos `telefonos` y `numero_telefono` para consistencia
+
+#### Scripts Unificados de Backup y Recuperación
+- **Scripts automatizados para gestión de base de datos**:
+  - `backup-unified.sh`: Crear backups de local o producción usando Docker
+  - `restore-unified.sh`: Restaurar backups con validación de integridad
+  - `test-cleanup-recovery.sh`: Flujo completo automatizado de prueba
+- **Características de seguridad**:
+  - Verificación de integridad de backups
+  - Confirmaciones explícitas para operaciones destructivas
+  - Dry-run obligatorio antes de operaciones en producción
+  - Backups de producción se guardan en Google Drive automáticamente
+- **Documentación completa** en `scripts/CLEANUP_RECOVERY_README.md`
+- **Soporte para múltiples entornos**: Local (Docker) y Producción (Aiven Cloud)
+
+### Technical
+
+#### Models
+- Agregada relación `Telefonos []Telephone` a `Member` con tag `gorm:"polymorphic:Contactable"`
+- Agregada relación `Telefonos []Telephone` a `Familiar` con tag `gorm:"polymorphic:Contactable"`
+- Relación polimórfica permite compartir tabla `telephones` entre entidades
+
+#### Repository Layer
+- `MemberRepository`: Agregado `Preload("Telefonos")` en todos los métodos de consulta
+- `MemberRepository.Update()`: Implementado `FullSaveAssociations: true` para reemplazo correcto de teléfonos
+- Optimización de queries con eager loading de relaciones
+
+#### GraphQL Resolvers
+- `MemberResolver`: Mapeo de teléfonos en `mapCreateInputToMember` y `mapUpdateInputToMember`
+- `FamilyResolver`: Mapeo de teléfonos en `mapCreateInputToFamily`, `mapUpdateInputToFamily` y `mapFamiliarInputToModel`
+- Conversión automática de `TelephoneInput[]` a `models.Telephone[]`
+
+#### Infrastructure
+- Scripts de backup compatibles con PostgreSQL 17
+- Uso de contenedores Docker para portabilidad
+- Detección automática de redes Docker en entorno local
+
+### Casos de Uso
+
+#### Gestión de Teléfonos
+
+**Crear miembro con múltiples teléfonos:**
+```graphql
+mutation {
+  createMember(input: {
+    numero_socio: "B00123"
+    nombre: "Juan"
+    apellidos: "Pérez"
+    # ... otros campos
+    telefonos: [
+      { numero_telefono: "+34 612 345 678" }
+      { numero_telefono: "+34 934 567 890" }
+    ]
+  }) {
+    miembro_id
+    telefonos {
+      id
+      numero_telefono
+    }
+  }
+}
+```
+
+**Actualizar teléfonos de un miembro:**
+```graphql
+mutation {
+  updateMember(input: {
+    miembro_id: "123"
+    telefonos: [
+      { numero_telefono: "+34 611 222 333" }
+    ]
+  }) {
+    miembro_id
+    telefonos {
+      id
+      numero_telefono
+    }
+  }
+}
+```
+
+#### Backup y Recuperación
+
+**Crear backup de producción:**
+```bash
+./scripts/backup-unified.sh production
+```
+
+**Prueba completa del flujo:**
+```bash
+./scripts/test-cleanup-recovery.sh local
+```
+
+### Breaking Changes
+
+Ninguno. Los cambios son retrocompatibles:
+- El campo `telefonos` es opcional en todos los inputs
+- Queries existentes continúan funcionando sin modificaciones
+- Los teléfonos solo se devuelven si se solicitan explícitamente en el query
+
 ## [1.6.0] - 2025-11-14
 
 ### Changed
