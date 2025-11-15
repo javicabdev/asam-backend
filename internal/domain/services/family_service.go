@@ -401,6 +401,7 @@ func (s *familyService) createMemberForFamily(
 		if req.MemberData.Country == "" {
 			member.Country = "España"
 		}
+		member.Telefonos = req.MemberData.Telefonos
 	}
 
 	if err := s.memberRepo.CreateWithTx(ctx, tx, member); err != nil {

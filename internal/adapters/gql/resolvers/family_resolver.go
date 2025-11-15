@@ -170,17 +170,32 @@ func (r *familyResolver) mapCreateInputToAtomicRequest(
 ) *input.CreateFamilyAtomicRequest {
 	family := r.mapCreateInputToFamily(familyInput)
 
+	// IMPORTANTE: Los teléfonos del input deben ir al miembro origen, NO a la familia
+	// Por eso removemos los teléfonos de la familia aquí
+	var telefonosParaMiembro []models.Telephone
+	if familyInput.Telefonos != nil {
+		telefonosParaMiembro = make([]models.Telephone, len(familyInput.Telefonos))
+		for i, tel := range familyInput.Telefonos {
+			telefonosParaMiembro[i] = models.Telephone{
+				NumeroTelefono: tel.NumeroTelefono,
+			}
+		}
+	}
+	// Remover teléfonos de la familia (los pasaremos al miembro)
+	family.Telefonos = nil
+
 	// Preparar datos del member si no se proporcionó miembro_origen_id
 	var memberData *input.CreateMemberData
 	createMember := familyInput.MiembroOrigenID == nil
 
 	if createMember {
 		memberData = &input.CreateMemberData{
-			Address:  safeStringDeref(familyInput.Direccion),
-			Postcode: safeStringDeref(familyInput.CodigoPostal),
-			City:     safeStringDeref(familyInput.Poblacion),
-			Province: safeStringDeref(familyInput.Provincia),
-			Country:  safeStringDeref(familyInput.Pais),
+			Address:   safeStringDeref(familyInput.Direccion),
+			Postcode:  safeStringDeref(familyInput.CodigoPostal),
+			City:      safeStringDeref(familyInput.Poblacion),
+			Province:  safeStringDeref(familyInput.Provincia),
+			Country:   safeStringDeref(familyInput.Pais),
+			Telefonos: telefonosParaMiembro, // Los teléfonos van al miembro origen
 		}
 	}
 

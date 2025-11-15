@@ -17,9 +17,10 @@ type CreateFamilyAtomicRequest struct {
 
 // CreateMemberData contains data for creating the origin member
 type CreateMemberData struct {
-	Address  string
-	Postcode string
-	City     string
-	Province string
-	Country  string
+	Address   string
+	Postcode  string
+	City      string
+	Province  string
+	Country   string
+	Telefonos []models.Telephone
 }
