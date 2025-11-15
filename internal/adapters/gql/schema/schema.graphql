@@ -63,6 +63,12 @@ enum UserRole {
     user
 }
 
+enum DocumentType {
+    DNI_NIE
+    SENEGAL_PASSPORT
+    OTHER
+}
+
 # Tipos de autenticación
 type User {
     id: ID!
@@ -448,6 +454,7 @@ input CreateMemberInput {
     fecha_alta: Time  # Fecha de alta del socio (por defecto: fecha actual)
     fecha_nacimiento: Time
     documento_identidad: String
+    document_type: DocumentType  # Tipo de documento (DNI/NIE, Pasaporte Senegal, Otro)
     correo_electronico: String
     profesion: String
     nacionalidad: String
@@ -467,6 +474,7 @@ input UpdateMemberInput {
     provincia: String
     pais: String
     documento_identidad: String
+    document_type: DocumentType  # Tipo de documento (DNI/NIE, Pasaporte Senegal, Otro)
     correo_electronico: String
     profesion: String
     observaciones: String
@@ -476,21 +484,23 @@ input UpdateMemberInput {
 input CreateFamilyInput {
     numero_socio: String!
     miembro_origen_id: ID
-    
+
     # Datos del esposo (obligatorios)
     esposo_nombre: String!
     esposo_apellidos: String!
     esposo_fecha_nacimiento: Time
     esposo_documento_identidad: String
+    esposo_document_type: DocumentType  # Tipo de documento del esposo
     esposo_correo_electronico: String
-    
+
     # Datos de la esposa (opcionales)
     esposa_nombre: String
     esposa_apellidos: String
     esposa_fecha_nacimiento: Time
     esposa_documento_identidad: String
+    esposa_document_type: DocumentType  # Tipo de documento de la esposa
     esposa_correo_electronico: String
-    
+
     # Familiares adicionales (opcionales)
     familiares: [FamiliarInput!]
 
@@ -512,8 +522,10 @@ input UpdateFamilyInput {
     esposa_nombre: String
     esposa_apellidos: String
     esposo_documento_identidad: String
+    esposo_document_type: DocumentType  # Tipo de documento del esposo
     esposo_correo_electronico: String
     esposa_documento_identidad: String
+    esposa_document_type: DocumentType  # Tipo de documento de la esposa
     esposa_correo_electronico: String
     telefonos: [TelephoneInput!]
 }
@@ -523,6 +535,7 @@ input FamiliarInput {
     apellidos: String!
     fecha_nacimiento: Time
     dni_nie: String
+    document_type: DocumentType  # Tipo de documento del familiar
     correo_electronico: String
     parentesco: String!
     telefonos: [TelephoneInput!]

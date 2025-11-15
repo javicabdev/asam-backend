@@ -16,6 +16,7 @@ type FamilyValidator interface {
 	ValidateConyuges(esposoNombre, esposoApellidos, esposaNombre, esposaApellidos string) error
 	ValidateConyugesFlexible(esposoNombre, esposoApellidos, esposaNombre, esposaApellidos string) error
 	ValidateDocumentIDs(esposoDoc, esposaDoc string) error
+	ValidateDocumentIDsWithTypes(esposoDoc, esposoDocType, esposaDoc, esposaDocType string) error
 	ValidateContactInfo(esposoEmail, esposaEmail string) error
 	ValidateDates(esposoFechaNac, esposaFechaNac *time.Time) error
 }
@@ -118,9 +119,15 @@ func (v *DefaultFamilyValidator) ValidateConyugesFlexible(
 }
 
 // ValidateDocumentIDs valida el formato de los documentos de identidad.
+// DEPRECATED: usar ValidateDocumentIDsWithTypes en su lugar
+func (v *DefaultFamilyValidator) ValidateDocumentIDs(esposoDoc, esposaDoc string) error {
+	return v.ValidateDocumentIDsWithTypes(esposoDoc, "", esposaDoc, "")
+}
+
+// ValidateDocumentIDsWithTypes valida el formato de los documentos de identidad según su tipo.
 // Esposo: documento obligatorio si se proporciona
 // Esposa: documento opcional, pero si se proporciona debe ser válido
-func (v *DefaultFamilyValidator) ValidateDocumentIDs(esposoDoc, esposaDoc string) error {
+func (v *DefaultFamilyValidator) ValidateDocumentIDsWithTypes(esposoDoc, esposoDocType, esposaDoc, esposaDocType string) error {
 	errDetails := make(map[string]string)
 
 	// Reutilizar el validador de miembros para los documentos
@@ -135,16 +142,30 @@ func (v *DefaultFamilyValidator) ValidateDocumentIDs(esposoDoc, esposaDoc string
 	// Validar documento del esposo (opcional pero recomendado)
 	// Si se proporciona, debe ser válido
 	if esposoDoc != "" {
-		if err := memberValidator.ValidateDocumentID(esposoDoc); err != nil {
-			errDetails["esposoDocumentoIdentidad"] = "Documento de identidad del esposo inválido"
+		if err := memberValidator.ValidateDocumentByType(esposoDoc, esposoDocType); err != nil {
+			if valErr, ok := appErrors.AsAppError(err); ok {
+				for _, val := range valErr.Fields {
+					errDetails["esposoDocumentoIdentidad"] = val
+					break
+				}
+			} else {
+				errDetails["esposoDocumentoIdentidad"] = "Documento de identidad del esposo inválido"
+			}
 		}
 	}
 
 	// Validar documento de la esposa (opcional)
 	// Solo validar si se proporciona
 	if esposaDoc != "" {
-		if err := memberValidator.ValidateDocumentID(esposaDoc); err != nil {
-			errDetails["esposaDocumentoIdentidad"] = "Documento de identidad de la esposa inválido"
+		if err := memberValidator.ValidateDocumentByType(esposaDoc, esposaDocType); err != nil {
+			if valErr, ok := appErrors.AsAppError(err); ok {
+				for _, val := range valErr.Fields {
+					errDetails["esposaDocumentoIdentidad"] = val
+					break
+				}
+			} else {
+				errDetails["esposaDocumentoIdentidad"] = "Documento de identidad de la esposa inválido"
+			}
 		}
 	}
 

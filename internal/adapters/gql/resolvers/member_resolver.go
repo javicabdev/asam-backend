@@ -102,6 +102,10 @@ func (r *memberResolver) mapCreateInputToMember(input *model.CreateMemberInput) 
 	if input.DocumentoIdentidad != nil {
 		member.IdentityCard = input.DocumentoIdentidad
 	}
+	if input.DocumentType != nil {
+		docType := string(*input.DocumentType)
+		member.DocumentType = &docType
+	}
 	if input.CorreoElectronico != nil {
 		member.Email = input.CorreoElectronico
 	}
@@ -171,6 +175,10 @@ func (r *memberResolver) updateMemberAddressFields(member *models.Member, input 
 func (r *memberResolver) updateMemberContactFields(member *models.Member, input *model.UpdateMemberInput) {
 	if input.DocumentoIdentidad != nil {
 		member.IdentityCard = input.DocumentoIdentidad
+	}
+	if input.DocumentType != nil {
+		docType := string(*input.DocumentType)
+		member.DocumentType = &docType
 	}
 	if input.CorreoElectronico != nil {
 		member.Email = input.CorreoElectronico
@@ -284,6 +292,7 @@ func (r *memberResolver) validateUpdateInput(input *model.UpdateMemberInput) err
 		input.Provincia != nil ||
 		input.Pais != nil ||
 		input.DocumentoIdentidad != nil ||
+		input.DocumentType != nil ||
 		input.CorreoElectronico != nil ||
 		input.Profesion != nil ||
 		input.Observaciones != nil

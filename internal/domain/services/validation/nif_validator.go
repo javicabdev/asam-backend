@@ -119,3 +119,104 @@ func esLetra(s string) bool {
 	match, _ := regexp.MatchString("^[A-Z]$", s)
 	return match
 }
+
+// ValidarPasaporteSenegal valida un pasaporte senegalés usando los 10 caracteres de la MRZ
+// (posiciones 1-10 de la línea 2) con el algoritmo de validación 7-3-1
+func ValidarPasaporteSenegal(mrz string) bool {
+	// Si el campo está vacío, considerarlo válido (es opcional)
+	if mrz == "" {
+		return true
+	}
+
+	// Normalizar: eliminar espacios y convertir a mayúsculas
+	normalized := strings.ReplaceAll(mrz, " ", "")
+	normalized = strings.ToUpper(normalized)
+
+	// Verificar longitud: debe ser exactamente 10 caracteres
+	if len(normalized) != 10 {
+		return false
+	}
+
+	// Verificar formato: 9 caracteres de datos + 1 dígito de control
+	// Los 9 caracteres de datos pueden ser A-Z, 0-9 o <
+	numberPart := normalized[0:9]
+	checkDigitStr := normalized[9:10]
+
+	// Validar formato de la parte de datos usando regex
+	matched, _ := regexp.MatchString("^[A-Z0-9<]{9}$", numberPart)
+	if !matched {
+		return false
+	}
+
+	// Validar que el último carácter es un dígito
+	if !esNumerico(checkDigitStr) {
+		return false
+	}
+
+	// Convertir el dígito de control a entero
+	checkDigit, err := strconv.Atoi(checkDigitStr)
+	if err != nil {
+		return false
+	}
+
+	// Aplicar algoritmo 7-3-1
+	calculatedCheckDigit := calcularDigitoControl731(numberPart)
+
+	// Comparar el dígito calculado con el proporcionado
+	return calculatedCheckDigit == checkDigit
+}
+
+// calcularDigitoControl731 implementa el algoritmo de validación 7-3-1 para MRZ
+func calcularDigitoControl731(data string) int {
+	// Pesos que se repiten: 7, 3, 1, 7, 3, 1, ...
+	weights := []int{7, 3, 1}
+	sum := 0
+
+	for i, char := range data {
+		// Convertir carácter a valor numérico
+		value := charToMRZValue(char)
+
+		// Obtener el peso correspondiente (rotación 7-3-1)
+		weight := weights[i%3]
+
+		// Multiplicar y sumar
+		sum += value * weight
+	}
+
+	// El dígito de control es el residuo módulo 10
+	return sum % 10
+}
+
+// charToMRZValue convierte un carácter MRZ a su valor numérico
+// Dígitos 0-9 → 0-9
+// Letras A-Z → 10-35
+// '<' → 0
+func charToMRZValue(char rune) int {
+	if char >= '0' && char <= '9' {
+		return int(char - '0')
+	}
+	if char >= 'A' && char <= 'Z' {
+		return int(char-'A') + 10
+	}
+	if char == '<' {
+		return 0
+	}
+	// En caso de carácter no válido, retornar 0
+	return 0
+}
+
+// ExtraerNumeroPasaporteSenegal extrae el número de pasaporte (9 caracteres)
+// de los 10 caracteres de la MRZ, eliminando el dígito de control
+func ExtraerNumeroPasaporteSenegal(mrz string) string {
+	// Normalizar
+	normalized := strings.ReplaceAll(mrz, " ", "")
+	normalized = strings.ToUpper(normalized)
+
+	// Verificar longitud
+	if len(normalized) != 10 {
+		return normalized // Retornar tal cual si no tiene el formato esperado
+	}
+
+	// Retornar solo los 9 primeros caracteres (sin el dígito de control)
+	return normalized[0:9]
+}

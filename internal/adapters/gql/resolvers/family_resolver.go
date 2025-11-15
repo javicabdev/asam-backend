@@ -18,6 +18,14 @@ func safeStringDeref(s *string) string {
 	return *s
 }
 
+// safeEnumDeref safely dereferences an enum pointer, converting to string and returning empty string if nil
+func safeEnumDeref(e *model.DocumentType) string {
+	if e == nil {
+		return ""
+	}
+	return string(*e)
+}
+
 func (r *familyResolver) mapCreateInputToFamily(input *model.CreateFamilyInput) *models.Family {
 	var miembroOrigenID *uint
 	if input.MiembroOrigenID != nil {
@@ -37,9 +45,11 @@ func (r *familyResolver) mapCreateInputToFamily(input *model.CreateFamilyInput) 
 		EsposaApellidos:          safeStringDeref(input.EsposaApellidos),
 		EsposoFechaNacimiento:    input.EsposoFechaNacimiento,
 		EsposoDocumentoIdentidad: safeStringDeref(input.EsposoDocumentoIdentidad),
+		EsposoDocumentType:       safeEnumDeref(input.EsposoDocumentType),
 		EsposoCorreoElectronico:  safeStringDeref(input.EsposoCorreoElectronico),
 		EsposaFechaNacimiento:    input.EsposaFechaNacimiento,
 		EsposaDocumentoIdentidad: safeStringDeref(input.EsposaDocumentoIdentidad),
+		EsposaDocumentType:       safeEnumDeref(input.EsposaDocumentType),
 		EsposaCorreoElectronico:  safeStringDeref(input.EsposaCorreoElectronico),
 	}
 
@@ -75,11 +85,17 @@ func (r *familyResolver) mapUpdateInputToFamily(input *model.UpdateFamilyInput,
 	if input.EsposoDocumentoIdentidad != nil {
 		family.EsposoDocumentoIdentidad = *input.EsposoDocumentoIdentidad
 	}
+	if input.EsposoDocumentType != nil {
+		family.EsposoDocumentType = string(*input.EsposoDocumentType)
+	}
 	if input.EsposoCorreoElectronico != nil {
 		family.EsposoCorreoElectronico = *input.EsposoCorreoElectronico
 	}
 	if input.EsposaDocumentoIdentidad != nil {
 		family.EsposaDocumentoIdentidad = *input.EsposaDocumentoIdentidad
+	}
+	if input.EsposaDocumentType != nil {
+		family.EsposaDocumentType = string(*input.EsposaDocumentType)
 	}
 	if input.EsposaCorreoElectronico != nil {
 		family.EsposaCorreoElectronico = *input.EsposaCorreoElectronico
@@ -99,12 +115,15 @@ func (r *familyResolver) mapUpdateInputToFamily(input *model.UpdateFamilyInput,
 }
 
 func (r *familyResolver) mapFamiliarInputToModel(input *model.FamiliarInput) *models.Familiar {
-	var dni, email string
+	var dni, email, documentType string
 	if input.DniNie != nil {
 		dni = *input.DniNie
 	}
 	if input.CorreoElectronico != nil {
 		email = *input.CorreoElectronico
+	}
+	if input.DocumentType != nil {
+		documentType = string(*input.DocumentType)
 	}
 
 	familiar := &models.Familiar{
@@ -112,6 +131,7 @@ func (r *familyResolver) mapFamiliarInputToModel(input *model.FamiliarInput) *mo
 		Apellidos:         input.Apellidos,
 		FechaNacimiento:   input.FechaNacimiento,
 		DNINIE:            dni,
+		DocumentType:      documentType,
 		CorreoElectronico: email,
 		Parentesco:        input.Parentesco,
 	}
@@ -262,8 +282,10 @@ func (r *familyResolver) validateUpdateFamilyInput(input *model.UpdateFamilyInpu
 		input.EsposaNombre != nil ||
 		input.EsposaApellidos != nil ||
 		input.EsposoDocumentoIdentidad != nil ||
+		input.EsposoDocumentType != nil ||
 		input.EsposoCorreoElectronico != nil ||
 		input.EsposaDocumentoIdentidad != nil ||
+		input.EsposaDocumentType != nil ||
 		input.EsposaCorreoElectronico != nil
 
 	if !hasUpdates {

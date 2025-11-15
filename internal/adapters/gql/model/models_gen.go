@@ -57,11 +57,13 @@ type CreateFamilyInput struct {
 	EsposoApellidos          string            `json:"esposo_apellidos"`
 	EsposoFechaNacimiento    *time.Time        `json:"esposo_fecha_nacimiento,omitempty"`
 	EsposoDocumentoIdentidad *string           `json:"esposo_documento_identidad,omitempty"`
+	EsposoDocumentType       *DocumentType     `json:"esposo_document_type,omitempty"`
 	EsposoCorreoElectronico  *string           `json:"esposo_correo_electronico,omitempty"`
 	EsposaNombre             *string           `json:"esposa_nombre,omitempty"`
 	EsposaApellidos          *string           `json:"esposa_apellidos,omitempty"`
 	EsposaFechaNacimiento    *time.Time        `json:"esposa_fecha_nacimiento,omitempty"`
 	EsposaDocumentoIdentidad *string           `json:"esposa_documento_identidad,omitempty"`
+	EsposaDocumentType       *DocumentType     `json:"esposa_document_type,omitempty"`
 	EsposaCorreoElectronico  *string           `json:"esposa_correo_electronico,omitempty"`
 	Familiares               []*FamiliarInput  `json:"familiares,omitempty"`
 	Telefonos                []*TelephoneInput `json:"telefonos,omitempty"`
@@ -85,6 +87,7 @@ type CreateMemberInput struct {
 	FechaAlta          *time.Time        `json:"fecha_alta,omitempty"`
 	FechaNacimiento    *time.Time        `json:"fecha_nacimiento,omitempty"`
 	DocumentoIdentidad *string           `json:"documento_identidad,omitempty"`
+	DocumentType       *DocumentType     `json:"document_type,omitempty"`
 	CorreoElectronico  *string           `json:"correo_electronico,omitempty"`
 	Profesion          *string           `json:"profesion,omitempty"`
 	Nacionalidad       *string           `json:"nacionalidad,omitempty"`
@@ -227,6 +230,7 @@ type FamiliarInput struct {
 	Apellidos         string            `json:"apellidos"`
 	FechaNacimiento   *time.Time        `json:"fecha_nacimiento,omitempty"`
 	DniNie            *string           `json:"dni_nie,omitempty"`
+	DocumentType      *DocumentType     `json:"document_type,omitempty"`
 	CorreoElectronico *string           `json:"correo_electronico,omitempty"`
 	Parentesco        string            `json:"parentesco"`
 	Telefonos         []*TelephoneInput `json:"telefonos,omitempty"`
@@ -428,8 +432,10 @@ type UpdateFamilyInput struct {
 	EsposaNombre             *string           `json:"esposa_nombre,omitempty"`
 	EsposaApellidos          *string           `json:"esposa_apellidos,omitempty"`
 	EsposoDocumentoIdentidad *string           `json:"esposo_documento_identidad,omitempty"`
+	EsposoDocumentType       *DocumentType     `json:"esposo_document_type,omitempty"`
 	EsposoCorreoElectronico  *string           `json:"esposo_correo_electronico,omitempty"`
 	EsposaDocumentoIdentidad *string           `json:"esposa_documento_identidad,omitempty"`
+	EsposaDocumentType       *DocumentType     `json:"esposa_document_type,omitempty"`
 	EsposaCorreoElectronico  *string           `json:"esposa_correo_electronico,omitempty"`
 	Telefonos                []*TelephoneInput `json:"telefonos,omitempty"`
 }
@@ -446,6 +452,7 @@ type UpdateMemberInput struct {
 	Provincia          *string           `json:"provincia,omitempty"`
 	Pais               *string           `json:"pais,omitempty"`
 	DocumentoIdentidad *string           `json:"documento_identidad,omitempty"`
+	DocumentType       *DocumentType     `json:"document_type,omitempty"`
 	CorreoElectronico  *string           `json:"correo_electronico,omitempty"`
 	Profesion          *string           `json:"profesion,omitempty"`
 	Observaciones      *string           `json:"observaciones,omitempty"`
@@ -523,6 +530,63 @@ func (e *ActivityType) UnmarshalJSON(b []byte) error {
 }
 
 func (e ActivityType) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type DocumentType string
+
+const (
+	DocumentTypeDniNie          DocumentType = "DNI_NIE"
+	DocumentTypeSenegalPassport DocumentType = "SENEGAL_PASSPORT"
+	DocumentTypeOther           DocumentType = "OTHER"
+)
+
+var AllDocumentType = []DocumentType{
+	DocumentTypeDniNie,
+	DocumentTypeSenegalPassport,
+	DocumentTypeOther,
+}
+
+func (e DocumentType) IsValid() bool {
+	switch e {
+	case DocumentTypeDniNie, DocumentTypeSenegalPassport, DocumentTypeOther:
+		return true
+	}
+	return false
+}
+
+func (e DocumentType) String() string {
+	return string(e)
+}
+
+func (e *DocumentType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = DocumentType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid DocumentType", str)
+	}
+	return nil
+}
+
+func (e DocumentType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *DocumentType) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e DocumentType) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

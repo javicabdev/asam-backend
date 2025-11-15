@@ -26,9 +26,11 @@ type Family struct {
 	// Datos adicionales
 	EsposoFechaNacimiento    *time.Time
 	EsposoDocumentoIdentidad string `gorm:"size:20"`
+	EsposoDocumentType       string `gorm:"size:20"` // Tipo de documento: DNI_NIE, SENEGAL_PASSPORT, OTHER
 	EsposoCorreoElectronico  string `gorm:"size:100"`
 	EsposaFechaNacimiento    *time.Time
 	EsposaDocumentoIdentidad string `gorm:"size:20"`
+	EsposaDocumentType       string `gorm:"size:20"` // Tipo de documento: DNI_NIE, SENEGAL_PASSPORT, OTHER
 	EsposaCorreoElectronico  string `gorm:"size:100"`
 
 	// Relaciones
@@ -62,10 +64,12 @@ func (f *Family) Validate() error {
 		return err
 	}
 
-	// Validar documentos de identidad
-	if err := validator.ValidateDocumentIDs(
+	// Validar documentos de identidad según su tipo
+	if err := validator.ValidateDocumentIDsWithTypes(
 		f.EsposoDocumentoIdentidad,
+		f.EsposoDocumentType,
 		f.EsposaDocumentoIdentidad,
+		f.EsposaDocumentType,
 	); err != nil {
 		return err
 	}
@@ -91,14 +95,21 @@ func (f *Family) Validate() error {
 
 // BeforeCreate hook de GORM para transformaciones antes de crear
 // NOTA: Las validaciones deben ocurrir ANTES de la transacción en la capa de servicio
-// Este hook solo normaliza datos para evitar problemas durante la transacción
+// Este hook solo normaliza/procesa datos para evitar problemas durante la transacción
 func (f *Family) BeforeCreate(_ *gorm.DB) error {
-	// Normalizar documentos de identidad si se proporcionan (DNI, NIE, pasaporte, etc.)
+	// Procesar documento del esposo según su tipo
 	if f.EsposoDocumentoIdentidad != "" {
-		f.EsposoDocumentoIdentidad = validation.NormalizeIdentityDocument(f.EsposoDocumentoIdentidad)
+		f.EsposoDocumentoIdentidad = validation.ProcessDocumentForStorage(
+			f.EsposoDocumentoIdentidad,
+			f.EsposoDocumentType,
+		)
 	}
+	// Procesar documento de la esposa según su tipo
 	if f.EsposaDocumentoIdentidad != "" {
-		f.EsposaDocumentoIdentidad = validation.NormalizeIdentityDocument(f.EsposaDocumentoIdentidad)
+		f.EsposaDocumentoIdentidad = validation.ProcessDocumentForStorage(
+			f.EsposaDocumentoIdentidad,
+			f.EsposaDocumentType,
+		)
 	}
 	// No validamos aquí para evitar fallos dentro de transacciones
 	// La validación se hace en validateFamilyAtomicRequest() antes de iniciar la transacción
@@ -107,14 +118,21 @@ func (f *Family) BeforeCreate(_ *gorm.DB) error {
 
 // BeforeUpdate hook de GORM para transformaciones antes de actualizar
 // NOTA: Las validaciones deben ocurrir ANTES de la transacción en la capa de servicio
-// Este hook solo normaliza datos para evitar problemas durante la transacción
+// Este hook solo normaliza/procesa datos para evitar problemas durante la transacción
 func (f *Family) BeforeUpdate(_ *gorm.DB) error {
-	// Normalizar documentos de identidad si se proporcionan (DNI, NIE, pasaporte, etc.)
+	// Procesar documento del esposo según su tipo
 	if f.EsposoDocumentoIdentidad != "" {
-		f.EsposoDocumentoIdentidad = validation.NormalizeIdentityDocument(f.EsposoDocumentoIdentidad)
+		f.EsposoDocumentoIdentidad = validation.ProcessDocumentForStorage(
+			f.EsposoDocumentoIdentidad,
+			f.EsposoDocumentType,
+		)
 	}
+	// Procesar documento de la esposa según su tipo
 	if f.EsposaDocumentoIdentidad != "" {
-		f.EsposaDocumentoIdentidad = validation.NormalizeIdentityDocument(f.EsposaDocumentoIdentidad)
+		f.EsposaDocumentoIdentidad = validation.ProcessDocumentForStorage(
+			f.EsposaDocumentoIdentidad,
+			f.EsposaDocumentType,
+		)
 	}
 	// No validamos aquí para evitar fallos dentro de transacciones
 	// La validación debe hacerse en la capa de servicio antes de la transacción

@@ -31,6 +31,7 @@ type Member struct {
 	LeavingDate      *time.Time `gorm:"type:date"`
 	BirthDate        *time.Time `gorm:"type:date"`
 	IdentityCard     *string
+	DocumentType     *string // Tipo de documento: DNI_NIE, SENEGAL_PASSPORT, OTHER
 	Email            *string
 	Profession       *string
 	Nationality      string `gorm:"default:Senegal"`
@@ -122,8 +123,24 @@ func (m *Member) validateBasicFields() error {
 		errDetails["city"] = "City is required"
 	}
 
-	// La validación del formato de identificación se realiza en el frontend
-	// No validamos formato específico para permitir DNI, NIE, pasaportes y otros documentos
+	// Validar documento de identidad según su tipo
+	if m.IdentityCard != nil && *m.IdentityCard != "" {
+		docType := ""
+		if m.DocumentType != nil {
+			docType = *m.DocumentType
+		}
+
+		validator := validation.NewMemberValidator()
+		if err := validator.ValidateDocumentByType(*m.IdentityCard, docType); err != nil {
+			if valErr, ok := appErrors.AsAppError(err); ok {
+				for key, val := range valErr.Fields {
+					errDetails[key] = val
+				}
+			} else {
+				errDetails["identityCard"] = err.Error()
+			}
+		}
+	}
 
 	if len(errDetails) > 0 {
 		return appErrors.NewValidationError("Error de validación en campos del miembro", errDetails)
@@ -177,20 +194,28 @@ func (m *Member) BeforeCreate(*gorm.DB) error {
 	if m.State == "" {
 		m.State = EstadoActivo
 	}
-	// Normalizar documento de identidad (eliminar espacios y convertir a mayúsculas)
+	// Procesar documento de identidad según su tipo antes de guardar
 	if m.IdentityCard != nil && *m.IdentityCard != "" {
-		normalized := validation.NormalizeIdentityDocument(*m.IdentityCard)
-		m.IdentityCard = &normalized
+		docType := ""
+		if m.DocumentType != nil {
+			docType = *m.DocumentType
+		}
+		processed := validation.ProcessDocumentForStorage(*m.IdentityCard, docType)
+		m.IdentityCard = &processed
 	}
 	return m.Validate()
 }
 
 // BeforeUpdate hook de GORM que se ejecuta antes de actualizar un miembro
 func (m *Member) BeforeUpdate(*gorm.DB) error {
-	// Normalizar documento de identidad (eliminar espacios y convertir a mayúsculas)
+	// Procesar documento de identidad según su tipo antes de guardar
 	if m.IdentityCard != nil && *m.IdentityCard != "" {
-		normalized := validation.NormalizeIdentityDocument(*m.IdentityCard)
-		m.IdentityCard = &normalized
+		docType := ""
+		if m.DocumentType != nil {
+			docType = *m.DocumentType
+		}
+		processed := validation.ProcessDocumentForStorage(*m.IdentityCard, docType)
+		m.IdentityCard = &processed
 	}
 	return m.Validate()
 }

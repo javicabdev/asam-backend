@@ -17,6 +17,7 @@ type Familiar struct {
 	Apellidos         string `gorm:"size:100;not null"`
 	FechaNacimiento   *time.Time
 	DNINIE            string `gorm:"column:dni_nie;size:20"` // DNI o NIE del familiar
+	DocumentType      string `gorm:"size:20"`                // Tipo de documento: DNI_NIE, SENEGAL_PASSPORT, OTHER
 	CorreoElectronico string `gorm:"size:100"`
 	Parentesco        string `gorm:"size:50;not null"` // Ejemplo: "Hijo", "Hija", "Otro"
 
@@ -47,10 +48,11 @@ func (f *Familiar) Validate() error {
 		return errors.New("parentesco es requerido")
 	}
 
-	// Validar DNI/NIE si se proporciona
+	// Validar documento de identidad según su tipo
 	if f.DNINIE != "" {
-		if !validation.ValidarNIF(f.DNINIE) {
-			return errors.New("DNI/NIE inválido")
+		validator := validation.NewMemberValidator()
+		if err := validator.ValidateDocumentByType(f.DNINIE, f.DocumentType); err != nil {
+			return errors.New("documento de identidad inválido")
 		}
 	}
 
@@ -64,18 +66,18 @@ func (f *Familiar) BeforeCreate(_ *gorm.DB) error {
 		return errors.New("ID de familia es requerido")
 	}
 
-	// Normalizar DNI/NIE si se proporciona
+	// Procesar documento de identidad según su tipo
 	if f.DNINIE != "" {
-		f.DNINIE = validation.NormalizarNIF(f.DNINIE)
+		f.DNINIE = validation.ProcessDocumentForStorage(f.DNINIE, f.DocumentType)
 	}
 	return f.Validate()
 }
 
 // BeforeSave hook de GORM para validaciones antes de guardar
 func (f *Familiar) BeforeSave(_ *gorm.DB) error {
-	// Normalizar DNI/NIE si se proporciona
+	// Procesar documento de identidad según su tipo
 	if f.DNINIE != "" {
-		f.DNINIE = validation.NormalizarNIF(f.DNINIE)
+		f.DNINIE = validation.ProcessDocumentForStorage(f.DNINIE, f.DocumentType)
 	}
 	return f.Validate()
 }
