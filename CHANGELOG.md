@@ -5,6 +5,15 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.7.1] - 2025-11-15
+
+### Fixed
+- **Bug crítico en asociación de teléfonos**: Al crear una familia, los teléfonos ahora se asocian correctamente al miembro origen (`reference_type='members'`) en lugar de asociarse erróneamente a la familia (`reference_type='families'`)
+  - Añadido campo `Telefonos` a `CreateMemberData` para pasar teléfonos al servicio
+  - Modificado `mapCreateInputToAtomicRequest` para extraer teléfonos del input de familia y pasarlos a `memberData`
+  - Actualizado `createMemberForFamily` para asignar teléfonos del `memberData` al miembro origen
+  - Establecer `family.Telefonos = nil` en el resolver para evitar asociación incorrecta
+
 ## [1.7.0] - 2025-11-15
 
 ### Added
