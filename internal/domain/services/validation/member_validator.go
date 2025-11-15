@@ -17,23 +17,13 @@ func NewMemberValidator() MemberValidator {
 	return &DefaultMemberValidator{}
 }
 
-// ValidateDocumentID valida el formato del documento de identidad (DNI/NIE)
+// ValidateDocumentID valida el documento de identidad
+// La validación del formato específico se realiza en el frontend
+// Esta función solo verifica que el documento no esté vacío cuando es requerido
 func (v *DefaultMemberValidator) ValidateDocumentID(documentID string) error {
-	if documentID == "" {
-		return appErrors.NewValidationError(
-			"document ID is required",
-			map[string]string{"document_id": "documento requerido"},
-		)
-	}
-
-	// Usar la función ValidarNIF que incluye validación del dígito de control
-	if !ValidarNIF(documentID) {
-		return appErrors.NewValidationError(
-			"invalid document ID format",
-			map[string]string{"document_id": "Formato inválido o letra de control incorrecta (DNI/NIE)"},
-		)
-	}
-
+	// Permitir documentos vacíos ya que el campo es opcional
+	// Si se proporciona, aceptamos cualquier formato (DNI, NIE, pasaporte, etc.)
+	// La validación específica del formato se hace en el frontend
 	return nil
 }
 

@@ -100,6 +100,14 @@ func NormalizarNIF(nif string) string {
 	return strings.ToUpper(normalized)
 }
 
+// NormalizeIdentityDocument normaliza cualquier documento de identidad (DNI, NIE, pasaporte, etc.)
+// eliminando espacios y guiones y convirtiéndolo a mayúsculas
+func NormalizeIdentityDocument(document string) string {
+	normalized := strings.ReplaceAll(document, " ", "")
+	normalized = strings.ReplaceAll(normalized, "-", "")
+	return strings.ToUpper(normalized)
+}
+
 // esNumerico verifica si una cadena contiene solo dígitos
 func esNumerico(s string) bool {
 	match, _ := regexp.MatchString("^[0-9]+$", s)

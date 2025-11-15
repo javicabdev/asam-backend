@@ -93,12 +93,12 @@ func (f *Family) Validate() error {
 // NOTA: Las validaciones deben ocurrir ANTES de la transacción en la capa de servicio
 // Este hook solo normaliza datos para evitar problemas durante la transacción
 func (f *Family) BeforeCreate(_ *gorm.DB) error {
-	// Normalizar DNI/NIE si se proporcionan
+	// Normalizar documentos de identidad si se proporcionan (DNI, NIE, pasaporte, etc.)
 	if f.EsposoDocumentoIdentidad != "" {
-		f.EsposoDocumentoIdentidad = validation.NormalizarNIF(f.EsposoDocumentoIdentidad)
+		f.EsposoDocumentoIdentidad = validation.NormalizeIdentityDocument(f.EsposoDocumentoIdentidad)
 	}
 	if f.EsposaDocumentoIdentidad != "" {
-		f.EsposaDocumentoIdentidad = validation.NormalizarNIF(f.EsposaDocumentoIdentidad)
+		f.EsposaDocumentoIdentidad = validation.NormalizeIdentityDocument(f.EsposaDocumentoIdentidad)
 	}
 	// No validamos aquí para evitar fallos dentro de transacciones
 	// La validación se hace en validateFamilyAtomicRequest() antes de iniciar la transacción
@@ -109,12 +109,12 @@ func (f *Family) BeforeCreate(_ *gorm.DB) error {
 // NOTA: Las validaciones deben ocurrir ANTES de la transacción en la capa de servicio
 // Este hook solo normaliza datos para evitar problemas durante la transacción
 func (f *Family) BeforeUpdate(_ *gorm.DB) error {
-	// Normalizar DNI/NIE si se proporcionan
+	// Normalizar documentos de identidad si se proporcionan (DNI, NIE, pasaporte, etc.)
 	if f.EsposoDocumentoIdentidad != "" {
-		f.EsposoDocumentoIdentidad = validation.NormalizarNIF(f.EsposoDocumentoIdentidad)
+		f.EsposoDocumentoIdentidad = validation.NormalizeIdentityDocument(f.EsposoDocumentoIdentidad)
 	}
 	if f.EsposaDocumentoIdentidad != "" {
-		f.EsposaDocumentoIdentidad = validation.NormalizarNIF(f.EsposaDocumentoIdentidad)
+		f.EsposaDocumentoIdentidad = validation.NormalizeIdentityDocument(f.EsposaDocumentoIdentidad)
 	}
 	// No validamos aquí para evitar fallos dentro de transacciones
 	// La validación debe hacerse en la capa de servicio antes de la transacción
