@@ -28,7 +28,7 @@ func (r *familyResolver) mapCreateInputToFamily(input *model.CreateFamilyInput) 
 		miembroOrigenID = &id
 	}
 
-	return &models.Family{
+	family := &models.Family{
 		NumeroSocio:              input.NumeroSocio,
 		MiembroOrigenID:          miembroOrigenID,
 		EsposoNombre:             input.EsposoNombre,
@@ -42,6 +42,18 @@ func (r *familyResolver) mapCreateInputToFamily(input *model.CreateFamilyInput) 
 		EsposaDocumentoIdentidad: safeStringDeref(input.EsposaDocumentoIdentidad),
 		EsposaCorreoElectronico:  safeStringDeref(input.EsposaCorreoElectronico),
 	}
+
+	// Map telephones
+	if input.Telefonos != nil {
+		family.Telefonos = make([]models.Telephone, len(input.Telefonos))
+		for i, tel := range input.Telefonos {
+			family.Telefonos[i] = models.Telephone{
+				NumeroTelefono: tel.NumeroTelefono,
+			}
+		}
+	}
+
+	return family
 }
 
 func (r *familyResolver) mapUpdateInputToFamily(input *model.UpdateFamilyInput,
@@ -73,6 +85,16 @@ func (r *familyResolver) mapUpdateInputToFamily(input *model.UpdateFamilyInput,
 		family.EsposaCorreoElectronico = *input.EsposaCorreoElectronico
 	}
 
+	// Update telephones if provided
+	if input.Telefonos != nil {
+		family.Telefonos = make([]models.Telephone, len(input.Telefonos))
+		for i, tel := range input.Telefonos {
+			family.Telefonos[i] = models.Telephone{
+				NumeroTelefono: tel.NumeroTelefono,
+			}
+		}
+	}
+
 	return &family
 }
 
@@ -85,7 +107,7 @@ func (r *familyResolver) mapFamiliarInputToModel(input *model.FamiliarInput) *mo
 		email = *input.CorreoElectronico
 	}
 
-	return &models.Familiar{
+	familiar := &models.Familiar{
 		Nombre:            input.Nombre,
 		Apellidos:         input.Apellidos,
 		FechaNacimiento:   input.FechaNacimiento,
@@ -93,6 +115,18 @@ func (r *familyResolver) mapFamiliarInputToModel(input *model.FamiliarInput) *mo
 		CorreoElectronico: email,
 		Parentesco:        input.Parentesco,
 	}
+
+	// Map telephones
+	if input.Telefonos != nil {
+		familiar.Telefonos = make([]models.Telephone, len(input.Telefonos))
+		for i, tel := range input.Telefonos {
+			familiar.Telefonos[i] = models.Telephone{
+				NumeroTelefono: tel.NumeroTelefono,
+			}
+		}
+	}
+
+	return familiar
 }
 
 func (r *familyResolver) handleFamilyMutation(ctx context.Context, family *models.Family) (*models.Family, error) {

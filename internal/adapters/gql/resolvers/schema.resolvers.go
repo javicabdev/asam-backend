@@ -1587,6 +1587,11 @@ func (r *queryResolver) GetDelinquentReport(ctx context.Context, input *model.De
 }
 
 // ID is the resolver for the id field.
+func (r *telephoneResolver) ID(ctx context.Context, obj *models.Telephone) (string, error) {
+	panic(fmt.Errorf("not implemented: ID - id"))
+}
+
+// ID is the resolver for the id field.
 func (r *userResolver) ID(ctx context.Context, obj *models.User) (string, error) {
 	return fmt.Sprintf("%d", obj.ID), nil
 }
@@ -1629,6 +1634,9 @@ func (r *Resolver) Payment() generated.PaymentResolver { return &paymentResolver
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
+// Telephone returns generated.TelephoneResolver implementation.
+func (r *Resolver) Telephone() generated.TelephoneResolver { return &telephoneResolver{r} }
+
 // User returns generated.UserResolver implementation.
 func (r *Resolver) User() generated.UserResolver { return &userResolver{r} }
 
@@ -1640,4 +1648,5 @@ type membershipFeeResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type paymentResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type telephoneResolver struct{ *Resolver }
 type userResolver struct{ *Resolver }

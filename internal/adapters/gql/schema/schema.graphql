@@ -90,6 +90,11 @@ type TokenResponse {
 }
 
 # Tipos base
+type Telephone {
+    id: ID!
+    numero_telefono: String!
+}
+
 type Member {
     miembro_id: ID!
     numero_socio: String!
@@ -110,6 +115,7 @@ type Member {
     profesion: String
     nacionalidad: String
     observaciones: String
+    telefonos: [Telephone!]
 }
 
 type Family {
@@ -127,6 +133,7 @@ type Family {
     esposa_documento_identidad: String
     esposa_correo_electronico: String
     familiares: [Familiar!]
+    telefonos: [Telephone!]
 }
 
 type Familiar {
@@ -137,6 +144,7 @@ type Familiar {
     dni_nie: String
     correo_electronico: String
     parentesco: String!
+    telefonos: [Telephone!]
 }
 
 type Payment {
@@ -423,6 +431,10 @@ type RecentActivity {
 }
 
 # Input Types para mutations
+input TelephoneInput {
+    numero_telefono: String!
+}
+
 input CreateMemberInput {
     numero_socio: String!
     tipo_membresia: MembershipType!
@@ -440,6 +452,7 @@ input CreateMemberInput {
     profesion: String
     nacionalidad: String
     observaciones: String
+    telefonos: [TelephoneInput!]
 }
 
 input UpdateMemberInput {
@@ -457,6 +470,7 @@ input UpdateMemberInput {
     correo_electronico: String
     profesion: String
     observaciones: String
+    telefonos: [TelephoneInput!]
 }
 
 input CreateFamilyInput {
@@ -479,7 +493,10 @@ input CreateFamilyInput {
     
     # Familiares adicionales (opcionales)
     familiares: [FamiliarInput!]
-    
+
+    # Teléfonos de la familia
+    telefonos: [TelephoneInput!]
+
     # Datos del miembro principal (para creación automática si no se proporciona miembro_origen_id)
     direccion: String
     codigo_postal: String
@@ -498,6 +515,7 @@ input UpdateFamilyInput {
     esposo_correo_electronico: String
     esposa_documento_identidad: String
     esposa_correo_electronico: String
+    telefonos: [TelephoneInput!]
 }
 
 input FamiliarInput {
@@ -507,6 +525,7 @@ input FamiliarInput {
     dni_nie: String
     correo_electronico: String
     parentesco: String!
+    telefonos: [TelephoneInput!]
 }
 
 input PaymentInput {

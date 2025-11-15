@@ -21,7 +21,8 @@ type Familiar struct {
 	Parentesco        string `gorm:"size:50;not null"` // Ejemplo: "Hijo", "Hija", "Otro"
 
 	// Relaciones
-	Familia Family `gorm:"foreignKey:FamiliaID"`
+	Familia   Family      `gorm:"foreignKey:FamiliaID"`
+	Telefonos []Telephone `gorm:"polymorphic:Contactable"`
 
 	// Timestamps
 	CreatedAt time.Time

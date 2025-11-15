@@ -36,7 +36,7 @@ func (r *memberRepository) Create(ctx context.Context, member *models.Member) er
 // GetByID busca un miembro por su ID
 func (r *memberRepository) GetByID(ctx context.Context, id uint) (*models.Member, error) {
 	var member models.Member
-	result := r.db.WithContext(ctx).First(&member, id)
+	result := r.db.WithContext(ctx).Preload("Telefonos").First(&member, id)
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -52,7 +52,7 @@ func (r *memberRepository) GetByID(ctx context.Context, id uint) (*models.Member
 // GetByNumeroSocio busca un miembro por su número de socio
 func (r *memberRepository) GetByNumeroSocio(ctx context.Context, numeroSocio string) (*models.Member, error) {
 	var member models.Member
-	result := r.db.WithContext(ctx).Where("membership_number = ?", numeroSocio).First(&member)
+	result := r.db.WithContext(ctx).Preload("Telefonos").Where("membership_number = ?", numeroSocio).First(&member)
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -68,7 +68,7 @@ func (r *memberRepository) GetByNumeroSocio(ctx context.Context, numeroSocio str
 // GetByIdentityCard busca un miembro por su documento de identidad
 func (r *memberRepository) GetByIdentityCard(ctx context.Context, identityCard string) (*models.Member, error) {
 	var member models.Member
-	result := r.db.WithContext(ctx).Where("identity_card = ?", identityCard).First(&member)
+	result := r.db.WithContext(ctx).Preload("Telefonos").Where("identity_card = ?", identityCard).First(&member)
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -83,7 +83,9 @@ func (r *memberRepository) GetByIdentityCard(ctx context.Context, identityCard s
 
 // Update actualiza un miembro existente
 func (r *memberRepository) Update(ctx context.Context, member *models.Member) error {
-	result := r.db.WithContext(ctx).Save(member)
+	// Use Session with FullSaveAssociations to properly handle telephone updates
+	// This ensures that telephones are replaced, not just appended
+	result := r.db.WithContext(ctx).Session(&gorm.Session{FullSaveAssociations: true}).Save(member)
 	if result.Error != nil {
 		// Check for specific database errors
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -157,7 +159,7 @@ func (r *memberRepository) List(ctx context.Context, filters output.MemberFilter
 		query = query.Offset(offset).Limit(filters.PageSize)
 	}
 
-	result := query.Find(&members)
+	result := query.Preload("Telefonos").Find(&members)
 	if result.Error != nil {
 		return nil, 0, appErrors.DB(result.Error, "error listing members")
 	}
@@ -201,7 +203,7 @@ func (r *memberRepository) GetByIDWithTx(ctx context.Context, tx output.Transact
 	}
 
 	var member models.Member
-	result := gormTx.tx.WithContext(ctx).First(&member, id)
+	result := gormTx.tx.WithContext(ctx).Preload("Telefonos").First(&member, id)
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -221,7 +223,7 @@ func (r *memberRepository) GetByNumeroSocioWithTx(ctx context.Context, tx output
 	}
 
 	var member models.Member
-	result := gormTx.tx.WithContext(ctx).Where("membership_number = ?", numeroSocio).First(&member)
+	result := gormTx.tx.WithContext(ctx).Preload("Telefonos").Where("membership_number = ?", numeroSocio).First(&member)
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -241,7 +243,7 @@ func (r *memberRepository) GetByIdentityCardWithTx(ctx context.Context, tx outpu
 	}
 
 	var member models.Member
-	result := gormTx.tx.WithContext(ctx).Where("identity_card = ?", identityCard).First(&member)
+	result := gormTx.tx.WithContext(ctx).Preload("Telefonos").Where("identity_card = ?", identityCard).First(&member)
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -303,7 +305,7 @@ func (r *memberRepository) SearchWithoutUser(ctx context.Context, criteria strin
 			searchPattern, searchPattern, searchPattern,
 		)
 
-	result := query.Find(&members)
+	result := query.Preload("Telefonos").Find(&members)
 	if result.Error != nil {
 		return nil, appErrors.DB(result.Error, "error searching members without user")
 	}
@@ -316,6 +318,7 @@ func (r *memberRepository) GetAllActive(ctx context.Context) ([]*models.Member, 
 	var members []*models.Member
 
 	result := r.db.WithContext(ctx).
+		Preload("Telefonos").
 		Where("state = ?", models.EstadoActivo).
 		Order("membership_number ASC").
 		Find(&members)

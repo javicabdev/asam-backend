@@ -35,8 +35,12 @@ type Member struct {
 	Profession       *string
 	Nationality      string `gorm:"default:Senegal"`
 	Remarks          *string
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+
+	// Relaciones
+	Telefonos []Telephone `gorm:"polymorphic:Contactable"`
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // Tipos de membresía disponibles

@@ -48,6 +48,7 @@ type ResolverRoot interface {
 	Mutation() MutationResolver
 	Payment() PaymentResolver
 	Query() QueryResolver
+	Telephone() TelephoneResolver
 	User() UserResolver
 }
 
@@ -177,6 +178,7 @@ type ComplexityRoot struct {
 		ID                func(childComplexity int) int
 		Nombre            func(childComplexity int) int
 		Parentesco        func(childComplexity int) int
+		Telefonos         func(childComplexity int) int
 	}
 
 	Family struct {
@@ -194,6 +196,7 @@ type ComplexityRoot struct {
 		ID                       func(childComplexity int) int
 		MiembroOrigen            func(childComplexity int) int
 		NumeroSocio              func(childComplexity int) int
+		Telefonos                func(childComplexity int) int
 	}
 
 	FamilyConnection struct {
@@ -230,6 +233,7 @@ type ComplexityRoot struct {
 		Poblacion          func(childComplexity int) int
 		Profesion          func(childComplexity int) int
 		Provincia          func(childComplexity int) int
+		Telefonos          func(childComplexity int) int
 		TipoMembresia      func(childComplexity int) int
 	}
 
@@ -391,6 +395,11 @@ type ComplexityRoot struct {
 		Revenue  func(childComplexity int) int
 	}
 
+	Telephone struct {
+		ID             func(childComplexity int) int
+		NumeroTelefono func(childComplexity int) int
+	}
+
 	TokenResponse struct {
 		AccessToken  func(childComplexity int) int
 		ExpiresAt    func(childComplexity int) int
@@ -524,6 +533,9 @@ type QueryResolver interface {
 	GetDashboardStats(ctx context.Context) (*model.DashboardStats, error)
 	GetRecentActivity(ctx context.Context, limit *int) ([]*model.RecentActivity, error)
 	GetDelinquentReport(ctx context.Context, input *model.DelinquentReportInput) (*model.DelinquentReportResponse, error)
+}
+type TelephoneResolver interface {
+	ID(ctx context.Context, obj *models.Telephone) (string, error)
 }
 type UserResolver interface {
 	ID(ctx context.Context, obj *models.User) (string, error)
@@ -1072,6 +1084,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Familiar.Parentesco(childComplexity), true
+	case "Familiar.telefonos":
+		if e.complexity.Familiar.Telefonos == nil {
+			break
+		}
+
+		return e.complexity.Familiar.Telefonos(childComplexity), true
 
 	case "Family.esposa_apellidos":
 		if e.complexity.Family.EsposaApellidos == nil {
@@ -1157,6 +1175,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Family.NumeroSocio(childComplexity), true
+	case "Family.telefonos":
+		if e.complexity.Family.Telefonos == nil {
+			break
+		}
+
+		return e.complexity.Family.Telefonos(childComplexity), true
 
 	case "FamilyConnection.nodes":
 		if e.complexity.FamilyConnection.Nodes == nil {
@@ -1322,6 +1346,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Member.Provincia(childComplexity), true
+	case "Member.telefonos":
+		if e.complexity.Member.Telefonos == nil {
+			break
+		}
+
+		return e.complexity.Member.Telefonos(childComplexity), true
 	case "Member.tipo_membresia":
 		if e.complexity.Member.TipoMembresia == nil {
 			break
@@ -2314,6 +2344,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.RevenueTrendData.Revenue(childComplexity), true
 
+	case "Telephone.id":
+		if e.complexity.Telephone.ID == nil {
+			break
+		}
+
+		return e.complexity.Telephone.ID(childComplexity), true
+	case "Telephone.numero_telefono":
+		if e.complexity.Telephone.NumeroTelefono == nil {
+			break
+		}
+
+		return e.complexity.Telephone.NumeroTelefono(childComplexity), true
+
 	case "TokenResponse.accessToken":
 		if e.complexity.TokenResponse.AccessToken == nil {
 			break
@@ -2438,6 +2481,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputPaymentInput,
 		ec.unmarshalInputRefreshTokenInput,
 		ec.unmarshalInputSortInput,
+		ec.unmarshalInputTelephoneInput,
 		ec.unmarshalInputTransactionFilter,
 		ec.unmarshalInputTransactionInput,
 		ec.unmarshalInputUpdateCashFlowInput,
@@ -2633,6 +2677,11 @@ type TokenResponse {
 }
 
 # Tipos base
+type Telephone {
+    id: ID!
+    numero_telefono: String!
+}
+
 type Member {
     miembro_id: ID!
     numero_socio: String!
@@ -2653,6 +2702,7 @@ type Member {
     profesion: String
     nacionalidad: String
     observaciones: String
+    telefonos: [Telephone!]
 }
 
 type Family {
@@ -2670,6 +2720,7 @@ type Family {
     esposa_documento_identidad: String
     esposa_correo_electronico: String
     familiares: [Familiar!]
+    telefonos: [Telephone!]
 }
 
 type Familiar {
@@ -2680,6 +2731,7 @@ type Familiar {
     dni_nie: String
     correo_electronico: String
     parentesco: String!
+    telefonos: [Telephone!]
 }
 
 type Payment {
@@ -2966,6 +3018,10 @@ type RecentActivity {
 }
 
 # Input Types para mutations
+input TelephoneInput {
+    numero_telefono: String!
+}
+
 input CreateMemberInput {
     numero_socio: String!
     tipo_membresia: MembershipType!
@@ -2983,6 +3039,7 @@ input CreateMemberInput {
     profesion: String
     nacionalidad: String
     observaciones: String
+    telefonos: [TelephoneInput!]
 }
 
 input UpdateMemberInput {
@@ -3000,6 +3057,7 @@ input UpdateMemberInput {
     correo_electronico: String
     profesion: String
     observaciones: String
+    telefonos: [TelephoneInput!]
 }
 
 input CreateFamilyInput {
@@ -3022,7 +3080,10 @@ input CreateFamilyInput {
     
     # Familiares adicionales (opcionales)
     familiares: [FamiliarInput!]
-    
+
+    # Teléfonos de la familia
+    telefonos: [TelephoneInput!]
+
     # Datos del miembro principal (para creación automática si no se proporciona miembro_origen_id)
     direccion: String
     codigo_postal: String
@@ -3041,6 +3102,7 @@ input UpdateFamilyInput {
     esposo_correo_electronico: String
     esposa_documento_identidad: String
     esposa_correo_electronico: String
+    telefonos: [TelephoneInput!]
 }
 
 input FamiliarInput {
@@ -3050,6 +3112,7 @@ input FamiliarInput {
     dni_nie: String
     correo_electronico: String
     parentesco: String!
+    telefonos: [TelephoneInput!]
 }
 
 input PaymentInput {
@@ -4502,6 +4565,8 @@ func (ec *executionContext) fieldContext_CashFlow_member(_ context.Context, fiel
 				return ec.fieldContext_Member_nacionalidad(ctx, field)
 			case "observaciones":
 				return ec.fieldContext_Member_observaciones(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Member_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Member", field.Name)
 		},
@@ -6815,6 +6880,41 @@ func (ec *executionContext) fieldContext_Familiar_parentesco(_ context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _Familiar_telefonos(ctx context.Context, field graphql.CollectedField, obj *models.Familiar) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Familiar_telefonos,
+		func(ctx context.Context) (any, error) {
+			return obj.Telefonos, nil
+		},
+		nil,
+		ec.marshalOTelephone2ᚕgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐTelephoneᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Familiar_telefonos(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Familiar",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Telephone_id(ctx, field)
+			case "numero_telefono":
+				return ec.fieldContext_Telephone_numero_telefono(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Telephone", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Family_id(ctx context.Context, field graphql.CollectedField, obj *models.Family) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6935,6 +7035,8 @@ func (ec *executionContext) fieldContext_Family_miembro_origen(_ context.Context
 				return ec.fieldContext_Member_nacionalidad(ctx, field)
 			case "observaciones":
 				return ec.fieldContext_Member_observaciones(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Member_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Member", field.Name)
 		},
@@ -7270,8 +7372,45 @@ func (ec *executionContext) fieldContext_Family_familiares(_ context.Context, fi
 				return ec.fieldContext_Familiar_correo_electronico(ctx, field)
 			case "parentesco":
 				return ec.fieldContext_Familiar_parentesco(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Familiar_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Familiar", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Family_telefonos(ctx context.Context, field graphql.CollectedField, obj *models.Family) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Family_telefonos,
+		func(ctx context.Context) (any, error) {
+			return obj.Telefonos, nil
+		},
+		nil,
+		ec.marshalOTelephone2ᚕgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐTelephoneᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Family_telefonos(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Family",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Telephone_id(ctx, field)
+			case "numero_telefono":
+				return ec.fieldContext_Telephone_numero_telefono(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Telephone", field.Name)
 		},
 	}
 	return fc, nil
@@ -7329,6 +7468,8 @@ func (ec *executionContext) fieldContext_FamilyConnection_nodes(_ context.Contex
 				return ec.fieldContext_Family_esposa_correo_electronico(ctx, field)
 			case "familiares":
 				return ec.fieldContext_Family_familiares(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Family_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Family", field.Name)
 		},
@@ -8141,6 +8282,41 @@ func (ec *executionContext) fieldContext_Member_observaciones(_ context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _Member_telefonos(ctx context.Context, field graphql.CollectedField, obj *models.Member) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Member_telefonos,
+		func(ctx context.Context) (any, error) {
+			return obj.Telefonos, nil
+		},
+		nil,
+		ec.marshalOTelephone2ᚕgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐTelephoneᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Member_telefonos(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Member",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Telephone_id(ctx, field)
+			case "numero_telefono":
+				return ec.fieldContext_Telephone_numero_telefono(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Telephone", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _MemberConnection_nodes(ctx context.Context, field graphql.CollectedField, obj *model.MemberConnection) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -8203,6 +8379,8 @@ func (ec *executionContext) fieldContext_MemberConnection_nodes(_ context.Contex
 				return ec.fieldContext_Member_nacionalidad(ctx, field)
 			case "observaciones":
 				return ec.fieldContext_Member_observaciones(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Member_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Member", field.Name)
 		},
@@ -8658,6 +8836,8 @@ func (ec *executionContext) fieldContext_Mutation_createMember(ctx context.Conte
 				return ec.fieldContext_Member_nacionalidad(ctx, field)
 			case "observaciones":
 				return ec.fieldContext_Member_observaciones(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Member_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Member", field.Name)
 		},
@@ -8739,6 +8919,8 @@ func (ec *executionContext) fieldContext_Mutation_updateMember(ctx context.Conte
 				return ec.fieldContext_Member_nacionalidad(ctx, field)
 			case "observaciones":
 				return ec.fieldContext_Member_observaciones(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Member_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Member", field.Name)
 		},
@@ -8869,6 +9051,8 @@ func (ec *executionContext) fieldContext_Mutation_changeMemberStatus(ctx context
 				return ec.fieldContext_Member_nacionalidad(ctx, field)
 			case "observaciones":
 				return ec.fieldContext_Member_observaciones(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Member_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Member", field.Name)
 		},
@@ -8940,6 +9124,8 @@ func (ec *executionContext) fieldContext_Mutation_createFamily(ctx context.Conte
 				return ec.fieldContext_Family_esposa_correo_electronico(ctx, field)
 			case "familiares":
 				return ec.fieldContext_Family_familiares(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Family_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Family", field.Name)
 		},
@@ -9011,6 +9197,8 @@ func (ec *executionContext) fieldContext_Mutation_updateFamily(ctx context.Conte
 				return ec.fieldContext_Family_esposa_correo_electronico(ctx, field)
 			case "familiares":
 				return ec.fieldContext_Family_familiares(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Family_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Family", field.Name)
 		},
@@ -9082,6 +9270,8 @@ func (ec *executionContext) fieldContext_Mutation_addFamilyMember(ctx context.Co
 				return ec.fieldContext_Family_esposa_correo_electronico(ctx, field)
 			case "familiares":
 				return ec.fieldContext_Family_familiares(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Family_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Family", field.Name)
 		},
@@ -10686,6 +10876,8 @@ func (ec *executionContext) fieldContext_Payment_member(_ context.Context, field
 				return ec.fieldContext_Member_nacionalidad(ctx, field)
 			case "observaciones":
 				return ec.fieldContext_Member_observaciones(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Member_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Member", field.Name)
 		},
@@ -11560,6 +11752,8 @@ func (ec *executionContext) fieldContext_Query_getMember(ctx context.Context, fi
 				return ec.fieldContext_Member_nacionalidad(ctx, field)
 			case "observaciones":
 				return ec.fieldContext_Member_observaciones(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Member_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Member", field.Name)
 		},
@@ -11688,6 +11882,8 @@ func (ec *executionContext) fieldContext_Query_searchMembers(ctx context.Context
 				return ec.fieldContext_Member_nacionalidad(ctx, field)
 			case "observaciones":
 				return ec.fieldContext_Member_observaciones(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Member_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Member", field.Name)
 		},
@@ -11769,6 +11965,8 @@ func (ec *executionContext) fieldContext_Query_searchMembersWithoutUser(ctx cont
 				return ec.fieldContext_Member_nacionalidad(ctx, field)
 			case "observaciones":
 				return ec.fieldContext_Member_observaciones(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Member_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Member", field.Name)
 		},
@@ -11840,6 +12038,8 @@ func (ec *executionContext) fieldContext_Query_getFamily(ctx context.Context, fi
 				return ec.fieldContext_Family_esposa_correo_electronico(ctx, field)
 			case "familiares":
 				return ec.fieldContext_Family_familiares(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Family_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Family", field.Name)
 		},
@@ -11911,6 +12111,8 @@ func (ec *executionContext) fieldContext_Query_getFamilyByOriginMember(ctx conte
 				return ec.fieldContext_Family_esposa_correo_electronico(ctx, field)
 			case "familiares":
 				return ec.fieldContext_Family_familiares(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Family_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Family", field.Name)
 		},
@@ -12015,6 +12217,8 @@ func (ec *executionContext) fieldContext_Query_getFamilyMembers(ctx context.Cont
 				return ec.fieldContext_Familiar_correo_electronico(ctx, field)
 			case "parentesco":
 				return ec.fieldContext_Familiar_parentesco(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Familiar_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Familiar", field.Name)
 		},
@@ -13307,6 +13511,8 @@ func (ec *executionContext) fieldContext_RecentActivity_relatedMember(_ context.
 				return ec.fieldContext_Member_nacionalidad(ctx, field)
 			case "observaciones":
 				return ec.fieldContext_Member_observaciones(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Member_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Member", field.Name)
 		},
@@ -13366,6 +13572,8 @@ func (ec *executionContext) fieldContext_RecentActivity_relatedFamily(_ context.
 				return ec.fieldContext_Family_esposa_correo_electronico(ctx, field)
 			case "familiares":
 				return ec.fieldContext_Family_familiares(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Family_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Family", field.Name)
 		},
@@ -13484,6 +13692,64 @@ func (ec *executionContext) fieldContext_RevenueTrendData_expenses(_ context.Con
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Telephone_id(ctx context.Context, field graphql.CollectedField, obj *models.Telephone) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Telephone_id,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Telephone().ID(ctx, obj)
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Telephone_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Telephone",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Telephone_numero_telefono(ctx context.Context, field graphql.CollectedField, obj *models.Telephone) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Telephone_numero_telefono,
+		func(ctx context.Context) (any, error) {
+			return obj.NumeroTelefono, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Telephone_numero_telefono(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Telephone",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -13842,6 +14108,8 @@ func (ec *executionContext) fieldContext_User_member(_ context.Context, field gr
 				return ec.fieldContext_Member_nacionalidad(ctx, field)
 			case "observaciones":
 				return ec.fieldContext_Member_observaciones(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Member_telefonos(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Member", field.Name)
 		},
@@ -15593,7 +15861,7 @@ func (ec *executionContext) unmarshalInputCreateFamilyInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"numero_socio", "miembro_origen_id", "esposo_nombre", "esposo_apellidos", "esposo_fecha_nacimiento", "esposo_documento_identidad", "esposo_correo_electronico", "esposa_nombre", "esposa_apellidos", "esposa_fecha_nacimiento", "esposa_documento_identidad", "esposa_correo_electronico", "familiares", "direccion", "codigo_postal", "poblacion", "provincia", "pais"}
+	fieldsInOrder := [...]string{"numero_socio", "miembro_origen_id", "esposo_nombre", "esposo_apellidos", "esposo_fecha_nacimiento", "esposo_documento_identidad", "esposo_correo_electronico", "esposa_nombre", "esposa_apellidos", "esposa_fecha_nacimiento", "esposa_documento_identidad", "esposa_correo_electronico", "familiares", "telefonos", "direccion", "codigo_postal", "poblacion", "provincia", "pais"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -15691,6 +15959,13 @@ func (ec *executionContext) unmarshalInputCreateFamilyInput(ctx context.Context,
 				return it, err
 			}
 			it.Familiares = data
+		case "telefonos":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("telefonos"))
+			data, err := ec.unmarshalOTelephoneInput2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐTelephoneInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Telefonos = data
 		case "direccion":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("direccion"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -15739,7 +16014,7 @@ func (ec *executionContext) unmarshalInputCreateMemberInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"numero_socio", "tipo_membresia", "nombre", "apellidos", "calle_numero_piso", "codigo_postal", "poblacion", "provincia", "pais", "fecha_alta", "fecha_nacimiento", "documento_identidad", "correo_electronico", "profesion", "nacionalidad", "observaciones"}
+	fieldsInOrder := [...]string{"numero_socio", "tipo_membresia", "nombre", "apellidos", "calle_numero_piso", "codigo_postal", "poblacion", "provincia", "pais", "fecha_alta", "fecha_nacimiento", "documento_identidad", "correo_electronico", "profesion", "nacionalidad", "observaciones", "telefonos"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -15858,6 +16133,13 @@ func (ec *executionContext) unmarshalInputCreateMemberInput(ctx context.Context,
 				return it, err
 			}
 			it.Observaciones = data
+		case "telefonos":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("telefonos"))
+			data, err := ec.unmarshalOTelephoneInput2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐTelephoneInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Telefonos = data
 		}
 	}
 
@@ -15981,7 +16263,7 @@ func (ec *executionContext) unmarshalInputFamiliarInput(ctx context.Context, obj
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"nombre", "apellidos", "fecha_nacimiento", "dni_nie", "correo_electronico", "parentesco"}
+	fieldsInOrder := [...]string{"nombre", "apellidos", "fecha_nacimiento", "dni_nie", "correo_electronico", "parentesco", "telefonos"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -16030,6 +16312,13 @@ func (ec *executionContext) unmarshalInputFamiliarInput(ctx context.Context, obj
 				return it, err
 			}
 			it.Parentesco = data
+		case "telefonos":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("telefonos"))
+			data, err := ec.unmarshalOTelephoneInput2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐTelephoneInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Telefonos = data
 		}
 	}
 
@@ -16440,6 +16729,33 @@ func (ec *executionContext) unmarshalInputSortInput(ctx context.Context, obj any
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputTelephoneInput(ctx context.Context, obj any) (model.TelephoneInput, error) {
+	var it model.TelephoneInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"numero_telefono"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "numero_telefono":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("numero_telefono"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NumeroTelefono = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputTransactionFilter(ctx context.Context, obj any) (model.TransactionFilter, error) {
 	var it model.TransactionFilter
 	asMap := map[string]any{}
@@ -16626,7 +16942,7 @@ func (ec *executionContext) unmarshalInputUpdateFamilyInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"familia_id", "esposo_nombre", "esposo_apellidos", "esposa_nombre", "esposa_apellidos", "esposo_documento_identidad", "esposo_correo_electronico", "esposa_documento_identidad", "esposa_correo_electronico"}
+	fieldsInOrder := [...]string{"familia_id", "esposo_nombre", "esposo_apellidos", "esposa_nombre", "esposa_apellidos", "esposo_documento_identidad", "esposo_correo_electronico", "esposa_documento_identidad", "esposa_correo_electronico", "telefonos"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -16696,6 +17012,13 @@ func (ec *executionContext) unmarshalInputUpdateFamilyInput(ctx context.Context,
 				return it, err
 			}
 			it.EsposaCorreoElectronico = data
+		case "telefonos":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("telefonos"))
+			data, err := ec.unmarshalOTelephoneInput2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐTelephoneInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Telefonos = data
 		}
 	}
 
@@ -16709,7 +17032,7 @@ func (ec *executionContext) unmarshalInputUpdateMemberInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"miembro_id", "nombre", "apellidos", "nacionalidad", "fecha_nacimiento", "calle_numero_piso", "codigo_postal", "poblacion", "provincia", "pais", "documento_identidad", "correo_electronico", "profesion", "observaciones"}
+	fieldsInOrder := [...]string{"miembro_id", "nombre", "apellidos", "nacionalidad", "fecha_nacimiento", "calle_numero_piso", "codigo_postal", "poblacion", "provincia", "pais", "documento_identidad", "correo_electronico", "profesion", "observaciones", "telefonos"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -16814,6 +17137,13 @@ func (ec *executionContext) unmarshalInputUpdateMemberInput(ctx context.Context,
 				return it, err
 			}
 			it.Observaciones = data
+		case "telefonos":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("telefonos"))
+			data, err := ec.unmarshalOTelephoneInput2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐTelephoneInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Telefonos = data
 		}
 	}
 
@@ -17758,6 +18088,8 @@ func (ec *executionContext) _Familiar(ctx context.Context, sel ast.SelectionSet,
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "telefonos":
+			out.Values[i] = ec._Familiar_telefonos(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -17869,6 +18201,8 @@ func (ec *executionContext) _Family(ctx context.Context, sel ast.SelectionSet, o
 			out.Values[i] = ec._Family_esposa_correo_electronico(ctx, field, obj)
 		case "familiares":
 			out.Values[i] = ec._Family_familiares(ctx, field, obj)
+		case "telefonos":
+			out.Values[i] = ec._Family_telefonos(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -18679,6 +19013,8 @@ func (ec *executionContext) _Member(ctx context.Context, sel ast.SelectionSet, o
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "telefonos":
+			out.Values[i] = ec._Member_telefonos(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -20394,6 +20730,81 @@ func (ec *executionContext) _RevenueTrendData(ctx context.Context, sel ast.Selec
 			out.Values[i] = ec._RevenueTrendData_expenses(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var telephoneImplementors = []string{"Telephone"}
+
+func (ec *executionContext) _Telephone(ctx context.Context, sel ast.SelectionSet, obj *models.Telephone) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, telephoneImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Telephone")
+		case "id":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Telephone_id(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "numero_telefono":
+			out.Values[i] = ec._Telephone_numero_telefono(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -22207,6 +22618,15 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 	return res
 }
 
+func (ec *executionContext) marshalNTelephone2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐTelephone(ctx context.Context, sel ast.SelectionSet, v models.Telephone) graphql.Marshaler {
+	return ec._Telephone(ctx, sel, &v)
+}
+
+func (ec *executionContext) unmarshalNTelephoneInput2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐTelephoneInput(ctx context.Context, v any) (*model.TelephoneInput, error) {
+	res, err := ec.unmarshalInputTelephoneInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNTime2timeᚐTime(ctx context.Context, v any) (time.Time, error) {
 	res, err := graphql.UnmarshalTime(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -22976,6 +23396,71 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	_ = ctx
 	res := graphql.MarshalString(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOTelephone2ᚕgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐTelephoneᚄ(ctx context.Context, sel ast.SelectionSet, v []models.Telephone) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNTelephone2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐTelephone(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalOTelephoneInput2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐTelephoneInputᚄ(ctx context.Context, v any) ([]*model.TelephoneInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.TelephoneInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNTelephoneInput2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐTelephoneInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) unmarshalOTime2timeᚐTime(ctx context.Context, v any) (time.Time, error) {

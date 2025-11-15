@@ -112,6 +112,16 @@ func (r *memberResolver) mapCreateInputToMember(input *model.CreateMemberInput) 
 		member.Remarks = input.Observaciones
 	}
 
+	// Map telephones
+	if input.Telefonos != nil {
+		member.Telefonos = make([]models.Telephone, len(input.Telefonos))
+		for i, tel := range input.Telefonos {
+			member.Telefonos[i] = models.Telephone{
+				NumeroTelefono: tel.NumeroTelefono,
+			}
+		}
+	}
+
 	return member, nil
 }
 
@@ -164,6 +174,16 @@ func (r *memberResolver) mapUpdateInputToMember(id uint, input *model.UpdateMemb
 	}
 	if input.Observaciones != nil {
 		member.Remarks = input.Observaciones
+	}
+
+	// Update telephones if provided
+	if input.Telefonos != nil {
+		member.Telefonos = make([]models.Telephone, len(input.Telefonos))
+		for i, tel := range input.Telefonos {
+			member.Telefonos[i] = models.Telephone{
+				NumeroTelefono: tel.NumeroTelefono,
+			}
+		}
 	}
 
 	return &member

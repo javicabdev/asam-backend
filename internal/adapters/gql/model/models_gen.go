@@ -51,43 +51,45 @@ type CreateCashFlowInput struct {
 }
 
 type CreateFamilyInput struct {
-	NumeroSocio              string           `json:"numero_socio"`
-	MiembroOrigenID          *string          `json:"miembro_origen_id,omitempty"`
-	EsposoNombre             string           `json:"esposo_nombre"`
-	EsposoApellidos          string           `json:"esposo_apellidos"`
-	EsposoFechaNacimiento    *time.Time       `json:"esposo_fecha_nacimiento,omitempty"`
-	EsposoDocumentoIdentidad *string          `json:"esposo_documento_identidad,omitempty"`
-	EsposoCorreoElectronico  *string          `json:"esposo_correo_electronico,omitempty"`
-	EsposaNombre             *string          `json:"esposa_nombre,omitempty"`
-	EsposaApellidos          *string          `json:"esposa_apellidos,omitempty"`
-	EsposaFechaNacimiento    *time.Time       `json:"esposa_fecha_nacimiento,omitempty"`
-	EsposaDocumentoIdentidad *string          `json:"esposa_documento_identidad,omitempty"`
-	EsposaCorreoElectronico  *string          `json:"esposa_correo_electronico,omitempty"`
-	Familiares               []*FamiliarInput `json:"familiares,omitempty"`
-	Direccion                *string          `json:"direccion,omitempty"`
-	CodigoPostal             *string          `json:"codigo_postal,omitempty"`
-	Poblacion                *string          `json:"poblacion,omitempty"`
-	Provincia                *string          `json:"provincia,omitempty"`
-	Pais                     *string          `json:"pais,omitempty"`
+	NumeroSocio              string            `json:"numero_socio"`
+	MiembroOrigenID          *string           `json:"miembro_origen_id,omitempty"`
+	EsposoNombre             string            `json:"esposo_nombre"`
+	EsposoApellidos          string            `json:"esposo_apellidos"`
+	EsposoFechaNacimiento    *time.Time        `json:"esposo_fecha_nacimiento,omitempty"`
+	EsposoDocumentoIdentidad *string           `json:"esposo_documento_identidad,omitempty"`
+	EsposoCorreoElectronico  *string           `json:"esposo_correo_electronico,omitempty"`
+	EsposaNombre             *string           `json:"esposa_nombre,omitempty"`
+	EsposaApellidos          *string           `json:"esposa_apellidos,omitempty"`
+	EsposaFechaNacimiento    *time.Time        `json:"esposa_fecha_nacimiento,omitempty"`
+	EsposaDocumentoIdentidad *string           `json:"esposa_documento_identidad,omitempty"`
+	EsposaCorreoElectronico  *string           `json:"esposa_correo_electronico,omitempty"`
+	Familiares               []*FamiliarInput  `json:"familiares,omitempty"`
+	Telefonos                []*TelephoneInput `json:"telefonos,omitempty"`
+	Direccion                *string           `json:"direccion,omitempty"`
+	CodigoPostal             *string           `json:"codigo_postal,omitempty"`
+	Poblacion                *string           `json:"poblacion,omitempty"`
+	Provincia                *string           `json:"provincia,omitempty"`
+	Pais                     *string           `json:"pais,omitempty"`
 }
 
 type CreateMemberInput struct {
-	NumeroSocio        string         `json:"numero_socio"`
-	TipoMembresia      MembershipType `json:"tipo_membresia"`
-	Nombre             string         `json:"nombre"`
-	Apellidos          string         `json:"apellidos"`
-	CalleNumeroPiso    string         `json:"calle_numero_piso"`
-	CodigoPostal       string         `json:"codigo_postal"`
-	Poblacion          string         `json:"poblacion"`
-	Provincia          *string        `json:"provincia,omitempty"`
-	Pais               *string        `json:"pais,omitempty"`
-	FechaAlta          *time.Time     `json:"fecha_alta,omitempty"`
-	FechaNacimiento    *time.Time     `json:"fecha_nacimiento,omitempty"`
-	DocumentoIdentidad *string        `json:"documento_identidad,omitempty"`
-	CorreoElectronico  *string        `json:"correo_electronico,omitempty"`
-	Profesion          *string        `json:"profesion,omitempty"`
-	Nacionalidad       *string        `json:"nacionalidad,omitempty"`
-	Observaciones      *string        `json:"observaciones,omitempty"`
+	NumeroSocio        string            `json:"numero_socio"`
+	TipoMembresia      MembershipType    `json:"tipo_membresia"`
+	Nombre             string            `json:"nombre"`
+	Apellidos          string            `json:"apellidos"`
+	CalleNumeroPiso    string            `json:"calle_numero_piso"`
+	CodigoPostal       string            `json:"codigo_postal"`
+	Poblacion          string            `json:"poblacion"`
+	Provincia          *string           `json:"provincia,omitempty"`
+	Pais               *string           `json:"pais,omitempty"`
+	FechaAlta          *time.Time        `json:"fecha_alta,omitempty"`
+	FechaNacimiento    *time.Time        `json:"fecha_nacimiento,omitempty"`
+	DocumentoIdentidad *string           `json:"documento_identidad,omitempty"`
+	CorreoElectronico  *string           `json:"correo_electronico,omitempty"`
+	Profesion          *string           `json:"profesion,omitempty"`
+	Nacionalidad       *string           `json:"nacionalidad,omitempty"`
+	Observaciones      *string           `json:"observaciones,omitempty"`
+	Telefonos          []*TelephoneInput `json:"telefonos,omitempty"`
 }
 
 type CreateUserInput struct {
@@ -221,12 +223,13 @@ type DocumentValidationResult struct {
 }
 
 type FamiliarInput struct {
-	Nombre            string     `json:"nombre"`
-	Apellidos         string     `json:"apellidos"`
-	FechaNacimiento   *time.Time `json:"fecha_nacimiento,omitempty"`
-	DniNie            *string    `json:"dni_nie,omitempty"`
-	CorreoElectronico *string    `json:"correo_electronico,omitempty"`
-	Parentesco        string     `json:"parentesco"`
+	Nombre            string            `json:"nombre"`
+	Apellidos         string            `json:"apellidos"`
+	FechaNacimiento   *time.Time        `json:"fecha_nacimiento,omitempty"`
+	DniNie            *string           `json:"dni_nie,omitempty"`
+	CorreoElectronico *string           `json:"correo_electronico,omitempty"`
+	Parentesco        string            `json:"parentesco"`
+	Telefonos         []*TelephoneInput `json:"telefonos,omitempty"`
 }
 
 type FamilyConnection struct {
@@ -377,6 +380,10 @@ type SortInput struct {
 	Direction SortDirection `json:"direction"`
 }
 
+type TelephoneInput struct {
+	NumeroTelefono string `json:"numero_telefono"`
+}
+
 type TokenResponse struct {
 	AccessToken  string    `json:"accessToken"`
 	RefreshToken string    `json:"refreshToken"`
@@ -415,32 +422,34 @@ type UpdateCashFlowInput struct {
 }
 
 type UpdateFamilyInput struct {
-	FamiliaID                string  `json:"familia_id"`
-	EsposoNombre             *string `json:"esposo_nombre,omitempty"`
-	EsposoApellidos          *string `json:"esposo_apellidos,omitempty"`
-	EsposaNombre             *string `json:"esposa_nombre,omitempty"`
-	EsposaApellidos          *string `json:"esposa_apellidos,omitempty"`
-	EsposoDocumentoIdentidad *string `json:"esposo_documento_identidad,omitempty"`
-	EsposoCorreoElectronico  *string `json:"esposo_correo_electronico,omitempty"`
-	EsposaDocumentoIdentidad *string `json:"esposa_documento_identidad,omitempty"`
-	EsposaCorreoElectronico  *string `json:"esposa_correo_electronico,omitempty"`
+	FamiliaID                string            `json:"familia_id"`
+	EsposoNombre             *string           `json:"esposo_nombre,omitempty"`
+	EsposoApellidos          *string           `json:"esposo_apellidos,omitempty"`
+	EsposaNombre             *string           `json:"esposa_nombre,omitempty"`
+	EsposaApellidos          *string           `json:"esposa_apellidos,omitempty"`
+	EsposoDocumentoIdentidad *string           `json:"esposo_documento_identidad,omitempty"`
+	EsposoCorreoElectronico  *string           `json:"esposo_correo_electronico,omitempty"`
+	EsposaDocumentoIdentidad *string           `json:"esposa_documento_identidad,omitempty"`
+	EsposaCorreoElectronico  *string           `json:"esposa_correo_electronico,omitempty"`
+	Telefonos                []*TelephoneInput `json:"telefonos,omitempty"`
 }
 
 type UpdateMemberInput struct {
-	MiembroID          string     `json:"miembro_id"`
-	Nombre             *string    `json:"nombre,omitempty"`
-	Apellidos          *string    `json:"apellidos,omitempty"`
-	Nacionalidad       *string    `json:"nacionalidad,omitempty"`
-	FechaNacimiento    *time.Time `json:"fecha_nacimiento,omitempty"`
-	CalleNumeroPiso    *string    `json:"calle_numero_piso,omitempty"`
-	CodigoPostal       *string    `json:"codigo_postal,omitempty"`
-	Poblacion          *string    `json:"poblacion,omitempty"`
-	Provincia          *string    `json:"provincia,omitempty"`
-	Pais               *string    `json:"pais,omitempty"`
-	DocumentoIdentidad *string    `json:"documento_identidad,omitempty"`
-	CorreoElectronico  *string    `json:"correo_electronico,omitempty"`
-	Profesion          *string    `json:"profesion,omitempty"`
-	Observaciones      *string    `json:"observaciones,omitempty"`
+	MiembroID          string            `json:"miembro_id"`
+	Nombre             *string           `json:"nombre,omitempty"`
+	Apellidos          *string           `json:"apellidos,omitempty"`
+	Nacionalidad       *string           `json:"nacionalidad,omitempty"`
+	FechaNacimiento    *time.Time        `json:"fecha_nacimiento,omitempty"`
+	CalleNumeroPiso    *string           `json:"calle_numero_piso,omitempty"`
+	CodigoPostal       *string           `json:"codigo_postal,omitempty"`
+	Poblacion          *string           `json:"poblacion,omitempty"`
+	Provincia          *string           `json:"provincia,omitempty"`
+	Pais               *string           `json:"pais,omitempty"`
+	DocumentoIdentidad *string           `json:"documento_identidad,omitempty"`
+	CorreoElectronico  *string           `json:"correo_electronico,omitempty"`
+	Profesion          *string           `json:"profesion,omitempty"`
+	Observaciones      *string           `json:"observaciones,omitempty"`
+	Telefonos          []*TelephoneInput `json:"telefonos,omitempty"`
 }
 
 type UpdateUserInput struct {
