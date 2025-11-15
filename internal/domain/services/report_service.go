@@ -275,6 +275,12 @@ func (s *reportService) loadFamilyInfo(ctx context.Context, family *models.Famil
 		primaryMemberInfo.Email = primaryMember.Email
 	}
 
+	// Obtener primer teléfono si existe
+	if len(primaryMember.Telefonos) > 0 {
+		phone := primaryMember.Telefonos[0].NumeroTelefono
+		primaryMemberInfo.Phone = &phone
+	}
+
 	familyInfo := &input.DebtorFamilyInfo{
 		ID:            family.ID,
 		FamilyName:    familyName,
@@ -307,9 +313,11 @@ func (s *reportService) loadMemberInfo(ctx context.Context, memberID uint) (*inp
 		memberInfo.Email = member.Email
 	}
 
-	// Nota: El modelo Member no tiene campo Phone directo,
-	// podría estar en observaciones o en otro lugar según el schema
-	// Por ahora lo dejamos nil
+	// Obtener primer teléfono si existe
+	if len(member.Telefonos) > 0 {
+		phone := member.Telefonos[0].NumeroTelefono
+		memberInfo.Phone = &phone
+	}
 
 	return memberInfo, nil
 }
