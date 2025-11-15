@@ -114,12 +114,7 @@ func (r *memberResolver) mapCreateInputToMember(input *model.CreateMemberInput) 
 
 	// Map telephones
 	if input.Telefonos != nil {
-		member.Telefonos = make([]models.Telephone, len(input.Telefonos))
-		for i, tel := range input.Telefonos {
-			member.Telefonos[i] = models.Telephone{
-				NumeroTelefono: tel.NumeroTelefono,
-			}
-		}
+		member.Telefonos = r.mapTelephoneInputs(input.Telefonos)
 	}
 
 	return member, nil
@@ -130,8 +125,15 @@ func (r *memberResolver) mapUpdateInputToMember(id uint, input *model.UpdateMemb
 	member := *existing
 	member.ID = id
 
-	// Update only provided fields
-	// Basic identity fields
+	r.updateMemberIdentityFields(&member, input)
+	r.updateMemberAddressFields(&member, input)
+	r.updateMemberContactFields(&member, input)
+
+	return &member
+}
+
+// updateMemberIdentityFields updates identity-related fields
+func (r *memberResolver) updateMemberIdentityFields(member *models.Member, input *model.UpdateMemberInput) {
 	if input.Nombre != nil {
 		member.Name = *input.Nombre
 	}
@@ -144,8 +146,10 @@ func (r *memberResolver) mapUpdateInputToMember(id uint, input *model.UpdateMemb
 	if input.FechaNacimiento != nil {
 		member.BirthDate = input.FechaNacimiento
 	}
+}
 
-	// Address fields
+// updateMemberAddressFields updates address-related fields
+func (r *memberResolver) updateMemberAddressFields(member *models.Member, input *model.UpdateMemberInput) {
 	if input.CalleNumeroPiso != nil {
 		member.Address = *input.CalleNumeroPiso
 	}
@@ -161,8 +165,10 @@ func (r *memberResolver) mapUpdateInputToMember(id uint, input *model.UpdateMemb
 	if input.Pais != nil {
 		member.Country = *input.Pais
 	}
+}
 
-	// Contact and other fields
+// updateMemberContactFields updates contact and other fields
+func (r *memberResolver) updateMemberContactFields(member *models.Member, input *model.UpdateMemberInput) {
 	if input.DocumentoIdentidad != nil {
 		member.IdentityCard = input.DocumentoIdentidad
 	}
@@ -175,18 +181,20 @@ func (r *memberResolver) mapUpdateInputToMember(id uint, input *model.UpdateMemb
 	if input.Observaciones != nil {
 		member.Remarks = input.Observaciones
 	}
-
-	// Update telephones if provided
 	if input.Telefonos != nil {
-		member.Telefonos = make([]models.Telephone, len(input.Telefonos))
-		for i, tel := range input.Telefonos {
-			member.Telefonos[i] = models.Telephone{
-				NumeroTelefono: tel.NumeroTelefono,
-			}
+		member.Telefonos = r.mapTelephoneInputs(input.Telefonos)
+	}
+}
+
+// mapTelephoneInputs converts telephone inputs to models
+func (r *memberResolver) mapTelephoneInputs(inputs []*model.TelephoneInput) []models.Telephone {
+	telefonos := make([]models.Telephone, len(inputs))
+	for i, tel := range inputs {
+		telefonos[i] = models.Telephone{
+			NumeroTelefono: tel.NumeroTelefono,
 		}
 	}
-
-	return &member
+	return telefonos
 }
 
 func (r *memberResolver) handleMemberStatus(ctx context.Context, memberID uint,
