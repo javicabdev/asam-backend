@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -27,6 +28,7 @@ type BackupService struct {
 	interval     time.Duration
 	ticker       *time.Ticker
 	done         chan bool
+	mu           sync.Mutex // Protects ticker
 }
 
 // NewBackupService creates a new backup service
@@ -69,11 +71,15 @@ func (s *BackupService) Start(ctx context.Context) {
 	s.performBackup(ctx)
 
 	// Then run periodically
+	s.mu.Lock()
 	s.ticker = time.NewTicker(s.interval)
+	ticker := s.ticker
+	s.mu.Unlock()
+
 	go func() {
 		for {
 			select {
-			case <-s.ticker.C:
+			case <-ticker.C:
 				s.performBackup(ctx)
 			case <-s.done:
 				s.logger.Info("Database backup service stopped")
@@ -88,9 +94,12 @@ func (s *BackupService) Start(ctx context.Context) {
 
 // Stop stops the backup service
 func (s *BackupService) Stop() {
+	s.mu.Lock()
 	if s.ticker != nil {
 		s.ticker.Stop()
 	}
+	s.mu.Unlock()
+
 	close(s.done)
 
 	// Close storage connection
@@ -122,8 +131,8 @@ func (s *BackupService) performBackup(ctx context.Context) {
 
 	backupPath := filepath.Join(tmpDir, filename)
 
-	// Create backup using Docker
-	if err := s.createBackup(ctx, backupPath, filename); err != nil {
+	// Create backup using pg_dump
+	if err := s.createBackup(ctx, backupPath); err != nil {
 		s.logger.Error("Failed to create backup", zap.Error(err))
 		return
 	}
@@ -151,24 +160,10 @@ func (s *BackupService) performBackup(ctx context.Context) {
 	}
 }
 
-// createBackup creates a database backup using Docker
-func (s *BackupService) createBackup(ctx context.Context, backupPath, filename string) error {
-	// Check if Docker is running
-	checkCmd := exec.CommandContext(ctx, "docker", "info")
-	if err := checkCmd.Run(); err != nil {
-		return fmt.Errorf("docker is not running: %w", err)
-	}
-
-	// Get the directory containing the backup file
-	backupDir := filepath.Dir(backupPath)
-
-	// Build the pg_dump command
+// createBackup creates a database backup using pg_dump
+func (s *BackupService) createBackup(ctx context.Context, backupPath string) error {
+	// Build the pg_dump command args
 	args := []string{
-		"run", "--rm",
-		"-e", fmt.Sprintf("PGPASSWORD=%s", s.dbPassword),
-		"-v", fmt.Sprintf("%s:/backup", backupDir),
-		"postgres:17-alpine",
-		"pg_dump",
 		"-h", s.dbHost,
 		"-p", s.dbPort,
 		"-U", s.dbUser,
@@ -176,12 +171,14 @@ func (s *BackupService) createBackup(ctx context.Context, backupPath, filename s
 		"--no-owner",
 		"--no-acl",
 		"-F", "c",
-		"-f", fmt.Sprintf("/backup/%s", filename),
+		"-f", backupPath,
 	}
 
-	// Execute backup
+	// Execute backup with PGPASSWORD environment variable
 	// #nosec G204 -- args are constructed safely from validated config
-	cmd := exec.CommandContext(ctx, "docker", args...)
+	cmd := exec.CommandContext(ctx, "pg_dump", args...)
+	cmd.Env = append(os.Environ(), fmt.Sprintf("PGPASSWORD=%s", s.dbPassword))
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("pg_dump failed: %w (output: %s)", err, string(output))

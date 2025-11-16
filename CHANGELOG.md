@@ -5,6 +5,15 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.8.1] - 2025-11-16
+
+### Fixed
+- **Backups automáticos en Cloud Run**: Corregida la implementación del servicio de backups para funcionar en Cloud Run
+  - Reemplazado el uso de Docker por `pg_dump` nativo en el contenedor
+  - Agregado `postgresql17-client` al Dockerfile para soportar backups
+  - Los backups ahora se crean correctamente y se suben a Google Cloud Storage (bucket: `mutuaasam-backups`)
+  - El servicio se ejecuta cada 24 horas automáticamente
+
 ## [1.7.3] - 2025-11-16
 
 ### Fixed

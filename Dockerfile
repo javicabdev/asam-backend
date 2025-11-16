@@ -54,8 +54,8 @@ LABEL maintainer="ASAM Backend Team" \
       commit="${COMMIT}" \
       build_time="${BUILD_TIME}"
 
-# Instalar certificados, timezone data y dumb-init para mejor manejo de señales
-RUN apk --no-cache add ca-certificates tzdata dumb-init && \
+# Instalar certificados, timezone data, dumb-init y postgresql-client para backups
+RUN apk --no-cache add ca-certificates tzdata dumb-init postgresql16-client && \
     adduser -D -g '' -s /bin/false -h /nonexistent appuser && \
     mkdir -p /app/logs && \
     chown -R appuser:appuser /app
