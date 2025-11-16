@@ -273,6 +273,7 @@ func (r *memberResolver) validateCreateInput(input *model.CreateMemberInput) err
 	return nil
 }
 
+//nolint:gocyclo // La complejidad es aceptable: validación de múltiples campos opcionales
 func (r *memberResolver) validateUpdateInput(input *model.UpdateMemberInput) error {
 	if input.MiembroID == "" {
 		return errors.NewValidationError(

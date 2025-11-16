@@ -119,7 +119,7 @@ func (v *DefaultFamilyValidator) ValidateConyugesFlexible(
 }
 
 // ValidateDocumentIDs valida el formato de los documentos de identidad.
-// DEPRECATED: usar ValidateDocumentIDsWithTypes en su lugar
+// Deprecated: usar ValidateDocumentIDsWithTypes en su lugar
 func (v *DefaultFamilyValidator) ValidateDocumentIDs(esposoDoc, esposaDoc string) error {
 	return v.ValidateDocumentIDsWithTypes(esposoDoc, "", esposaDoc, "")
 }

@@ -18,7 +18,7 @@ func NewMemberValidator() MemberValidator {
 }
 
 // ValidateDocumentID valida el formato del documento de identidad (DNI/NIE)
-// DEPRECATED: usar ValidateDocumentByType en su lugar
+// Deprecated: usar ValidateDocumentByType en su lugar
 func (v *DefaultMemberValidator) ValidateDocumentID(documentID string) error {
 	return v.ValidateDocumentByType(documentID, "DNI_NIE")
 }

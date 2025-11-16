@@ -89,6 +89,7 @@ func (m *Member) Validate() error {
 }
 
 // validateBasicFields valida los campos básicos obligatorios
+//nolint:gocyclo // La complejidad es aceptable: validación independiente de múltiples campos requeridos
 func (m *Member) validateBasicFields() error {
 	errDetails := make(map[string]string)
 
