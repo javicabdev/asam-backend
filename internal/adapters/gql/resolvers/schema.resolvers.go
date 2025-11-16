@@ -31,7 +31,14 @@ func (r *familiarResolver) ID(ctx context.Context, obj *models.Familiar) (string
 
 // DocumentType is the resolver for the document_type field.
 func (r *familiarResolver) DocumentType(ctx context.Context, obj *models.Familiar) (*model.DocumentType, error) {
-	panic(fmt.Errorf("not implemented: DocumentType - document_type"))
+	// Si el campo es vacío, retornar nil
+	if obj.DocumentType == "" {
+		return nil, nil
+	}
+
+	// Convertir el string a DocumentType
+	docType := model.DocumentType(obj.DocumentType)
+	return &docType, nil
 }
 
 // ID is the resolver for the id field.
@@ -41,12 +48,26 @@ func (r *familyResolver) ID(ctx context.Context, obj *models.Family) (string, er
 
 // EsposoDocumentType is the resolver for the esposo_document_type field.
 func (r *familyResolver) EsposoDocumentType(ctx context.Context, obj *models.Family) (*model.DocumentType, error) {
-	panic(fmt.Errorf("not implemented: EsposoDocumentType - esposo_document_type"))
+	// Si el campo es vacío, retornar nil
+	if obj.EsposoDocumentType == "" {
+		return nil, nil
+	}
+
+	// Convertir el string a DocumentType
+	docType := model.DocumentType(obj.EsposoDocumentType)
+	return &docType, nil
 }
 
 // EsposaDocumentType is the resolver for the esposa_document_type field.
 func (r *familyResolver) EsposaDocumentType(ctx context.Context, obj *models.Family) (*model.DocumentType, error) {
-	panic(fmt.Errorf("not implemented: EsposaDocumentType - esposa_document_type"))
+	// Si el campo es vacío, retornar nil
+	if obj.EsposaDocumentType == "" {
+		return nil, nil
+	}
+
+	// Convertir el string a DocumentType
+	docType := model.DocumentType(obj.EsposaDocumentType)
+	return &docType, nil
 }
 
 // MiembroID is the resolver for the miembro_id field.
@@ -148,7 +169,14 @@ func (r *memberResolver) DocumentoIdentidad(ctx context.Context, obj *models.Mem
 
 // DocumentType is the resolver for the document_type field.
 func (r *memberResolver) DocumentType(ctx context.Context, obj *models.Member) (*model.DocumentType, error) {
-	panic(fmt.Errorf("not implemented: DocumentType - document_type"))
+	// Si el campo es nil o vacío, retornar nil
+	if obj.DocumentType == nil || *obj.DocumentType == "" {
+		return nil, nil
+	}
+
+	// Convertir el string a DocumentType
+	docType := model.DocumentType(*obj.DocumentType)
+	return &docType, nil
 }
 
 // CorreoElectronico is the resolver for the correo_electronico field.
