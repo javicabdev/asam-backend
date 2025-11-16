@@ -5,16 +5,23 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.8.4] - 2025-11-16
+
+### Fixed
+- **Backups automáticos en Cloud Run**: Corregida la implementación del servicio de backups para funcionar con PostgreSQL 17
+  - Actualizado Dockerfile de Alpine 3.19 a Alpine Edge para tener acceso a `postgresql17-client`
+  - PostgreSQL 17 client es necesario para hacer backups de servidores PostgreSQL 17.6
+  - Corregidos secrets de Cloud Run que contenían caracteres `\r\n` al final (db-host, db-port, db-user, db-password, db-name)
+  - Los backups ahora se crean correctamente y se suben a Google Cloud Storage (bucket: `mutuaasam-backups`)
+  - El servicio se ejecuta cada 24 horas automáticamente
+
 ## [1.8.3] - 2025-11-16
 
 ### Fixed
-- **Backups automáticos en Cloud Run**: Corregida la implementación del servicio de backups para funcionar en Cloud Run
+- **Backups automáticos en Cloud Run**: Implementación inicial con limpieza de secrets
   - Reemplazado el uso de Docker por `pg_dump` nativo en el contenedor
-  - Agregado `postgresql16-client` al Dockerfile para soportar backups (Alpine 3.19 compatible)
   - Corregido data race en acceso concurrente al ticker del servicio de backups
   - Limpieza automática de caracteres extra (espacios, newlines) en parámetros de conexión DB desde secrets
-  - Los backups ahora se crean correctamente y se suben a Google Cloud Storage (bucket: `mutuaasam-backups`)
-  - El servicio se ejecuta cada 24 horas automáticamente
 
 ## [1.7.3] - 2025-11-16
 

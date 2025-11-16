@@ -40,7 +40,7 @@ ARG BUILD_TIME=unknown
 RUN go build -ldflags "-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.BuildTime=${BUILD_TIME}" -o asam-backend ./cmd/api
 
 # Etapa 2: Imagen final mínima
-FROM alpine:3.19
+FROM alpine:edge
 
 # Argumentos para metadatos
 ARG VERSION=unknown
@@ -54,8 +54,8 @@ LABEL maintainer="ASAM Backend Team" \
       commit="${COMMIT}" \
       build_time="${BUILD_TIME}"
 
-# Instalar certificados, timezone data, dumb-init y postgresql-client para backups
-RUN apk --no-cache add ca-certificates tzdata dumb-init postgresql16-client && \
+# Instalar certificados, timezone data, dumb-init y postgresql17-client para backups
+RUN apk --no-cache add ca-certificates tzdata dumb-init postgresql17-client && \
     adduser -D -g '' -s /bin/false -h /nonexistent appuser && \
     mkdir -p /app/logs && \
     chown -R appuser:appuser /app
