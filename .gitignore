@@ -75,6 +75,7 @@ gosec-report.json
 gosec-report.txt
 gosec-results.sarif
 /github-actions-sa-key.json
-/docsTemp/
+/docstemp/
 .DS_Store
-/cmptemp/
+/cmdtemp/
+/scripts/

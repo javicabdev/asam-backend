@@ -192,53 +192,125 @@ else
     echo -e "${YELLOW}⚠️  No se pudo verificar la creación de tablas${NC}"
 fi
 
-# Crear usuarios de prueba usando la herramienta de gestión de usuarios
-echo -e "\n${YELLOW}👥 Creando usuarios de prueba...${NC}"
+# Restaurar desde el último backup local si existe
+echo -e "\n${YELLOW}💾 Buscando último backup local...${NC}"
+BACKUP_DIR="/Users/javierfernandezcabanas/Library/CloudStorage/GoogleDrive-javierfernandezc@gmail.com/My Drive/Babacar/asam-db-backups/local"
+BACKUP_RESTORED=false
 
-# Verificar si ya existen usuarios
-USER_COUNT=$(docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT COUNT(*) FROM users;" 2>/dev/null | tr -d ' ')
+if [ -d "$BACKUP_DIR" ]; then
+    # Encontrar el backup más reciente
+    LATEST_BACKUP=$(ls -t "$BACKUP_DIR"/backup_local_*.dump 2>/dev/null | head -1)
 
-if [ $? -ne 0 ] || [ -z "$USER_COUNT" ]; then
-    echo -e "${YELLOW}   La tabla users no existe, necesita ejecutar migraciones primero${NC}"
-    USER_COUNT_INT=0
-else
-    USER_COUNT_INT=$USER_COUNT
-fi
+    if [ -n "$LATEST_BACKUP" ]; then
+        BACKUP_NAME=$(basename "$LATEST_BACKUP")
+        BACKUP_SIZE=$(ls -lh "$LATEST_BACKUP" | awk '{print $5}')
+        echo -e "${GREEN}✓ Backup encontrado: $BACKUP_NAME ($BACKUP_SIZE)${NC}"
+        echo -e "${GRAY}   Restaurando datos desde el backup...${NC}"
 
-if [ "$USER_COUNT_INT" -eq 0 ]; then
-    echo -e "${GRAY}   No hay usuarios, creando usuarios de prueba...${NC}"
-    # Esperar un poco para asegurar que el API esté completamente lista
-    sleep 2
-
-    # Usar el script automatizado que no requiere interacción
-    if docker-compose exec -T api go run scripts/user-management/auto-create-test-users/auto-create-test-users.go; then
-        echo -e "${GREEN}✅ Usuarios de prueba creados correctamente${NC}"
-
-        # Verificar que los usuarios se crearon
-        NEW_USER_COUNT=$(docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT COUNT(*) FROM users;" 2>/dev/null | tr -d ' ')
-        if [ -n "$NEW_USER_COUNT" ]; then
-            echo -e "${GRAY}   Total de usuarios en la base de datos: $NEW_USER_COUNT${NC}"
+        # Restaurar el backup usando docker con pg_restore
+        NETWORK_ARG=""
+        POSTGRES_NETWORK=$(docker inspect asam-postgres 2>/dev/null | grep -A1 '"Networks"' | grep -o '"asam-backend_[^"]*"' | head -1 | tr -d '"' || echo "")
+        if [ -n "$POSTGRES_NETWORK" ]; then
+            NETWORK_ARG="--network $POSTGRES_NETWORK"
+            DB_HOST="asam-postgres"
         else
-            echo -e "${YELLOW}   No se pudo verificar el número de usuarios creados${NC}"
+            DB_HOST="host.docker.internal"
+        fi
+
+        # Usar pg_restore para restaurar el backup
+        if docker run --rm \
+            $NETWORK_ARG \
+            -e PGPASSWORD="postgres" \
+            -v "$BACKUP_DIR:/backup" \
+            postgres:17-alpine \
+            pg_restore \
+                -h "$DB_HOST" \
+                -p 5432 \
+                -U postgres \
+                -d asam_db \
+                --clean \
+                --if-exists \
+                --no-owner \
+                --no-acl \
+                "/backup/$BACKUP_NAME" 2>/dev/null; then
+            echo -e "${GREEN}✅ Datos restaurados exitosamente desde el backup${NC}"
+            BACKUP_RESTORED=true
+        else
+            echo -e "${YELLOW}⚠️  No se pudo restaurar el backup (esto es normal en primera ejecución)${NC}"
+            echo -e "${GRAY}   Se crearán usuarios administradores frescos...${NC}"
         fi
     else
-        echo -e "${YELLOW}⚠️  Error al crear usuarios con el script${NC}"
-        echo -e "${YELLOW}   Intenta ejecutar manualmente: make db-seed${NC}"
+        echo -e "${GRAY}   No se encontraron backups locales${NC}"
+        echo -e "${GRAY}   Se crearán usuarios administradores frescos...${NC}"
     fi
 else
-    echo -e "${GREEN}✅ Ya existen $USER_COUNT_INT usuarios en la base de datos${NC}"
+    echo -e "${GRAY}   Directorio de backups no existe${NC}"
+    echo -e "${GRAY}   Se crearán usuarios administradores frescos...${NC}"
+fi
 
-    # Mostrar los usuarios existentes
-    echo -e "${GRAY}   Usuarios existentes:${NC}"
-    docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT username, role FROM users;" | while read -r line; do
-        if [ -n "$(echo "$line" | tr -d ' ')" ]; then
-            echo -e "${DARK_GRAY}   - $line${NC}"
+# Crear usuarios administradores solo si no se restauró desde backup
+if [ "$BACKUP_RESTORED" = false ]; then
+    echo -e "\n${YELLOW}👥 Creando usuarios administradores...${NC}"
+
+    # Verificar si ya existen usuarios
+    USER_COUNT=$(docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT COUNT(*) FROM users;" 2>/dev/null | tr -d ' ')
+
+    if [ $? -ne 0 ] || [ -z "$USER_COUNT" ]; then
+        echo -e "${YELLOW}   La tabla users no existe, necesita ejecutar migraciones primero${NC}"
+        USER_COUNT_INT=0
+    else
+        USER_COUNT_INT=$USER_COUNT
+    fi
+
+    if [ "$USER_COUNT_INT" -eq 0 ]; then
+        echo -e "${GRAY}   No hay usuarios, creando usuarios administradores...${NC}"
+        # Esperar un poco para asegurar que el API esté completamente lista
+        sleep 2
+
+        # Usar el script automatizado que no requiere interacción
+        if docker-compose exec -T api go run scripts/user-management/auto-create-test-users/auto-create-test-users.go; then
+            echo -e "${GREEN}✅ Usuarios administradores creados correctamente${NC}"
+
+            # Verificar que los usuarios se crearon
+            NEW_USER_COUNT=$(docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT COUNT(*) FROM users;" 2>/dev/null | tr -d ' ')
+            if [ -n "$NEW_USER_COUNT" ]; then
+                echo -e "${GRAY}   Total de usuarios en la base de datos: $NEW_USER_COUNT${NC}"
+            else
+                echo -e "${YELLOW}   No se pudo verificar el número de usuarios creados${NC}"
+            fi
+        else
+            echo -e "${YELLOW}⚠️  Error al crear usuarios con el script${NC}"
+            echo -e "${YELLOW}   Intenta ejecutar manualmente: docker-compose exec api go run scripts/user-management/auto-create-test-users/auto-create-test-users.go${NC}"
         fi
-    done
+    else
+        echo -e "${GREEN}✅ Ya existen $USER_COUNT_INT usuarios en la base de datos${NC}"
+
+        # Mostrar los usuarios existentes
+        echo -e "${GRAY}   Usuarios existentes:${NC}"
+        docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT username, role FROM users;" | while read -r line; do
+            if [ -n "$(echo "$line" | tr -d ' ')" ]; then
+                echo -e "${DARK_GRAY}   - $line${NC}"
+            fi
+        done
+    fi
+else
+    echo -e "\n${GREEN}✅ Datos restaurados desde backup - omitiendo creación de usuarios${NC}"
+
+    # Mostrar los usuarios restaurados
+    USER_COUNT=$(docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT COUNT(*) FROM users;" 2>/dev/null | tr -d ' ')
+    if [ -n "$USER_COUNT" ]; then
+        echo -e "${GRAY}   Total de usuarios restaurados: $USER_COUNT${NC}"
+        echo -e "${GRAY}   Usuarios restaurados:${NC}"
+        docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT username, role FROM users;" | while read -r line; do
+            if [ -n "$(echo "$line" | tr -d ' ')" ]; then
+                echo -e "${DARK_GRAY}   - $line${NC}"
+            fi
+        done
+    fi
 fi
 
 # Verificación final antes de mostrar logs
-FINAL_USER_CHECK=$(docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT COUNT(*) FROM users WHERE username IN ('admin', 'user');" 2>/dev/null | tr -d ' ')
+FINAL_USER_CHECK=$(docker-compose exec -T postgres psql -U postgres -d asam_db -t -c "SELECT COUNT(*) FROM users WHERE username IN ('javi', 'Babacar');" 2>/dev/null | tr -d ' ')
 
 if [ $? -ne 0 ] || [ -z "$FINAL_USER_CHECK" ]; then
     FINAL_USER_COUNT=0
@@ -247,9 +319,9 @@ else
 fi
 
 if [ "$FINAL_USER_COUNT" -lt 2 ]; then
-    echo -e "\n${YELLOW}⚠️  ADVERTENCIA: Los usuarios de prueba no se crearon correctamente${NC}"
+    echo -e "\n${YELLOW}⚠️  ADVERTENCIA: Los usuarios administradores no se crearon correctamente${NC}"
     echo -e "${CYAN}   Solución rápida: ./scripts/auto-fix.sh${NC}"
-    echo -e "${YELLOW}   O manualmente: docker-compose exec api go run scripts/user-management/auto-create-test-users.go${NC}"
+    echo -e "${YELLOW}   O manualmente: docker-compose exec api go run scripts/user-management/auto-create-test-users/auto-create-test-users.go${NC}"
     echo ""
     echo -e "${GRAY}   Para diagnóstico completo: ./scripts/diagnostico.sh${NC}"
 fi
@@ -267,19 +339,19 @@ cat << 'EOF'
 ║                    ASAM Backend Activo                     ║
 ╠════════════════════════════════════════════════════════════╣
 ║  🌐 GraphQL Playground: http://localhost:8080/playground   ║
-║  🔧 API Endpoint:      http://localhost:8080/graphql      ║
-║  ❤️  Health Check:     http://localhost:8080/health       ║
-║  📊 Metrics:          http://localhost:8080/metrics       ║
+║  🔧 API Endpoint:      http://localhost:8080/graphql       ║
+║  ❤️  Health Check:     http://localhost:8080/health        ║
+║  📊 Metrics:          http://localhost:8080/metrics        ║
 ╠════════════════════════════════════════════════════════════╣
-║                  Usuarios de Prueba:                       ║
-║  👤 Admin:     admin / AsamAdmin2025!                     ║
-║  👤 Usuario:   user  / AsamUser2025!                      ║
+║                  Usuarios Administradores:                 ║
+║  👤 Admin:     javi                                        ║
+║  👤 Admin:     Babacar                                     ║
 ╠════════════════════════════════════════════════════════════╣
 ║  🛑 Para detener: docker-compose down                      ║
-║  🧹 Limpiar todo: ./start-docker.sh --clean               ║
+║  🧹 Limpiar todo: ./start-docker.sh --clean                ║
 ╠════════════════════════════════════════════════════════════╣
-║  🔧 ¿Problemas? Ejecuta: ./scripts/auto-fix.sh            ║
-║  📊 Diagnóstico: ./scripts/diagnostico.sh                 ║
+║  🔧 ¿Problemas? Ejecuta: ./scripts/auto-fix.sh             ║
+║  📊 Diagnóstico: ./scripts/diagnostico.sh                  ║
 ║  ❓ Ver ayuda: ./scripts/help.sh                           ║
 ╚════════════════════════════════════════════════════════════╝
 
