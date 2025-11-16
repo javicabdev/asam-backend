@@ -120,6 +120,13 @@ jobs:
             --set-env-vars="SLOW_RESOLVER_THRESHOLD=100ms" \
             --set-env-vars="GQL_COMPLEXITY_LIMIT=1000" \
             --set-env-vars="GQL_CONCURRENT_RESOLVERS=10" \
+            --set-env-vars="BACKUP_ENABLED=true" \
+            --set-env-vars="BACKUP_INTERVAL=24h" \
+            --set-env-vars="BACKUP_STORAGE_TYPE=gcs" \
+            --set-env-vars="BACKUP_GCS_BUCKET=mutuaasam-backups" \
+            --set-env-vars="BACKUP_GCS_PREFIX=production" \
+            --set-env-vars="BACKUP_MAX_RETENTION=0" \
+            --set-env-vars="BACKUP_ENVIRONMENT=production" \
             --set-secrets="DB_HOST=db-host:latest" \
             --set-secrets="DB_PORT=db-port:latest" \
             --set-secrets="DB_USER=db-user:latest" \
