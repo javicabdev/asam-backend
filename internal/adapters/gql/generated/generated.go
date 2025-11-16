@@ -2966,7 +2966,7 @@ type Query {
     
     # MembershipFee Queries
     getMembershipFee(year: Int!): MembershipFee
-    listMembershipFees(page: Int = 1, pageSize: Int = 10): [MembershipFee!]!
+    listMembershipFees(page: Int = 1, pageSize: Int = 100): [MembershipFee!]!
     listAnnualFees: [MembershipFee!]!  # Alias simplificado sin paginación
     getPendingFees: [MembershipFee!]!
 

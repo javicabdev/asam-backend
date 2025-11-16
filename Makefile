@@ -159,7 +159,7 @@ db-shell:
 .PHONY: generate
 generate:
 	@echo "🔧 Generating GraphQL code..."
-	@$(GO) run ./cmptemp/generate
+	@$(GO) run ./cmdtemp/generate
 	@echo "✅ Code generation complete"
 
 ## generate-mocks: Generate mocks for testing
