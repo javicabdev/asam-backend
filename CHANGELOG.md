@@ -5,6 +5,15 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.8.5] - 2025-11-17
+
+### Fixed
+- **Query GraphQL listMembershipFees**: Aumentado `pageSize` por defecto de 10 a 100
+  - El frontend ahora muestra correctamente todas las 16 cuotas anuales (2009-2024)
+  - Aumentado límite máximo de `pageSize` en `payment_service` de 100 a 1000
+  - Solucionado problema donde solo se mostraban las primeras 10 cuotas en lugar de las 16 disponibles
+- **Makefile**: Corregido typo en comando `generate` (cmptemp → cmdtemp)
+
 ## [1.8.4] - 2025-11-16
 
 ### Fixed
