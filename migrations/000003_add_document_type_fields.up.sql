@@ -1,5 +1,5 @@
 -- Add document_type fields to support multiple document types (DNI/NIE, Senegal Passport, Other)
--- This migration adds columns to track the type of identity document for members, families, and familiares
+-- This migration adds columns to track the type of identity document for members, families, and familiars
 -- IDEMPOTENT: Safe to run multiple times
 
 DO $$
@@ -49,19 +49,19 @@ BEGIN
         RAISE NOTICE 'esposa_document_type column already exists in families table, skipping';
     END IF;
 
-    -- Add document_type to familiares table
+    -- Add document_type to familiars table
     IF NOT EXISTS (
         SELECT 1
         FROM information_schema.columns
-        WHERE table_name = 'familiares'
+        WHERE table_name = 'familiars'
           AND column_name = 'document_type'
     ) THEN
-        ALTER TABLE familiares
+        ALTER TABLE familiars
         ADD COLUMN document_type VARCHAR(20);
 
-        RAISE NOTICE 'Added document_type column to familiares table';
+        RAISE NOTICE 'Added document_type column to familiars table';
     ELSE
-        RAISE NOTICE 'document_type column already exists in familiares table, skipping';
+        RAISE NOTICE 'document_type column already exists in familiars table, skipping';
     END IF;
 END $$;
 
@@ -69,4 +69,4 @@ END $$;
 COMMENT ON COLUMN members.document_type IS 'Type of identity document: DNI_NIE, SENEGAL_PASSPORT, or OTHER';
 COMMENT ON COLUMN families.esposo_document_type IS 'Type of identity document for husband: DNI_NIE, SENEGAL_PASSPORT, or OTHER';
 COMMENT ON COLUMN families.esposa_document_type IS 'Type of identity document for wife: DNI_NIE, SENEGAL_PASSPORT, or OTHER';
-COMMENT ON COLUMN familiares.document_type IS 'Type of identity document: DNI_NIE, SENEGAL_PASSPORT, or OTHER';
+COMMENT ON COLUMN familiars.document_type IS 'Type of identity document: DNI_NIE, SENEGAL_PASSPORT, or OTHER';

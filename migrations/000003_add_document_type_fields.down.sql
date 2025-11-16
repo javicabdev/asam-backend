@@ -1,4 +1,4 @@
--- Rollback: Remove document_type fields from members, families, and familiares tables
+-- Rollback: Remove document_type fields from members, families, and familiars tables
 
 DO $$
 BEGIN
@@ -47,18 +47,18 @@ BEGIN
         RAISE NOTICE 'esposa_document_type column does not exist in families table, skipping';
     END IF;
 
-    -- Remove document_type from familiares table
+    -- Remove document_type from familiars table
     IF EXISTS (
         SELECT 1
         FROM information_schema.columns
-        WHERE table_name = 'familiares'
+        WHERE table_name = 'familiars'
           AND column_name = 'document_type'
     ) THEN
-        ALTER TABLE familiares
+        ALTER TABLE familiars
         DROP COLUMN document_type;
 
-        RAISE NOTICE 'Removed document_type column from familiares table';
+        RAISE NOTICE 'Removed document_type column from familiars table';
     ELSE
-        RAISE NOTICE 'document_type column does not exist in familiares table, skipping';
+        RAISE NOTICE 'document_type column does not exist in familiars table, skipping';
     END IF;
 END $$;
