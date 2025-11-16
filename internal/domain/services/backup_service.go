@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -44,15 +45,17 @@ func NewBackupService(
 	logger logger.Logger,
 	interval time.Duration,
 ) *BackupService {
+	// Trim whitespace and newlines from all string parameters to handle
+	// issues with secrets that may contain trailing characters
 	return &BackupService{
-		dbHost:       dbHost,
-		dbPort:       dbPort,
-		dbUser:       dbUser,
-		dbPassword:   dbPassword,
-		dbName:       dbName,
+		dbHost:       strings.TrimSpace(dbHost),
+		dbPort:       strings.TrimSpace(dbPort),
+		dbUser:       strings.TrimSpace(dbUser),
+		dbPassword:   strings.TrimSpace(dbPassword),
+		dbName:       strings.TrimSpace(dbName),
 		storage:      storage,
 		maxRetention: maxRetention,
-		environment:  environment,
+		environment:  strings.TrimSpace(environment),
 		logger:       logger,
 		interval:     interval,
 		done:         make(chan bool),
