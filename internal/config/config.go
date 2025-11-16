@@ -80,6 +80,16 @@ type Config struct {
 
 	// URL base de la aplicación
 	BaseURL string `env:"BASE_URL,default=http://localhost:5173"`
+
+	// Configuración de backups automáticos
+	BackupEnabled      bool          `env:"BACKUP_ENABLED,default=false"`
+	BackupInterval     time.Duration `env:"BACKUP_INTERVAL,default=24h"`            // Backup diario recomendado
+	BackupStorageType  string        `env:"BACKUP_STORAGE_TYPE,default=filesystem"` // filesystem or gcs
+	BackupDir          string        `env:"BACKUP_DIR,default=/Users/javierfernandezcabanas/Library/CloudStorage/GoogleDrive-javierfernandezc@gmail.com/My Drive/Babacar/asam-db-backups"`
+	BackupGCSBucket    string        `env:"BACKUP_GCS_BUCKET,default=asam-db-backups"`
+	BackupGCSPrefix    string        `env:"BACKUP_GCS_PREFIX,default="`
+	BackupMaxRetention int           `env:"BACKUP_MAX_RETENTION,default=0"` // 0 = no eliminar (usar GCS lifecycle)
+	BackupEnvironment  string        `env:"BACKUP_ENVIRONMENT,default=production"`
 }
 
 // LoadConfig carga las variables de entorno y las mapea a la estructura Config.

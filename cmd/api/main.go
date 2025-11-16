@@ -128,6 +128,7 @@ type appDependencies struct {
 	profilingServer *monitoring.ProfilingServer
 	// Maintenance services
 	tokenCleanupService *services.TokenCleanupService
+	backupService       *services.BackupService
 	// Service status
 	serviceStatus *ServiceStatus
 }
@@ -630,6 +631,80 @@ func initializeServicesAndDependencies(ctx context.Context, cfg *config.Config, 
 		appLogger.Info("Token cleanup service is disabled")
 	}
 
+	// 6. Initialize backup service if enabled
+	var backupService *services.BackupService
+	if cfg.BackupEnabled {
+		// Initialize storage backend based on configuration
+		var storage services.BackupStorage
+		var storageErr error
+
+		switch cfg.BackupStorageType {
+		case "gcs":
+			storage, storageErr = services.NewGCSStorage(
+				ctx,
+				cfg.BackupGCSBucket,
+				cfg.BackupGCSPrefix,
+				appLogger,
+			)
+			if storageErr != nil {
+				appLogger.Error("Failed to initialize GCS storage",
+					zap.Error(storageErr),
+					zap.String("bucket", cfg.BackupGCSBucket),
+				)
+			} else {
+				appLogger.Info("Using Google Cloud Storage for backups",
+					zap.String("bucket", cfg.BackupGCSBucket),
+					zap.String("prefix", cfg.BackupGCSPrefix),
+				)
+			}
+		case "filesystem":
+			storage, storageErr = services.NewFilesystemStorage(cfg.BackupDir, appLogger)
+			if storageErr != nil {
+				appLogger.Error("Failed to initialize filesystem storage",
+					zap.Error(storageErr),
+					zap.String("backup_dir", cfg.BackupDir),
+				)
+			} else {
+				appLogger.Info("Using filesystem storage for backups",
+					zap.String("backup_dir", cfg.BackupDir),
+				)
+			}
+		default:
+			appLogger.Error("Invalid backup storage type",
+				zap.String("type", cfg.BackupStorageType),
+			)
+			storageErr = fmt.Errorf("invalid backup storage type: %s", cfg.BackupStorageType)
+		}
+
+		if storageErr == nil && storage != nil {
+			backupService = services.NewBackupService(
+				cfg.DBHost,
+				cfg.DBPort,
+				cfg.DBUser,
+				cfg.DBPassword,
+				cfg.DBName,
+				storage,
+				cfg.BackupMaxRetention,
+				cfg.BackupEnvironment,
+				appLogger,
+				cfg.BackupInterval,
+			)
+
+			// Start the backup service with the application context
+			go backupService.Start(ctx)
+
+			appLogger.Info("Database backup service started",
+				zap.Duration("interval", cfg.BackupInterval),
+				zap.String("storage_type", cfg.BackupStorageType),
+				zap.Int("max_retention", cfg.BackupMaxRetention),
+			)
+		} else {
+			appLogger.Error("Database backup service could not be started due to storage initialization failure")
+		}
+	} else {
+		appLogger.Info("Database backup service is disabled")
+	}
+
 	return &appDependencies{
 		memberService:            memberService,
 		familyService:            familyService,
@@ -646,6 +721,7 @@ func initializeServicesAndDependencies(ctx context.Context, cfg *config.Config, 
 		memoryMonitor:            memoryMonitor,
 		profilingServer:          profilingServer,
 		tokenCleanupService:      tokenCleanupService,
+		backupService:            backupService,
 		serviceStatus:            serviceStatus,
 	}
 }
@@ -1016,6 +1092,10 @@ func cleanupResources(state *appState, appLogger logger.Logger) {
 		if deps.tokenCleanupService != nil {
 			appLogger.Info("Stopping token cleanup service...")
 			deps.tokenCleanupService.Stop()
+		}
+		if deps.backupService != nil {
+			appLogger.Info("Stopping database backup service...")
+			deps.backupService.Stop()
 		}
 		if deps.memoryMonitor != nil {
 			appLogger.Info("Stopping memory monitor...")
