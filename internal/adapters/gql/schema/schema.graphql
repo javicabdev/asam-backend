@@ -117,6 +117,7 @@ type Member {
     fecha_baja: Time
     fecha_nacimiento: Time
     documento_identidad: String
+    document_type: DocumentType  # Tipo de documento (DNI/NIE, Pasaporte Senegal, Otro)
     correo_electronico: String
     profesion: String
     nacionalidad: String
@@ -132,11 +133,13 @@ type Family {
     esposo_apellidos: String!
     esposo_fecha_nacimiento: Time
     esposo_documento_identidad: String
+    esposo_document_type: DocumentType  # Tipo de documento del esposo
     esposo_correo_electronico: String
     esposa_nombre: String!
     esposa_apellidos: String!
     esposa_fecha_nacimiento: Time
     esposa_documento_identidad: String
+    esposa_document_type: DocumentType  # Tipo de documento de la esposa
     esposa_correo_electronico: String
     familiares: [Familiar!]
     telefonos: [Telephone!]
@@ -148,6 +151,7 @@ type Familiar {
     apellidos: String!
     fecha_nacimiento: Time
     dni_nie: String
+    document_type: DocumentType  # Tipo de documento del familiar
     correo_electronico: String
     parentesco: String!
     telefonos: [Telephone!]
