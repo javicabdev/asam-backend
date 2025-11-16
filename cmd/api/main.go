@@ -242,13 +242,31 @@ func requestIDMiddleware(next http.Handler) http.Handler {
 // securityHeadersMiddleware adds security headers to responses
 func securityHeadersMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Content Security Policy - permite GraphQL Playground y conexiones necesarias
+		csp := "default-src 'self'; " +
+			"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; " +
+			"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+			"font-src 'self' https://fonts.gstatic.com; " +
+			"img-src 'self' data: https:; " +
+			"connect-src 'self'; " +
+			"frame-src 'none'; " +
+			"object-src 'none'; " +
+			"base-uri 'self';"
+		w.Header().Set("Content-Security-Policy", csp)
+
+		// Headers de seguridad básicos
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
-		w.Header().Set("Referrer-Policy", "no-referrer-when-downgrade")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 
-		// Only add HSTS in production
-		if os.Getenv("ENVIRONMENT") == "production" {
+		// Permissions Policy - restringe características del navegador no necesarias
+		w.Header().Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+
+		// HSTS - activado en producción o Cloud Run (detectado por K_SERVICE)
+		env := os.Getenv("ENVIRONMENT")
+		isCloudRun := os.Getenv("K_SERVICE") != ""
+		if env == "production" || isCloudRun {
 			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		}
 
