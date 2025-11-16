@@ -5,6 +5,17 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.7.3] - 2025-11-16
+
+### Fixed
+- **Resolvers GraphQL para campos document_type**: Implementados los resolvers faltantes que causaban errores panic
+  - `Member.document_type`: Mapea el tipo de documento del miembro desde la base de datos al enum DocumentType
+  - `Family.esposo_document_type`: Mapea el tipo de documento del esposo
+  - `Family.esposa_document_type`: Mapea el tipo de documento de la esposa
+  - `Familiar.document_type`: Mapea el tipo de documento de familiares (hijos/dependientes)
+  - Los resolvers convierten correctamente el valor string almacenado en la base de datos al enum GraphQL (DNI_NIE, SENEGAL_PASSPORT, OTHER)
+  - Retornan `nil` cuando el campo está vacío o no tiene valor
+
 ## [1.7.2] - 2025-11-15
 
 ### Fixed
