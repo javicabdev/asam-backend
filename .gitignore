@@ -79,4 +79,7 @@ gosec-results.sarif
 /cmdtemp/
 .DS_Store
 
+# Backups locales de base de datos
+*_backup*.sql
+
 /scripts/
