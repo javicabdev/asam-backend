@@ -264,10 +264,18 @@ func securityHeadersMiddleware(next http.Handler) http.Handler {
 		// Permissions Policy - restringe características del navegador no necesarias
 		w.Header().Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
 
-		// HSTS - activado en producción o Cloud Run (detectado por K_SERVICE)
-		env := os.Getenv("ENVIRONMENT")
-		isCloudRun := os.Getenv("K_SERVICE") != ""
-		if env == "production" || isCloudRun {
+		// Cache-Control - prevent caching of API responses
+		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+
+		// HSTS - always enabled for HTTPS connections (Cloud Run always uses HTTPS)
+		// Also check for X-Forwarded-Proto header which Cloud Run sets
+		isHTTPS := r.TLS != nil ||
+			r.Header.Get("X-Forwarded-Proto") == "https" ||
+			os.Getenv("K_SERVICE") != "" ||
+			os.Getenv("ENVIRONMENT") == "production"
+		if isHTTPS {
 			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		}
 
