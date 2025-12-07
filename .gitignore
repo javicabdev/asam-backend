@@ -77,5 +77,5 @@ gosec-results.sarif
 /github-actions-sa-key.json
 /docstemp/
 .DS_Store
-/cmdtemp/
+
 /scripts/
