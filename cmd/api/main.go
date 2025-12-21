@@ -269,15 +269,9 @@ func securityHeadersMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Pragma", "no-cache")
 		w.Header().Set("Expires", "0")
 
-		// HSTS - always enabled for HTTPS connections (Cloud Run always uses HTTPS)
-		// Also check for X-Forwarded-Proto header which Cloud Run sets
-		isHTTPS := r.TLS != nil ||
-			r.Header.Get("X-Forwarded-Proto") == "https" ||
-			os.Getenv("K_SERVICE") != "" ||
-			os.Getenv("ENVIRONMENT") == "production"
-		if isHTTPS {
-			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-		}
+		// HSTS - always enabled (Cloud Run always uses HTTPS, and setting it on HTTP is harmless)
+		// The header instructs browsers to always use HTTPS for future connections
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 
 		next.ServeHTTP(w, r)
 	})
