@@ -60,29 +60,27 @@ jobs:
 
       - name: Run OWASP ZAP Baseline Scan
         if: steps.set-url.outputs.scan_type == 'baseline'
-        uses: zaproxy/action-baseline@v0.12.0
+        uses: zaproxy/action-baseline@v0.14.0
         with:
           target: ${{ steps.set-url.outputs.target_url }}
           rules_file_name: '.zap/rules.tsv'
           cmd_options: '-a -j -l WARN'
           fail_action: false
           allow_issue_writing: true
-          artifact_name: 'zap-baseline-scan'
 
       - name: Run OWASP ZAP Full Scan
         if: steps.set-url.outputs.scan_type == 'full'
-        uses: zaproxy/action-full-scan@v0.10.0
+        uses: zaproxy/action-full-scan@v0.11.0
         with:
           target: ${{ steps.set-url.outputs.target_url }}
           rules_file_name: '.zap/rules.tsv'
           cmd_options: '-a -j -l WARN'
           fail_action: false
           allow_issue_writing: true
-          artifact_name: 'zap-full-scan'
 
       - name: Run OWASP ZAP API Scan
         if: steps.set-url.outputs.scan_type == 'api'
-        uses: zaproxy/action-api-scan@v0.7.0
+        uses: zaproxy/action-api-scan@v0.9.0
         with:
           target: ${{ steps.set-url.outputs.target_url }}/graphql
           format: openapi
@@ -90,20 +88,17 @@ jobs:
           cmd_options: '-a -j -l WARN'
           fail_action: false
           allow_issue_writing: true
-          artifact_name: 'zap-api-scan'
 
       - name: Upload ZAP Scan Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: zap-scan-results
+          if-no-files-found: ignore
           path: |
-            zap-baseline-report.html
-            zap-baseline-report.json
-            zap-full-report.html
-            zap-full-report.json
-            zap-api-report.html
-            zap-api-report.json
+            report_html.html
+            report_json.json
+            report_md.md
 
       - name: Create Summary
         if: always()
@@ -115,7 +110,7 @@ jobs:
           echo "**Scan Date:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ -f "zap-baseline-report.json" ] || [ -f "zap-full-report.json" ] || [ -f "zap-api-report.json" ]; then
+          if [ -f "report_json.json" ]; then
             echo "✅ Scan completed successfully" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "📊 Check the uploaded artifacts for detailed reports" >> $GITHUB_STEP_SUMMARY
@@ -133,7 +128,7 @@ jobs:
 
             try {
               // Try to read the JSON report
-              const report = JSON.parse(fs.readFileSync('zap-baseline-report.json', 'utf8'));
+              const report = JSON.parse(fs.readFileSync('report_json.json', 'utf8'));
               reportContent += `**Target:** ${report.site}\n`;
               reportContent += `**Alerts:** ${report.alerts.length}\n\n`;
 
