@@ -21,6 +21,6 @@
 # 10038	IGNORE	(Content Security Policy)
 
 # Spectre vulnerability - not applicable for API backends (no browser-rendered content)
-90004	IGNORE
+90004	IGNORE	(Spectre - N/A for APIs)
 
 # Default: All alerts are treated as WARN (won't fail the build but will be reported)
