@@ -20,4 +20,7 @@
 # Common false positives for APIs
 # 10038	IGNORE	(Content Security Policy)
 
+# Spectre vulnerability - not applicable for API backends (no browser-rendered content)
+90004	IGNORE
+
 # Default: All alerts are treated as WARN (won't fail the build but will be reported)
