@@ -115,7 +115,7 @@ gcloud services enable secretmanager.googleapis.com
 echo -n "valor-del-secret" | gcloud secrets create nombre-del-secret --data-file=-
 
 # Ejemplo para la base de datos
-echo -n "pg-asam-asam-backend-db.l.aivencloud.com" | gcloud secrets create db-host --data-file=-
+echo -n "<AIVEN_HOST>" | gcloud secrets create db-host --data-file=-
 echo -n "14276" | gcloud secrets create db-port --data-file=-
 # ... continuar con los demás
 ```
