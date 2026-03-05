@@ -22,7 +22,7 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   SERVICE_NAME: asam-backend
   REGION: europe-west1
-  GO_VERSION: '1.25'
+  GO_VERSION: '1.26'
 
 concurrency:
   group: production-deploy

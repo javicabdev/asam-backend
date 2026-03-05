@@ -1,5 +1,5 @@
-# Dockerfile para desarrollo con Go 1.25 - Sin Air (más simple)
-FROM golang:1.25
+# Dockerfile para desarrollo con Go 1.26 - Sin Air (más simple)
+FROM golang:1.26
 
 # Instalar certificados y herramientas básicas
 RUN apt-get update && \

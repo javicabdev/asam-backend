@@ -12,7 +12,7 @@ permissions:
   actions: read    # Necesario para leer los workflows
 
 env:
-  GO_VERSION: '1.25'
+  GO_VERSION: '1.26'
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   SERVICE_NAME: asam-backend
 
