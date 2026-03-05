@@ -43,16 +43,10 @@ jobs:
           gqlgen generate
 
       - name: Run golangci-lint
-        run: |
-          # Install golangci-lint v2.5.0 (built with Go 1.26 support)
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.5.0
-
-          # Run with explicit flags (avoiding config file issues)
-          golangci-lint run \
-            --enable=errcheck,govet,ineffassign,staticcheck,unused,gosec \
-            --skip-dirs=internal/adapters/gql/generated,internal/adapters/gql/model,test,scripts,vendor \
-            --timeout=5m \
-            ./...
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+          args: --enable=errcheck,govet,ineffassign,staticcheck,unused,gosec --skip-dirs=internal/adapters/gql/generated,internal/adapters/gql/model,test,scripts,vendor --timeout=5m ./...
 
       - name: Run unit tests
         run: go test -v -race ./internal/... ./pkg/...
