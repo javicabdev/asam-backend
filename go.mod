@@ -21,7 +21,7 @@ require (
 	golang.org/x/time v0.12.0
 	google.golang.org/api v0.247.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
-	gorm.io/driver/postgres v1.5.11
+	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.26.0
 )
 
