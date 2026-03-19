@@ -382,6 +382,50 @@ func (r *mutationResolver) AddFamilyMember(ctx context.Context, familyID string,
 	return existing, nil
 }
 
+// UpdateFamilyMember is the resolver for the updateFamilyMember field.
+func (r *mutationResolver) UpdateFamilyMember(ctx context.Context, familiarID string, familiar model.FamiliarInput) (*models.Family, error) {
+	// Solo ADMIN puede editar familiares
+	if err := middleware.MustBeAdmin(ctx); err != nil {
+		return nil, err
+	}
+
+	// 1) parsear el ID del familiar
+	id, err := parseID(familiarID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2) obtener el familiar existente para conocer su familia
+	existing, err := r.familyService.GetFamiliarByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if existing == nil {
+		return nil, appErrors.NewNotFoundError("Familiar")
+	}
+
+	// 3) mapear el input al modelo
+	familyResolver, ok := r.Family().(*familyResolver)
+	if !ok {
+		return nil, appErrors.NewInternalError("invalid resolver type")
+	}
+	fam := familyResolver.mapFamiliarInputToModel(&familiar)
+	fam.ID = existing.ID
+	fam.FamiliaID = existing.FamiliaID
+
+	// 4) actualizar
+	if err := r.familyService.UpdateFamiliar(ctx, fam); err != nil {
+		return nil, err
+	}
+
+	// 5) devolver la familia actualizada
+	family, err := r.familyService.GetByID(ctx, existing.FamiliaID)
+	if err != nil {
+		return nil, err
+	}
+	return family, nil
+}
+
 // RemoveFamilyMember is the resolver for the removeFamilyMember field.
 func (r *mutationResolver) RemoveFamilyMember(ctx context.Context, familiarID string) (*model.MutationResponse, error) {
 	// Solo ADMIN puede remover familiares

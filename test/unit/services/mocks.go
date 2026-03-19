@@ -151,6 +151,10 @@ func (m *MockFamilyRepository) RemoveFamiliar(ctx context.Context, familiarID ui
 	return errors.New("not implemented")
 }
 
+func (m *MockFamilyRepository) GetFamiliarByID(ctx context.Context, familiarID uint) (*models.Familiar, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (m *MockFamilyRepository) GetFamiliares(ctx context.Context, familyID uint) ([]*models.Familiar, error) {
 	return nil, errors.New("not implemented")
 }

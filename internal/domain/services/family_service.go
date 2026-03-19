@@ -241,6 +241,15 @@ func (s *familyService) RemoveFamiliar(ctx context.Context, familiarID uint) err
 	return nil
 }
 
+// GetFamiliarByID obtiene un familiar por su ID
+func (s *familyService) GetFamiliarByID(ctx context.Context, familiarID uint) (*models.Familiar, error) {
+	familiar, err := s.familyRepo.GetFamiliarByID(ctx, familiarID)
+	if err != nil {
+		return nil, errors.DB(err, "error obteniendo familiar")
+	}
+	return familiar, nil
+}
+
 // GetFamiliares obtiene todos los familiares de una familia
 func (s *familyService) GetFamiliares(ctx context.Context, familyID uint) ([]*models.Familiar, error) {
 	// Verificar que la familia existe

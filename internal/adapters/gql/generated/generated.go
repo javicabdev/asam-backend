@@ -295,6 +295,7 @@ type ComplexityRoot struct {
 		SendVerificationEmail   func(childComplexity int) int
 		UpdateCashFlow          func(childComplexity int, id string, input model.UpdateCashFlowInput) int
 		UpdateFamily            func(childComplexity int, input model.UpdateFamilyInput) int
+		UpdateFamilyMember      func(childComplexity int, familiarID string, familiar model.FamiliarInput) int
 		UpdateMember            func(childComplexity int, input model.UpdateMemberInput) int
 		UpdatePayment           func(childComplexity int, id string, input model.PaymentInput) int
 		UpdateTransaction       func(childComplexity int, id string, input model.TransactionInput) int
@@ -481,6 +482,7 @@ type MutationResolver interface {
 	CreateFamily(ctx context.Context, input model.CreateFamilyInput) (*models.Family, error)
 	UpdateFamily(ctx context.Context, input model.UpdateFamilyInput) (*models.Family, error)
 	AddFamilyMember(ctx context.Context, familyID string, familiar model.FamiliarInput) (*models.Family, error)
+	UpdateFamilyMember(ctx context.Context, familiarID string, familiar model.FamiliarInput) (*models.Family, error)
 	RemoveFamilyMember(ctx context.Context, familiarID string) (*model.MutationResponse, error)
 	RegisterPayment(ctx context.Context, input model.PaymentInput) (*models.Payment, error)
 	UpdatePayment(ctx context.Context, id string, input model.PaymentInput) (*models.Payment, error)
@@ -1769,6 +1771,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.UpdateFamily(childComplexity, args["input"].(model.UpdateFamilyInput)), true
+	case "Mutation.updateFamilyMember":
+		if e.complexity.Mutation.UpdateFamilyMember == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateFamilyMember_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateFamilyMember(childComplexity, args["familiar_id"].(string), args["familiar"].(model.FamiliarInput)), true
 	case "Mutation.updateMember":
 		if e.complexity.Mutation.UpdateMember == nil {
 			break
@@ -3257,6 +3270,7 @@ type Mutation {
     createFamily(input: CreateFamilyInput!): Family!
     updateFamily(input: UpdateFamilyInput!): Family!
     addFamilyMember(family_id: ID!, familiar: FamiliarInput!): Family!
+    updateFamilyMember(familiar_id: ID!, familiar: FamiliarInput!): Family!
     removeFamilyMember(familiar_id: ID!): MutationResponse!
 
     # Payment Mutations
@@ -3813,6 +3827,22 @@ func (ec *executionContext) field_Mutation_updateCashFlow_args(ctx context.Conte
 		return nil, err
 	}
 	args["input"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateFamilyMember_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "familiar_id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["familiar_id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "familiar", ec.unmarshalNFamiliarInput2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐFamiliarInput)
+	if err != nil {
+		return nil, err
+	}
+	args["familiar"] = arg1
 	return args, nil
 }
 
@@ -9482,6 +9512,83 @@ func (ec *executionContext) fieldContext_Mutation_addFamilyMember(ctx context.Co
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_addFamilyMember_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateFamilyMember(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_updateFamilyMember,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().UpdateFamilyMember(ctx, fc.Args["familiar_id"].(string), fc.Args["familiar"].(model.FamiliarInput))
+		},
+		nil,
+		ec.marshalNFamily2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐFamily,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateFamilyMember(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Family_id(ctx, field)
+			case "numero_socio":
+				return ec.fieldContext_Family_numero_socio(ctx, field)
+			case "miembro_origen":
+				return ec.fieldContext_Family_miembro_origen(ctx, field)
+			case "esposo_nombre":
+				return ec.fieldContext_Family_esposo_nombre(ctx, field)
+			case "esposo_apellidos":
+				return ec.fieldContext_Family_esposo_apellidos(ctx, field)
+			case "esposo_fecha_nacimiento":
+				return ec.fieldContext_Family_esposo_fecha_nacimiento(ctx, field)
+			case "esposo_documento_identidad":
+				return ec.fieldContext_Family_esposo_documento_identidad(ctx, field)
+			case "esposo_document_type":
+				return ec.fieldContext_Family_esposo_document_type(ctx, field)
+			case "esposo_correo_electronico":
+				return ec.fieldContext_Family_esposo_correo_electronico(ctx, field)
+			case "esposa_nombre":
+				return ec.fieldContext_Family_esposa_nombre(ctx, field)
+			case "esposa_apellidos":
+				return ec.fieldContext_Family_esposa_apellidos(ctx, field)
+			case "esposa_fecha_nacimiento":
+				return ec.fieldContext_Family_esposa_fecha_nacimiento(ctx, field)
+			case "esposa_documento_identidad":
+				return ec.fieldContext_Family_esposa_documento_identidad(ctx, field)
+			case "esposa_document_type":
+				return ec.fieldContext_Family_esposa_document_type(ctx, field)
+			case "esposa_correo_electronico":
+				return ec.fieldContext_Family_esposa_correo_electronico(ctx, field)
+			case "familiares":
+				return ec.fieldContext_Family_familiares(ctx, field)
+			case "telefonos":
+				return ec.fieldContext_Family_telefonos(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Family", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateFamilyMember_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -19744,6 +19851,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "addFamilyMember":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_addFamilyMember(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateFamilyMember":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateFamilyMember(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

@@ -635,6 +635,7 @@ type Mutation {
     createFamily(input: CreateFamilyInput!): Family!
     updateFamily(input: UpdateFamilyInput!): Family!
     addFamilyMember(family_id: ID!, familiar: FamiliarInput!): Family!
+    updateFamilyMember(familiar_id: ID!, familiar: FamiliarInput!): Family!
     removeFamilyMember(familiar_id: ID!): MutationResponse!
 
     # Payment Mutations

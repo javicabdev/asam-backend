@@ -245,6 +245,19 @@ func (r *familyRepository) RemoveFamiliar(ctx context.Context, familiarID uint) 
 	return nil
 }
 
+// GetFamiliarByID gets a single family member by ID
+func (r *familyRepository) GetFamiliarByID(ctx context.Context, familiarID uint) (*models.Familiar, error) {
+	var familiar models.Familiar
+	result := r.db.WithContext(ctx).First(&familiar, familiarID)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, appErrors.DB(result.Error, "error getting familiar")
+	}
+	return &familiar, nil
+}
+
 // GetFamiliares gets all family members of a family
 func (r *familyRepository) GetFamiliares(ctx context.Context, familyID uint) ([]*models.Familiar, error) {
 	var familiares []*models.Familiar

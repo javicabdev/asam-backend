@@ -26,6 +26,7 @@ type FamilyRepository interface {
 	AddFamiliar(ctx context.Context, familyID uint, familiar *models.Familiar) error
 	UpdateFamiliar(ctx context.Context, familiar *models.Familiar) error
 	RemoveFamiliar(ctx context.Context, familiarID uint) error
+	GetFamiliarByID(ctx context.Context, familiarID uint) (*models.Familiar, error)
 	GetFamiliares(ctx context.Context, familyID uint) ([]*models.Familiar, error)
 
 	// Transaction support
