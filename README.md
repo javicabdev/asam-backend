@@ -22,6 +22,7 @@
 - **[Uso de DAST](docs/DAST-USAGE.md)** - Guía práctica de escaneo dinámico con OWASP ZAP
 - **[Branch Protection](docs/BRANCH-PROTECTION-SOLO-DEV.md)** - Configuración simplificada para desarrollador solo
   - [Guía completa para equipos](docs/BRANCH-PROTECTION-SETUP.md) - Configuración avanzada (si crece el equipo)
+- [Copias de Seguridad](docs/backups.md) - Sistema de backups automáticos de la base de datos (filesystem/Google Drive y GCS)
 
 ## Pipeline de CI/CD
 
