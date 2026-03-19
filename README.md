@@ -16,6 +16,7 @@
 - [Configuración de GitHub Secrets](docs/github-secrets-setup.md) - Guía para configurar los secretos en GitHub
 - [Compatibilidad con Apollo Client](docs/apollo-client-compatibility.md) - Manejo del campo __typename para Apollo Client
 - [Generación de Cuotas Anuales](docs/annual_fee_generation/README.md) - Sistema de generación automática de cuotas anuales
+- [Pruebas Manuales](docs/PRUEBAS_MANUALES.md) - Guía de pruebas para generación de cuotas anuales
 - **[Seguridad (SAST/DAST)](docs/SAST-DAST-GUIDE.md)** - Guía completa de seguridad estática y dinámica
 - **[Política de Seguridad](docs/SECURITY.md)** - Política de seguridad del proyecto
 - **[Uso de DAST](docs/DAST-USAGE.md)** - Guía práctica de escaneo dinámico con OWASP ZAP
@@ -63,7 +64,7 @@ ADMIN_PASSWORD=ContraseñaSegura123! \
 go run cmptemp/create-admin/main.go -env local
 ```
 
-Consulta [docs/ADMIN_CREATION.md](docs/ADMIN_CREATION.md) para instrucciones detalladas sobre la creación segura de usuarios administradores.
+Consulta las instrucciones del script `cmptemp/create-admin/main.go` para más detalles sobre la creación segura de usuarios administradores.
 
 ### Inicio rápido (Windows PowerShell)
 
@@ -94,7 +95,7 @@ Para arrancar el entorno de desarrollo completo:
 .\scripts\manual-setup.ps1
 ```
 
-Consulta [INICIO-RAPIDO.md](INICIO-RAPIDO.md) para más detalles.
+Consulta la sección [Usando Make](#usando-make-linuxmacwsl) para más opciones.
 
 ### Usando Make (Linux/Mac/WSL)
 
