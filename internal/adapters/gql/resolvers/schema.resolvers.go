@@ -41,6 +41,11 @@ func (r *familiarResolver) DocumentType(ctx context.Context, obj *models.Familia
 	return &docType, nil
 }
 
+// Parentesco is the resolver for the parentesco field.
+func (r *familiarResolver) Parentesco(ctx context.Context, obj *models.Familiar) (model.Parentesco, error) {
+	return model.Parentesco(obj.Parentesco), nil
+}
+
 // ID is the resolver for the id field.
 func (r *familyResolver) ID(ctx context.Context, obj *models.Family) (string, error) {
 	return fmt.Sprintf("%d", obj.ID), nil

@@ -69,6 +69,12 @@ enum DocumentType {
     OTHER
 }
 
+enum Parentesco {
+    HIJO
+    HIJA
+    OTRO
+}
+
 # Tipos de autenticación
 type User {
     id: ID!
@@ -153,7 +159,7 @@ type Familiar {
     dni_nie: String
     document_type: DocumentType  # Tipo de documento del familiar
     correo_electronico: String
-    parentesco: String!
+    parentesco: Parentesco!
     telefonos: [Telephone!]
 }
 
@@ -541,7 +547,7 @@ input FamiliarInput {
     dni_nie: String
     document_type: DocumentType  # Tipo de documento del familiar
     correo_electronico: String
-    parentesco: String!
+    parentesco: Parentesco!
     telefonos: [TelephoneInput!]
 }
 

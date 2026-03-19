@@ -173,13 +173,13 @@ func (g *FamilyMemberGenerator) generateFamilyMember(familiaID int) FamiliarMemb
 	// Determine parentesco (relationship)
 	var parentesco string
 	if gender == "male" {
-		parentesco = "Hijo"
+		parentesco = "HIJO"
 	} else {
-		parentesco = "Hija"
+		parentesco = "HIJA"
 	}
-	// 10% chance of being "Otro" (other relationship)
+	// 10% chance of being "OTRO" (other relationship)
 	if g.rand.Float64() < 0.1 {
-		parentesco = "Otro"
+		parentesco = "OTRO"
 	}
 
 	// Ensure familiaID is positive before conversion

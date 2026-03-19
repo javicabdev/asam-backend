@@ -441,6 +441,8 @@ type FamiliarResolver interface {
 	ID(ctx context.Context, obj *models.Familiar) (string, error)
 
 	DocumentType(ctx context.Context, obj *models.Familiar) (*model.DocumentType, error)
+
+	Parentesco(ctx context.Context, obj *models.Familiar) (model.Parentesco, error)
 }
 type FamilyResolver interface {
 	ID(ctx context.Context, obj *models.Family) (string, error)
@@ -2704,6 +2706,12 @@ enum DocumentType {
     OTHER
 }
 
+enum Parentesco {
+    HIJO
+    HIJA
+    OTRO
+}
+
 # Tipos de autenticación
 type User {
     id: ID!
@@ -2788,7 +2796,7 @@ type Familiar {
     dni_nie: String
     document_type: DocumentType  # Tipo de documento del familiar
     correo_electronico: String
-    parentesco: String!
+    parentesco: Parentesco!
     telefonos: [Telephone!]
 }
 
@@ -3176,7 +3184,7 @@ input FamiliarInput {
     dni_nie: String
     document_type: DocumentType  # Tipo de documento del familiar
     correo_electronico: String
-    parentesco: String!
+    parentesco: Parentesco!
     telefonos: [TelephoneInput!]
 }
 
@@ -6971,10 +6979,10 @@ func (ec *executionContext) _Familiar_parentesco(ctx context.Context, field grap
 		field,
 		ec.fieldContext_Familiar_parentesco,
 		func(ctx context.Context) (any, error) {
-			return obj.Parentesco, nil
+			return ec.resolvers.Familiar().Parentesco(ctx, obj)
 		},
 		nil,
-		ec.marshalNString2string,
+		ec.marshalNParentesco2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐParentesco,
 		true,
 		true,
 	)
@@ -6984,10 +6992,10 @@ func (ec *executionContext) fieldContext_Familiar_parentesco(_ context.Context, 
 	fc = &graphql.FieldContext{
 		Object:     "Familiar",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
+			return nil, errors.New("field of type Parentesco does not have child fields")
 		},
 	}
 	return fc, nil
@@ -16666,7 +16674,7 @@ func (ec *executionContext) unmarshalInputFamiliarInput(ctx context.Context, obj
 			it.CorreoElectronico = data
 		case "parentesco":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("parentesco"))
-			data, err := ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNParentesco2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐParentesco(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -18497,10 +18505,41 @@ func (ec *executionContext) _Familiar(ctx context.Context, sel ast.SelectionSet,
 		case "correo_electronico":
 			out.Values[i] = ec._Familiar_correo_electronico(ctx, field, obj)
 		case "parentesco":
-			out.Values[i] = ec._Familiar_parentesco(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Familiar_parentesco(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "telefonos":
 			out.Values[i] = ec._Familiar_telefonos(ctx, field, obj)
 		default:
@@ -22794,6 +22833,16 @@ func (ec *executionContext) marshalNPageInfo2ᚖgithubᚗcomᚋjavicabdevᚋasam
 		return graphql.Null
 	}
 	return ec._PageInfo(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNParentesco2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐParentesco(ctx context.Context, v any) (model.Parentesco, error) {
+	var res model.Parentesco
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNParentesco2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐParentesco(ctx context.Context, sel ast.SelectionSet, v model.Parentesco) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) marshalNPayment2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐPayment(ctx context.Context, sel ast.SelectionSet, v models.Payment) graphql.Marshaler {

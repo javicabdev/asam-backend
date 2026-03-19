@@ -232,7 +232,7 @@ type FamiliarInput struct {
 	DniNie            *string           `json:"dni_nie,omitempty"`
 	DocumentType      *DocumentType     `json:"document_type,omitempty"`
 	CorreoElectronico *string           `json:"correo_electronico,omitempty"`
-	Parentesco        string            `json:"parentesco"`
+	Parentesco        Parentesco        `json:"parentesco"`
 	Telefonos         []*TelephoneInput `json:"telefonos,omitempty"`
 }
 
@@ -815,6 +815,63 @@ func (e *MembershipType) UnmarshalJSON(b []byte) error {
 }
 
 func (e MembershipType) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type Parentesco string
+
+const (
+	ParentescoHijo Parentesco = "HIJO"
+	ParentescoHija Parentesco = "HIJA"
+	ParentescoOtro Parentesco = "OTRO"
+)
+
+var AllParentesco = []Parentesco{
+	ParentescoHijo,
+	ParentescoHija,
+	ParentescoOtro,
+}
+
+func (e Parentesco) IsValid() bool {
+	switch e {
+	case ParentescoHijo, ParentescoHija, ParentescoOtro:
+		return true
+	}
+	return false
+}
+
+func (e Parentesco) String() string {
+	return string(e)
+}
+
+func (e *Parentesco) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = Parentesco(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid Parentesco", str)
+	}
+	return nil
+}
+
+func (e Parentesco) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *Parentesco) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e Parentesco) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

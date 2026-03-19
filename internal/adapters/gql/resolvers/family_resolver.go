@@ -133,7 +133,7 @@ func (r *familyResolver) mapFamiliarInputToModel(input *model.FamiliarInput) *mo
 		DNINIE:            dni,
 		DocumentType:      documentType,
 		CorreoElectronico: email,
-		Parentesco:        input.Parentesco,
+		Parentesco:        string(input.Parentesco),
 	}
 
 	// Map telephones

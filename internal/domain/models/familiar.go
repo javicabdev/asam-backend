@@ -44,8 +44,11 @@ func (f *Familiar) Validate() error {
 		return errors.New("apellidos son requeridos")
 	}
 
-	if f.Parentesco == "" {
-		return errors.New("parentesco es requerido")
+	switch f.Parentesco {
+	case "HIJO", "HIJA", "OTRO":
+		// válido
+	default:
+		return errors.New("parentesco debe ser HIJO, HIJA u OTRO")
 	}
 
 	// Validar documento de identidad según su tipo
