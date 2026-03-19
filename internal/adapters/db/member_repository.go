@@ -88,7 +88,7 @@ func (r *memberRepository) Update(ctx context.Context, member *models.Member) er
 		// FullSaveAssociations no borra registros eliminados del slice en
 		// relaciones polimórficas, así que lo hacemos manualmente.
 		if err := tx.Unscoped().
-			Where("contactable_id = ? AND contactable_type = ?", member.ID, "Member").
+			Where("contactable_id = ? AND contactable_type = ?", member.ID, "members").
 			Delete(&models.Telephone{}).Error; err != nil {
 			return appErrors.DB(err, "error deleting existing telephones")
 		}

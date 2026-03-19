@@ -109,7 +109,7 @@ func (r *familyRepository) Update(ctx context.Context, family *models.Family) er
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Reemplazar teléfonos: borrar los existentes y crear los nuevos.
 		if err := tx.Unscoped().
-			Where("contactable_id = ? AND contactable_type = ?", family.ID, "Family").
+			Where("contactable_id = ? AND contactable_type = ?", family.ID, "families").
 			Delete(&models.Telephone{}).Error; err != nil {
 			return appErrors.DB(err, "error deleting existing telephones")
 		}
