@@ -17,7 +17,7 @@
 - [Compatibilidad con Apollo Client](docs/apollo-client-compatibility.md) - Manejo del campo __typename para Apollo Client
 - [Generación de Cuotas Anuales](docs/annual_fee_generation/README.md) - Sistema de generación automática de cuotas anuales
 - **[Seguridad (SAST/DAST)](docs/SAST-DAST-GUIDE.md)** - Guía completa de seguridad estática y dinámica
-- **[Política de Seguridad](SECURITY.md)** - Política de seguridad del proyecto
+- **[Política de Seguridad](docs/SECURITY.md)** - Política de seguridad del proyecto
 - **[Uso de DAST](docs/DAST-USAGE.md)** - Guía práctica de escaneo dinámico con OWASP ZAP
 - **[Branch Protection](docs/BRANCH-PROTECTION-SOLO-DEV.md)** - Configuración simplificada para desarrollador solo
   - [Guía completa para equipos](docs/BRANCH-PROTECTION-SETUP.md) - Configuración avanzada (si crece el equipo)
@@ -256,7 +256,7 @@ El proyecto incluye herramientas para probar la funcionalidad:
 # http://localhost:8080/graphql
 ```
 
-Consulta [PRUEBAS_MANUALES.md](PRUEBAS_MANUALES.md) para instrucciones detalladas.
+Consulta [PRUEBAS_MANUALES.md](docs/PRUEBAS_MANUALES.md) para instrucciones detalladas.
 
 ## Índice
 
