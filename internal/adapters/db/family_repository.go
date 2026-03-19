@@ -106,26 +106,37 @@ func (r *familyRepository) GetByOriginMemberID(ctx context.Context, memberID uin
 
 // Update updates an existing family's data
 func (r *familyRepository) Update(ctx context.Context, family *models.Family) error {
-	result := r.db.WithContext(ctx).Save(family)
-	if result.Error != nil {
-		// Check for specific database errors
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return appErrors.NotFound("family", result.Error)
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Reemplazar teléfonos: borrar los existentes y crear los nuevos.
+		if err := tx.Unscoped().
+			Where("contactable_id = ? AND contactable_type = ?", family.ID, "Family").
+			Delete(&models.Telephone{}).Error; err != nil {
+			return appErrors.DB(err, "error deleting existing telephones")
 		}
-		if IsDuplicateKeyError(result.Error) {
-			return appErrors.New(appErrors.ErrDuplicateEntry, "family with the same number already exists")
-		}
-		if IsConstraintViolationError(result.Error) {
-			return appErrors.New(appErrors.ErrInvalidOperation, "cannot update family due to constraint violations")
-		}
-		return appErrors.DB(result.Error, "error updating family")
-	}
 
-	if result.RowsAffected == 0 {
-		return appErrors.NotFound("family", nil)
-	}
+		// Deduplicar teléfonos antes de guardar
+		family.Telefonos = deduplicateTelephones(family.Telefonos)
 
-	return nil
+		result := tx.Session(&gorm.Session{FullSaveAssociations: true}).Save(family)
+		if result.Error != nil {
+			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+				return appErrors.NotFound("family", result.Error)
+			}
+			if IsDuplicateKeyError(result.Error) {
+				return appErrors.New(appErrors.ErrDuplicateEntry, "family with the same number already exists")
+			}
+			if IsConstraintViolationError(result.Error) {
+				return appErrors.New(appErrors.ErrInvalidOperation, "cannot update family due to constraint violations")
+			}
+			return appErrors.DB(result.Error, "error updating family")
+		}
+
+		if result.RowsAffected == 0 {
+			return appErrors.NotFound("family", nil)
+		}
+
+		return nil
+	})
 }
 
 // Delete removes a family (soft delete)

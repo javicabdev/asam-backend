@@ -83,25 +83,36 @@ func (r *memberRepository) GetByIdentityCard(ctx context.Context, identityCard s
 
 // Update actualiza un miembro existente
 func (r *memberRepository) Update(ctx context.Context, member *models.Member) error {
-	// Use Session with FullSaveAssociations to properly handle telephone updates
-	// This ensures that telephones are replaced, not just appended
-	result := r.db.WithContext(ctx).Session(&gorm.Session{FullSaveAssociations: true}).Save(member)
-	if result.Error != nil {
-		// Check for specific database errors
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return appErrors.NotFound("member", result.Error)
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Reemplazar teléfonos: borrar los existentes y crear los nuevos.
+		// FullSaveAssociations no borra registros eliminados del slice en
+		// relaciones polimórficas, así que lo hacemos manualmente.
+		if err := tx.Unscoped().
+			Where("contactable_id = ? AND contactable_type = ?", member.ID, "Member").
+			Delete(&models.Telephone{}).Error; err != nil {
+			return appErrors.DB(err, "error deleting existing telephones")
 		}
-		if IsDuplicateKeyError(result.Error) {
-			return appErrors.New(appErrors.ErrDuplicateEntry, "member with the same key already exists")
+
+		// Deduplicar teléfonos antes de guardar
+		member.Telefonos = deduplicateTelephones(member.Telefonos)
+
+		result := tx.Session(&gorm.Session{FullSaveAssociations: true}).Save(member)
+		if result.Error != nil {
+			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+				return appErrors.NotFound("member", result.Error)
+			}
+			if IsDuplicateKeyError(result.Error) {
+				return appErrors.New(appErrors.ErrDuplicateEntry, "member with the same key already exists")
+			}
+			return appErrors.DB(result.Error, "error updating member")
 		}
-		return appErrors.DB(result.Error, "error updating member")
-	}
 
-	if result.RowsAffected == 0 {
-		return appErrors.NotFound("member", nil)
-	}
+		if result.RowsAffected == 0 {
+			return appErrors.NotFound("member", nil)
+		}
 
-	return nil
+		return nil
+	})
 }
 
 // Delete elimina un miembro por su ID
