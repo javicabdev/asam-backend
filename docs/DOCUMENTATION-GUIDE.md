@@ -9,7 +9,7 @@
 3. **Ejemplos GraphQL**: Comprobar que nombres de argumentos, tipos `input` y variables coinciden con el schema real; probar fragmentos en Playground cuando sea posible.
 4. **Enums y roles**: Unificar con el API (p. ej. `ADMIN` vs `admin` según el schema); no mezclar convenciones en el mismo ejemplo.
 5. **Enlaces**: Rutas relativas desde el archivo actual (`../` cuando corresponda); evitar enlaces a archivos que no existen en el repo.
-6. **Datos sensibles**: URLs de producción, hosts de BD o credenciales → preferir placeholders o referencias a secretos / consola del proveedor, no valores reales que deban rotarse.
+6. **Datos sensibles**: URLs de producción, hosts de BD o credenciales → preferir placeholders, variables de entorno (`REACT_APP_GRAPHQL_URL`, etc.) o referencias a secretos / consola del proveedor; no valores reales que deban rotarse.
 7. **CI/CD**: Comportamiento de workflows → describir según [CI-CD.md](CI-CD.md) y, ante duda, **`.github/workflows/*.yml`**.
 8. **Fecha de revisión** (opcional pero útil): al final o al inicio de docs grandes, una línea `Última revisión documental: YYYY-MM` ayuda a detectar desfase.
 

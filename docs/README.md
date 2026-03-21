@@ -10,7 +10,7 @@ Evita duplicar la misma información en varios archivos: enlaza al documento can
 
 | Tema | Documento canónico |
 |------|-------------------|
-| Variables de entorno y configuración (12-factor) | [CONFIGURATION.md](CONFIGURATION.md) |
+| Variables de entorno y configuración (12-factor) | [CONFIGURATION.md](CONFIGURATION.md) (sección [Entornos](CONFIGURATION.md#entornos)) |
 | Autenticación (JWT, flujo, roles) | [auth.md](auth.md) |
 | Errores y códigos expuestos por GraphQL | [errs.md](errs.md) |
 | Base de datos, migraciones y seed | [database.md](database.md) |

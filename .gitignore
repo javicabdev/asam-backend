@@ -48,6 +48,9 @@ Desktop.ini
 # Logs
 *.log
 
+# Backups locales (BACKUP_DIR por defecto en desarrollo)
+var/
+
 # Directorios de build
 build/
 dist/

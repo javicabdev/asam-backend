@@ -9,11 +9,11 @@ Para que el flujo de trabajo de CI/CD funcione correctamente, necesitas configur
 - `GCP_SA_KEY`: La clave JSON de la cuenta de servicio de GCP con permisos para desplegar en Cloud Run y acceder a Container Registry.
 
 ### Base de datos Aiven
-- `AIVEN_DB_HOST`: Hostname del servidor PostgreSQL en Aiven (ej. pg-asam-asam-backend-db.l.aivencloud.com)
+- `AIVEN_DB_HOST`: Hostname del servidor PostgreSQL en Aiven (véase la consola Aiven; no uses un host de ejemplo fijo en documentación pública)
 - `AIVEN_DB_PORT`: Puerto del servidor PostgreSQL (ej. 14276)
 - `AIVEN_DB_USER`: Usuario para conectarse a PostgreSQL (ej. avnadmin)
 - `AIVEN_DB_PASSWORD`: Contraseña para conectarse a PostgreSQL
-- `AIVEN_DB_NAME`: Name de la base de datos (ej. asam-backend-db)
+- `AIVEN_DB_NAME`: Nombre de la base de datos (según el servicio creado en Aiven)
 
 ### Seguridad de la aplicación
 - `JWT_ACCESS_SECRET`: Clave secreta para la generación de tokens JWT de acceso
@@ -34,6 +34,12 @@ Para que el flujo de trabajo de CI/CD funcione correctamente, necesitas configur
 3. En el menú lateral, selecciona "Secrets and variables" > "Actions"
 4. Haz clic en "New repository secret"
 5. Añade cada secreto con su nombre y valor correspondiente
+
+## Variables del repositorio (opcional, no sensibles)
+
+En **Settings → Secrets and variables → Actions → Variables** puedes definir valores que no son secretos pero que los workflows necesitan, por ejemplo:
+
+- **`DAST_TARGET_URL`**: URL base del API desplegado para el workflow [DAST](../.github/workflows/dast.yml) (escaneo programado o por defecto). Sin esta variable, el escaneo automático fallará hasta que la configures o pases `target_url` al ejecutar el workflow a mano.
 
 ## Crear una cuenta de servicio en Google Cloud Platform
 

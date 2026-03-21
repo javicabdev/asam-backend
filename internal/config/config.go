@@ -85,7 +85,7 @@ type Config struct {
 	BackupEnabled      bool          `env:"BACKUP_ENABLED,default=false"`
 	BackupInterval     time.Duration `env:"BACKUP_INTERVAL,default=24h"`            // Backup diario recomendado
 	BackupStorageType  string        `env:"BACKUP_STORAGE_TYPE,default=filesystem"` // filesystem or gcs
-	BackupDir          string        `env:"BACKUP_DIR,default=/Users/javierfernandezcabanas/Library/CloudStorage/GoogleDrive-javierfernandezc@gmail.com/My Drive/Babacar/asam-db-backups"`
+	BackupDir          string        `env:"BACKUP_DIR,default=./var/asam-backups"`
 	BackupGCSBucket    string        `env:"BACKUP_GCS_BUCKET,default=asam-db-backups"`
 	BackupGCSPrefix    string        `env:"BACKUP_GCS_PREFIX,default="`
 	BackupMaxRetention int           `env:"BACKUP_MAX_RETENTION,default=0"` // 0 = no eliminar (usar GCS lifecycle)

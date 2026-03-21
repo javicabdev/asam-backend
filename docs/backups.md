@@ -22,9 +22,9 @@ Guarda los dumps en una ruta local. Esta ruta puede apuntar a una carpeta sincro
 
 **Variable de configuración:** `BACKUP_DIR`
 
-Ejemplo apuntando a Google Drive:
+Ejemplo de ruta (ajusta usuario y cuenta de Google Drive):
 ```
-BACKUP_DIR=/Users/javierfernandezcabanas/Library/CloudStorage/GoogleDrive-javierfernandezc@gmail.com/My Drive/Babacar/asam-db-backups
+BACKUP_DIR=/Users/tu_usuario/Library/CloudStorage/GoogleDrive-tu_cuenta@gmail.com/My Drive/asam-db-backups
 ```
 
 ### Google Cloud Storage (`gcs`)

@@ -6,18 +6,17 @@ Esta guía proporciona información detallada para desarrolladores frontend que 
 
 ## Información General
 
-- **Endpoint de Producción**: `https://asam-backend-jtpswzdxuq-ew.a.run.app/graphql`
-- **Endpoint de Desarrollo**: `http://localhost:8080/graphql`
-- **Playground**: `http://localhost:8080/playground` (disponible solo en entorno de desarrollo)
+- **Producción / staging**: URL HTTPS de tu API GraphQL (p. ej. servicio en Cloud Run: `https://<nombre>-<hash>-<region>.a.run.app/graphql`). Obténla en la consola de GCP tras el despliegue; **no** hardcodees una URL real en el código del frontend: usa `REACT_APP_GRAPHQL_URL`, `VITE_*`, u otra variable de entorno del bundler.
+- **Desarrollo**: `http://localhost:8080/graphql`
+- **Playground**: `http://localhost:8080/playground` (solo en desarrollo)
 - **Autenticación**: Bearer Token JWT
 
 ### Configuración Rápida
 
 ```javascript
-// Apollo Client
-const GRAPHQL_ENDPOINT = process.env.NODE_ENV === 'production' 
-  ? 'https://asam-backend-jtpswzdxuq-ew.a.run.app/graphql'
-  : 'http://localhost:8080/graphql';
+// Apollo Client — la URL de producción siempre desde variable de entorno
+const GRAPHQL_ENDPOINT =
+  process.env.REACT_APP_GRAPHQL_URL ?? 'http://localhost:8080/graphql';
 
 const client = new ApolloClient({
   uri: GRAPHQL_ENDPOINT,
@@ -1016,7 +1015,7 @@ La API devuelve errores en el siguiente formato:
 ## Consideraciones para Desarrollo Frontend
 
 1. **Endpoints**:
-   - **Producción**: `https://asam-backend-jtpswzdxuq-ew.a.run.app/graphql`
+   - **Producción / staging**: URL definida con variable de entorno (p. ej. `REACT_APP_GRAPHQL_URL`); no fijar la URL del despliegue en el repositorio.
    - **Desarrollo**: `http://localhost:8080/graphql`
    - Configurar variables de entorno para cambiar entre entornos
 
@@ -1065,7 +1064,7 @@ import { setContext } from '@apollo/client/link/context';
 
 // Configuración del cliente Apollo
 const httpLink = createHttpLink({
-  uri: process.env.REACT_APP_GRAPHQL_URL || 'https://asam-backend-jtpswzdxuq-ew.a.run.app/graphql'
+  uri: process.env.REACT_APP_GRAPHQL_URL ?? 'http://localhost:8080/graphql'
 });
 
 const authLink = setContext((_, { headers }) => {
@@ -1317,11 +1316,9 @@ Para más contexto y detalles de integración, consulta:
 - ⚠️ [Catálogo de Errores](../errs.md)
 - 🧩 [Compatibilidad con Apollo Client](../apollo-client-compatibility.md)
 
-### Endpoint de Producción
+### Endpoint en producción
 
-```
-https://asam-backend-jtpswzdxuq-ew.a.run.app/graphql
-```
+Configura en el frontend la variable de entorno (p. ej. `REACT_APP_GRAPHQL_URL`) con la URL HTTPS que te dé tu despliegue (consola de Cloud Run o similar). No incluyas URLs reales de servicios en el código fuente del cliente.
 
 ## Compatibilidad con Apollo Client
 

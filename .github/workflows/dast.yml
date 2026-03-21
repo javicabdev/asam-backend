@@ -28,8 +28,9 @@ permissions:
   issues: write
 
 env:
-  # Default target URL (can be overridden by workflow_dispatch)
-  DEFAULT_TARGET_URL: 'https://asam-backend-jtpswzdxuq-ew.a.run.app'
+  # URL por defecto: variable del repositorio DAST_TARGET_URL (Settings → Secrets and variables → Actions → Variables).
+  # También puedes pasar "target_url" al ejecutar el workflow a mano.
+  DEFAULT_TARGET_URL: ${{ vars.DAST_TARGET_URL }}
 
 jobs:
   dast-scan:
@@ -44,12 +45,16 @@ jobs:
       - name: Set target URL
         id: set-url
         run: |
-          # Use provided target_url or fall back to DEFAULT_TARGET_URL
-          if [ -n "${{ inputs.target_url }}" ]; then
-            echo "target_url=${{ inputs.target_url }}" >> $GITHUB_OUTPUT
-          else
-            echo "target_url=${{ env.DEFAULT_TARGET_URL }}" >> $GITHUB_OUTPUT
+          # Manual: inputs.target_url. Programado: vars.DAST_TARGET_URL
+          TARGET="${{ inputs.target_url }}"
+          if [ -z "$TARGET" ]; then
+            TARGET="${{ env.DEFAULT_TARGET_URL }}"
           fi
+          if [ -z "$TARGET" ]; then
+            echo "::error::Define la variable del repositorio DAST_TARGET_URL (URL base del API, p. ej. https://tu-servicio.run.app) o ejecuta el workflow con target_url."
+            exit 1
+          fi
+          echo "target_url=$TARGET" >> $GITHUB_OUTPUT
 
           # Use provided scan_type or default to baseline
           if [ -n "${{ inputs.scan_type }}" ]; then

@@ -12,7 +12,7 @@ Si este documento y los workflows divergen, **prevalecen los YAML**.
 | **Continuous Integration** | [`ci.yml`](../.github/workflows/ci.yml) | Push y PR a la rama `main` (no corre en cambios que solo tocan `.md`, `.gitignore` o `LICENSE`) |
 | **Release** | [`release.yml`](../.github/workflows/release.yml) | Push de un tag con formato `v*.*.*` (p. ej. `v1.2.0`) |
 | **Deploy a Cloud Run** | [`cloud-run-deploy.yml`](../.github/workflows/cloud-run-deploy.yml) | **Manual** (`workflow_dispatch`) desde la pestaña Actions |
-| **DAST** | [`dast.yml`](../.github/workflows/dast.yml) | Ver [DAST-USAGE.md](DAST-USAGE.md) |
+| **DAST** | [`dast.yml`](../.github/workflows/dast.yml) | Define la variable del repo **`DAST_TARGET_URL`** (o `target_url` al lanzar a mano). Ver [DAST-USAGE.md](DAST-USAGE.md) |
 | **Enlaces en Markdown** | [`markdown-links.yml`](../.github/workflows/markdown-links.yml) | Push/PR que tocan `*.md`: comprueba rutas relativas con [lychee](https://github.com/lycheeverse/lychee) (`--offline`) |
 
 ## Continuous Integration (`ci.yml`)

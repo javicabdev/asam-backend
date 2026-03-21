@@ -57,9 +57,7 @@ Para arrancar el entorno de desarrollo completo:
 .\start-docker.ps1
 ```
 
-**Usuarios de prueba:**
-- Admin: `admin` / `AsamAdmin2025!`
-- Usuario: `user` / `AsamUser2025!`
+**Usuarios de prueba (solo desarrollo local):** suelen crearse al levantar el entorno (p. ej. `make dev-setup`). Las credenciales están en tu `.env` local o en el flujo de seed que uses — **no** documentes contraseñas reales en el repositorio.
 
 ### Si tienes problemas
 

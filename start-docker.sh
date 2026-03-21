@@ -194,7 +194,8 @@ fi
 
 # Restaurar desde el último backup local si existe
 echo -e "\n${YELLOW}💾 Buscando último backup local...${NC}"
-BACKUP_DIR="/Users/javierfernandezcabanas/Library/CloudStorage/GoogleDrive-javierfernandezc@gmail.com/My Drive/Babacar/asam-db-backups/local"
+# Opcional: exporta ASAM_BACKUP_RESTORE_DIR a una carpeta con dumps *.dump
+BACKUP_DIR="${ASAM_BACKUP_RESTORE_DIR:-./var/asam-backups/local}"
 BACKUP_RESTORED=false
 
 if [ -d "$BACKUP_DIR" ]; then

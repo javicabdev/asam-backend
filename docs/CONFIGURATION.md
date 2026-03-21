@@ -28,6 +28,20 @@ El código de la aplicación NO menciona nombres específicos de archivos. Lee t
 
 ---
 
+## Entornos
+
+Resumen de dónde vive la configuración:
+
+| Entorno | Dónde vive la configuración |
+|--------|-----------------------------|
+| **Desarrollo local** | `.env` (a partir de `.env.example`), opcionalmente Docker Compose |
+| **CI (GitHub Actions)** | Secrets y `env:` en los workflows — [github-secrets-setup.md](github-secrets-setup.md) |
+| **Producción / staging** | Variables del servicio (p. ej. Cloud Run) y secretos del proveedor de BD |
+
+**Buena práctica:** no versionar URLs públicas definitivas, contraseñas ni hosts de bases de datos reales; documentar solo **nombres de variables** y obtener los valores desde el entorno o la consola del proveedor.
+
+---
+
 ## 🚀 Casos de Uso
 
 ### Desarrollo Local (Docker)
