@@ -2,23 +2,26 @@
 
 Esta documentación detalla cómo gestionar las bases de datos del proyecto ASAM Backend, incluyendo migraciones y generación de datos de prueba (seeding).
 
+Los **principios de configuración** (variables de entorno, `.env` solo en local, secretos en CI/producción) están en [CONFIGURATION.md](CONFIGURATION.md). Aquí se asume que la conexión usa las mismas variables (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSL_MODE`, etc.).
+
 ## Entornos de Base de Datos
 
-El sistema está configurado para trabajar con dos entornos de base de datos:
+El sistema puede apuntar a distintas instancias de PostgreSQL según el entorno; **los valores concretos no se fijan en este documento** salvo como orientación para desarrollo local.
 
-* **Local**: Base de datos PostgreSQL en el entorno local de desarrollo
-  * Configuración: `.env.development`
-  * Host: `localhost`
-  * Puerto: `5432`
-  * Usuario por defecto: `postgres`
-  * Base de datos por defecto: `asam_db`
+### Local (desarrollo)
 
-* **Aiven**: Base de datos PostgreSQL alojada en la nube Aiven
-  * Configuración: `.env.aiven`
-  * Host: `pg-asam-asam-backend-db.l.aivencloud.com`
-  * Puerto: `14276`
-  * Usuario por defecto: `avnadmin`
-  * Base de datos por defecto: `asam-backend-db`
+- Suele usarse Docker Compose o PostgreSQL en `localhost`.
+- Típico: copiar [`.env.example`](../.env.example) a `.env` y ajustar (ver [CONFIGURATION.md](CONFIGURATION.md)).
+- Valores habituales en local: host `localhost`, puerto `5432`, usuario `postgres`, base de datos `asam_db` (confirmar en `.env.example`).
+
+### Nube (p. ej. Aiven) / producción
+
+- Mismas variables de entorno; los valores reales vienen de **GitHub Secrets**, variables de **Cloud Run** o de la consola del proveedor, no de archivos versionados.
+- Host, puerto y nombre de base pueden cambiar; consulta la consola de Aiven o [github-secrets-setup.md](github-secrets-setup.md).
+
+### Scripts PowerShell y perfiles locales
+
+Los scripts (`migrate.ps1`, `seed.ps1`, etc.) pueden aceptar un entorno (`local`, `aiven`, `all`). Si en tu máquina usas archivos adicionales (por ejemplo copias de `.env` con otro nombre), son **opcionales y locales**: no sustituyen el contrato estándar del repo, que sigue siendo **variables de entorno** + [CONFIGURATION.md](CONFIGURATION.md).
 
 ## Migraciones de Base de Datos
 
@@ -142,13 +145,9 @@ Usamos un script PowerShell para generar datos de prueba:
 .\seed.ps1 local custom -Members 100 -Families 30 -Payments 200
 ```
 
-#### Desde Línea de Comandos Go (Avanzado)
+#### Desde línea de comandos Go (avanzado)
 
-Si prefieres usar directamente el código Go:
-
-```bash
-go run cmptemp/seed/main.go -env=local -type=minimal
-```
+El paquete de seeding está en `test/seed` (ver [test/seed/README.md](../test/seed/README.md)). No hay un `main` versionado en el repositorio: integra el `Seeder` desde un programa en tu entorno o usa el flujo Docker/Make (`make db-seed`) para datos de prueba básicos.
 
 #### Entornos Disponibles
 
@@ -198,15 +197,7 @@ Los generadores utilizan algoritmos que garantizan datos coherentes y respetan l
 
 ## Uso en Entornos CI/CD
 
-Para entornos de integración continua, puedes ejecutar los comandos Go directamente:
-
-```go
-// Ejecutar migraciones
-go run cmd/migrate/main.go -env=local -cmd=up
-
-// Ejecutar seed
-go run cmptemp/seed/main.go -env=local -type=minimal
-```
+Para entornos de integración continua, las migraciones se ejecutan como en CI (por ejemplo `go run ./cmd/migrate/main.go -cmd=up` con las variables de base de datos en el entorno). El seeding masivo usa el paquete `test/seed` desde tests o herramientas internas; no hay un comando único versionado en el repo.
 
 ## Recomendaciones de Uso
 

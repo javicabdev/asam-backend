@@ -12,13 +12,13 @@ El sistema de autenticación sigue una arquitectura basada en JWT (JSON Web Toke
 4. **Middleware**: Verifica los tokens JWT en las peticiones
 5. **Repositorios**: Almacenan y validan los tokens
 
-## Endpints GraphQL
+## Endpoints GraphQL
 
 ### Login
 
 ```graphql
 mutation Login($username: String!, $password: String!) {
-  login(input: {username: $password, password: $password}) {
+  login(input: {username: $username, password: $password}) {
     user {
       id
       username
@@ -94,11 +94,13 @@ El middleware de autenticación se encarga de:
 
 ## Regeneración del Código
 
-Después de realizar cambios en el esquema GraphQL, es necesario regenerar el código usando:
+Después de realizar cambios en el esquema GraphQL, regenera el código con **gqlgen** (misma herramienta que usa CI; no depende de carpetas locales ignoradas por git):
 
+```bash
+go run github.com/99designs/gqlgen@v0.17.81 generate
 ```
-go run github.com/99designs/gqlgen generate
-```
+
+(La versión debe coincidir con la de `gqlgen` en `go.mod`.)
 
 ## Ejemplo de Cliente
 

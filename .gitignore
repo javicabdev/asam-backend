@@ -32,6 +32,9 @@ vendor/
 # VSCode
 .vscode/
 
+# Cursor
+.cursorrules
+
 # Archivos de sistema Windows
 Thumbs.db
 Desktop.ini

@@ -200,6 +200,7 @@ env:
 
 ## 📚 Referencias
 
+- [Índice de documentación del proyecto](README.md) (fuentes de verdad por tema)
 - [The Twelve-Factor App - Config](https://12factor.net/config)
 - [godotenv - GitHub](https://github.com/joho/godotenv)
 - [envconfig - GitHub](https://github.com/sethvargo/go-envconfig)

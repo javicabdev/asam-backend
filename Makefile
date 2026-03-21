@@ -159,7 +159,7 @@ db-shell:
 .PHONY: generate
 generate:
 	@echo "🔧 Generating GraphQL code..."
-	@$(GO) run ./cmdtemp/generate
+	@$(GO) run github.com/99designs/gqlgen@v0.17.81 generate
 	@echo "✅ Code generation complete"
 
 ## generate-mocks: Generate mocks for testing
@@ -375,28 +375,28 @@ docker-run:
 .PHONY: maintenance-cleanup
 maintenance-cleanup:
 	@echo "🧹 Cleaning up expired tokens..."
-	@$(GO) run ./cmptemp/maintenance -cleanup-tokens -report
+	@$(GO) run ./cmdtemp/maintenance -cleanup-tokens -report
 	@echo "✅ Token cleanup complete"
 
 ## maintenance-limit: Enforce token limit per user
 .PHONY: maintenance-limit
 maintenance-limit:
 	@echo "🔒 Enforcing token limits..."
-	@$(GO) run ./cmptemp/maintenance -enforce-token-limit -report
+	@$(GO) run ./cmdtemp/maintenance -enforce-token-limit -report
 	@echo "✅ Token limit enforcement complete"
 
 ## maintenance-all: Run all maintenance tasks
 .PHONY: maintenance-all
 maintenance-all:
 	@echo "🔧 Running all maintenance tasks..."
-	@$(GO) run ./cmptemp/maintenance -all -report
+	@$(GO) run ./cmdtemp/maintenance -all -report
 	@echo "✅ All maintenance tasks complete"
 
 ## maintenance-dry: Dry run of maintenance tasks
 .PHONY: maintenance-dry
 maintenance-dry:
 	@echo "👀 Running maintenance dry run..."
-	@$(GO) run ./cmptemp/maintenance -all -dry-run -report
+	@$(GO) run ./cmdtemp/maintenance -all -dry-run -report
 
 ## Utility commands
 ## ─────────────────────────────────────────────────────────────────

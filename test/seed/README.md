@@ -37,43 +37,17 @@ test/
 
 ## Uso
 
-### Desde línea de comandos
+### Desde Make / Docker
 
-El sistema incluye un comando para ejecutar el seeding desde la línea de comandos:
+Con el entorno de desarrollo por Docker, el `Makefile` expone un target de datos de prueba (usuarios básicos) vía `make db-seed` cuando el stack está levantado. Consulta el propio `Makefile` y `docker-compose` para el comando exacto en tu máquina.
 
-```bash
-# Seed con dataset mínimo en la base de datos local (por defecto)
-go run cmptemp/seed/main.go
+### Desde línea de comandos (programa propio)
 
-# Seed con dataset mínimo en la base de datos Aiven
-go run cmptemp/seed/main.go -env=aiven
+No hay un `main` de seeding versionado en este repositorio. Para datasets completos (minimal, full, escenarios), crea un ejecutable en tu entorno que importe el módulo `github.com/javicabdev/asam-backend/test/seed`, abra la conexión a PostgreSQL según tu `.env` (véase [CONFIGURATION.md](../docs/CONFIGURATION.md)) y use `Seeder` como en la sección **Desde código**.
 
-# Seed con dataset mínimo en ambas bases de datos (local y Aiven)
-go run cmptemp/seed/main.go -env=all
+### Entornos
 
-# Seed con dataset completo en ambas bases de datos
-go run cmptemp/seed/main.go -env=all -type=full
-
-# Seed con escenario específico en la base de datos local
-go run cmptemp/seed/main.go -env=local -type=scenario -scenario=payment_overdue
-
-# Solo limpiar ambas bases de datos
-go run cmptemp/seed/main.go -env=all -clean
-
-# Seed personalizado con cantidades específicas en la base de datos local
-go run cmptemp/seed/main.go -env=local -type=custom -members=50 -families=20 -payments=100
-
-# Usar una semilla específica para reproducibilidad
-go run cmptemp/seed/main.go -env=local -seed=12345
-```
-
-### Entornos disponibles
-
-El sistema soporta los siguientes entornos:
-
-- **local**: Usa la configuración de `.env.development` para conectarse a la base de datos local.
-- **aiven**: Usa la configuración de `.env.aiven` para conectarse a la base de datos en la nube Aiven.
-- **all**: Ejecuta el seed en ambas bases de datos secuencialmente.
+La conexión a la base de datos sigue las variables documentadas en [CONFIGURATION.md](../docs/CONFIGURATION.md) (`DB_HOST`, `DB_PORT`, etc.), no nombres de archivo concretos en el repositorio.
 
 ### Desde código
 
@@ -89,8 +63,8 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	
-	"github.com/babacar/asam/asam-backend/test/seed"
-	"github.com/babacar/asam/asam-backend/test/seed/data"
+	"github.com/javicabdev/asam-backend/test/seed"
+	"github.com/javicabdev/asam-backend/test/seed/data"
 )
 
 func main() {
@@ -177,4 +151,4 @@ Puedes ajustar varios parámetros de generación:
 2. **Semilla fija**: Para pruebas reproducibles, usa una semilla fija.
 3. **Entornos aislados**: Usa bases de datos separadas para desarrollo y testing.
 4. **Automatización**: Integra el seeding en tus flujos de CI/CD.
-5. **Múltiples entornos**: Usa el parámetro `-env=all` para ejecutar el seed en ambas bases de datos (local y Aiven).
+5. **Múltiples entornos**: Usa bases de datos y credenciales distintas según el entorno (variables de entorno), no archivos versionados en el repo.

@@ -73,7 +73,7 @@ La API está diseñada siguiendo el patrón GraphQL, lo que permite a los client
 - Verifica permisos basados en roles (ADMIN, USER)
 - Enriquece el contexto con información del usuario autenticado
 
-Para más detalles sobre la implementación de autenticación, consulta [auth.md](../auth.md) y [auth_implementation.md](../auth_implementation.md).
+Para más detalles sobre la implementación de autenticación, consulta [auth.md](../auth.md).
 
 ## Modelos de Dominio
 
@@ -105,4 +105,4 @@ El proyecto utiliza GitHub Actions para CI/CD. Para más información sobre:
 
 ## Manejo de Errores
 
-El sistema implementa un manejo de errores estructurado. Para más detalles sobre los tipos de errores y cómo se manejan, consulta [errors.md](../errors.md).
+El sistema implementa un manejo de errores estructurado. Para más detalles sobre los tipos de errores y cómo se manejan, consulta [errs.md](../errs.md).

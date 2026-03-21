@@ -1,0 +1,49 @@
+# Comprueba enlaces en archivos Markdown (rutas relativas y archivos del repo).
+# --offline: no intenta peticiones HTTP(S); evita flakiness y rate limits en URLs externas.
+name: Markdown links
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'README.md'
+      - '**/*.md'
+      - '.github/workflows/markdown-links.yml'
+      - '.lycheeignore'
+  pull_request:
+    paths:
+      - 'README.md'
+      - '**/*.md'
+      - '.github/workflows/markdown-links.yml'
+      - '.lycheeignore'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lychee:
+    name: Lychee (offline)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Markdown links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # Solo .md del repo; rutas resueltas desde la raíz del checkout
+          args: >-
+            --offline
+            --verbose
+            --no-progress
+            --root-dir
+            .
+            --exclude-path
+            '^docstemp/'
+            './**/*.md'
+          fail: true
+          # Evitar fallo si algún archivo no contiene ningún enlace detectable
+          failIfEmpty: false
+          jobSummary: true

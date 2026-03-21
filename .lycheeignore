@@ -1,0 +1,4 @@
+# Patrones de URL o texto a ignorar por lychee (regex, una por línea).
+# Con --offline en CI, las http(s) externas no se comprueban de todos modos.
+#
+# Añade aquí solo exclusiones necesarias (p. ej. endpoints de ejemplo repetidos).

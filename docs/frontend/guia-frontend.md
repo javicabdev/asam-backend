@@ -1310,16 +1310,12 @@ Para cualquier duda sobre la API o para reportar errores, por favor contactar al
 
 ## Documentación Completa
 
-Para una documentación más detallada y específica para el desarrollo frontend, consulta:
+Para más contexto y detalles de integración, consulta:
 
-- 📚 [Documentación Frontend Completa](./frontend/README.md)
-- 🎉 [Actualizaciones de Junio 2025](./frontend/updates-june-2025.md)
-- 🚀 [Guía de Inicio Rápido](./frontend/quick-reference.md)
-- 📝 [Colección de Queries y Mutations](./frontend/graphql-queries.md)
-- ⚛️ [Integración con React](./frontend/react-integration-guide.md)
-- 🕹️ [Integración con Vue](./frontend/vue-integration-guide.md)
-- ⚠️ [Manejo de Errores](./frontend/error-handling-guide.md)
-- 🔒 [Guía de Seguridad](./frontend/security-guide.md)
+- 📘 [Descripción General de la API](./api-overview.md)
+- 🔐 [Autenticación](../auth.md)
+- ⚠️ [Catálogo de Errores](../errs.md)
+- 🧩 [Compatibilidad con Apollo Client](../apollo-client-compatibility.md)
 
 ### Endpoint de Producción
 

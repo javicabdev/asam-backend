@@ -164,7 +164,7 @@ denied: gcr.io repo does not exist. Creating on push requires the artifactregist
    ```
 3. Vuelve a ejecutar el workflow
 
-Para más detalles, consulta [scripts/gcp/README.md](../../scripts/gcp/README.md).
+Para más detalles sobre GCP, consulta [gcp-project-setup.md](../../docs/gcp-project-setup.md) (la carpeta `scripts/gcp/` es local opcional si la tienes en tu máquina).
 
 ## Carpeta `examples/`
 
