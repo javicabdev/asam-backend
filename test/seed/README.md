@@ -43,11 +43,11 @@ Con el entorno de desarrollo por Docker, el `Makefile` expone un target de datos
 
 ### Desde línea de comandos (programa propio)
 
-No hay un `main` de seeding versionado en este repositorio. Para datasets completos (minimal, full, escenarios), crea un ejecutable en tu entorno que importe el módulo `github.com/javicabdev/asam-backend/test/seed`, abra la conexión a PostgreSQL según tu `.env` (véase [CONFIGURATION.md](../docs/CONFIGURATION.md)) y use `Seeder` como en la sección **Desde código**.
+No hay un `main` de seeding versionado en este repositorio. Para datasets completos (minimal, full, escenarios), crea un ejecutable en tu entorno que importe el módulo `github.com/javicabdev/asam-backend/test/seed`, abra la conexión a PostgreSQL según tu `.env` (véase [CONFIGURATION.md](../../docs/CONFIGURATION.md)) y use `Seeder` como en la sección **Desde código**.
 
 ### Entornos
 
-La conexión a la base de datos sigue las variables documentadas en [CONFIGURATION.md](../docs/CONFIGURATION.md) (`DB_HOST`, `DB_PORT`, etc.), no nombres de archivo concretos en el repositorio.
+La conexión a la base de datos sigue las variables documentadas en [CONFIGURATION.md](../../docs/CONFIGURATION.md) (`DB_HOST`, `DB_PORT`, etc.), no nombres de archivo concretos en el repositorio.
 
 ### Desde código
 
