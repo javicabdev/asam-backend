@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       target_url:
-        description: 'Target URL to scan (leave empty to use default production URL)'
+        description: 'URL a escanear (vacío = usar variable del repo DAST_TARGET_URL)'
         required: false
         type: string
       scan_type:
@@ -35,6 +35,8 @@ env:
 jobs:
   dast-scan:
     name: OWASP ZAP Security Scan
+    # Manual: siempre corre. Cron: solo si existe DAST_TARGET_URL (si no, skipped, no failed).
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.DAST_TARGET_URL != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
 

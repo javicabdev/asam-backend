@@ -46,7 +46,7 @@ DAST (Dynamic Application Security Testing) es un "pentester automático" que ej
 
 #### B. Automáticamente (Programado)
 
-El workflow puede ejecutarse **cada domingo a las 2 AM** si está habilitado el `schedule` en `.github/workflows/dast.yml`. La URL objetivo debe estar definida como **variable del repositorio** `DAST_TARGET_URL` en GitHub (Settings → Secrets and variables → Actions → Variables), con la URL base del API desplegado (sin path `/graphql` si el escaneo apunta al origen del servicio; ajusta según el tipo de scan).
+El workflow puede ejecutarse **cada domingo a las 2 AM** si está habilitado el `schedule` en `.github/workflows/dast.yml`. Si **no** defines la variable del repositorio `DAST_TARGET_URL`, esa ejecución programada se **omite** (skipped), no falla. Cuando quieras escaneo automático semanal, añade `DAST_TARGET_URL` en GitHub (Settings → Secrets and variables → Actions → Variables), con la URL base del API desplegado (ajusta path según el tipo de scan: baseline/full vs api con `/graphql`).
 
 ### Opción 2: Localmente con Docker
 
