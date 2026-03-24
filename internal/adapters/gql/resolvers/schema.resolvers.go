@@ -383,8 +383,12 @@ func (r *mutationResolver) AddFamilyMember(ctx context.Context, familyID string,
 		return nil, err
 	}
 
-	// 5) Retornas la familia ya con el nuevo familiar agregado
-	return existing, nil
+	// 5) Re-fetch family to return updated state with new familiar
+	updated, err := r.familyService.GetByID(ctx, existing.ID)
+	if err != nil {
+		return nil, err
+	}
+	return updated, nil
 }
 
 // UpdateFamilyMember is the resolver for the updateFamilyMember field.
@@ -1516,7 +1520,7 @@ func (r *queryResolver) CashFlowBalance(ctx context.Context) (*model.CashFlowBal
 
 // CashFlowStats is the resolver for the cashFlowStats field.
 func (r *queryResolver) CashFlowStats(ctx context.Context, startDate time.Time, endDate time.Time) (*model.CashFlowStats, error) {
-	panic(fmt.Errorf("not implemented: CashFlowStats - cashFlowStats"))
+	return nil, appErrors.New(appErrors.ErrInvalidOperation, "cashFlowStats not yet implemented")
 }
 
 // GetTransactions is the resolver for the getTransactions field.
@@ -1685,7 +1689,7 @@ func (r *queryResolver) GetDelinquentReport(ctx context.Context, input *model.De
 
 // ID is the resolver for the id field.
 func (r *telephoneResolver) ID(ctx context.Context, obj *models.Telephone) (string, error) {
-	panic(fmt.Errorf("not implemented: ID - id"))
+	return fmt.Sprintf("%d", obj.ID), nil
 }
 
 // ID is the resolver for the id field.
