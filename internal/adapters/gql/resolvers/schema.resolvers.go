@@ -334,9 +334,6 @@ func (r *mutationResolver) UpdateFamily(ctx context.Context, input model.UpdateF
 	if err != nil {
 		return nil, err
 	}
-	if existing == nil {
-		return nil, appErrors.NewNotFoundError("Family")
-	}
 
 	// 4) Mapear los campos actualizables al modelo
 	updated := familyResolver.mapUpdateInputToFamily(&input, existing)
@@ -361,9 +358,6 @@ func (r *mutationResolver) AddFamilyMember(ctx context.Context, familyID string,
 	existing, err := r.familyService.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
-	}
-	if existing == nil {
-		return nil, appErrors.NewNotFoundError("Family")
 	}
 
 	// 3) mapear el FamiliarInput a *models.Familiar
@@ -493,13 +487,9 @@ func (r *mutationResolver) UpdatePayment(ctx context.Context, id string, input m
 		return nil, err
 	}
 
-	// 1) obtener el pago actual (opcional, para decidir si está cancelado o no)
-	existing, err := r.paymentService.GetPayment(ctx, paymentID)
-	if err != nil {
+	// 1) verificar que el pago existe
+	if _, err := r.paymentService.GetPayment(ctx, paymentID); err != nil {
 		return nil, err
-	}
-	if existing == nil {
-		return nil, appErrors.NewNotFoundError("Payment")
 	}
 
 	// 2) mapear input a Payment
@@ -530,9 +520,6 @@ func (r *mutationResolver) CancelPayment(ctx context.Context, id string, reason 
 	existing, err := r.paymentService.GetPayment(ctx, paymentID)
 	if err != nil {
 		return nil, err // Retornar el error directamente
-	}
-	if existing == nil {
-		return nil, appErrors.NewNotFoundError("Payment") // Retornar error not found
 	}
 
 	// 2) si ya está cancelado, devuelves error o idempotencia
@@ -667,9 +654,6 @@ func (r *mutationResolver) UpdateCashFlow(ctx context.Context, id string, input 
 	if err != nil {
 		return nil, err
 	}
-	if existing == nil {
-		return nil, appErrors.NotFound("cash flow", nil)
-	}
 
 	// Actualizar solo los campos proporcionados
 	if input.OperationType != nil {
@@ -711,9 +695,6 @@ func (r *mutationResolver) DeleteCashFlow(ctx context.Context, id string) (*mode
 	existing, err := r.cashFlowService.GetMovement(ctx, cashFlowID)
 	if err != nil {
 		return nil, err
-	}
-	if existing == nil {
-		return nil, appErrors.NotFound("cash flow", nil)
 	}
 
 	// Verificar que no esté asociado a un pago
@@ -784,12 +765,8 @@ func (r *mutationResolver) UpdateTransaction(ctx context.Context, id string, inp
 	}
 
 	// Comprobar si existe
-	existing, err := r.cashFlowService.GetMovement(ctx, transactionID)
-	if err != nil {
+	if _, err := r.cashFlowService.GetMovement(ctx, transactionID); err != nil {
 		return nil, err
-	}
-	if existing == nil {
-		return nil, appErrors.NewNotFoundError("Transaction")
 	}
 
 	// mapear input a un *nuevo* CashFlow
@@ -1103,11 +1080,6 @@ func (r *queryResolver) GetFamily(ctx context.Context, id string) (*models.Famil
 		return nil, err
 	}
 
-	// 3) si no existe, retornar un error de "no encontrado"
-	if family == nil {
-		return nil, appErrors.NewNotFoundError("Family")
-	}
-
 	// Verificar permisos de acceso
 	if err := middleware.CanAccessFamily(ctx, family.MiembroOrigenID); err != nil {
 		return nil, err
@@ -1233,9 +1205,6 @@ func (r *queryResolver) GetFamilyMembers(ctx context.Context, familyID string) (
 	if err != nil {
 		return nil, err
 	}
-	if family == nil {
-		return nil, appErrors.NewNotFoundError("Family")
-	}
 
 	// Verificar permisos de acceso a la familia
 	if err := middleware.CanAccessFamily(ctx, family.MiembroOrigenID); err != nil {
@@ -1264,11 +1233,6 @@ func (r *queryResolver) GetPayment(ctx context.Context, id string) (*models.Paym
 	payment, err := r.paymentService.GetPayment(ctx, paymentID)
 	if err != nil {
 		return nil, err
-	}
-
-	// 3) si no se encuentra, retornar un error "not found"
-	if payment == nil {
-		return nil, appErrors.NewNotFoundError("Payment")
 	}
 
 	// Verificar permisos de acceso
@@ -1316,9 +1280,6 @@ func (r *queryResolver) GetFamilyPayments(ctx context.Context, familyID string) 
 	if err != nil {
 		return nil, err
 	}
-	if family == nil {
-		return nil, appErrors.NewNotFoundError("Family")
-	}
 
 	// Verificar permisos de acceso a la familia
 	if err := middleware.CanAccessFamily(ctx, family.MiembroOrigenID); err != nil {
@@ -1347,9 +1308,6 @@ func (r *queryResolver) GetPaymentStatus(ctx context.Context, id string) (models
 	payment, err := r.paymentService.GetPayment(ctx, paymentID)
 	if err != nil {
 		return "", err
-	}
-	if payment == nil {
-		return "", appErrors.NewNotFoundError("Payment")
 	}
 
 	// Verificar permisos de acceso al pago

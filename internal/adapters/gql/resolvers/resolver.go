@@ -7,7 +7,6 @@ import (
 	"github.com/javicabdev/asam-backend/internal/domain/models"
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/pkg/auth"
-	"github.com/javicabdev/asam-backend/pkg/errors"
 	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
@@ -97,9 +96,6 @@ func (r *Resolver) UpdateMember(ctx context.Context, input model.UpdateMemberInp
 	existing, err := r.memberService.GetMemberByID(ctx, memberID)
 	if err != nil {
 		return nil, err
-	}
-	if existing == nil {
-		return nil, errors.NewNotFoundError("Member")
 	}
 
 	// Map input to member model

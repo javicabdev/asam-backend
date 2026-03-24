@@ -53,7 +53,7 @@ func (r *familyRepository) GetByID(ctx context.Context, id uint) (*models.Family
 	var family models.Family
 	result := r.db.WithContext(ctx).
 		Preload("MiembroOrigen").
-		Preload("Familiares").
+		Preload("Familiares.Telefonos").
 		Preload("Telefonos").
 		First(&family, id)
 
@@ -71,7 +71,7 @@ func (r *familyRepository) GetByNumeroSocio(ctx context.Context, numeroSocio str
 	var family models.Family
 	result := r.db.WithContext(ctx).
 		Preload("MiembroOrigen").
-		Preload("Familiares").
+		Preload("Familiares.Telefonos").
 		Preload("Telefonos").
 		Where("numero_socio = ?", numeroSocio).
 		First(&family)
@@ -90,7 +90,7 @@ func (r *familyRepository) GetByOriginMemberID(ctx context.Context, memberID uin
 	var family models.Family
 	result := r.db.WithContext(ctx).
 		Preload("MiembroOrigen").
-		Preload("Familiares").
+		Preload("Familiares.Telefonos").
 		Preload("Telefonos").
 		Where("miembro_origen_id = ?", memberID).
 		First(&family)
@@ -187,7 +187,7 @@ func (r *familyRepository) List(ctx context.Context, page, pageSize int, searchT
 
 	// Load relationships
 	query = query.Preload("MiembroOrigen").
-		Preload("Familiares").
+		Preload("Familiares.Telefonos").
 		Preload("Telefonos")
 
 	// Execute the query
@@ -248,7 +248,7 @@ func (r *familyRepository) RemoveFamiliar(ctx context.Context, familiarID uint) 
 // GetFamiliarByID gets a single family member by ID
 func (r *familyRepository) GetFamiliarByID(ctx context.Context, familiarID uint) (*models.Familiar, error) {
 	var familiar models.Familiar
-	result := r.db.WithContext(ctx).First(&familiar, familiarID)
+	result := r.db.WithContext(ctx).Preload("Telefonos").First(&familiar, familiarID)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -263,6 +263,7 @@ func (r *familyRepository) GetFamiliares(ctx context.Context, familyID uint) ([]
 	var familiares []*models.Familiar
 	result := r.db.WithContext(ctx).
 		Where("familia_id = ?", familyID).
+		Preload("Telefonos").
 		Find(&familiares)
 
 	if result.Error != nil {
@@ -309,7 +310,7 @@ func (r *familyRepository) GetByIDWithTx(ctx context.Context, tx output.Transact
 	var family models.Family
 	result := gormTx.tx.WithContext(ctx).
 		Preload("MiembroOrigen").
-		Preload("Familiares").
+		Preload("Familiares.Telefonos").
 		Preload("Telefonos").
 		First(&family, id)
 

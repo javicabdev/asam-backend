@@ -90,14 +90,14 @@ func (r *dashboardResolver) GetRecentActivity(ctx context.Context, limit *int) (
 		// Load related entities if needed
 		if activity.RelatedMemberID != nil {
 			member, err := r.memberService.GetMemberByID(ctx, *activity.RelatedMemberID)
-			if err == nil && member != nil {
+			if err == nil {
 				gqlActivity.RelatedMember = mapMemberToGraphQL(member)
 			}
 		}
 
 		if activity.RelatedFamilyID != nil {
 			family, err := r.familyService.GetByID(ctx, *activity.RelatedFamilyID)
-			if err == nil && family != nil {
+			if err == nil {
 				gqlActivity.RelatedFamily = mapFamilyToGraphQL(family)
 			}
 		}
