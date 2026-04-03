@@ -1,6 +1,6 @@
 module github.com/javicabdev/asam-backend
 
-go 1.26
+go 1.26.1
 
 require (
 	cloud.google.com/go/storage v1.57.2
