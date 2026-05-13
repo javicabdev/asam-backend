@@ -7,13 +7,19 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "08:00"
-    reviewers:
-      - "javicabdev"
-    labels:
-      - "dependencies"
-      - "go"
     open-pull-requests-limit: 5
-    
+    groups:
+      go-indirect:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # Preload broken in gorm 1.31.1 — see go-gorm/gorm#7686
+      # Remove this ignore once upstream fixes it.
+      - dependency-name: "gorm.io/gorm"
+        versions: ["1.31.1"]
+
   # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -21,13 +27,11 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "08:00"
-    reviewers:
-      - "javicabdev"
-    labels:
-      - "dependencies"
-      - "github-actions"
     open-pull-requests-limit: 3
-    
+    groups:
+      github-actions:
+        patterns: ["*"]
+
   # Docker
   - package-ecosystem: "docker"
     directory: "/"
@@ -35,9 +39,4 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "08:00"
-    reviewers:
-      - "javicabdev"
-    labels:
-      - "dependencies"
-      - "docker"
     open-pull-requests-limit: 2
