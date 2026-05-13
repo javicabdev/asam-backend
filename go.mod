@@ -14,7 +14,7 @@ require (
 	github.com/prometheus/client_golang v1.22.0
 	github.com/sethvargo/go-envconfig v1.3.0
 	github.com/stretchr/testify v1.11.1
-	github.com/vektah/gqlparser/v2 v2.5.30
+	github.com/vektah/gqlparser/v2 v2.5.33
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.46.0
 	golang.org/x/time v0.12.0
