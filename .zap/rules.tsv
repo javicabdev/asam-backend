@@ -3,24 +3,19 @@
 #
 # Thresholds: IGNORE, INFO, WARN, FAIL
 #
-# This file allows you to customize how ZAP treats specific findings:
-# - IGNORE: Don't report this alert
-# - INFO: Report as informational only
-# - WARN: Report as warning (doesn't fail the build)
-# - FAIL: Report and fail the build
+# This file customizes how ZAP treats specific findings for a GraphQL API
+# backend. We are NOT a browser-rendered website, so several default rules
+# do not apply and have been silenced below.
 
-# Example: Ignore false positives
-# 10010	IGNORE	(Example: X-Frame-Options header missing)
-# 10011	WARN	(Example: X-Content-Type-Options header missing)
+# Non-Storable Content — Expected for API responses (we don't want JSON to
+# be cached by CDNs). Default rule assumes a static website.
+10049	IGNORE	(Non-Storable Content — N/A for API responses)
 
-# Cloudflare or CDN related (often false positives)
-# 10049	IGNORE	(Storable and Cacheable Content)
-# 10015	IGNORE	(Re-examine Cache-control Directives)
+# Sec-Fetch-* headers are REQUEST headers sent by browsers. ZAP scans as
+# a plain HTTP client, doesn't send them, then reports them as missing.
+# Cannot be fixed from server side.
+90005	IGNORE	(Sec-Fetch-* request headers — N/A for non-browser clients)
 
-# Common false positives for APIs
-# 10038	IGNORE	(Content Security Policy)
-
-# Spectre vulnerability - not applicable for API backends (no browser-rendered content)
-90004	IGNORE	(Spectre - N/A for APIs)
-
-# Default: All alerts are treated as WARN (won't fail the build but will be reported)
+# Cross-Origin-Resource-Policy / Spectre — N/A for API backends with no
+# browser-rendered cross-origin content.
+90004	IGNORE	(Spectre / CORP — N/A for APIs)
