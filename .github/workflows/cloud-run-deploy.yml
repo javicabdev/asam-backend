@@ -22,7 +22,7 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   SERVICE_NAME: asam-backend
   REGION: europe-west1
-  GO_VERSION: '1.26.2'
+  GO_VERSION: '1.26.3'
 
 concurrency:
   group: production-deploy
@@ -201,10 +201,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: production-migrations
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
