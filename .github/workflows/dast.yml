@@ -28,15 +28,16 @@ permissions:
   issues: write
 
 env:
-  # URL por defecto: variable del repositorio DAST_TARGET_URL (Settings → Secrets and variables → Actions → Variables).
+  # URL por defecto: variable del repositorio DAST_BACKEND_URL (Settings → Secrets and variables → Actions → Variables).
+  # Apunta al servicio Cloud Run del backend (NO al frontend mutuaasam.org).
   # También puedes pasar "target_url" al ejecutar el workflow a mano.
-  DEFAULT_TARGET_URL: ${{ vars.DAST_TARGET_URL }}
+  DEFAULT_BACKEND_URL: ${{ vars.DAST_BACKEND_URL }}
 
 jobs:
   dast-scan:
     name: OWASP ZAP Security Scan
     # Manual: siempre corre. Cron: solo si existe DAST_TARGET_URL (si no, skipped, no failed).
-    if: ${{ github.event_name == 'workflow_dispatch' || vars.DAST_TARGET_URL != '' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.DAST_BACKEND_URL != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -47,13 +48,13 @@ jobs:
       - name: Set target URL
         id: set-url
         run: |
-          # Manual: inputs.target_url. Programado: vars.DAST_TARGET_URL
+          # Manual: inputs.target_url. Programado: vars.DAST_BACKEND_URL
           TARGET="${{ inputs.target_url }}"
           if [ -z "$TARGET" ]; then
-            TARGET="${{ env.DEFAULT_TARGET_URL }}"
+            TARGET="${{ env.DEFAULT_BACKEND_URL }}"
           fi
           if [ -z "$TARGET" ]; then
-            echo "::error::Define la variable del repositorio DAST_TARGET_URL (URL base del API, p. ej. https://tu-servicio.run.app) o ejecuta el workflow con target_url."
+            echo "::error::Define la variable del repositorio DAST_BACKEND_URL (URL base del API en Cloud Run, p. ej. https://asam-backend-xxx.a.run.app) o ejecuta el workflow con target_url."
             exit 1
           fi
           echo "target_url=$TARGET" >> $GITHUB_OUTPUT
@@ -87,10 +88,10 @@ jobs:
 
       - name: Run OWASP ZAP API Scan
         if: steps.set-url.outputs.scan_type == 'api'
-        uses: zaproxy/action-api-scan@v0.9.0
+        uses: zaproxy/action-api-scan@v0.10.0
         with:
           target: ${{ steps.set-url.outputs.target_url }}/graphql
-          format: openapi
+          format: graphql
           rules_file_name: '.zap/rules.tsv'
           cmd_options: '-a -j -l WARN'
           fail_action: false
