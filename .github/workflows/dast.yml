@@ -43,7 +43,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
 
       - name: Set target URL
         id: set-url
@@ -68,7 +68,7 @@ jobs:
 
       - name: Run OWASP ZAP Baseline Scan
         if: steps.set-url.outputs.scan_type == 'baseline'
-        uses: zaproxy/action-baseline@v0.15.0
+        uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25  # v0.15.0
         with:
           target: ${{ steps.set-url.outputs.target_url }}
           rules_file_name: '.zap/rules.tsv'
@@ -78,7 +78,7 @@ jobs:
 
       - name: Run OWASP ZAP Full Scan
         if: steps.set-url.outputs.scan_type == 'full'
-        uses: zaproxy/action-full-scan@v0.13.0
+        uses: zaproxy/action-full-scan@3c58388149901b9a03b7718852c5ba889646c27c  # v0.13.0
         with:
           target: ${{ steps.set-url.outputs.target_url }}
           rules_file_name: '.zap/rules.tsv'
@@ -88,7 +88,7 @@ jobs:
 
       - name: Run OWASP ZAP API Scan
         if: steps.set-url.outputs.scan_type == 'api'
-        uses: zaproxy/action-api-scan@v0.10.0
+        uses: zaproxy/action-api-scan@5158fe4d9d8fcc75ea204db81317cce7f9e5453d  # v0.10.0
         with:
           target: ${{ steps.set-url.outputs.target_url }}/graphql
           format: graphql
@@ -99,7 +99,7 @@ jobs:
 
       - name: Upload ZAP Scan Results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: zap-scan-results
           if-no-files-found: ignore
@@ -128,7 +128,7 @@ jobs:
 
       - name: Comment on PR (if applicable)
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
         with:
           script: |
             const fs = require('fs');
