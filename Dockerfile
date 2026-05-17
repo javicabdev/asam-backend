@@ -1,5 +1,5 @@
 # Etapa 1: Construcción
-FROM golang:1.26.3-alpine AS builder
+FROM golang:1.26.3-alpine@sha256:91eda9776261207ea25fd06b5b7fed8d397dd2c0a283e77f2ab6e91bfa71079d AS builder
 
 # Instalar dependencias básicas y herramientas de seguridad
 RUN apk add --no-cache git ca-certificates tzdata
@@ -40,7 +40,7 @@ ARG BUILD_TIME=unknown
 RUN go build -ldflags "-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.BuildTime=${BUILD_TIME}" -o asam-backend ./cmd/api
 
 # Etapa 2: Imagen final mínima
-FROM alpine:edge
+FROM alpine:edge@sha256:9a341ff2287c54b86425cbee0141114d811ae69d88a36019087be6d896cef241
 
 # Argumentos para metadatos
 ARG VERSION=unknown
