@@ -159,7 +159,7 @@ db-shell:
 .PHONY: generate
 generate:
 	@echo "🔧 Generating GraphQL code..."
-	@$(GO) run github.com/99designs/gqlgen@v0.17.81 generate
+	@$(GO) run github.com/99designs/gqlgen@v0.17.90 generate
 	@echo "✅ Code generation complete"
 
 ## generate-mocks: Generate mocks for testing
@@ -424,7 +424,7 @@ tools:
 	@$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0
 	@$(GO) install github.com/securego/gosec/v2/cmd/gosec@latest
 	@$(GO) install github.com/air-verse/air@latest
-	@$(GO) install github.com/99designs/gqlgen@v0.17.73
+	@$(GO) install github.com/99designs/gqlgen@v0.17.90
 	@echo "✅ Tools installed"
 
 ## version: Show version information
