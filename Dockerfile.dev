@@ -30,7 +30,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Instalar gqlgen
-RUN go install github.com/99designs/gqlgen@v0.17.73
+RUN go install github.com/99designs/gqlgen@v0.17.91
 
 # Copiar código fuente
 COPY . .

@@ -24,7 +24,7 @@ COPY . .
 # Verificar si los archivos generados ya existen
 RUN if [ ! -f "internal/adapters/gql/generated/generated.go" ]; then \
         echo "=== Archivos generados no encontrados, ejecutando gqlgen ===" && \
-        go install github.com/99designs/gqlgen@v0.17.90 && \
+        go install github.com/99designs/gqlgen@v0.17.91 && \
         mkdir -p internal/adapters/gql/generated internal/adapters/gql/model && \
         gqlgen generate; \
     else \
