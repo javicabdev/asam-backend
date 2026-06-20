@@ -20,7 +20,7 @@ import (
 	"github.com/vektah/gqlparser/v2/ast"
 )
 
-// region    ************************** generated!.gotpl **************************
+// region    ***************************** api!.gotpl *****************************
 
 // NewExecutableSchema creates an ExecutableSchema from the ResolverRoot interface.
 func NewExecutableSchema(cfg Config) graphql.ExecutableSchema {
@@ -424,6 +424,10 @@ type ComplexityRoot struct {
 	}
 }
 
+// endregion ***************************** api!.gotpl *****************************
+
+// region    ************************** generated!.gotpl **************************
+
 type CashFlowResolver interface {
 	ID(ctx context.Context, obj *models.CashFlow) (string, error)
 }
@@ -547,6 +551,10 @@ type UserResolver interface {
 
 	Role(ctx context.Context, obj *models.User) (model.UserRole, error)
 }
+
+// endregion ************************** generated!.gotpl **************************
+
+// region    ************************** internal!.gotpl ***************************
 
 type executableSchema graphql.ExecutableSchemaState[ResolverRoot, DirectiveRoot, ComplexityRoot]
 
@@ -4205,7 +4213,7 @@ func (ec *executionContext) childFields___Type(ctx context.Context, field graphq
 	return nil, fmt.Errorf("no field named %q was found under type __Type", field.Name)
 }
 
-// endregion ************************** generated!.gotpl **************************
+// endregion ************************** internal!.gotpl ***************************
 
 // region    ***************************** args.gotpl *****************************
 
@@ -5200,10 +5208,6 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 }
 
 // endregion ***************************** args.gotpl *****************************
-
-// region    ************************** directives.gotpl **************************
-
-// endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
 
@@ -15800,8 +15804,14 @@ func (ec *executionContext) _CashFlow(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "member":
 			out.Values[i] = ec._CashFlow_member(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "payment":
 			out.Values[i] = ec._CashFlow_payment(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "created_at":
 			out.Values[i] = ec._CashFlow_created_at(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -16129,8 +16139,14 @@ func (ec *executionContext) _Debtor(ctx context.Context, sel ast.SelectionSet, o
 			out.Values[i] = graphql.MarshalString("Debtor")
 		case "memberId":
 			out.Values[i] = ec._Debtor_memberId(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "familyId":
 			out.Values[i] = ec._Debtor_familyId(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "type":
 			out.Values[i] = ec._Debtor_type(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -16138,8 +16154,14 @@ func (ec *executionContext) _Debtor(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "member":
 			out.Values[i] = ec._Debtor_member(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "family":
 			out.Values[i] = ec._Debtor_family(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "pendingPayments":
 			out.Values[i] = ec._Debtor_pendingPayments(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -16162,8 +16184,14 @@ func (ec *executionContext) _Debtor(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "lastPaymentDate":
 			out.Values[i] = ec._Debtor_lastPaymentDate(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "lastPaymentAmount":
 			out.Values[i] = ec._Debtor_lastPaymentAmount(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -16274,8 +16302,14 @@ func (ec *executionContext) _DebtorMemberInfo(ctx context.Context, sel ast.Selec
 			}
 		case "email":
 			out.Values[i] = ec._DebtorMemberInfo_email(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "phone":
 			out.Values[i] = ec._DebtorMemberInfo_phone(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "status":
 			out.Values[i] = ec._DebtorMemberInfo_status(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -16440,8 +16474,14 @@ func (ec *executionContext) _DocumentValidationResult(ctx context.Context, sel a
 			}
 		case "normalizedValue":
 			out.Values[i] = ec._DocumentValidationResult_normalizedValue(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "errorMessage":
 			out.Values[i] = ec._DocumentValidationResult_errorMessage(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -16524,18 +16564,27 @@ func (ec *executionContext) _Familiar(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "fecha_nacimiento":
 			out.Values[i] = ec._Familiar_fecha_nacimiento(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "dni_nie":
 			out.Values[i] = ec._Familiar_dni_nie(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "document_type":
 			field := field
 
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
 				res = ec._Familiar_document_type(ctx, field, obj)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -16561,6 +16610,9 @@ func (ec *executionContext) _Familiar(ctx context.Context, sel ast.SelectionSet,
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "correo_electronico":
 			out.Values[i] = ec._Familiar_correo_electronico(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "parentesco":
 			field := field
 
@@ -16599,6 +16651,9 @@ func (ec *executionContext) _Familiar(ctx context.Context, sel ast.SelectionSet,
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "telefonos":
 			out.Values[i] = ec._Familiar_telefonos(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -16676,6 +16731,9 @@ func (ec *executionContext) _Family(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "miembro_origen":
 			out.Values[i] = ec._Family_miembro_origen(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "esposo_nombre":
 			out.Values[i] = ec._Family_esposo_nombre(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -16688,18 +16746,27 @@ func (ec *executionContext) _Family(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "esposo_fecha_nacimiento":
 			out.Values[i] = ec._Family_esposo_fecha_nacimiento(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "esposo_documento_identidad":
 			out.Values[i] = ec._Family_esposo_documento_identidad(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "esposo_document_type":
 			field := field
 
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
 				res = ec._Family_esposo_document_type(ctx, field, obj)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -16725,6 +16792,9 @@ func (ec *executionContext) _Family(ctx context.Context, sel ast.SelectionSet, o
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "esposo_correo_electronico":
 			out.Values[i] = ec._Family_esposo_correo_electronico(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "esposa_nombre":
 			out.Values[i] = ec._Family_esposa_nombre(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -16737,18 +16807,27 @@ func (ec *executionContext) _Family(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "esposa_fecha_nacimiento":
 			out.Values[i] = ec._Family_esposa_fecha_nacimiento(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "esposa_documento_identidad":
 			out.Values[i] = ec._Family_esposa_documento_identidad(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "esposa_document_type":
 			field := field
 
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
 				res = ec._Family_esposa_document_type(ctx, field, obj)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -16774,10 +16853,19 @@ func (ec *executionContext) _Family(ctx context.Context, sel ast.SelectionSet, o
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "esposa_correo_electronico":
 			out.Values[i] = ec._Family_esposa_correo_electronico(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "familiares":
 			out.Values[i] = ec._Family_familiares(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "telefonos":
 			out.Values[i] = ec._Family_telefonos(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -17360,13 +17448,16 @@ func (ec *executionContext) _Member(ctx context.Context, sel ast.SelectionSet, o
 		case "fecha_baja":
 			field := field
 
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
 				res = ec._Member_fecha_baja(ctx, field, obj)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -17393,13 +17484,16 @@ func (ec *executionContext) _Member(ctx context.Context, sel ast.SelectionSet, o
 		case "fecha_nacimiento":
 			field := field
 
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
 				res = ec._Member_fecha_nacimiento(ctx, field, obj)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -17426,13 +17520,16 @@ func (ec *executionContext) _Member(ctx context.Context, sel ast.SelectionSet, o
 		case "documento_identidad":
 			field := field
 
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
 				res = ec._Member_documento_identidad(ctx, field, obj)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -17459,13 +17556,16 @@ func (ec *executionContext) _Member(ctx context.Context, sel ast.SelectionSet, o
 		case "document_type":
 			field := field
 
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
 				res = ec._Member_document_type(ctx, field, obj)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -17492,13 +17592,16 @@ func (ec *executionContext) _Member(ctx context.Context, sel ast.SelectionSet, o
 		case "correo_electronico":
 			field := field
 
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
 				res = ec._Member_correo_electronico(ctx, field, obj)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -17525,13 +17628,16 @@ func (ec *executionContext) _Member(ctx context.Context, sel ast.SelectionSet, o
 		case "profesion":
 			field := field
 
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
 				res = ec._Member_profesion(ctx, field, obj)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -17558,13 +17664,16 @@ func (ec *executionContext) _Member(ctx context.Context, sel ast.SelectionSet, o
 		case "nacionalidad":
 			field := field
 
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
 				res = ec._Member_nacionalidad(ctx, field, obj)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -17591,13 +17700,16 @@ func (ec *executionContext) _Member(ctx context.Context, sel ast.SelectionSet, o
 		case "observaciones":
 			field := field
 
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
 				res = ec._Member_observaciones(ctx, field, obj)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -17623,6 +17735,9 @@ func (ec *executionContext) _Member(ctx context.Context, sel ast.SelectionSet, o
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "telefonos":
 			out.Values[i] = ec._Member_telefonos(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -18174,8 +18289,14 @@ func (ec *executionContext) _MutationResponse(ctx context.Context, sel ast.Selec
 			}
 		case "message":
 			out.Values[i] = ec._MutationResponse_message(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "error":
 			out.Values[i] = ec._MutationResponse_error(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -18307,6 +18428,9 @@ func (ec *executionContext) _Payment(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "payment_date":
 			out.Values[i] = ec._Payment_payment_date(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "status":
 			out.Values[i] = ec._Payment_status(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -18319,8 +18443,14 @@ func (ec *executionContext) _Payment(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "notes":
 			out.Values[i] = ec._Payment_notes(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "membership_fee":
 			out.Values[i] = ec._Payment_membership_fee(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -18426,6 +18556,9 @@ func (ec *executionContext) _PaymentGenerationDetail(ctx context.Context, sel as
 			}
 		case "error":
 			out.Values[i] = ec._PaymentGenerationDetail_error(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -18482,6 +18615,9 @@ func (ec *executionContext) _PendingPayment(ctx context.Context, sel ast.Selecti
 			}
 		case "notes":
 			out.Values[i] = ec._PendingPayment_notes(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -18571,13 +18707,16 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		case "getUser":
 			field := field
 
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
 				res = ec._Query_getUser(ctx, field)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -18634,13 +18773,16 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		case "getMember":
 			field := field
 
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
 				res = ec._Query_getMember(ctx, field)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -18719,13 +18861,16 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		case "getFamily":
 			field := field
 
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
 				res = ec._Query_getFamily(ctx, field)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -18738,13 +18883,16 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		case "getFamilyByOriginMember":
 			field := field
 
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
 				res = ec._Query_getFamilyByOriginMember(ctx, field)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -18801,13 +18949,16 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		case "getPayment":
 			field := field
 
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
 				res = ec._Query_getPayment(ctx, field)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -18908,13 +19059,16 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		case "getMembershipFee":
 			field := field
 
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
 				res = ec._Query_getMembershipFee(ctx, field)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -18993,13 +19147,16 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		case "getCashFlow":
 			field := field
 
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
 				res = ec._Query_getCashFlow(ctx, field)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -19233,10 +19390,16 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
 			})
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "__schema":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___schema(ctx, field)
 			})
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -19293,10 +19456,19 @@ func (ec *executionContext) _RecentActivity(ctx context.Context, sel ast.Selecti
 			}
 		case "relatedMember":
 			out.Values[i] = ec._RecentActivity_relatedMember(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "relatedFamily":
 			out.Values[i] = ec._RecentActivity_relatedFamily(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "amount":
 			out.Values[i] = ec._RecentActivity_amount(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -19632,6 +19804,9 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "member":
 			out.Values[i] = ec._User_member(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "isActive":
 			out.Values[i] = ec._User_isActive(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -19639,6 +19814,9 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			}
 		case "lastLogin":
 			out.Values[i] = ec._User_lastLogin(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "emailVerified":
 			out.Values[i] = ec._User_emailVerified(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -19646,6 +19824,9 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			}
 		case "emailVerifiedAt":
 			out.Values[i] = ec._User_emailVerifiedAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -19731,6 +19912,9 @@ func (ec *executionContext) ___Directive(ctx context.Context, sel ast.SelectionS
 			}
 		case "description":
 			out.Values[i] = ec.___Directive_description(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "isRepeatable":
 			out.Values[i] = ec.___Directive_isRepeatable(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -19787,6 +19971,9 @@ func (ec *executionContext) ___EnumValue(ctx context.Context, sel ast.SelectionS
 			}
 		case "description":
 			out.Values[i] = ec.___EnumValue_description(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "isDeprecated":
 			out.Values[i] = ec.___EnumValue_isDeprecated(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -19794,6 +19981,9 @@ func (ec *executionContext) ___EnumValue(ctx context.Context, sel ast.SelectionS
 			}
 		case "deprecationReason":
 			out.Values[i] = ec.___EnumValue_deprecationReason(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -19835,6 +20025,9 @@ func (ec *executionContext) ___Field(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "description":
 			out.Values[i] = ec.___Field_description(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "args":
 			out.Values[i] = ec.___Field_args(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -19852,6 +20045,9 @@ func (ec *executionContext) ___Field(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "deprecationReason":
 			out.Values[i] = ec.___Field_deprecationReason(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -19893,6 +20089,9 @@ func (ec *executionContext) ___InputValue(ctx context.Context, sel ast.Selection
 			}
 		case "description":
 			out.Values[i] = ec.___InputValue_description(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "type":
 			out.Values[i] = ec.___InputValue_type(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -19900,6 +20099,9 @@ func (ec *executionContext) ___InputValue(ctx context.Context, sel ast.Selection
 			}
 		case "defaultValue":
 			out.Values[i] = ec.___InputValue_defaultValue(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "isDeprecated":
 			out.Values[i] = ec.___InputValue_isDeprecated(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -19907,6 +20109,9 @@ func (ec *executionContext) ___InputValue(ctx context.Context, sel ast.Selection
 			}
 		case "deprecationReason":
 			out.Values[i] = ec.___InputValue_deprecationReason(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -19943,6 +20148,9 @@ func (ec *executionContext) ___Schema(ctx context.Context, sel ast.SelectionSet,
 			out.Values[i] = graphql.MarshalString("__Schema")
 		case "description":
 			out.Values[i] = ec.___Schema_description(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "types":
 			out.Values[i] = ec.___Schema_types(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -19955,8 +20163,14 @@ func (ec *executionContext) ___Schema(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "mutationType":
 			out.Values[i] = ec.___Schema_mutationType(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "subscriptionType":
 			out.Values[i] = ec.___Schema_subscriptionType(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "directives":
 			out.Values[i] = ec.___Schema_directives(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -20003,24 +20217,54 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "name":
 			out.Values[i] = ec.___Type_name(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "description":
 			out.Values[i] = ec.___Type_description(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "specifiedByURL":
 			out.Values[i] = ec.___Type_specifiedByURL(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "fields":
 			out.Values[i] = ec.___Type_fields(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "interfaces":
 			out.Values[i] = ec.___Type_interfaces(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "possibleTypes":
 			out.Values[i] = ec.___Type_possibleTypes(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "enumValues":
 			out.Values[i] = ec.___Type_enumValues(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "inputFields":
 			out.Values[i] = ec.___Type_inputFields(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "ofType":
 			out.Values[i] = ec.___Type_ofType(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "isOneOf":
 			out.Values[i] = ec.___Type_isOneOf(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
