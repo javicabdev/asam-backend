@@ -1,45 +1,30 @@
 # Dependabot Operations Runbook
 
-Last updated: 2026-05-24
+Last updated: 2026-06-20
 
 This runbook covers the recurring operational patterns when handling Dependabot
 PRs in this repository. The triage history lives alongside this file (e.g.
 `triage-2026-05-24.md`).
 
-## Known issue: Docker base image SHA pin regression
+## Docker base image bumps (digests maintained by Dependabot)
 
-### Symptom
-When Dependabot bumps the Go Docker base image (e.g. `golang:1.26.2 → 1.26.3`),
-the generated PR replaces our existing digest pin
-
-```dockerfile
-FROM golang:1.26.2-alpine@sha256:<old-digest> AS builder
-```
-
-with a bare version tag:
+### Current behaviour — verified PR #114 (2026-06)
+Dependabot's `docker` ecosystem updates **both the version tag and the `@sha256` digest**, preserving the pin:
 
 ```dockerfile
-FROM golang:1.26.3-alpine
+- FROM golang:1.26.3-alpine@sha256:<old> AS builder
++ FROM golang:1.26.4-alpine@sha256:<new> AS builder
 ```
 
-Merging that PR as-is regresses the repo's OpenSSF Scorecard
-`Pinned-Dependencies` score from `10/10`. This is a known Dependabot behaviour
-(it does not yet resolve registry digests when generating Docker PRs).
+There is **no `Pinned-Dependencies` regression and no re-pin commit is needed**. Handle Docker PRs like `gomod`/`github-actions`: confirm the diff touches only the `FROM` line(s), then merge.
 
-### Why we accept the regression window
-- Go base image bumps are roughly monthly.
-- The exposure window is the time between merging Dependabot's PR and pushing
-  the digest-restoring commit — minutes if handled promptly.
-- Building a custom workflow that resolves digests before opening the PR is
-  over-engineering for the current bump frequency (YAGNI).
+### Two things to know (and not "fix")
+- **The pinned digest may lag the registry by a few days.** Docker Official Images use mutable tags rebuilt for base-OS patches, so by merge time the tag may point to a newer digest than the PR pins. This is expected — the PR's digest is the one CI validated. Do **not** manually refresh it; Dependabot opens a follow-up digest bump when the tag is rebuilt.
+- **The `golang` image is the discarded builder stage.** The deployed image is the final `alpine:*` stage (multi-stage build copies only the static binary), so the builder's base-OS freshness never reaches production. Runtime base patches are governed by the final stage, not by `golang` bumps. What matters from a `golang` bump is the Go toolchain version.
 
-If the bump frequency or compliance pressure ever changes, revisit and
-consider replacing Dependabot's `docker` ecosystem with a scheduled custom
-workflow.
+## Fallback: re-pin only if a digest is ever stripped
 
-## Procedure: re-pin after a Docker base image bump
-
-Execute immediately after merging a Dependabot Docker PR.
+Current Dependabot maintains digests (see above), so this is **not** the normal path. It applies only if a future Docker PR ever lands a bare `FROM golang:<v>` with no `@sha256` — the behaviour observed historically at the 1.26.2 → 1.26.3 bump, before the FROM lines carried digests. Steps 1–7 below are the fallback.
 
 ### 1. Sync local main
 
@@ -116,6 +101,7 @@ runbook:
 - `gomod` — Dependabot edits `go.mod`/`go.sum` cleanly; standard PR review.
 - `github-actions` — Dependabot preserves `uses: foo/bar@<sha> # v<version>`
   pins correctly. Verified in PR #102 (2026-05-24 triage).
+- `docker` — Dependabot updates the version tag and `@sha256` digest together, preserving the pin. Verified in PR #114 (2026-06).
 
 ## Related documents
 
