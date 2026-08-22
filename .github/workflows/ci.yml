@@ -100,18 +100,50 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Run gosec security scanner
-        uses: securego/gosec@9e75c0576c9878035d4221392108d458abe10fc3  # v2.28.0
-        with:
-          args: '-no-fail -fmt json -out gosec-results.json ./...'
+      - name: Install gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@v2.28.0
 
-      - name: Display gosec results
+      - name: Run gosec security scanner (full scan, non-blocking)
+        run: |
+          # Run gosec on the runner with the Go ${{ env.GO_VERSION }} toolchain from
+          # setup-go — NOT the securego/gosec Docker action. That image ships an older
+          # Go, and with GOTOOLCHAIN=local it cannot load a `go 1.26.7` module, so it
+          # silently type-checks nothing and reports 0 issues. Running it here makes the
+          # scan real. -no-fail keeps the SCAN non-blocking; the gate step below is what
+          # fails the job, so the full report is always produced.
+          gosec -no-fail -fmt json -out gosec-results.json ./...
+
+      - name: Display full gosec report
         if: always()
         run: |
           if [ -f gosec-results.json ]; then
-            echo "Security scan completed. Results:"
-            cat gosec-results.json | jq -r '.Issues[] | "[\(.severity)] \(.file):\(.line) - \(.details)"' || cat gosec-results.json
+            echo "== Full gosec report (informational — the gate only fails on HIGH severity + HIGH confidence) =="
+            jq -r '.Issues[] | "[\(.severity)/\(.confidence)] \(.rule_id) \(.file):\(.line) - \(.details)"' gosec-results.json || cat gosec-results.json
+            echo "== Totals by severity =="
+            jq -r '[.Issues[].severity] | group_by(.) | map("\(.[0])=\(length)") | join("  ")' gosec-results.json
           fi
+
+      - name: Security gate — fail on HIGH severity + HIGH confidence findings
+        run: |
+          COUNT=$(jq '[.Issues[] | select(.severity=="HIGH" and .confidence=="HIGH")] | length' gosec-results.json)
+          echo "gosec HIGH severity + HIGH confidence findings: $COUNT"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error::gosec found $COUNT HIGH severity + HIGH confidence issue(s) — failing the build."
+            jq -r '.Issues[] | select(.severity=="HIGH" and .confidence=="HIGH") | "[\(.severity)/\(.confidence)] \(.rule_id) \(.file):\(.line) - \(.details)"' gosec-results.json
+            exit 1
+          fi
+          echo "No HIGH+HIGH findings — gate passes. The broader gosec backlog is tracked for triage."
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Run govulncheck (fails only on REACHABLE vulnerabilities)
+        run: |
+          # Default source mode: govulncheck exits non-zero (3) only when a vulnerable
+          # symbol is actually reachable from our call graph, and exits 0 when the vuln
+          # is merely present in the dependency tree but never called. No flags needed —
+          # e.g. GO-2026-5932 (x/crypto/openpgp, unmaintained, not imported) stays green.
+          govulncheck ./...
 
   test:
     name: Run Tests
@@ -191,3 +223,31 @@ jobs:
           JWT_REFRESH_SECRET: "test-refresh-secret-for-ci"
           ENVIRONMENT: "test"
           CI: "true"
+
+  # Builds the production image on every PR so a broken Dockerfile (or a bad base
+  # image swap) is caught before merge, not when a release tag is cut. Build only,
+  # no push. Buildx + GitHub Actions cache keep repeat builds cheap.
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e  # v4.3.0
+
+      - name: Build image (no push)
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a  # v7.3.0
+        with:
+          context: .
+          push: false
+          tags: asam-backend:ci-${{ github.sha }}
+          # Read cache on every event; only WRITE it on push to main. Dependabot / fork
+          # PRs run with a read-only GITHUB_TOKEN and cannot write the GHA cache — a
+          # cache-to there 403s and can fail the build. Writing only on push keeps those
+          # PRs (e.g. the pending base-image bump #137) green while still warming the
+          # cache from main for every later PR to read.
+          cache-from: type=gha
+          cache-to: ${{ github.event_name == 'push' && 'type=gha,mode=max' || '' }}
