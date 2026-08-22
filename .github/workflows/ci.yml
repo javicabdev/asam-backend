@@ -100,13 +100,18 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
+      - name: Install gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@v2.28.0
+
       - name: Run gosec security scanner (full scan, non-blocking)
-        uses: securego/gosec@9e75c0576c9878035d4221392108d458abe10fc3  # v2.28.0
-        with:
-          # -no-fail keeps the SCAN itself non-blocking so the full report is always
-          # produced. The job is gated by the dedicated step below, not by gosec's
-          # own exit code — this way we fail on real issues without hiding the rest.
-          args: '-no-fail -fmt json -out gosec-results.json ./...'
+        run: |
+          # Run gosec on the runner with the Go ${{ env.GO_VERSION }} toolchain from
+          # setup-go — NOT the securego/gosec Docker action. That image ships an older
+          # Go, and with GOTOOLCHAIN=local it cannot load a `go 1.26.7` module, so it
+          # silently type-checks nothing and reports 0 issues. Running it here makes the
+          # scan real. -no-fail keeps the SCAN non-blocking; the gate step below is what
+          # fails the job, so the full report is always produced.
+          gosec -no-fail -fmt json -out gosec-results.json ./...
 
       - name: Display full gosec report
         if: always()
@@ -239,5 +244,10 @@ jobs:
           context: .
           push: false
           tags: asam-backend:ci-${{ github.sha }}
+          # Read cache on every event; only WRITE it on push to main. Dependabot / fork
+          # PRs run with a read-only GITHUB_TOKEN and cannot write the GHA cache — a
+          # cache-to there 403s and can fail the build. Writing only on push keeps those
+          # PRs (e.g. the pending base-image bump #137) green while still warming the
+          # cache from main for every later PR to read.
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: ${{ github.event_name == 'push' && 'type=gha,mode=max' || '' }}
