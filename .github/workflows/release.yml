@@ -35,7 +35,7 @@ jobs:
         run: go mod download
 
       - name: Install gqlgen
-        run: go install github.com/99designs/gqlgen@v0.17.73
+        run: go install github.com/99designs/gqlgen@v0.17.93
 
       - name: Generate GraphQL code
         run: |

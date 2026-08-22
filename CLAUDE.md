@@ -18,9 +18,17 @@ wastes a review if you don't know it.
 - **In the Dockerfile the digest wins over the tag.** Changing only the tag
   leaves the build silently using the old image. Update both, and resolve the
   digest from the multi-arch index (not a single platform).
-- **`gqlgen` is pinned in TWO places:** `go.mod` and the
-  `go install github.com/99designs/gqlgen@vX` in the `Dockerfile`. If they drift,
-  code gets generated with one version and compiled with another.
+- **`gqlgen` is pinned in FIVE places and they must all match:** `go.mod` (the
+  runtime library), `Dockerfile` and `Dockerfile.dev` (`go install …@vX`), and the
+  `go run/install …@vX generate` steps in `.github/workflows/ci.yml` **and**
+  `.github/workflows/release.yml`. **Tool version and runtime version must be the
+  same** — if they drift, the committed `generated.go` does NOT compile against the
+  other version. It's not a warning, it's a build break, e.g.
+  `unknown field Label in struct literal of type graphql.DeferredGroup`. (ci.yml /
+  release.yml were stuck at 0.17.73 while the runtime moved to 0.17.91–0.17.93 —
+  twenty versions behind; the repo compiling was luck, not design. Fixed in the
+  0.17.93 sync PR.) When bumping gqlgen: change all five, then `gqlgen generate`
+  and commit the regenerated code.
 - **`lib/pq` is a direct require that nobody imports,** so every `go mod tidy`
   wants to relocate it (direct <-> indirect). Revert that noise until PR #122
   lands.

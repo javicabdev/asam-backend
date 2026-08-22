@@ -46,7 +46,7 @@ jobs:
           go mod verify
 
       - name: Generate GraphQL code
-        run: go run github.com/99designs/gqlgen@v0.17.73 generate
+        run: go run github.com/99designs/gqlgen@v0.17.93 generate
 
       - name: Upload workspace artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
