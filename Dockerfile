@@ -1,5 +1,8 @@
 # Etapa 1: Construcción
-FROM golang:1.26.4-alpine@sha256:f23e8b227fb4493eabe03bede4d5a32d04092da71962f1fb79b5f7d1e6c2a17f AS builder
+FROM golang:1.26.7-alpine@sha256:28d89ee9cc0ff9fec75c82ca201e6bf7fdf9a679d4b7b24dfa04f2bb766bb468 AS builder
+
+# Dejar constancia en el log del compilador con el que se construye la imagen
+RUN go version
 
 # Instalar dependencias básicas y herramientas de seguridad
 RUN apk add --no-cache git ca-certificates tzdata
