@@ -27,10 +27,24 @@ wastes a review if you don't know it.
 
 ## CI caveats
 
-- **The "Security Scan (SAST)" job runs gosec with `-no-fail`: it CANNOT fail.**
-  Its green tick is not evidence of anything when reviewing a PR.
-- **`govulncheck` is not in CI.** Run it by hand before treating a Dependabot
-  alert as urgent — it distinguishes "outdated" from "actually affects us"
-  (reachability).
-- **The Docker image is not built on PRs** (only `release.yml` on tag push and
-  the manual deploy). A green CI does NOT mean the Dockerfile works.
+_(#142 / PR #144 fixed all three original holes. History kept on purpose — if a
+symptom reappears, you'll recognise it.)_
+
+- **gosec runs for real now — but know the failure mode.** The "Security Scan
+  (SAST)" job runs gosec **on the runner** (Go from setup-go) and gates on findings
+  that are HIGH severity **and** HIGH confidence. The full report (all severities)
+  is still printed; only HIGH+HIGH fails the build. The current backlog (~58
+  findings, mostly `test/seed` + `cmdtemp` + false positives) is tracked in issue
+  #145. **Broken before #144:** it used the `securego/gosec` **Docker action**,
+  whose image ships an older Go — with `GOTOOLCHAIN=local` it couldn't load a
+  `go 1.26.x` module and silently scanned **0 files**, and `-no-fail` hid that its
+  green tick meant nothing. If gosec ever reports 0 findings again, suspect the
+  toolchain/loader, not clean code.
+- **`govulncheck` runs in CI** (added in #142), no flags. Its default source mode
+  fails (exit 3) only on **reachable** vulnerabilities and passes (exit 0) on vulns
+  merely present but not called (e.g. GO-2026-5932, `x/crypto/openpgp`). A red
+  govulncheck means our call graph is actually affected — worth acting on.
+- **The Docker image IS built on every PR now** (job added in #142): build only,
+  no push, Buildx + GHA cache. `cache-to` is scoped to `push` events so Dependabot
+  / fork PRs (read-only token) don't 403 on cache export — they only read the cache
+  warmed from `main`. A green CI now does exercise the Dockerfile.
