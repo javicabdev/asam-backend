@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres" // PostgreSQL driver
+	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5" // PostgreSQL driver (pgx/v5)
 	_ "github.com/golang-migrate/migrate/v4/source/file"       // File source driver
 	"github.com/joho/godotenv"
 
@@ -150,7 +150,7 @@ func executeMigrationsCI(cmd string, args []string) error {
 	log.Printf("CI Database configuration: Host=%s, Port=%s, User=%s, DB=%s, SSLMode=%s",
 		dbHost, dbPort, dbUser, dbName, sslMode)
 
-	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
+	dbURL := fmt.Sprintf("pgx5://%s:%s@%s:%s/%s?sslmode=%s",
 		dbUser, dbPass, dbHost, dbPort, dbName, sslMode)
 
 	return runMigrations(dbURL, cmd, args, "CI Environment")
@@ -183,7 +183,7 @@ func executeMigrationsForEnv(envFile string, cmd string, args []string) error {
 	log.Printf("Database configuration from %s: Host=%s, Port=%s, User=%s, DB=%s, SSLMode=%s",
 		envFile, dbHost, dbPort, dbUser, dbName, sslMode)
 
-	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
+	dbURL := fmt.Sprintf("pgx5://%s:%s@%s:%s/%s?sslmode=%s",
 		dbUser, dbPass, dbHost, dbPort, dbName, sslMode)
 
 	return runMigrations(dbURL, cmd, args, envFile)
