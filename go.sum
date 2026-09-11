@@ -141,8 +141,8 @@ github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
 github.com/lib/pq v1.10.9 h1:YXG7RB+JIjhP29X+OtkiDnYaXQwpS4JEWq7dtCCRUEw=
 github.com/lib/pq v1.10.9/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
-github.com/mailersend/mailersend-go v1.6.4 h1:llNGfQR2HKv7hlLC6ofDsyq8zp4oN6RGV3GwOvKp6RY=
-github.com/mailersend/mailersend-go v1.6.4/go.mod h1:C5mkFogEC1DoA0EX1ror5oNlLCUU7W7+0arYlc5lkVI=
+github.com/mailersend/mailersend-go v1.6.6 h1:/RGyFE4a5diB+jOx3yIXIVgmrmcF00zeIZfXl3HdU4Q=
+github.com/mailersend/mailersend-go v1.6.6/go.mod h1:C5mkFogEC1DoA0EX1ror5oNlLCUU7W7+0arYlc5lkVI=
 github.com/mattn/go-sqlite3 v1.14.22 h1:2gZY6PC6kBnID23Tichd1K+Z0oS6nE/XwU+Vz/5o4kU=
 github.com/mattn/go-sqlite3 v1.14.22/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxUwlHK0RXw+Y=
 github.com/moby/docker-image-spec v1.3.1 h1:jMKff3w6PgbfSa69GfNg+zN/XLhfXJGnEx3Nl2EsFP0=
