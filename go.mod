@@ -12,7 +12,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/mailersend/mailersend-go v1.6.6
 	github.com/prometheus/client_golang v1.24.1
-	github.com/sethvargo/go-envconfig v1.3.0
+	github.com/sethvargo/go-envconfig v1.4.3
 	github.com/stretchr/testify v1.12.1
 	github.com/vektah/gqlparser/v2 v2.5.37
 	go.uber.org/zap v1.28.0
