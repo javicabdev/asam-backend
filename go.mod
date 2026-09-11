@@ -10,7 +10,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/joho/godotenv v1.5.1
-	github.com/mailersend/mailersend-go v1.6.6
+	github.com/mailersend/mailersend-go v1.7.0
 	github.com/prometheus/client_golang v1.24.1
 	github.com/sethvargo/go-envconfig v1.3.0
 	github.com/stretchr/testify v1.12.1
