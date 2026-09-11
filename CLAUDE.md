@@ -9,12 +9,17 @@ wastes a review if you don't know it.
 - **`gorm.io/gorm` is pinned to 1.31.0.** 1.31.1 breaks Preload
   (go-gorm/gorm#7686). It is deliberately ignored in `.github/dependabot.yml`.
   Do not bump it.
-- **Floor for `google.golang.org/grpc`: >= 1.82.1** (GHSA-hrxh-6v49-42gf). Any
+- **Floor for `google.golang.org/grpc`: >= 1.83.2** (GHSA-vp52-pcj8-j9qc,
+  GHSA-2v4p-qf9q-27wj; previous floor 1.82.1 for GHSA-hrxh-6v49-42gf). Any
   PR that lowers it is a security regression, not a bump.
 - **The Go version lives in 5 production locations and they move TOGETHER:**
   `go.mod`, `.github/workflows/ci.yml` (`GO_VERSION`), `Dockerfile` (tag AND
   digest), `.github/workflows/release.yml`, `.github/workflows/cloud-run-deploy.yml`.
   Non-production (kept separate): `Dockerfile.dev`, `.github/workflows/examples/`.
+  Dependabot **ignores the `golang` Docker image on purpose** (see
+  `.github/dependabot.yml`): it can only bump the Dockerfiles, which silently
+  desyncs the other locations. A Go bump is a manual PR touching all 5 locations
+  (in the Dockerfile: the tag AND the multi-arch digest).
 - **In the Dockerfile the digest wins over the tag.** Changing only the tag
   leaves the build silently using the old image. Update both, and resolve the
   digest from the multi-arch index (not a single platform).
