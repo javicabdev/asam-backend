@@ -3,7 +3,7 @@ module github.com/javicabdev/asam-backend
 go 1.26.7
 
 require (
-	cloud.google.com/go/storage v1.65.0
+	cloud.google.com/go/storage v1.67.1
 	github.com/99designs/gqlgen v0.17.93
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/golang-migrate/migrate/v4 v4.19.1
