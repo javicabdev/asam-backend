@@ -15,7 +15,7 @@ import (
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5" // PostgreSQL driver (pgx/v5)
-	_ "github.com/golang-migrate/migrate/v4/source/file"       // File source driver
+	_ "github.com/golang-migrate/migrate/v4/source/file"     // File source driver
 	"github.com/joho/godotenv"
 
 	"github.com/javicabdev/asam-backend/pkg/constants"
