@@ -15,10 +15,15 @@ updates:
           - "minor"
           - "patch"
     ignore:
-      # Preload broken in gorm 1.31.1 — see go-gorm/gorm#7686
-      # Remove this ignore once upstream fixes it.
+      # gorm is pinned to 1.31.0: Preload broke in 1.31.1 (go-gorm/gorm#7686)
+      # and no later version has been verified yet. Relax this only after
+      # checking Preload on the candidate version.
       - dependency-name: "gorm.io/gorm"
-        versions: ["1.31.1"]
+        versions: [">1.31.0"]
+      # gorm.io/driver/postgres >= 1.6.2 requires gorm >= 1.31.2, so it would
+      # drag the pin forward. Drop together with the gorm ignore above.
+      - dependency-name: "gorm.io/driver/postgres"
+        versions: [">=1.6.2"]
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
