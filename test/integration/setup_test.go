@@ -72,7 +72,7 @@ func setupTestDB(t *testing.T) (*gorm.DB, func()) {
 		tables := []string{
 			"cash_flows",
 			"payments",
-			"familiares",
+			"familiars",
 			"families",
 			"members",
 			"membership_fees",
@@ -156,6 +156,6 @@ func isTableNotExistError(err error) bool {
 		return false
 	}
 	// PostgreSQL error code 42P01 = undefined_table
-	return err.Error() == "ERROR: relation \"familiares\" does not exist (SQLSTATE 42P01)" ||
+	return err.Error() == "ERROR: relation \"familiars\" does not exist (SQLSTATE 42P01)" ||
 		err.Error() == "ERROR: relation \"families\" does not exist (SQLSTATE 42P01)"
 }
