@@ -63,7 +63,7 @@ graph LR
 
 ## Configuración de Secretos
 
-Los siguientes secretos deben estar configurados en GitHub:
+En GitHub solo están los de GCP (y los del keep-alive de Aiven). Los de la aplicación viven en Google Secret Manager. Detalle completo en [docs/github-secrets-setup.md](../../docs/github-secrets-setup.md).
 
 ### Google Cloud Platform
 - `GCP_PROJECT_ID`: ID del proyecto de GCP
@@ -82,9 +82,8 @@ Los siguientes secretos deben estar configurados en GitHub:
 - `admin-user`: Usuario administrador
 - `admin-password`: Contraseña del administrador
 
-### Email (opcional, en Google Secret Manager)
-- `smtp-user`: Usuario SMTP
-- `smtp-password`: Contraseña SMTP
+### Email (en Google Secret Manager)
+- `mailersend-api-key`: API key de MailerSend
 
 ## Uso
 
