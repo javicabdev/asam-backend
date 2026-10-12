@@ -43,7 +43,10 @@ ARG BUILD_TIME=unknown
 RUN go build -ldflags "-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.BuildTime=${BUILD_TIME}" -o asam-backend ./cmd/api
 
 # Etapa 2: Imagen final mínima
-FROM alpine:edge@sha256:020dfcbaaf4cc1078bf2d9c7ba31a8466e334061dcd2f248001d68f79e52c000
+# Stable Alpine, not edge (the development branch): 3.24 ships postgresql17-client
+# (17.11), which pg_dump needs to back up the PostgreSQL 17 server. If a future
+# Alpine drops postgresql17, the CI Docker Build fails on the apk add below.
+FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
 
 # Argumentos para metadatos
 ARG VERSION=unknown
