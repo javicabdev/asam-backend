@@ -5,6 +5,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
+// labelStatus is the "status" label shared by several metric vectors.
+const labelStatus = "status"
+
 var (
 	// HTTPRequestsTotal Métrica para total de requests HTTP
 	HTTPRequestsTotal = promauto.NewCounterVec(
@@ -12,7 +15,7 @@ var (
 			Name: "asam_http_requests_total",
 			Help: "Total number of HTTP requests",
 		},
-		[]string{"method", "path", "status"},
+		[]string{"method", "path", labelStatus},
 	)
 
 	// HTTPRequestDuration Métrica para duración de requests HTTP
@@ -31,7 +34,7 @@ var (
 			Name: "asam_db_operations_total",
 			Help: "Total number of database operations",
 		},
-		[]string{"operation", "table", "status"},
+		[]string{"operation", "table", labelStatus},
 	)
 
 	// DBOperationDuration Métrica para duración de operaciones de BD

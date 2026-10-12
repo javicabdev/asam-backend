@@ -11,6 +11,13 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/errors"
 )
 
+// Field names used as keys in validation error details and in update maps.
+const (
+	fieldUsername = "username"
+	fieldMemberID = "memberID"
+	fieldPassword = "password" // #nosec G101 -- field name, not a credential
+)
+
 // validateCreateUserInput validates all inputs for user creation
 func (s *userService) validateCreateUserInput(ctx context.Context, username, password string, role models.Role, memberID *uint) error {
 	// Validate username
@@ -45,7 +52,7 @@ func (s *userService) checkUsernameAvailabilityForNew(ctx context.Context, usern
 	if existingUser != nil {
 		return errors.NewValidationError(
 			"Username already exists",
-			map[string]string{"username": "This username is already taken"},
+			map[string]string{fieldUsername: "This username is already taken"},
 		)
 	}
 	return nil
@@ -57,7 +64,7 @@ func (s *userService) validateMemberAssociationForRole(ctx context.Context, role
 		if memberID == nil {
 			return errors.NewValidationError(
 				"Usuario con rol USER requiere un socio asociado",
-				map[string]string{"memberID": "Campo requerido para usuarios no administradores"},
+				map[string]string{fieldMemberID: "Campo requerido para usuarios no administradores"},
 			)
 		}
 
@@ -69,7 +76,7 @@ func (s *userService) validateMemberAssociationForRole(ctx context.Context, role
 		if member == nil {
 			return errors.NewValidationError(
 				"Socio no encontrado",
-				map[string]string{"memberID": "El socio especificado no existe"},
+				map[string]string{fieldMemberID: "El socio especificado no existe"},
 			)
 		}
 
@@ -81,13 +88,13 @@ func (s *userService) validateMemberAssociationForRole(ctx context.Context, role
 		if existingUser != nil {
 			return errors.NewValidationError(
 				"El socio ya tiene un usuario asociado",
-				map[string]string{"memberID": "Cada socio solo puede tener un usuario"},
+				map[string]string{fieldMemberID: "Cada socio solo puede tener un usuario"},
 			)
 		}
 	} else if role == models.RoleAdmin && memberID != nil {
 		return errors.NewValidationError(
 			"Usuario administrador no puede tener socio asociado",
-			map[string]string{"memberID": "Los administradores no deben estar asociados a un socio"},
+			map[string]string{fieldMemberID: "Los administradores no deben estar asociados a un socio"},
 		)
 	}
 
@@ -141,7 +148,7 @@ func (s *userService) createUserWithValidatedData(ctx context.Context, username,
 // determineFinalRoleAndMember determines the final role and memberID values
 func (s *userService) determineFinalRoleAndMember(user *models.User, updates map[string]any) (finalRole models.Role, finalMemberID *uint, hasRole bool, hasMemberID bool) {
 	newRole, hasRole := updates["role"].(models.Role)
-	newMemberID, hasMemberID := updates["memberID"].(*uint)
+	newMemberID, hasMemberID := updates[fieldMemberID].(*uint)
 
 	// Determine the final role
 	finalRole = user.Role
@@ -164,7 +171,7 @@ func (s *userService) validateRoleMemberCombination(ctx context.Context, user *m
 		if finalMemberID == nil {
 			return errors.NewValidationError(
 				"Usuario con rol USER requiere un socio asociado",
-				map[string]string{"memberID": "Campo requerido para usuarios no administradores"},
+				map[string]string{fieldMemberID: "Campo requerido para usuarios no administradores"},
 			)
 		}
 
@@ -176,7 +183,7 @@ func (s *userService) validateRoleMemberCombination(ctx context.Context, user *m
 		if member == nil {
 			return errors.NewValidationError(
 				"Socio no encontrado",
-				map[string]string{"memberID": "El socio especificado no existe"},
+				map[string]string{fieldMemberID: "El socio especificado no existe"},
 			)
 		}
 
@@ -189,14 +196,14 @@ func (s *userService) validateRoleMemberCombination(ctx context.Context, user *m
 			if existingUser != nil && existingUser.ID != user.ID {
 				return errors.NewValidationError(
 					"El socio ya tiene un usuario asociado",
-					map[string]string{"memberID": "Cada socio solo puede tener un usuario"},
+					map[string]string{fieldMemberID: "Cada socio solo puede tener un usuario"},
 				)
 			}
 		}
 	} else if finalRole == models.RoleAdmin && finalMemberID != nil {
 		return errors.NewValidationError(
 			"Usuario administrador no puede tener socio asociado",
-			map[string]string{"memberID": "Los administradores no deben estar asociados a un socio"},
+			map[string]string{fieldMemberID: "Los administradores no deben estar asociados a un socio"},
 		)
 	}
 

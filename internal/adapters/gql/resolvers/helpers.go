@@ -10,15 +10,21 @@ import (
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 )
 
+// API field names, shared by sort keys and validation error details.
+const (
+	fieldAmount = "amount"
+	fieldStatus = "status"
+)
+
 // paymentSortFieldMap mapea los nombres de campo del frontend a las columnas de BD
 var paymentSortFieldMap = map[string]string{
 	"memberNumber":      "Member__membership_number", // Preload alias
 	"memberName":        "Member__name",              // Ordenar por nombre
-	"amount":            "payments.amount",
+	fieldAmount:         "payments.amount",
 	"membershipFeeYear": "MembershipFee__year", // Preload alias
 	"paymentDate":       "payments.payment_date",
 	"paymentMethod":     "payments.payment_method",
-	"status":            "payments.status",
+	fieldStatus:         "payments.status",
 }
 
 // parseID convierte un ID de string a uint

@@ -37,7 +37,7 @@ func (m *AuthorizationMiddleware) RequireRole(ctx context.Context, _ interface{}
 		return nil, &gqlerror.Error{
 			Message: "Not authenticated",
 			Extensions: map[string]interface{}{
-				"code": errors.ErrUnauthorized,
+				extensionKeyCode: errors.ErrUnauthorized,
 			},
 		}
 	}
@@ -61,7 +61,7 @@ func (m *AuthorizationMiddleware) RequireRole(ctx context.Context, _ interface{}
 		return nil, &gqlerror.Error{
 			Message: "Insufficient permissions",
 			Extensions: map[string]interface{}{
-				"code": errors.ErrForbidden,
+				extensionKeyCode: errors.ErrForbidden,
 			},
 		}
 	}
@@ -89,7 +89,7 @@ func (m *AuthorizationMiddleware) RequireAuthenticated(ctx context.Context, _ in
 		return nil, &gqlerror.Error{
 			Message: "Not authenticated",
 			Extensions: map[string]interface{}{
-				"code": errors.ErrUnauthorized,
+				extensionKeyCode: errors.ErrUnauthorized,
 			},
 		}
 	}

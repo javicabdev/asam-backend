@@ -153,8 +153,8 @@ func (a *smtpAdapter) SendVerificationEmail(ctx context.Context, user *models.Us
 
 	var buf bytes.Buffer
 	err := tmpl.Execute(&buf, map[string]string{
-		"Username":        user.Username,
-		"VerificationURL": verificationURL,
+		templateKeyUsername: user.Username,
+		"VerificationURL":   verificationURL,
 	})
 	if err != nil {
 		return errors.Wrap(err, errors.ErrInternalError, "failed to generate email template")
@@ -238,8 +238,8 @@ func (a *smtpAdapter) SendPasswordResetEmail(ctx context.Context, user *models.U
 
 	var buf bytes.Buffer
 	err := tmpl.Execute(&buf, map[string]string{
-		"Username": user.Username,
-		"ResetURL": resetURL,
+		templateKeyUsername: user.Username,
+		"ResetURL":          resetURL,
 	})
 	if err != nil {
 		a.logger.Error("Failed to generate email template", zap.Error(err))
@@ -298,7 +298,7 @@ func (a *smtpAdapter) SendWelcomeEmail(ctx context.Context, user *models.User) e
 
 	var buf bytes.Buffer
 	err := tmpl.Execute(&buf, map[string]string{
-		"Username": user.Username,
+		templateKeyUsername: user.Username,
 	})
 	if err != nil {
 		return errors.Wrap(err, errors.ErrInternalError, "failed to generate email template")
@@ -358,7 +358,7 @@ func (a *smtpAdapter) SendPasswordChangedEmail(ctx context.Context, user *models
 
 	var buf bytes.Buffer
 	err := tmpl.Execute(&buf, map[string]string{
-		"Username": user.Username,
+		templateKeyUsername: user.Username,
 	})
 	if err != nil {
 		return errors.Wrap(err, errors.ErrInternalError, "failed to generate email template")

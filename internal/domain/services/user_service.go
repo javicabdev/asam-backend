@@ -125,7 +125,7 @@ func (s *userService) applyUserUpdates(ctx context.Context, user *models.User, u
 
 // updateUsername handles username update logic
 func (s *userService) updateUsername(ctx context.Context, user *models.User, updates map[string]interface{}) error {
-	username, ok := updates["username"].(string)
+	username, ok := updates[fieldUsername].(string)
 	if !ok || username == "" {
 		return nil
 	}
@@ -213,7 +213,7 @@ func (s *userService) checkUsernameAvailability(ctx context.Context, username st
 	if existingUser != nil && existingUser.ID != userID {
 		return errors.NewValidationError(
 			"Username already exists",
-			map[string]string{"username": "This username is already taken"},
+			map[string]string{fieldUsername: "This username is already taken"},
 		)
 	}
 	return nil
@@ -221,7 +221,7 @@ func (s *userService) checkUsernameAvailability(ctx context.Context, username st
 
 // updatePassword handles password update logic
 func (s *userService) updatePassword(user *models.User, updates map[string]interface{}) error {
-	password, ok := updates["password"].(string)
+	password, ok := updates[fieldPassword].(string)
 	if !ok || password == "" {
 		return nil
 	}
@@ -797,21 +797,21 @@ func (s *userService) validateUsername(username string) error {
 	if username == "" {
 		return errors.NewValidationError(
 			"Username is required",
-			map[string]string{"username": "Username cannot be empty"},
+			map[string]string{fieldUsername: "Username cannot be empty"},
 		)
 	}
 
 	if len(username) < 3 {
 		return errors.NewValidationError(
 			"Username too short",
-			map[string]string{"username": "Username must be at least 3 characters long"},
+			map[string]string{fieldUsername: "Username must be at least 3 characters long"},
 		)
 	}
 
 	if len(username) > 100 { // Increased to accommodate email addresses
 		return errors.NewValidationError(
 			"Username too long",
-			map[string]string{"username": "Username must not exceed 100 characters"},
+			map[string]string{fieldUsername: "Username must not exceed 100 characters"},
 		)
 	}
 
@@ -834,7 +834,7 @@ func (s *userService) validateRegularUsername(username string) error {
 			char != '_' && char != '-' && char != '.' {
 			return errors.NewValidationError(
 				"Invalid username format",
-				map[string]string{"username": "Username can only contain letters, numbers, underscore, hyphen, and dot"},
+				map[string]string{fieldUsername: "Username can only contain letters, numbers, underscore, hyphen, and dot"},
 			)
 		}
 	}
@@ -855,7 +855,7 @@ func (s *userService) validateEmail(email string) error {
 	if !matched {
 		return errors.NewValidationError(
 			"Invalid email format",
-			map[string]string{"username": "Please provide a valid email address"},
+			map[string]string{fieldUsername: "Please provide a valid email address"},
 		)
 	}
 
@@ -864,7 +864,7 @@ func (s *userService) validateEmail(email string) error {
 	if len(parts) != 2 {
 		return errors.NewValidationError(
 			"Invalid email format",
-			map[string]string{"username": "Email must contain exactly one @ symbol"},
+			map[string]string{fieldUsername: "Email must contain exactly one @ symbol"},
 		)
 	}
 
@@ -875,7 +875,7 @@ func (s *userService) validateEmail(email string) error {
 	if len(localPart) == 0 || len(localPart) > 64 {
 		return errors.NewValidationError(
 			"Invalid email format",
-			map[string]string{"username": "Email local part must be between 1 and 64 characters"},
+			map[string]string{fieldUsername: "Email local part must be between 1 and 64 characters"},
 		)
 	}
 
@@ -883,7 +883,7 @@ func (s *userService) validateEmail(email string) error {
 	if strings.Contains(email, "..") {
 		return errors.NewValidationError(
 			"Invalid email format",
-			map[string]string{"username": "Email cannot contain consecutive dots"},
+			map[string]string{fieldUsername: "Email cannot contain consecutive dots"},
 		)
 	}
 
@@ -891,7 +891,7 @@ func (s *userService) validateEmail(email string) error {
 	if strings.HasPrefix(localPart, ".") || strings.HasSuffix(localPart, ".") {
 		return errors.NewValidationError(
 			"Invalid email format",
-			map[string]string{"username": "Email local part cannot start or end with a dot"},
+			map[string]string{fieldUsername: "Email local part cannot start or end with a dot"},
 		)
 	}
 
@@ -899,7 +899,7 @@ func (s *userService) validateEmail(email string) error {
 	if len(domainPart) < 3 || len(domainPart) > 255 {
 		return errors.NewValidationError(
 			"Invalid email format",
-			map[string]string{"username": "Email domain must be between 3 and 255 characters"},
+			map[string]string{fieldUsername: "Email domain must be between 3 and 255 characters"},
 		)
 	}
 
@@ -937,21 +937,21 @@ func (s *userService) validatePasswordLength(password string) error {
 	if password == "" {
 		return errors.NewValidationError(
 			"Password is required",
-			map[string]string{"password": "Password cannot be empty"},
+			map[string]string{fieldPassword: "Password cannot be empty"},
 		)
 	}
 
 	if len(password) < 8 {
 		return errors.NewValidationError(
 			"Password too short",
-			map[string]string{"password": "Password must be at least 8 characters long"},
+			map[string]string{fieldPassword: "Password must be at least 8 characters long"},
 		)
 	}
 
 	if len(password) > 100 {
 		return errors.NewValidationError(
 			"Password too long",
-			map[string]string{"password": "Password must not exceed 100 characters"},
+			map[string]string{fieldPassword: "Password must not exceed 100 characters"},
 		)
 	}
 
@@ -985,7 +985,7 @@ func (s *userService) validatePasswordComplexity(complexity passwordComplexity) 
 		return errors.NewValidationError(
 			"Password does not meet complexity requirements",
 			map[string]string{
-				"password": "Password must contain at least one uppercase letter, one lowercase letter, and one number",
+				fieldPassword: "Password must contain at least one uppercase letter, one lowercase letter, and one number",
 			},
 		)
 	}

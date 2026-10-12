@@ -236,7 +236,7 @@ func (r *memberResolver) handleMemberStatus(ctx context.Context, memberID uint,
 	default:
 		return nil, errors.NewValidationError(
 			"Invalid member status",
-			map[string]string{"status": "Must be ACTIVE or INACTIVE"},
+			map[string]string{fieldStatus: "Must be ACTIVE or INACTIVE"},
 		)
 	}
 

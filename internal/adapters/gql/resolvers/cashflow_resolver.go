@@ -65,8 +65,8 @@ func (r *cashFlowResolver) validateBasicTransaction(transaction *models.CashFlow
 		return appErrors.NewValidationError(
 			err.Error(),
 			map[string]string{
-				"amount": "Must be non-zero, and positive for income or negative for expenses",
-				"detail": "Description is required",
+				fieldAmount: "Must be non-zero, and positive for income or negative for expenses",
+				"detail":    "Description is required",
 			},
 		)
 	}
@@ -79,14 +79,14 @@ func (r *cashFlowResolver) validateAmountByOperationType(transaction *models.Cas
 	if transaction.OperationType.IsIncome() && transaction.Amount <= 0 {
 		return appErrors.NewValidationError(
 			"Income amounts must be positive",
-			map[string]string{"amount": "Must be positive for income operations"},
+			map[string]string{fieldAmount: "Must be positive for income operations"},
 		)
 	}
 
 	if transaction.OperationType.IsExpense() && transaction.Amount >= 0 {
 		return appErrors.NewValidationError(
 			"Expense amounts must be negative",
-			map[string]string{"amount": "Must be negative for expense operations"},
+			map[string]string{fieldAmount: "Must be negative for expense operations"},
 		)
 	}
 
@@ -139,7 +139,7 @@ func (r *cashFlowResolver) handleTransactionMutation(ctx context.Context,
 	if transaction.Amount == 0 {
 		return nil, appErrors.NewValidationError(
 			"Transaction amount cannot be zero",
-			map[string]string{"amount": "Must be non-zero"},
+			map[string]string{fieldAmount: "Must be non-zero"},
 		)
 	}
 

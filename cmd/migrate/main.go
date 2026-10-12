@@ -143,7 +143,7 @@ func executeMigrationsCI(cmd string, args []string) error {
 		sslMode = constants.SSLModeDisable // Default SSL mode if not specified
 		log.Printf("DB_SSL_MODE not set for CI, defaulting to '%s'", sslMode)
 	} else {
-		log.Printf("Using DB_SSL_MODE from environment: '%s'", sslMode)
+		log.Printf("Using DB_SSL_MODE from environment: '%s'", sslMode) // #nosec G706 -- operator-set env var, not untrusted input
 	}
 
 	// Always use disable for localhost connections in CI to avoid SSL issues
@@ -152,6 +152,7 @@ func executeMigrationsCI(cmd string, args []string) error {
 		log.Printf("Host is localhost, forcing SSL mode to 'disable' for CI environment")
 	}
 
+	// #nosec G706 -- operator-set env vars, not untrusted input
 	log.Printf("CI Database configuration: Host=%s, Port=%s, User=%s, DB=%s, SSLMode=%s",
 		dbHost, dbPort, dbUser, dbName, sslMode)
 
@@ -184,6 +185,7 @@ func executeMigrationsForEnv(envFile string, cmd string, args []string) error {
 		log.Printf("DB_SSL_MODE not set in %s, defaulting to '%s'", envFile, sslMode)
 	}
 
+	// #nosec G706 -- values from the operator's own .env file, not untrusted input
 	log.Printf("Database configuration from %s: Host=%s, Port=%s, User=%s, DB=%s, SSLMode=%s",
 		envFile, dbHost, dbPort, dbUser, dbName, sslMode)
 
@@ -332,7 +334,7 @@ func handleMigrationVersion(m *migrate.Migrate) error {
 		}
 		return fmt.Errorf("failed to get migration version: %w", err)
 	}
-	log.Printf("Current migration version: %d (dirty: %t)", version, dirty)
+	log.Printf("Current migration version: %d (dirty: %t)", version, dirty) // #nosec G706 -- integer and bool from schema_migrations, cannot inject
 	return nil
 }
 
