@@ -1,0 +1,68 @@
+name: Aiven keep-alive
+
+# Aiven powers off free services when "they or the Aiven platform aren't actively
+# used". This calls the Aiven API twice a week so the account shows platform
+# activity. It fails (GitHub emails you) if the service is powered off or the API
+# call fails. It never powers the service back on: that needs write access and
+# would hide the problem.
+#
+# Secrets (see docs/github-secrets-setup.md):
+#   AIVEN_API_TOKEN  personal Aiven API token
+#   AIVEN_PROJECT    Aiven project name
+#   AIVEN_SERVICE    Aiven service name
+# Project and service are secrets too: together they reveal the database host.
+
+on:
+  schedule:
+    - cron: '17 6 * * 1,4'  # Mondays and Thursdays, 06:17 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  keepalive:
+    name: Ping Aiven API
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      AIVEN_API_TOKEN: ${{ secrets.AIVEN_API_TOKEN }}
+      AIVEN_PROJECT: ${{ secrets.AIVEN_PROJECT }}
+      AIVEN_SERVICE: ${{ secrets.AIVEN_SERVICE }}
+    steps:
+      - name: Check required secrets
+        shell: bash
+        run: |
+          missing=0
+          for name in AIVEN_API_TOKEN AIVEN_PROJECT AIVEN_SERVICE; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing repository secret $name (see docs/github-secrets-setup.md)."
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Get service state
+        shell: bash  # runs with -eo pipefail, so a curl failure fails the step
+        run: |
+          # The response embeds the database credentials (service_uri,
+          # users[].password): never print or store it, extract only the state.
+          # --fail drops the body on HTTP errors, so only the status code shows.
+          state=$(curl --fail --silent --show-error --max-time 30 \
+            -H "Authorization: aivenv1 ${AIVEN_API_TOKEN}" \
+            "https://api.aiven.io/v1/project/${AIVEN_PROJECT}/service/${AIVEN_SERVICE}" \
+            | jq -r '.service.state')
+          echo "Service state: ${state}"
+          case "$state" in
+            RUNNING|REBALANCING) ;;
+            POWEROFF)
+              echo "::error::The Aiven service is powered off. Power it on from the Aiven Console."
+              exit 1
+              ;;
+            ""|null)
+              echo "::error::No service state in the Aiven API response."
+              exit 1
+              ;;
+            *)
+              echo "::warning::Unexpected Aiven service state: ${state}"
+              ;;
+          esac

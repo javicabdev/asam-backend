@@ -15,6 +15,14 @@ Para que el flujo de trabajo de CI/CD funcione correctamente, necesitas configur
 - `AIVEN_DB_PASSWORD`: Contraseña para conectarse a PostgreSQL
 - `AIVEN_DB_NAME`: Nombre de la base de datos (según el servicio creado en Aiven)
 
+### Keep-alive del plan gratuito de Aiven
+Los usa el workflow [`aiven-keepalive.yml`](../.github/workflows/aiven-keepalive.yml), que consulta la API de Aiven dos veces por semana para que el servicio gratuito no se apague por inactividad, y falla (GitHub te avisa por email) si el servicio está apagado o el token deja de valer.
+- `AIVEN_API_TOKEN`: token personal de Aiven. Créalo en la consola de Aiven: icono de usuario → **Tokens** → **Generate token**. Si el formulario lo permite, dale caducidad con renovación por uso ("extend when used") y solo permisos de lectura. Se muestra una sola vez: pégalo directamente aquí, en ningún otro sitio.
+- `AIVEN_PROJECT`: nombre del proyecto de Aiven.
+- `AIVEN_SERVICE`: nombre del servicio PostgreSQL en ese proyecto.
+
+Proyecto y servicio van como secretos porque juntos revelan el host de la base de datos. Tras crearlos, lanza el workflow a mano (**Actions → Aiven keep-alive → Run workflow**): el log debe mostrar solo `Service state: RUNNING` (o `REBALANCING`, transitorio).
+
 ### Seguridad de la aplicación
 - `JWT_ACCESS_SECRET`: Clave secreta para la generación de tokens JWT de acceso
 - `JWT_REFRESH_SECRET`: Clave secreta para la generación de tokens JWT de actualización
