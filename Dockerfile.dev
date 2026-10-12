@@ -1,5 +1,7 @@
-# Dockerfile para desarrollo con Go 1.26.1 - Sin Air (más simple)
-FROM golang:1.26.4@sha256:68cb6d68bed024785b69195b89af7ac7a444f27791435f98647edff595aa0479
+# Dockerfile para desarrollo - Sin Air (más simple)
+# The golang image sets GOTOOLCHAIN=local, so this Go must be >= the `go` line in
+# go.mod or `go mod download` fails. Bump it together with go.mod (CLAUDE.md).
+FROM golang:1.26.9@sha256:d7722066f0b60ceccb6c0643cbed1f5f9e15506ac237146c95333504d7805d89
 
 # Instalar certificados y herramientas básicas
 RUN apt-get update && \

@@ -175,7 +175,6 @@ Para más detalles sobre GCP, consulta [gcp-project-setup.md](../../docs/gcp-pro
 
 ## Carpeta `examples/`
 
-Contiene workflows alternativos y documentación adicional:
-- Workflows con diferentes estrategias de build
+No contiene workflows (GitHub no ejecuta los de subcarpetas), solo documentación adicional:
 - Scripts de configuración para otros registros
 - Documentación de optimizaciones

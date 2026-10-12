@@ -47,7 +47,7 @@ updates:
       time: "08:00"
     open-pull-requests-limit: 2
     ignore:
-      # The Go toolchain lives in 5 production locations that must move together
+      # The Go toolchain lives in 6 locations that must move together
       # (CLAUDE.md > Dependency invariants). Dependabot can only bump the Dockerfiles,
-      # which silently desyncs them. Go bumps are manual PRs touching all 5.
+      # which silently desyncs them. Go bumps are manual PRs touching all 6.
       - dependency-name: "golang"
