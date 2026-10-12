@@ -145,13 +145,13 @@ invalid := testutils.InvalidSpanishDNI() // "12345678A"
 make test-unit
 
 # Ejecutar tests de un paquete específico
-go test ./test/unit/domain/models/...
+go test ./test/unit/services/...
 
 # Ejecutar con cobertura
 go test -cover ./test/unit/...
 
 # Ejecutar un test específico
-go test -run TestMember_Validate ./test/unit/domain/models/
+go test -run TestCreateFamilyAtomic ./test/unit/services/
 ```
 
 ### 8. Mejores Prácticas
