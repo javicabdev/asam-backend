@@ -159,7 +159,7 @@ db-shell:
 .PHONY: generate
 generate:
 	@echo "🔧 Generating GraphQL code..."
-	@$(GO) run github.com/99designs/gqlgen@v0.17.91 generate
+	@$(GO) run github.com/99designs/gqlgen@v0.17.95 generate
 	@echo "✅ Code generation complete"
 
 ## generate-mocks: Generate mocks for testing
@@ -257,7 +257,7 @@ lint:
 		echo "${YELLOW}Install it with: make tools${NC}"; \
 		exit 1; \
 	fi
-	@$(GOLINT) run --timeout=5m ./cmd/api/... ./internal/... ./pkg/... ./test/...
+	@$(GOLINT) run --timeout=5m ./cmd/... ./internal/... ./pkg/... ./test/...
 	@echo "${GREEN}✅ Linting complete - no issues found!${NC}"
 
 ## security: Run security scan with gosec (SAST)
@@ -424,7 +424,7 @@ tools:
 	@$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0
 	@$(GO) install github.com/securego/gosec/v2/cmd/gosec@latest
 	@$(GO) install github.com/air-verse/air@latest
-	@$(GO) install github.com/99designs/gqlgen@v0.17.91
+	@$(GO) install github.com/99designs/gqlgen@v0.17.95
 	@echo "✅ Tools installed"
 
 ## version: Show version information

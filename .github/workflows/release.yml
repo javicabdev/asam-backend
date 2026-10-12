@@ -12,7 +12,7 @@ permissions:
   actions: read    # Necesario para leer los workflows
 
 env:
-  GO_VERSION: '1.26.7'
+  GO_VERSION: '1.26.9'
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   SERVICE_NAME: asam-backend
 
@@ -35,7 +35,7 @@ jobs:
         run: go mod download
 
       - name: Install gqlgen
-        run: go install github.com/99designs/gqlgen@v0.17.93
+        run: go install github.com/99designs/gqlgen@v0.17.95
 
       - name: Generate GraphQL code
         run: |

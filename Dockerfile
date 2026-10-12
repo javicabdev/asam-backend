@@ -1,5 +1,5 @@
 # Etapa 1: Construcción
-FROM golang:1.26.7-alpine@sha256:28d89ee9cc0ff9fec75c82ca201e6bf7fdf9a679d4b7b24dfa04f2bb766bb468 AS builder
+FROM golang:1.26.9-alpine@sha256:3082400e369fa24d5fc60bca20edab3f6d604e0c5a690ec66b295eff4dd87ade AS builder
 
 # Dejar constancia en el log del compilador con el que se construye la imagen
 RUN go version
@@ -27,7 +27,7 @@ COPY . .
 # Verificar si los archivos generados ya existen
 RUN if [ ! -f "internal/adapters/gql/generated/generated.go" ]; then \
         echo "=== Archivos generados no encontrados, ejecutando gqlgen ===" && \
-        go install github.com/99designs/gqlgen@v0.17.93 && \
+        go install github.com/99designs/gqlgen@v0.17.95 && \
         mkdir -p internal/adapters/gql/generated internal/adapters/gql/model && \
         gqlgen generate; \
     else \

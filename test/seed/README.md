@@ -61,7 +61,7 @@ import (
 	"log"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v5/stdlib" // registers the "pgx" database/sql driver
 	
 	"github.com/javicabdev/asam-backend/test/seed"
 	"github.com/javicabdev/asam-backend/test/seed/data"
@@ -69,7 +69,7 @@ import (
 
 func main() {
 	// Conectar a la base de datos
-	db, err := sqlx.Connect("postgres", "conexión_a_db")
+	db, err := sqlx.Connect("pgx", "conexión_a_db")
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -20324,10 +20324,6 @@ func (ec *executionContext) marshalNActivityType2githubᚗcomᚋjavicabdevᚋasa
 	return v
 }
 
-func (ec *executionContext) marshalNAuthResponse2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐAuthResponse(ctx context.Context, sel ast.SelectionSet, v model.AuthResponse) graphql.Marshaler {
-	return ec._AuthResponse(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNAuthResponse2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐAuthResponse(ctx context.Context, sel ast.SelectionSet, v *model.AuthResponse) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -20352,10 +20348,6 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 		}
 	}
 	return res
-}
-
-func (ec *executionContext) marshalNCashFlow2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐCashFlow(ctx context.Context, sel ast.SelectionSet, v models.CashFlow) graphql.Marshaler {
-	return ec._CashFlow(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNCashFlow2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐCashFlowᚄ(ctx context.Context, sel ast.SelectionSet, v []*models.CashFlow) graphql.Marshaler {
@@ -20384,10 +20376,6 @@ func (ec *executionContext) marshalNCashFlow2ᚖgithubᚗcomᚋjavicabdevᚋasam
 	return ec._CashFlow(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNCashFlowBalance2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐCashFlowBalance(ctx context.Context, sel ast.SelectionSet, v model.CashFlowBalance) graphql.Marshaler {
-	return ec._CashFlowBalance(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNCashFlowBalance2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐCashFlowBalance(ctx context.Context, sel ast.SelectionSet, v *model.CashFlowBalance) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -20396,10 +20384,6 @@ func (ec *executionContext) marshalNCashFlowBalance2ᚖgithubᚗcomᚋjavicabdev
 		return graphql.Null
 	}
 	return ec._CashFlowBalance(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNCashFlowStats2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐCashFlowStats(ctx context.Context, sel ast.SelectionSet, v model.CashFlowStats) graphql.Marshaler {
-	return ec._CashFlowStats(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNCashFlowStats2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐCashFlowStats(ctx context.Context, sel ast.SelectionSet, v *model.CashFlowStats) graphql.Marshaler {
@@ -20463,10 +20447,6 @@ func (ec *executionContext) unmarshalNCreateUserInput2githubᚗcomᚋjavicabdev�
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNDashboardStats2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDashboardStats(ctx context.Context, sel ast.SelectionSet, v model.DashboardStats) graphql.Marshaler {
-	return ec._DashboardStats(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNDashboardStats2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDashboardStats(ctx context.Context, sel ast.SelectionSet, v *model.DashboardStats) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -20513,10 +20493,6 @@ func (ec *executionContext) marshalNDebtorMemberInfo2ᚖgithubᚗcomᚋjavicabde
 	return ec._DebtorMemberInfo(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNDelinquentReportResponse2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDelinquentReportResponse(ctx context.Context, sel ast.SelectionSet, v model.DelinquentReportResponse) graphql.Marshaler {
-	return ec._DelinquentReportResponse(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNDelinquentReportResponse2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDelinquentReportResponse(ctx context.Context, sel ast.SelectionSet, v *model.DelinquentReportResponse) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -20535,10 +20511,6 @@ func (ec *executionContext) marshalNDelinquentSummary2ᚖgithubᚗcomᚋjavicabd
 		return graphql.Null
 	}
 	return ec._DelinquentSummary(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNDocumentValidationResult2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDocumentValidationResult(ctx context.Context, sel ast.SelectionSet, v model.DocumentValidationResult) graphql.Marshaler {
-	return ec._DocumentValidationResult(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNDocumentValidationResult2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐDocumentValidationResult(ctx context.Context, sel ast.SelectionSet, v *model.DocumentValidationResult) graphql.Marshaler {
@@ -20591,10 +20563,6 @@ func (ec *executionContext) unmarshalNFamiliarInput2ᚖgithubᚗcomᚋjavicabdev
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNFamily2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐFamily(ctx context.Context, sel ast.SelectionSet, v models.Family) graphql.Marshaler {
-	return ec._Family(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNFamily2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐFamilyᚄ(ctx context.Context, sel ast.SelectionSet, v []*models.Family) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -20619,10 +20587,6 @@ func (ec *executionContext) marshalNFamily2ᚖgithubᚗcomᚋjavicabdevᚋasam�
 		return graphql.Null
 	}
 	return ec._Family(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNFamilyConnection2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐFamilyConnection(ctx context.Context, sel ast.SelectionSet, v model.FamilyConnection) graphql.Marshaler {
-	return ec._FamilyConnection(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNFamilyConnection2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐFamilyConnection(ctx context.Context, sel ast.SelectionSet, v *model.FamilyConnection) graphql.Marshaler {
@@ -20654,10 +20618,6 @@ func (ec *executionContext) marshalNFloat2float64(ctx context.Context, sel ast.S
 func (ec *executionContext) unmarshalNGenerateAnnualFeesInput2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐGenerateAnnualFeesInput(ctx context.Context, v any) (model.GenerateAnnualFeesInput, error) {
 	res, err := ec.unmarshalInputGenerateAnnualFeesInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNGenerateAnnualFeesResponse2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐGenerateAnnualFeesResponse(ctx context.Context, sel ast.SelectionSet, v model.GenerateAnnualFeesResponse) graphql.Marshaler {
-	return ec._GenerateAnnualFeesResponse(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNGenerateAnnualFeesResponse2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐGenerateAnnualFeesResponse(ctx context.Context, sel ast.SelectionSet, v *model.GenerateAnnualFeesResponse) graphql.Marshaler {
@@ -20723,10 +20683,6 @@ func (ec *executionContext) unmarshalNLoginInput2githubᚗcomᚋjavicabdevᚋasa
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNMember2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐMember(ctx context.Context, sel ast.SelectionSet, v models.Member) graphql.Marshaler {
-	return ec._Member(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNMember2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐMemberᚄ(ctx context.Context, sel ast.SelectionSet, v []*models.Member) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -20751,10 +20707,6 @@ func (ec *executionContext) marshalNMember2ᚖgithubᚗcomᚋjavicabdevᚋasam�
 		return graphql.Null
 	}
 	return ec._Member(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNMemberConnection2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMemberConnection(ctx context.Context, sel ast.SelectionSet, v model.MemberConnection) graphql.Marshaler {
-	return ec._MemberConnection(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNMemberConnection2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMemberConnection(ctx context.Context, sel ast.SelectionSet, v *model.MemberConnection) graphql.Marshaler {
@@ -20865,10 +20817,6 @@ func (ec *executionContext) marshalNMonthlyAmount2ᚖgithubᚗcomᚋjavicabdev�
 	return ec._MonthlyAmount(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNMutationResponse2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMutationResponse(ctx context.Context, sel ast.SelectionSet, v model.MutationResponse) graphql.Marshaler {
-	return ec._MutationResponse(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNMutationResponse2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐMutationResponse(ctx context.Context, sel ast.SelectionSet, v *model.MutationResponse) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -20916,10 +20864,6 @@ func (ec *executionContext) marshalNParentesco2githubᚗcomᚋjavicabdevᚋasam�
 	return v
 }
 
-func (ec *executionContext) marshalNPayment2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐPayment(ctx context.Context, sel ast.SelectionSet, v models.Payment) graphql.Marshaler {
-	return ec._Payment(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNPayment2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐPaymentᚄ(ctx context.Context, sel ast.SelectionSet, v []*models.Payment) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -20944,10 +20888,6 @@ func (ec *executionContext) marshalNPayment2ᚖgithubᚗcomᚋjavicabdevᚋasam�
 		return graphql.Null
 	}
 	return ec._Payment(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNPaymentConnection2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPaymentConnection(ctx context.Context, sel ast.SelectionSet, v model.PaymentConnection) graphql.Marshaler {
-	return ec._PaymentConnection(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNPaymentConnection2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐPaymentConnection(ctx context.Context, sel ast.SelectionSet, v *model.PaymentConnection) graphql.Marshaler {
@@ -21164,10 +21104,6 @@ func (ec *executionContext) marshalNTime2ᚖtimeᚐTime(ctx context.Context, sel
 	return res
 }
 
-func (ec *executionContext) marshalNTokenResponse2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐTokenResponse(ctx context.Context, sel ast.SelectionSet, v model.TokenResponse) graphql.Marshaler {
-	return ec._TokenResponse(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNTokenResponse2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐTokenResponse(ctx context.Context, sel ast.SelectionSet, v *model.TokenResponse) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -21176,10 +21112,6 @@ func (ec *executionContext) marshalNTokenResponse2ᚖgithubᚗcomᚋjavicabdev�
 		return graphql.Null
 	}
 	return ec._TokenResponse(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNTransactionConnection2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐTransactionConnection(ctx context.Context, sel ast.SelectionSet, v model.TransactionConnection) graphql.Marshaler {
-	return ec._TransactionConnection(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNTransactionConnection2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐTransactionConnection(ctx context.Context, sel ast.SelectionSet, v *model.TransactionConnection) graphql.Marshaler {
@@ -21217,10 +21149,6 @@ func (ec *executionContext) unmarshalNUpdateUserInput2githubᚗcomᚋjavicabdev�
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNUser2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐUser(ctx context.Context, sel ast.SelectionSet, v models.User) graphql.Marshaler {
-	return ec._User(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNUser2ᚕᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋdomainᚋmodelsᚐUserᚄ(ctx context.Context, sel ast.SelectionSet, v []*models.User) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -21245,10 +21173,6 @@ func (ec *executionContext) marshalNUser2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑb
 		return graphql.Null
 	}
 	return ec._User(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNUserConnection2githubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐUserConnection(ctx context.Context, sel ast.SelectionSet, v model.UserConnection) graphql.Marshaler {
-	return ec._UserConnection(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNUserConnection2ᚖgithubᚗcomᚋjavicabdevᚋasamᚑbackendᚋinternalᚋadaptersᚋgqlᚋmodelᚐUserConnection(ctx context.Context, sel ast.SelectionSet, v *model.UserConnection) graphql.Marshaler {
@@ -21308,8 +21232,7 @@ func (ec *executionContext) marshalN__DirectiveLocation2string(ctx context.Conte
 }
 
 func (ec *executionContext) unmarshalN__DirectiveLocation2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
+	vSlice := graphql.CoerceList(v)
 	var err error
 	res := make([]string, len(vSlice))
 	for i := range vSlice {
@@ -21510,8 +21433,7 @@ func (ec *executionContext) unmarshalOFamiliarInput2ᚕᚖgithubᚗcomᚋjavicab
 	if v == nil {
 		return nil, nil
 	}
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
+	vSlice := graphql.CoerceList(v)
 	var err error
 	res := make([]*model.FamiliarInput, len(vSlice))
 	for i := range vSlice {
@@ -21768,8 +21690,7 @@ func (ec *executionContext) unmarshalOTelephoneInput2ᚕᚖgithubᚗcomᚋjavica
 	if v == nil {
 		return nil, nil
 	}
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
+	vSlice := graphql.CoerceList(v)
 	var err error
 	res := make([]*model.TelephoneInput, len(vSlice))
 	for i := range vSlice {
