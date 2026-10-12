@@ -53,11 +53,13 @@ _(#142 / PR #144 fixed all three original holes. History kept on purpose — if 
 symptom reappears, you'll recognise it.)_
 
 - **gosec runs for real now — but know the failure mode.** The "Security Scan
-  (SAST)" job runs gosec **on the runner** (Go from setup-go) and gates on findings
-  that are HIGH severity **and** HIGH confidence. The full report (all severities)
-  is still printed; only HIGH+HIGH fails the build. The current backlog (~58
-  findings, mostly `test/seed` + `cmdtemp` + false positives) is tracked in issue
-  #145. **Broken before #144:** it used the `securego/gosec` **Docker action**,
+  (SAST)" job runs gosec **on the runner** (Go from setup-go), excluding `test/seed`
+  and generated code, and fails on any **HIGH severity** finding (any confidence).
+  The full report (all severities) is still printed. The HIGH backlog was triaged to
+  zero in #145; what remains is MEDIUM/LOW and reviewed. Justify a false positive
+  inline with `// #nosec G101 -- why`, and the `#nosec` must **start** the comment:
+  gosec ignores it after `//nolint:gosec //`, though golangci honours plain `#nosec`.
+  **Broken before #144:** it used the `securego/gosec` **Docker action**,
   whose image ships an older Go — with `GOTOOLCHAIN=local` it couldn't load a
   `go 1.26.x` module and silently scanned **0 files**, and `-no-fail` hid that its
   green tick meant nothing. If gosec ever reports 0 findings again, suspect the

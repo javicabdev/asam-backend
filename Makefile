@@ -269,8 +269,8 @@ security:
 		echo "${YELLOW}Install it with: make tools${NC}"; \
 		exit 1; \
 	fi
-	@gosec -fmt=json -out=gosec-report.json ./...
-	@gosec -fmt=text ./...
+	@gosec -exclude-dir=test/seed -exclude-generated -fmt=json -out=gosec-report.json ./...
+	@gosec -exclude-dir=test/seed -exclude-generated -fmt=text ./...
 	@echo "${GREEN}✅ Security scan complete!${NC}"
 	@echo "${YELLOW}📄 Full report saved to: gosec-report.json${NC}"
 
@@ -278,7 +278,7 @@ security:
 .PHONY: security-ci
 security-ci:
 	@echo "🔒 Running gosec for CI/CD..."
-	@gosec -no-fail -fmt sarif -out gosec-results.sarif ./...
+	@gosec -no-fail -exclude-dir=test/seed -exclude-generated -fmt sarif -out gosec-results.sarif ./...
 	@echo "${GREEN}✅ Security scan complete (SARIF format)${NC}"
 
 ## lint-fix: Run linter and auto-fix issues
@@ -422,7 +422,7 @@ update-deps:
 tools:
 	@echo "🔧 Installing development tools..."
 	@$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0
-	@$(GO) install github.com/securego/gosec/v2/cmd/gosec@latest
+	@$(GO) install github.com/securego/gosec/v2/cmd/gosec@v2.28.0
 	@$(GO) install github.com/air-verse/air@latest
 	@$(GO) install github.com/99designs/gqlgen@v0.17.95
 	@echo "✅ Tools installed"

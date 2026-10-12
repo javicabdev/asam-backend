@@ -323,35 +323,10 @@ func (s *CashFlowService) getValidationDetails(discrepancy float64) string {
 	return "El balance actual es menor al esperado por " + formatAmount(-discrepancy)
 }
 
-// formatAmount formatea un importe para presentación
+// formatAmount formats an amount for display: at most two decimals, without
+// trailing zeros (12.5, 30, 0.05, 1234.57).
 func formatAmount(amount float64) string {
-	return strings.TrimRight(strings.TrimRight(formatFloat(amount, 2), "0"), ".")
-}
-
-// formatFloat formatea un número flotante con precisión específica
-func formatFloat(num float64, precision int) string {
-	format := "%." + string(rune(precision+'0')) + "f"
-	return sprintf(format, num)
-}
-
-// sprintf es un wrapper para fmt.Sprintf
-func sprintf(format string, args ...any) string {
-	// Implementación simplificada para evitar importar fmt
-	result := format
-	for _, arg := range args {
-		result += toString(arg)
-	}
-	return result
-}
-
-// toString convierte un valor a string
-func toString(v any) string {
-	switch val := v.(type) {
-	case float64:
-		return strconv.FormatFloat(val, 'f', 2, 64)
-	default:
-		return ""
-	}
+	return strings.TrimRight(strings.TrimRight(strconv.FormatFloat(amount, 'f', 2, 64), "0"), ".")
 }
 
 // GetFinancialReport genera reportes financieros según el tipo solicitado

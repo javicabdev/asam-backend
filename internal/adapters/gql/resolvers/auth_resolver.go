@@ -26,7 +26,7 @@ func (r *authResolver) Login(ctx context.Context, input model.LoginInput) (*mode
 	if username == "" || password == "" {
 		return nil, errors.NewValidationError(
 			"VALIDATION_FAILED: Usuario y contraseña son requeridos",
-			map[string]string{
+			map[string]string{ // #nosec G101 -- field validation messages, not credentials
 				"username": "El nombre de usuario es requerido",
 				"password": "La contraseña es requerida",
 			},
@@ -115,7 +115,7 @@ func (r *authResolver) RefreshToken(ctx context.Context, input model.RefreshToke
 	if refreshToken == "" {
 		return nil, errors.NewValidationError(
 			"VALIDATION_FAILED: Refresh token requerido",
-			map[string]string{"refreshToken": "El token de refresco es requerido"},
+			map[string]string{"refreshToken": "El token de refresco es requerido"}, // #nosec G101 -- validation message, not a credential
 		)
 	}
 
