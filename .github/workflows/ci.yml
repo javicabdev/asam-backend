@@ -125,6 +125,21 @@ jobs:
             jq -r '[.Issues[].severity] | group_by(.) | map("\(.[0])=\(length)") | join("  ")' gosec-results.json
           fi
 
+      - name: Security gate — fail if gosec could not load the code
+        run: |
+          # A gosec whose golang.org/x/tools cannot read this Go version's export
+          # data still exits cleanly with a partial scan: on go1.27, gosec v2.29.0
+          # failed to load 68 files, saw 2 of 6 findings, and the HIGH gate stayed
+          # green. Before #144 it scanned 0 files the same way. Fail on either.
+          FILES=$(jq '.Stats.files' gosec-results.json)
+          LOAD_ERRORS=$(jq '.["Golang errors"] | length' gosec-results.json)
+          echo "gosec scanned $FILES file(s); files with load errors: $LOAD_ERRORS"
+          if [ "$FILES" -eq 0 ] || [ "$LOAD_ERRORS" -gt 0 ]; then
+            echo "::error::gosec scan is incomplete ($FILES files scanned, $LOAD_ERRORS with load errors). Usually a toolchain mismatch: the gosec build cannot read this Go version."
+            jq -r '.["Golang errors"] | to_entries[:10][] | "\(.key): \(.value[0].error)"' gosec-results.json
+            exit 1
+          fi
+
       - name: Security gate — fail on HIGH severity findings
         run: |
           # Any confidence: the HIGH backlog was triaged to zero (#145), so a new

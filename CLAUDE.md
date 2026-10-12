@@ -24,6 +24,14 @@ wastes a review if you don't know it.
   `.github/dependabot.yml`): it can only bump the Dockerfiles, which silently
   desyncs the other locations. A Go bump is a manual PR touching all 5 locations
   (in the Dockerfile: the tag AND the multi-arch digest).
+  **A Go minor bump is gated by the tools, not just `go build`.** gqlgen, gosec
+  and golangci-lint are built with the new Go but analyse code through the
+  `golang.org/x/tools` they pin, which must read the new export data format, so
+  run all three under `GOTOOLCHAIN=go1.X.Y` before bumping. Go 1.27 needs
+  x/tools >= v0.50.0. Checked on go1.27.2, every pinned tool failed:
+  - gqlgen v0.17.95 generated broken code (`undefined: invalid`);
+  - gosec v2.29.0 failed to load 68 files *and still exited green*;
+  - golangci-lint v2.5.0 failed `typecheck`; v2.14.0 works.
 - **In the Dockerfile the digest wins over the tag.** Changing only the tag
   leaves the build silently using the old image. Update both, and resolve the
   digest from the multi-arch index (not a single platform).
@@ -62,8 +70,10 @@ symptom reappears, you'll recognise it.)_
   **Broken before #144:** it used the `securego/gosec` **Docker action**,
   whose image ships an older Go — with `GOTOOLCHAIN=local` it couldn't load a
   `go 1.26.x` module and silently scanned **0 files**, and `-no-fail` hid that its
-  green tick meant nothing. If gosec ever reports 0 findings again, suspect the
-  toolchain/loader, not clean code.
+  green tick meant nothing. A separate gate step now fails when gosec scans 0
+  files **or** reports load errors (`"Golang errors"` in its JSON). Don't trust
+  the finding count alone: on go1.27, gosec failed to load 68 files yet still
+  reported 2 findings over "117 files".
 - **`govulncheck` runs in CI** (added in #142), no flags. Its default source mode
   fails (exit 3) only on **reachable** vulnerabilities and passes (exit 0) on vulns
   merely present but not called (e.g. GO-2026-5932, `x/crypto/openpgp`). A red
