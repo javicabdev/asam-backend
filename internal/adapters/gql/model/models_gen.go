@@ -518,7 +518,7 @@ func (e *ActivityType) UnmarshalGQL(v any) error {
 }
 
 func (e ActivityType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *ActivityType) UnmarshalJSON(b []byte) error {
@@ -575,7 +575,7 @@ func (e *DocumentType) UnmarshalGQL(v any) error {
 }
 
 func (e DocumentType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *DocumentType) UnmarshalJSON(b []byte) error {
@@ -632,7 +632,7 @@ func (e *FamilySortField) UnmarshalGQL(v any) error {
 }
 
 func (e FamilySortField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *FamilySortField) UnmarshalJSON(b []byte) error {
@@ -693,7 +693,7 @@ func (e *MemberSortField) UnmarshalGQL(v any) error {
 }
 
 func (e MemberSortField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *MemberSortField) UnmarshalJSON(b []byte) error {
@@ -748,7 +748,7 @@ func (e *MemberStatus) UnmarshalGQL(v any) error {
 }
 
 func (e MemberStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *MemberStatus) UnmarshalJSON(b []byte) error {
@@ -803,7 +803,7 @@ func (e *MembershipType) UnmarshalGQL(v any) error {
 }
 
 func (e MembershipType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *MembershipType) UnmarshalJSON(b []byte) error {
@@ -860,7 +860,7 @@ func (e *Parentesco) UnmarshalGQL(v any) error {
 }
 
 func (e Parentesco) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *Parentesco) UnmarshalJSON(b []byte) error {
@@ -915,7 +915,7 @@ func (e *SortDirection) UnmarshalGQL(v any) error {
 }
 
 func (e SortDirection) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *SortDirection) UnmarshalJSON(b []byte) error {
@@ -972,7 +972,7 @@ func (e *TransactionSortField) UnmarshalGQL(v any) error {
 }
 
 func (e TransactionSortField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *TransactionSortField) UnmarshalJSON(b []byte) error {
@@ -1027,7 +1027,7 @@ func (e *UserRole) UnmarshalGQL(v any) error {
 }
 
 func (e UserRole) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *UserRole) UnmarshalJSON(b []byte) error {
