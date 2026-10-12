@@ -61,8 +61,8 @@ _(#142 / PR #144 fixed all three original holes. History kept on purpose — if 
 symptom reappears, you'll recognise it.)_
 
 - **gosec runs for real now — but know the failure mode.** The "Security Scan
-  (SAST)" job runs gosec **on the runner** (Go from setup-go), excluding `test/seed`
-  and generated code, and fails on any **HIGH severity** finding (any confidence).
+  (SAST)" job runs gosec **on the runner** (Go from setup-go), excluding generated
+  code, and fails on any **HIGH severity** finding (any confidence).
   The full report (all severities) is still printed. The HIGH backlog was triaged to
   zero in #145; what remains is MEDIUM/LOW and reviewed. Justify a false positive
   inline with `// #nosec G101 -- why`, and the `#nosec` must **start** the comment:

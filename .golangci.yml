@@ -114,9 +114,8 @@ linters:
           - staticcheck
           - govet
 
-      # Fake-data generators: repeated literals there are fixture values, not
-      # magic strings (gosec skips test/seed for the same reason, see ci.yml).
-      - path: (test/seed|internal/adapters/db/seeds)/
+      # Fake-data seeds: repeated literals there are fixture values, not magic strings.
+      - path: internal/adapters/db/seeds/
         linters:
           - goconst
 
