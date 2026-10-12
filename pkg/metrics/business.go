@@ -50,7 +50,7 @@ var (
 			Name: "asam_cashflow_amount",
 			Help: "Cash flow amounts by operation type",
 		},
-		[]string{"operation_type"}, // ingreso_cuota, gasto_corriente, entrega_fondo, otros_ingresos
+		[]string{"operation_type"}, // models.OperationType values: INGRESO_CUOTA, GASTO_AYUDA, ...
 	)
 
 	// DefaulterMetrics Morosidad
