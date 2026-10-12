@@ -11,7 +11,6 @@ import (
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/internal/ports/output"
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
-	"github.com/javicabdev/asam-backend/test/unit/testutils"
 )
 
 // TestCreateFamilyAtomic_RollbackOnInvalidEmail verifies that if email validation fails,
@@ -40,7 +39,7 @@ func TestCreateFamilyAtomic_RollbackOnInvalidEmail(t *testing.T) {
 			{
 				Nombre:          "Pedro",
 				Apellidos:       "Pérez López",
-				FechaNacimiento: testutils.TimePtr(time.Now().AddDate(-10, 0, 0)),
+				FechaNacimiento: new(time.Now().AddDate(-10, 0, 0)),
 				Parentesco:      "HIJO",
 			},
 		},
@@ -220,7 +219,7 @@ func TestCreateFamilyAtomic_RollbackOnFamiliarCreationError(t *testing.T) {
 			{
 				Nombre:          "Laura",
 				Apellidos:       "Fernández García",
-				FechaNacimiento: testutils.TimePtr(time.Now().AddDate(-8, 0, 0)),
+				FechaNacimiento: new(time.Now().AddDate(-8, 0, 0)),
 				Parentesco:      "HIJA",
 			},
 		},
@@ -301,13 +300,13 @@ func TestCreateFamilyAtomic_SuccessfulCreation(t *testing.T) {
 			{
 				Nombre:          "Sofia",
 				Apellidos:       "Rodríguez Vega",
-				FechaNacimiento: testutils.TimePtr(time.Now().AddDate(-12, 0, 0)),
+				FechaNacimiento: new(time.Now().AddDate(-12, 0, 0)),
 				Parentesco:      "HIJA",
 			},
 			{
 				Nombre:          "Javier",
 				Apellidos:       "Rodríguez Vega",
-				FechaNacimiento: testutils.TimePtr(time.Now().AddDate(-9, 0, 0)),
+				FechaNacimiento: new(time.Now().AddDate(-9, 0, 0)),
 				Parentesco:      "HIJO",
 			},
 		},

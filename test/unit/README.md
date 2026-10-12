@@ -6,9 +6,6 @@ Este directorio contiene todos los tests unitarios del proyecto ASAM Backend. Lo
 
 ```
 test/unit/
-├── testutils/         # Utilidades compartidas para tests
-│   ├── helpers.go     # Funciones helper genéricas
-│   └── assertions.go  # Assertions personalizadas
 ├── services/          # Tests de servicios de dominio (con mocks en mocks.go)
 └── README.md          # Esta documentación
 ```
@@ -36,23 +33,15 @@ func TestMember_Validate_WithMissingName(t *testing.T) {
     err := member.Validate()
     
     // Assert
-    testutils.AssertValidationError(t, err, "name")
+    if err == nil {
+        t.Fatal("expected a validation error for an empty name, got nil")
+    }
 }
 ```
 
-### 3. Assertions Personalizadas
+### 3. Aserciones
 
-Usa las assertions personalizadas para validaciones comunes:
-
-```go
-// En lugar de:
-if err := member.Validate(); err != nil {
-    t.Fatalf("expected valid member: %v", err)
-}
-
-// Usa:
-testutils.AssertMemberValid(t, member)
-```
+Los tests unitarios usan la librería estándar: `t.Fatal`/`t.Fatalf` cuando el test no puede seguir, y `t.Errorf` para seguir comprobando. Los tests de integración (`test/integration/`) usan [testify](https://github.com/stretchr/testify) (`require`/`assert`). No hay un paquete de aserciones propio: el antiguo `test/unit/testutils` se eliminó porque nadie lo usaba.
 
 ### 4. Tests de Tabla (Table-Driven Tests)
 
@@ -77,10 +66,8 @@ func TestMember_Validate_InvalidStates(t *testing.T) {
             
             err := member.Validate()
             
-            if tt.wantErr {
-                testutils.AssertError(t, err)
-            } else {
-                testutils.AssertNoError(t, err)
+            if (err != nil) != tt.wantErr {
+                t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
             }
         })
     }
@@ -89,53 +76,37 @@ func TestMember_Validate_InvalidStates(t *testing.T) {
 
 ### 5. Mocking
 
-Para tests de servicios, usa mocks de las interfaces:
+Los mocks de los repositorios están escritos a mano en `services/mocks.go`. Cada uno tiene un campo `<Método>Func` por método: el test asigna solo los que necesita, y los demás devuelven valores vacíos.
 
 ```go
-func TestMemberService_CreateMember_Success(t *testing.T) {
+func TestCreateFamilyAtomic_Example(t *testing.T) {
     // Arrange
-    mockRepo := mocks.NewMockMemberRepository(t)
-    mockLogger := mocks.NewMockLogger(t)
-    service := services.NewMemberService(mockRepo, mockLogger, mockLogger)
-    
-    member := &models.Member{MembershipNumber: "A00001", Name: "Ana"}
-    
-    mockRepo.EXPECT().
-        GetByNumeroSocio(mock.Anything, member.MembershipNumber).
-        Return(nil, nil)
-    
-    mockRepo.EXPECT().
-        Create(mock.Anything, member).
-        Return(nil)
-    
+    mockFamilyRepo := &MockFamilyRepository{
+        CreateFunc: func(ctx context.Context, family *models.Family) error {
+            return nil
+        },
+    }
+    familyService := services.NewFamilyService(
+        mockFamilyRepo, &MockMemberRepository{}, &MockPaymentRepository{}, &MockMembershipFeeRepository{},
+    )
+
     // Act
-    err := service.CreateMember(context.Background(), member)
-    
+    _, err := familyService.CreateFamilyAtomic(context.Background(), req)
+
     // Assert
-    testutils.AssertNoError(t, err)
+    if err != nil {
+        t.Fatalf("unexpected error: %v", err)
+    }
 }
 ```
 
-### 6. Helpers Disponibles
+### 6. Punteros
 
-#### Punteros
-```go
-strPtr := testutils.StringPtr("value")
-timePtr := testutils.TimePtr(time.Now())
-uintPtr := testutils.UintPtr(123)
-```
+Para campos opcionales (`*time.Time`, `*string`, …) usa `new` con una expresión (Go 1.26+), sin helpers:
 
-#### Tiempos
 ```go
-date := testutils.ParseTime("2024-01-15")
-datePtr := testutils.ParseTimePtr("2024-01-15")
-```
-
-#### DNI/NIE Válidos
-```go
-dni := testutils.ValidSpanishDNI()    // "12345678Z"
-nie := testutils.ValidSpanishNIE()    // "X1234567L"
-invalid := testutils.InvalidSpanishDNI() // "12345678A"
+fechaNacimiento := new(time.Now().AddDate(-10, 0, 0)) // *time.Time
+nombre := new("Ana")                                  // *string
 ```
 
 ### 7. Ejecución de Tests
@@ -162,7 +133,7 @@ go test -run TestCreateFamilyAtomic ./test/unit/services/
 4. **Nombres descriptivos**: El nombre del test debe describir claramente qué se está probando
 5. **Un assert por test**: Idealmente, cada test debe verificar una sola cosa
 6. **Usa t.Helper()**: En funciones helper para que los errores apunten al test correcto
-7. **Datos realistas**: Usa valores válidos para el dominio (p. ej. `testutils.ValidSpanishDNI()`, números de socio con `testutils.GenerateMemberNumber`)
+7. **Datos realistas**: Usa valores válidos para el dominio (p. ej. un DNI con letra de control correcta como `12345678Z`, números de socio con el formato `A00123`)
 
 ### 9. Cobertura
 
@@ -182,7 +153,6 @@ go tool cover -html=coverage.out
 Ver los tests existentes en:
 - `test/unit/services/family_service_test.go` - Tests de servicio con mocks
 - `test/unit/services/payment_service_fees_test.go` - Tests de servicio con mocks
-- `test/unit/testutils/helpers_test.go` - Tests de los propios helpers
 
 ## Notas
 

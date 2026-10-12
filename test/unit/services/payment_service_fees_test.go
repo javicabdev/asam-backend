@@ -10,7 +10,6 @@ import (
 	"github.com/javicabdev/asam-backend/internal/ports/input"
 	"github.com/javicabdev/asam-backend/internal/ports/output"
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
-	"github.com/javicabdev/asam-backend/test/unit/testutils"
 )
 
 // TestGenerateAnnualFees_Success verifica que se generan cuotas exitosamente para todos los miembros activos
@@ -481,9 +480,4 @@ func (m *MockCashFlowRepository) ListWithRunningBalance(ctx context.Context, fil
 
 func (m *MockCashFlowRepository) UpdateCashFlowAndSyncPayment(ctx context.Context, cashFlow *models.CashFlow) error {
 	return nil
-}
-
-func init() {
-	// Ensure testutils package is used
-	_ = testutils.TimePtr(time.Now())
 }
