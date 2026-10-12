@@ -111,28 +111,32 @@ jobs:
           # silently type-checks nothing and reports 0 issues. Running it here makes the
           # scan real. -no-fail keeps the SCAN non-blocking; the gate step below is what
           # fails the job, so the full report is always produced.
-          gosec -no-fail -fmt json -out gosec-results.json ./...
+          # Excluded: test/seed (fake-data generators — math/rand there is not a
+          # security concern, G404) and generated code (gqlgen output we don't edit).
+          gosec -no-fail -exclude-dir=test/seed -exclude-generated -fmt json -out gosec-results.json ./...
 
       - name: Display full gosec report
         if: always()
         run: |
           if [ -f gosec-results.json ]; then
-            echo "== Full gosec report (informational — the gate only fails on HIGH severity + HIGH confidence) =="
+            echo "== Full gosec report (informational — the gate only fails on HIGH severity) =="
             jq -r '.Issues[] | "[\(.severity)/\(.confidence)] \(.rule_id) \(.file):\(.line) - \(.details)"' gosec-results.json || cat gosec-results.json
             echo "== Totals by severity =="
             jq -r '[.Issues[].severity] | group_by(.) | map("\(.[0])=\(length)") | join("  ")' gosec-results.json
           fi
 
-      - name: Security gate — fail on HIGH severity + HIGH confidence findings
+      - name: Security gate — fail on HIGH severity findings
         run: |
-          COUNT=$(jq '[.Issues[] | select(.severity=="HIGH" and .confidence=="HIGH")] | length' gosec-results.json)
-          echo "gosec HIGH severity + HIGH confidence findings: $COUNT"
+          # Any confidence: the HIGH backlog was triaged to zero (#145), so a new
+          # HIGH finding must be fixed or justified with an inline `#nosec <rule> -- why`.
+          COUNT=$(jq '[.Issues[] | select(.severity=="HIGH")] | length' gosec-results.json)
+          echo "gosec HIGH severity findings: $COUNT"
           if [ "$COUNT" -gt 0 ]; then
-            echo "::error::gosec found $COUNT HIGH severity + HIGH confidence issue(s) — failing the build."
-            jq -r '.Issues[] | select(.severity=="HIGH" and .confidence=="HIGH") | "[\(.severity)/\(.confidence)] \(.rule_id) \(.file):\(.line) - \(.details)"' gosec-results.json
+            echo "::error::gosec found $COUNT HIGH severity issue(s) — failing the build."
+            jq -r '.Issues[] | select(.severity=="HIGH") | "[\(.severity)/\(.confidence)] \(.rule_id) \(.file):\(.line) - \(.details)"' gosec-results.json
             exit 1
           fi
-          echo "No HIGH+HIGH findings — gate passes. The broader gosec backlog is tracked for triage."
+          echo "No HIGH findings — gate passes."
 
       - name: Install govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
