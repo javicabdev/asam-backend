@@ -1,5 +1,7 @@
 package models
 
+import "slices"
+
 // OperationType define los tipos de operaciones permitidas en el flujo de caja
 type OperationType string
 
@@ -27,20 +29,26 @@ const (
 	OperationTypeOtherExpense OperationType = "GASTO_OTRO"
 )
 
-// IsValid verifica si el tipo de operación es válido
-func (ot OperationType) IsValid() bool {
-	switch ot {
-	case OperationTypeMembershipFee,
+// AllOperationTypes devuelve todos los tipos de operación válidos.
+// La base de datos exige el mismo conjunto con el CHECK
+// cash_flows_operation_type_check: añadir un tipo aquí requiere una migración
+// que lo actualice (test/integration/cashflow_operation_type_check_test.go lo vigila).
+func AllOperationTypes() []OperationType {
+	return []OperationType{
+		OperationTypeMembershipFee,
 		OperationTypeDonation,
 		OperationTypeOtherIncome,
 		OperationTypeRepatriation,
 		OperationTypeAdministrative,
 		OperationTypeBankFees,
 		OperationTypeSocialAid,
-		OperationTypeOtherExpense:
-		return true
+		OperationTypeOtherExpense,
 	}
-	return false
+}
+
+// IsValid verifica si el tipo de operación es válido
+func (ot OperationType) IsValid() bool {
+	return slices.Contains(AllOperationTypes(), ot)
 }
 
 // IsIncome indica si el tipo de operación es un ingreso
