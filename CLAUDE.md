@@ -36,6 +36,8 @@ wastes a review if you don't know it.
   - gqlgen v0.17.95 generated broken code (`undefined: invalid`);
   - gosec v2.29.0 failed to load 68 files *and still exited green*;
   - golangci-lint v2.5.0 failed `typecheck`; v2.14.0 works.
+  govulncheck reads code through x/tools too: v1.8.0 pins x/tools v0.50.0, so
+  it is ready for 1.27.
 - **In the Dockerfile the digest wins over the tag.** Changing only the tag
   leaves the build silently using the old image. Update both, and resolve the
   digest from the multi-arch index (not a single platform).
@@ -78,7 +80,9 @@ symptom reappears, you'll recognise it.)_
   files **or** reports load errors (`"Golang errors"` in its JSON). Don't trust
   the finding count alone: on go1.27, gosec failed to load 68 files yet still
   reported 2 findings over "117 files".
-- **`govulncheck` runs in CI** (added in #142), no flags. Its default source mode
+- **`govulncheck` runs in CI** (added in #142), no flags, pinned in `ci.yml`
+  (`@v1.8.0`; it was `@latest` until it silently picked up a day-old release).
+  Its default source mode
   fails (exit 3) only on **reachable** vulnerabilities and passes (exit 0) on vulns
   merely present but not called (e.g. GO-2026-5932, `x/crypto/openpgp`). A red
   govulncheck means our call graph is actually affected — worth acting on.
