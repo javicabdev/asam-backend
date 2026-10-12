@@ -6,11 +6,13 @@ wastes a review if you don't know it.
 
 ## Dependency invariants
 
-- **`gorm.io/gorm` is pinned to 1.31.0.** 1.31.1 breaks Preload
-  (go-gorm/gorm#7686). It is deliberately ignored in `.github/dependabot.yml`.
-  Do not bump it. Watch the driver too: `gorm.io/driver/postgres` >= 1.6.2
-  requires gorm >= 1.31.2, so it is ignored as well (1.6.1 is the newest
-  driver compatible with the pin).
+- **`gorm.io/gorm`: never 1.31.1** — it breaks Preload upstream
+  (go-gorm/gorm#7686) and is ignored in `.github/dependabot.yml`. We were
+  pinned to 1.31.0 until 1.31.2 was verified (with `gorm.io/driver/postgres`
+  1.6.2, which requires gorm >= 1.31.2). Our Preload patterns (belongs-to,
+  polymorphic has-many, nested, `Select`+`Joins`+`Preload`) are guarded by
+  `test/integration/preload_relations_test.go`: a gorm bump that turns it red
+  must not be merged. Extend that test when you add a new Preload shape.
 - **Floor for `google.golang.org/grpc`: >= 1.83.2** (GHSA-vp52-pcj8-j9qc,
   GHSA-2v4p-qf9q-27wj; previous floor 1.82.1 for GHSA-hrxh-6v49-42gf). Any
   PR that lowers it is a security regression, not a bump.
