@@ -76,9 +76,11 @@ jobs:
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
           echo "Version: $VERSION"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          # Generar timestamp para BUILD_TIME
-          echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
+          {
+            echo "version=$VERSION"
+            # Generar timestamp para BUILD_TIME
+            echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_OUTPUT"
 
       # Crear Release en GitHub
       - name: Create Release
@@ -144,22 +146,24 @@ jobs:
 
       - name: Create deployment instructions
         run: |
-          echo "## 🚀 Deployment Instructions" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Docker Image Published to GCR" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ steps.get_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Available Tags" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ steps.get_version.outputs.version }}\` - This release" >> $GITHUB_STEP_SUMMARY
-          echo "- \`latest\` - Updated to this release" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
-          echo "1. Go to [Deploy to Google Cloud Run](https://github.com/${{ github.repository }}/actions/workflows/cloud-run-deploy.yml)" >> $GITHUB_STEP_SUMMARY
-          echo "2. Click 'Run workflow'" >> $GITHUB_STEP_SUMMARY
-          echo "3. Use image tag: \`${{ steps.get_version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "4. Check 'Run database migrations' if needed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Version**: ${{ steps.get_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## 🚀 Deployment Instructions"
+            echo ""
+            echo "### Docker Image Published to GCR"
+            echo "\`\`\`bash"
+            echo "docker pull gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ steps.get_version.outputs.version }}"
+            echo "\`\`\`"
+            echo ""
+            echo "### Available Tags"
+            echo "- \`${{ steps.get_version.outputs.version }}\` - This release"
+            echo "- \`latest\` - Updated to this release"
+            echo ""
+            echo "### Next Steps"
+            echo "1. Go to [Deploy to Google Cloud Run](https://github.com/${{ github.repository }}/actions/workflows/cloud-run-deploy.yml)"
+            echo "2. Click 'Run workflow'"
+            echo "3. Use image tag: \`${{ steps.get_version.outputs.version }}\`"
+            echo "4. Check 'Run database migrations' if needed"
+            echo ""
+            echo "**Version**: ${{ steps.get_version.outputs.version }}"
+            echo "**Commit**: ${{ github.sha }}"
+          } >> "$GITHUB_STEP_SUMMARY"
