@@ -18,6 +18,9 @@ const (
 	msgInvalidFamilyData   = "datos de familia inválidos"
 	msgInvalidFamiliarData = "datos de familiar inválidos"
 	msgMemberNotFound      = "miembro" // errors.NotFound añade "no encontrada" automáticamente
+
+	// fieldEsposoDocumentoIdentidad is the API field name used as key in validation error details.
+	fieldEsposoDocumentoIdentidad = "esposoDocumentoIdentidad"
 )
 
 type familyService struct {
@@ -275,7 +278,7 @@ func (s *familyService) validateFamilyAtomicRequest(req *input.CreateFamilyAtomi
 	if req.CreateMemberIfNotExists && req.Family.EsposoDocumentoIdentidad == "" {
 		return errors.NewValidationError(
 			"El documento de identidad del esposo es obligatorio",
-			map[string]string{"esposoDocumentoIdentidad": "El documento de identidad es obligatorio para el miembro principal"},
+			map[string]string{fieldEsposoDocumentoIdentidad: "El documento de identidad es obligatorio para el miembro principal"},
 		)
 	}
 
@@ -358,7 +361,7 @@ func (s *familyService) checkDuplicateDNI(
 		return errors.NewValidationError(
 			"El documento de identidad ya está registrado",
 			map[string]string{
-				"esposoDocumentoIdentidad": fmt.Sprintf("Ya existe un miembro (%s) con este documento de identidad", existingByDNI.MembershipNumber),
+				fieldEsposoDocumentoIdentidad: fmt.Sprintf("Ya existe un miembro (%s) con este documento de identidad", existingByDNI.MembershipNumber),
 			},
 		)
 	}
@@ -419,7 +422,7 @@ func (s *familyService) createMemberForFamily(
 		if isAppErr && appErr.Code == errors.ErrDuplicateEntry {
 			return 0, errors.NewValidationError(
 				"El documento de identidad ya está registrado",
-				map[string]string{"esposoDocumentoIdentidad": "Ya existe un miembro con este documento de identidad"},
+				map[string]string{fieldEsposoDocumentoIdentidad: "Ya existe un miembro con este documento de identidad"},
 			)
 		}
 		return 0, errors.Wrap(err, errors.ErrDatabaseError, "Failed to create origin member")

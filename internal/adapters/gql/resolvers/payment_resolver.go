@@ -102,7 +102,7 @@ func (r *paymentResolver) validatePaymentAmount(payment *models.Payment) error {
 		return appErrors.NewValidationError(
 			"Payment amount must be greater than zero",
 			map[string]string{
-				"amount": "must be positive",
+				fieldAmount: "must be positive",
 			},
 		)
 	}
@@ -144,7 +144,7 @@ func (r *paymentResolver) updatePayment(ctx context.Context, payment *models.Pay
 		return nil, appErrors.NewValidationError(
 			"Cannot update cancelled payment",
 			map[string]string{
-				"status": "cancelled",
+				fieldStatus: "cancelled",
 			},
 		)
 	}

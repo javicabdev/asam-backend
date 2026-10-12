@@ -158,7 +158,7 @@ func (b *TestDataBuilder) BuildPendingPayment(memberID uint) *models.Payment {
 func (b *TestDataBuilder) BuildValidCashFlow() *models.CashFlow {
 	// Generate member ID between 1-100 (safe for uint conversion)
 	memberIDInt := b.rand.Intn(100) + 1
-	memberID := uint(memberIDInt) //nolint:gosec // Value is guaranteed to be 1-100, safe to convert
+	memberID := uint(memberIDInt)
 	return &models.CashFlow{
 		MemberID:      &memberID,
 		OperationType: models.OperationTypeMembershipFee,

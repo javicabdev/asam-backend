@@ -14,6 +14,13 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
+// Keys of the GraphQL error response shape: {"errors": [{"extensions": {"code": ...}}]}.
+// Clients match on them, so a typo is a silent API break.
+const (
+	responseKeyErrors = "errors"
+	extensionKeyCode  = "code"
+)
+
 type ErrorHandlerKey struct{}
 type HttpRequestKey struct{}
 
@@ -60,7 +67,7 @@ func (m *ErrorMiddleware) HandleError(ctx context.Context, err error) *gqlerror.
 		}
 		// Si no hay AppError subyacente, loggear y retornar el gqlErr tal cual
 		if m.logger != nil {
-			m.logError(ctx, "GraphQL error", gqlErr.Message, "graphql_error", gqlErr.Extensions["code"], gqlErr.Path)
+			m.logError(ctx, "GraphQL error", gqlErr.Message, "graphql_error", gqlErr.Extensions[extensionKeyCode], gqlErr.Path)
 		}
 		return gqlErr
 	}
@@ -103,7 +110,7 @@ func (m *ErrorMiddleware) getErrorLevel(code appErrors.ErrorCode) string {
 // handleAppError handles errors of type AppError
 func (m *ErrorMiddleware) handleAppError(ctx context.Context, err *appErrors.AppError) *gqlerror.Error {
 	// Create extensions with the error code
-	extensions := map[string]any{"code": string(err.Code)}
+	extensions := map[string]any{extensionKeyCode: string(err.Code)}
 
 	// Add fields if they exist
 	if len(err.Fields) > 0 {
@@ -202,7 +209,7 @@ func (m *ErrorMiddleware) createNotFoundError(ctx context.Context) *gqlerror.Err
 		Path:    path,
 		Message: message,
 		Extensions: map[string]any{
-			"code": appErrors.ErrNotFound,
+			extensionKeyCode: appErrors.ErrNotFound,
 		},
 	}
 }
@@ -221,7 +228,7 @@ func (m *ErrorMiddleware) createInternalError(ctx context.Context, err error) *g
 		Path:    path,
 		Message: message,
 		Extensions: map[string]any{
-			"code": appErrors.ErrInternalError,
+			extensionKeyCode: appErrors.ErrInternalError,
 		},
 	}
 }

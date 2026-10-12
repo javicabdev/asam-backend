@@ -9,6 +9,15 @@ import (
 	appErrors "github.com/javicabdev/asam-backend/pkg/errors"
 )
 
+const (
+	msgInvalidFormat = "Formato inválido"
+
+	// Mirror models.EstadoActivo / models.EstadoInactivo: models imports this
+	// package, so referencing them here would be an import cycle.
+	memberStatusActive   = "active"
+	memberStatusInactive = "inactive"
+)
+
 // DefaultMemberValidator implementación por defecto del validador de miembros
 type DefaultMemberValidator struct{}
 
@@ -18,6 +27,7 @@ func NewMemberValidator() MemberValidator {
 }
 
 // ValidateDocumentID valida el formato del documento de identidad (DNI/NIE)
+//
 // Deprecated: usar ValidateDocumentByType en su lugar
 func (v *DefaultMemberValidator) ValidateDocumentID(documentID string) error {
 	return v.ValidateDocumentByType(documentID, "DNI_NIE")
@@ -102,7 +112,7 @@ func (v *DefaultMemberValidator) ValidateContactInfo(email, phone, address strin
 		if !emailRegex.MatchString(email) {
 			return appErrors.NewValidationError(
 				"invalid email format",
-				map[string]string{"email": "Formato inválido"},
+				map[string]string{"email": msgInvalidFormat},
 			)
 		}
 	}
@@ -113,7 +123,7 @@ func (v *DefaultMemberValidator) ValidateContactInfo(email, phone, address strin
 		if !phoneRegex.MatchString(phone) {
 			return appErrors.NewValidationError(
 				"invalid phone number format",
-				map[string]string{"phone": "Formato inválido"},
+				map[string]string{"phone": msgInvalidFormat},
 			)
 		}
 	}
@@ -132,25 +142,25 @@ func (v *DefaultMemberValidator) ValidateContactInfo(email, phone, address strin
 // ValidateMemberStatus valida el estado del miembro y sus transiciones
 func (v *DefaultMemberValidator) ValidateMemberStatus(status string, currentStatus string) error {
 	validStatuses := map[string]bool{
-		"active":   true,
-		"inactive": true,
+		memberStatusActive:   true,
+		memberStatusInactive: true,
 	}
 
 	if !validStatuses[status] {
 		return appErrors.NewValidationError(
 			"invalid status",
-			map[string]string{"status": "Formato inválido"},
+			map[string]string{"status": msgInvalidFormat},
 		)
 	}
 
 	// Validar transiciones de estado
 	if currentStatus != "" {
 		validTransitions := map[string]map[string]bool{
-			"active": {
-				"inactive": true,
+			memberStatusActive: {
+				memberStatusInactive: true,
 			},
-			"inactive": {
-				"active": true,
+			memberStatusInactive: {
+				memberStatusActive: true,
 			},
 		}
 

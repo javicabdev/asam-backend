@@ -421,7 +421,7 @@ update-deps:
 .PHONY: tools
 tools:
 	@echo "🔧 Installing development tools..."
-	@$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0
+	@$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 	@$(GO) install github.com/securego/gosec/v2/cmd/gosec@v2.28.0
 	@$(GO) install github.com/air-verse/air@latest
 	@$(GO) install github.com/99designs/gqlgen@v0.17.95

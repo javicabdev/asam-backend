@@ -22,7 +22,7 @@ var (
 			Name: "asam_members_total",
 			Help: "Total number of members by status",
 		},
-		[]string{"status", "type"}, // status: activo/inactivo, type: individual/familiar
+		[]string{labelStatus, "type"}, // status: activo/inactivo, type: individual/familiar
 	)
 
 	// PaymentMetrics Pagos y Cuotas
@@ -31,7 +31,7 @@ var (
 			Name: "asam_payments_amount",
 			Help: "Payment amounts by type and status",
 		},
-		[]string{"type", "status"}, // type: cuota/otros, status: pending/paid/cancelled
+		[]string{"type", labelStatus}, // type: cuota/otros, status: pending/paid/cancelled
 	)
 
 	// PaymentLatency métrica que registra el tiempo de pago

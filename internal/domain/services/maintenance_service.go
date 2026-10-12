@@ -108,14 +108,14 @@ func (s *MaintenanceService) RunScheduledMaintenance(ctx context.Context, maxTok
 func (s *MaintenanceService) GenerateReport(_ context.Context, results []MaintenanceResult) string {
 	var report strings.Builder
 
-	report.WriteString(fmt.Sprintf("Maintenance Report - %s\n", time.Now().Format(time.RFC3339)))
+	fmt.Fprintf(&report, "Maintenance Report - %s\n", time.Now().Format(time.RFC3339))
 	report.WriteString(strings.Repeat("-", 50) + "\n\n")
 
 	for _, result := range results {
-		report.WriteString(fmt.Sprintf("Task: %s\n", result.TaskName))
-		report.WriteString(fmt.Sprintf("Start Time: %s\n", result.StartTime.Format(time.RFC3339)))
-		report.WriteString(fmt.Sprintf("End Time: %s\n", result.EndTime.Format(time.RFC3339)))
-		report.WriteString(fmt.Sprintf("Duration: %s\n", result.EndTime.Sub(result.StartTime)))
+		fmt.Fprintf(&report, "Task: %s\n", result.TaskName)
+		fmt.Fprintf(&report, "Start Time: %s\n", result.StartTime.Format(time.RFC3339))
+		fmt.Fprintf(&report, "End Time: %s\n", result.EndTime.Format(time.RFC3339))
+		fmt.Fprintf(&report, "Duration: %s\n", result.EndTime.Sub(result.StartTime))
 
 		if result.DryRun {
 			report.WriteString("Mode: DRY RUN\n")
@@ -123,13 +123,13 @@ func (s *MaintenanceService) GenerateReport(_ context.Context, results []Mainten
 
 		if result.Error != nil {
 			report.WriteString("Status: FAILED\n")
-			report.WriteString(fmt.Sprintf("Error: %v\n", result.Error))
+			fmt.Fprintf(&report, "Error: %v\n", result.Error)
 		} else {
 			report.WriteString("Status: SUCCESS\n")
 		}
 
 		if result.Message != "" {
-			report.WriteString(fmt.Sprintf("Message: %s\n", result.Message))
+			fmt.Fprintf(&report, "Message: %s\n", result.Message)
 		}
 
 		report.WriteString("\n")

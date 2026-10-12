@@ -204,11 +204,11 @@ func respondWithAuthError(w http.ResponseWriter, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusUnauthorized)
 	response := map[string]any{
-		"errors": []gqlerror.Error{
+		responseKeyErrors: []gqlerror.Error{
 			{
 				Message: message,
 				Extensions: map[string]any{
-					"code": appErrors.ErrUnauthorized,
+					extensionKeyCode: appErrors.ErrUnauthorized,
 				},
 			},
 		},
@@ -221,11 +221,11 @@ func respondWithBadRequest(w http.ResponseWriter, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusBadRequest)
 	response := map[string]any{
-		"errors": []gqlerror.Error{
+		responseKeyErrors: []gqlerror.Error{
 			{
 				Message: message,
 				Extensions: map[string]any{
-					"code": "BAD_REQUEST",
+					extensionKeyCode: "BAD_REQUEST",
 				},
 			},
 		},

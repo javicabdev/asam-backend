@@ -15,6 +15,10 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/logger"
 )
 
+// templateKeyUsername is the template data key for the recipient's username,
+// shared by the MailerSend and SMTP adapters.
+const templateKeyUsername = "Username"
+
 // MailerSendConfig holds MailerSend configuration
 type MailerSendConfig struct {
 	APIKey    string
@@ -173,8 +177,8 @@ func (a *mailersendAdapter) SendVerificationEmail(_ context.Context, user *model
 
 	var buf bytes.Buffer
 	err := tmpl.Execute(&buf, map[string]string{
-		"Username":        user.Username,
-		"VerificationURL": verificationURL,
+		templateKeyUsername: user.Username,
+		"VerificationURL":   verificationURL,
 	})
 	if err != nil {
 		return errors.Wrap(err, errors.ErrInternalError, "failed to generate email template")
@@ -292,8 +296,8 @@ func (a *mailersendAdapter) SendPasswordResetEmail(_ context.Context, user *mode
 
 	var buf bytes.Buffer
 	err := tmpl.Execute(&buf, map[string]string{
-		"Username": user.Username,
-		"ResetURL": resetURL,
+		templateKeyUsername: user.Username,
+		"ResetURL":          resetURL,
 	})
 	if err != nil {
 		a.logger.Error("Failed to generate email template", zap.Error(err))
@@ -413,7 +417,7 @@ func (a *mailersendAdapter) SendWelcomeEmail(_ context.Context, user *models.Use
 
 	var buf bytes.Buffer
 	err := tmpl.Execute(&buf, map[string]string{
-		"Username": user.Username,
+		templateKeyUsername: user.Username,
 	})
 	if err != nil {
 		return errors.Wrap(err, errors.ErrInternalError, "failed to generate email template")
@@ -533,8 +537,8 @@ func (a *mailersendAdapter) SendPasswordChangedEmail(_ context.Context, user *mo
 
 	var buf bytes.Buffer
 	err := tmpl.Execute(&buf, map[string]string{
-		"Username":  user.Username,
-		"Timestamp": time.Now().Format("02/01/2006 15:04:05 MST"),
+		templateKeyUsername: user.Username,
+		"Timestamp":         time.Now().Format("02/01/2006 15:04:05 MST"),
 	})
 	if err != nil {
 		return errors.Wrap(err, errors.ErrInternalError, "failed to generate email template")

@@ -111,15 +111,10 @@ func (r *verificationTokenRepository) DeleteExpired(ctx context.Context) error {
 func (r *verificationTokenRepository) InvalidateUserTokens(ctx context.Context, userID uint, tokenType string) error {
 	now := time.Now()
 
-	// Update both 'used' and 'used_at' fields for consistency
 	err := r.db.WithContext(ctx).
 		Model(&models.VerificationToken{}).
 		Where("user_id = ? AND type = ? AND used = false", userID, tokenType).
-		Updates(map[string]interface{}{
-			"used":       true,
-			"used_at":    &now,
-			"updated_at": now,
-		}).Error
+		Updates(markUsedUpdates(now)).Error
 
 	if err != nil {
 		return errors.Wrap(err, errors.ErrDatabaseError, "failed to invalidate user tokens")
@@ -151,11 +146,7 @@ func (r *verificationTokenRepository) MarkTokenAsUsed(ctx context.Context, token
 	result := r.db.WithContext(ctx).
 		Model(&models.VerificationToken{}).
 		Where("id = ? AND used = false", tokenID).
-		Updates(map[string]interface{}{
-			"used":       true,
-			"used_at":    &now,
-			"updated_at": now,
-		})
+		Updates(markUsedUpdates(now))
 
 	if result.Error != nil {
 		return errors.Wrap(result.Error, errors.ErrDatabaseError, "failed to mark token as used")
@@ -167,4 +158,14 @@ func (r *verificationTokenRepository) MarkTokenAsUsed(ctx context.Context, token
 	}
 
 	return nil
+}
+
+// markUsedUpdates is the column set that marks a token as used. Shared by the
+// single-token and bulk paths so both set used, used_at and updated_at.
+func markUsedUpdates(now time.Time) map[string]interface{} {
+	return map[string]interface{}{
+		"used":       true,
+		"used_at":    &now,
+		"updated_at": now,
+	}
 }
