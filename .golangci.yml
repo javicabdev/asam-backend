@@ -114,11 +114,6 @@ linters:
           - staticcheck
           - govet
 
-      # Fake-data seeds: repeated literals there are fixture values, not magic strings.
-      - path: internal/adapters/db/seeds/
-        linters:
-          - goconst
-
       # Exclude generated files
       - path: '.*\.pb\.go$'
         linters:

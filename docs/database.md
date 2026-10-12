@@ -123,8 +123,8 @@ Internamente, el sistema utiliza la biblioteca `github.com/golang-migrate/migrat
 No hay un generador de datos masivos versionado en el repositorio. El antiguo paquete `test/seed` se eliminó en octubre de 2026: estaba escrito contra un esquema anterior (tablas en español, la columna `cash_flows.family_id` ya eliminada, tipos de operación que el dominio no reconoce) y nada lo usaba.
 
 - **Tests de integración:** crean sus propios datos a través de los modelos de dominio, por ejemplo `test/integration/preload_relations_test.go`.
-- **Tests unitarios:** usan los builders de `test/unit/testutils`.
-- **Desarrollo local:** crea los datos que necesites a través de la API GraphQL o de los modelos de GORM, para que se apliquen las validaciones del dominio (`BeforeCreate`).
+- **Tests unitarios:** construyen los modelos con literales de structs y usan los helpers de `test/unit/testutils` (`helpers.go`, `assertions.go`).
+- **Desarrollo local:** crea los datos que necesites a través de la API GraphQL o de los modelos de GORM, para que se apliquen las validaciones del dominio (`BeforeCreate`). Para los usuarios de prueba, `make db-seed` ejecuta `scripts/user-management/auto-create-test-users/auto-create-test-users.go`. `scripts/` está en `.gitignore`, así que solo existe en copias locales; si falta, el target lo avisa.
 
 Si en el futuro hace falta seeding masivo, escríbelo sobre los modelos de GORM y no con SQL directo: así las validaciones impiden guardar datos que la aplicación no puede leer.
 
