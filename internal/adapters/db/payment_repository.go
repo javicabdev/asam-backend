@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -668,22 +669,22 @@ func (r *paymentRepository) GetDefaultersData(ctx context.Context) ([]output.Def
 	members_with_overdue AS (
 		SELECT DISTINCT
 			p.member_id,
-			COUNT(*) FILTER (WHERE p.status = 'PENDING' AND mf.due_date < NOW()) as overdue_count,
-			MIN(mf.due_date) FILTER (WHERE p.status = 'PENDING' AND mf.due_date < NOW()) as oldest_pending_due
+			COUNT(*) FILTER (WHERE p.status = @pending AND mf.due_date < NOW()) as overdue_count,
+			MIN(mf.due_date) FILTER (WHERE p.status = @pending AND mf.due_date < NOW()) as oldest_pending_due
 		FROM payments p
 		INNER JOIN membership_fees mf ON p.membership_fee_id = mf.id
 		WHERE p.membership_fee_id IS NOT NULL
 		  AND p.deleted_at IS NULL
 		  AND mf.deleted_at IS NULL
 		GROUP BY p.member_id
-		HAVING COUNT(*) FILTER (WHERE p.status = 'PENDING' AND mf.due_date < NOW()) > 0
+		HAVING COUNT(*) FILTER (WHERE p.status = @pending AND mf.due_date < NOW()) > 0
 	),
 	-- CTE 2: Calcular agregaciones de pagos por miembro
 	payment_aggregations AS (
 		SELECT
 			p.member_id,
-			COALESCE(SUM(p.amount) FILTER (WHERE p.status = 'PAID'), 0) as total_paid,
-			MAX(p.payment_date) FILTER (WHERE p.status = 'PAID') as last_payment_date
+			COALESCE(SUM(p.amount) FILTER (WHERE p.status = @paid), 0) as total_paid,
+			MAX(p.payment_date) FILTER (WHERE p.status = @paid) as last_payment_date
 		FROM payments p
 		WHERE p.deleted_at IS NULL
 		  AND p.payment_date >= NOW() - INTERVAL '1 year'
@@ -717,8 +718,14 @@ func (r *paymentRepository) GetDefaultersData(ctx context.Context) ([]output.Def
 		LastPaymentDate  *time.Time
 	}
 
+	// Los estados se pasan como parámetros desde las constantes del modelo: con
+	// literales en el SQL ('PENDING'/'PAID') la query no coincidía con los valores
+	// guardados ("pending"/"paid") y la lista de morosos salía siempre vacía.
 	var results []queryResult
-	if err := r.db.WithContext(ctx).Raw(query).Scan(&results).Error; err != nil {
+	if err := r.db.WithContext(ctx).Raw(query,
+		sql.Named("pending", models.PaymentStatusPending),
+		sql.Named("paid", models.PaymentStatusPaid),
+	).Scan(&results).Error; err != nil {
 		return nil, appErrors.DB(err, "error getting defaulters data")
 	}
 
@@ -746,9 +753,11 @@ func (r *paymentRepository) GetDefaultersData(ctx context.Context) ([]output.Def
 		}
 
 		// Cargar pending payments para todos los miembros morosos
+		// embedded: sin él GORM trata MembershipFee como relación y no rellena
+		// sus campos con las columnas planas de membership_fees.*
 		var allPendingPayments []struct {
 			MemberID        uint
-			MembershipFee   models.MembershipFee
+			MembershipFee   models.MembershipFee `gorm:"embedded"`
 			MembershipFeeID uint
 		}
 
