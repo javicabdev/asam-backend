@@ -8,12 +8,9 @@ Este directorio contiene todos los tests unitarios del proyecto ASAM Backend. Lo
 test/unit/
 ├── testutils/         # Utilidades compartidas para tests
 │   ├── helpers.go     # Funciones helper genéricas
-│   ├── assertions.go  # Assertions personalizadas
-│   └── builders.go    # Builders para crear datos de prueba
-├── domain/
-│   ├── models/       # Tests de modelos de dominio
-│   └── services/     # Tests de servicios de dominio
-└── README.md         # Esta documentación
+│   └── assertions.go  # Assertions personalizadas
+├── services/          # Tests de servicios de dominio (con mocks en mocks.go)
+└── README.md          # Esta documentación
 ```
 
 ## Convenciones
@@ -33,10 +30,7 @@ Todos los tests siguen el patrón **Arrange-Act-Assert**:
 ```go
 func TestMember_Validate_WithMissingName(t *testing.T) {
     // Arrange
-    builder := testutils.NewTestDataBuilder()
-    member := builder.NewMemberBuilder().
-        WithName("").
-        Build()
+    member := &models.Member{MembershipNumber: "A00001", Name: ""}
     
     // Act
     err := member.Validate()
@@ -46,23 +40,7 @@ func TestMember_Validate_WithMissingName(t *testing.T) {
 }
 ```
 
-### 3. Uso de Builders
-
-Utiliza los builders para crear datos de prueba consistentes:
-
-```go
-// Crear un miembro válido
-member := builder.BuildValidMember()
-
-// Crear con builder fluent
-member := builder.NewMemberBuilder().
-    WithMembershipNumber("B00001").
-    WithEmail("test@example.com").
-    AsInactive().
-    Build()
-```
-
-### 4. Assertions Personalizadas
+### 3. Assertions Personalizadas
 
 Usa las assertions personalizadas para validaciones comunes:
 
@@ -76,7 +54,7 @@ if err := member.Validate(); err != nil {
 testutils.AssertMemberValid(t, member)
 ```
 
-### 5. Tests de Tabla (Table-Driven Tests)
+### 4. Tests de Tabla (Table-Driven Tests)
 
 Para múltiples casos similares, usa table-driven tests:
 
@@ -95,9 +73,7 @@ func TestMember_Validate_InvalidStates(t *testing.T) {
     
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            member := builder.NewMemberBuilder().
-                WithState(tt.state).
-                Build()
+            member := &models.Member{MembershipNumber: "A00001", Name: "Ana", State: tt.state}
             
             err := member.Validate()
             
@@ -111,7 +87,7 @@ func TestMember_Validate_InvalidStates(t *testing.T) {
 }
 ```
 
-### 6. Mocking
+### 5. Mocking
 
 Para tests de servicios, usa mocks de las interfaces:
 
@@ -122,7 +98,7 @@ func TestMemberService_CreateMember_Success(t *testing.T) {
     mockLogger := mocks.NewMockLogger(t)
     service := services.NewMemberService(mockRepo, mockLogger, mockLogger)
     
-    member := builder.BuildValidMember()
+    member := &models.Member{MembershipNumber: "A00001", Name: "Ana"}
     
     mockRepo.EXPECT().
         GetByNumeroSocio(mock.Anything, member.MembershipNumber).
@@ -140,7 +116,7 @@ func TestMemberService_CreateMember_Success(t *testing.T) {
 }
 ```
 
-### 7. Helpers Disponibles
+### 6. Helpers Disponibles
 
 #### Punteros
 ```go
@@ -162,7 +138,7 @@ nie := testutils.ValidSpanishNIE()    // "X1234567L"
 invalid := testutils.InvalidSpanishDNI() // "12345678A"
 ```
 
-### 8. Ejecución de Tests
+### 7. Ejecución de Tests
 
 ```bash
 # Ejecutar todos los tests unitarios
@@ -178,7 +154,7 @@ go test -cover ./test/unit/...
 go test -run TestMember_Validate ./test/unit/domain/models/
 ```
 
-### 9. Mejores Prácticas
+### 8. Mejores Prácticas
 
 1. **No uses base de datos**: Los tests unitarios deben ser rápidos y no depender de servicios externos
 2. **Aísla las dependencias**: Usa mocks para todas las dependencias externas
@@ -186,9 +162,9 @@ go test -run TestMember_Validate ./test/unit/domain/models/
 4. **Nombres descriptivos**: El nombre del test debe describir claramente qué se está probando
 5. **Un assert por test**: Idealmente, cada test debe verificar una sola cosa
 6. **Usa t.Helper()**: En funciones helper para que los errores apunten al test correcto
-7. **Datos realistas**: Usa los generadores del seeder para crear datos consistentes
+7. **Datos realistas**: Usa valores válidos para el dominio (p. ej. `testutils.ValidSpanishDNI()`, números de socio con `testutils.GenerateMemberNumber`)
 
-### 10. Cobertura
+### 9. Cobertura
 
 Objetivos de cobertura:
 - Modelos de dominio: 90%+
@@ -204,29 +180,19 @@ go tool cover -html=coverage.out
 ## Ejemplos
 
 Ver los tests existentes en:
-- `test/unit/domain/models/member_test.go` - Tests de modelo
-- `test/unit/domain/services/member_service_test.go` - Tests de servicio
+- `test/unit/services/family_service_test.go` - Tests de servicio con mocks
+- `test/unit/services/payment_service_fees_test.go` - Tests de servicio con mocks
+- `test/unit/testutils/helpers_test.go` - Tests de los propios helpers
 
 ## Notas
 
 - Los tests unitarios no deben hacer llamadas a BD, APIs externas o sistema de archivos
 - Para tests que requieren estos recursos, usar tests de integración en `test/integration/`
-- Los builders reutilizan los generadores del sistema de seeding para consistencia
 
 ## Decisiones de Diseño
-
-### Uso de math/rand en Tests
-
-Los builders de test usan intencionalmente `math/rand` en lugar de `crypto/rand` por las siguientes razones:
-
-1. **Reproducibilidad**: Los tests necesitan generar los mismos datos cuando se ejecutan con la misma semilla
-2. **Rendimiento**: No necesitamos seguridad criptográfica para datos de prueba
-3. **Debugging**: Poder reproducir exactamente los mismos datos facilita la depuración
-
-Esto genera advertencias de gosec (G404) que son suprimidas con `//nolint:gosec` ya que es un uso legítimo en contexto de testing.
 
 ### Conversiones de Tipos
 
 Algunas conversiones int->uint generan advertencias G115. Estas están controladas y documentadas cuando:
-- El rango de valores está garantizado (ej: `rand.Intn(100) + 1` siempre produce 1-100)
+- El rango de valores está garantizado
 - La conversión es segura dentro del contexto de test
