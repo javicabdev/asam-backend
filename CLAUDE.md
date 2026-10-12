@@ -16,14 +16,18 @@ wastes a review if you don't know it.
 - **Floor for `google.golang.org/grpc`: >= 1.83.2** (GHSA-vp52-pcj8-j9qc,
   GHSA-2v4p-qf9q-27wj; previous floor 1.82.1 for GHSA-hrxh-6v49-42gf). Any
   PR that lowers it is a security regression, not a bump.
-- **The Go version lives in 5 production locations and they move TOGETHER:**
-  `go.mod`, `.github/workflows/ci.yml` (`GO_VERSION`), `Dockerfile` (tag AND
-  digest), `.github/workflows/release.yml`, `.github/workflows/cloud-run-deploy.yml`.
-  Non-production (kept separate): `Dockerfile.dev`, `.github/workflows/examples/`.
+- **The Go version lives in 6 locations and they move TOGETHER:**
+  `go.mod`, `.github/workflows/ci.yml` (`GO_VERSION`), `Dockerfile` and
+  `Dockerfile.dev` (tag AND digest), `.github/workflows/release.yml`,
+  `.github/workflows/cloud-run-deploy.yml`. `Dockerfile.dev` is dev-only
+  (`docker-compose.yml`) but it cannot lag: the `golang` image sets
+  `GOTOOLCHAIN=local`, so a Go older than the `go` line in `go.mod` fails
+  `go mod download`. It sat at 1.26.4 while `go.mod` moved to 1.26.9, which broke
+  `docker compose up --build` (#141). CI does not build it, so nothing catches the drift.
   Dependabot **ignores the `golang` Docker image on purpose** (see
   `.github/dependabot.yml`): it can only bump the Dockerfiles, which silently
-  desyncs the other locations. A Go bump is a manual PR touching all 5 locations
-  (in the Dockerfile: the tag AND the multi-arch digest).
+  desyncs the other locations. A Go bump is a manual PR touching all 6 locations
+  (in both Dockerfiles: the tag AND the multi-arch digest).
   **A Go minor bump is gated by the tools, not just `go build`.** gqlgen, gosec
   and golangci-lint are built with the new Go but analyse code through the
   `golang.org/x/tools` they pin, which must read the new export data format, so

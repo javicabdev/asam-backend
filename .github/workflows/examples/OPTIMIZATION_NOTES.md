@@ -85,4 +85,4 @@ Run migrations: ✓/✗
 ## Archivos
 
 - **Actual**: `.github/workflows/cloud-run-deploy.yml` (optimizado)
-- **Anterior**: `.github/workflows/examples/cloud-run-deploy-with-build.yml` (con duplicación)
+- **Anterior**: `cloud-run-deploy-with-build.yml` (con duplicación). Se eliminó en la issue #141 porque ya no se usaba y su versión de Go se quedaba atrasada; sigue disponible en el historial de git.
