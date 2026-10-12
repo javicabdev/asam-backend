@@ -140,11 +140,13 @@ db-reset:
 	@$(MAKE) db-seed
 	@echo "✅ Database reset complete"
 
-## db-seed: Seed database with test data
+## db-seed: Create the test users (needs the local, git-ignored scripts/ directory)
 .PHONY: db-seed
+db-seed: SEED_SCRIPT := scripts/user-management/auto-create-test-users/auto-create-test-users.go
 db-seed:
 	@echo "🌱 Seeding database..."
-	@$(DOCKER_COMPOSE) exec api go run scripts/user-management/auto-create-test-users.go
+	@test -f $(SEED_SCRIPT) || { echo "❌ $(SEED_SCRIPT) not found: scripts/ is git-ignored and only exists in local copies"; exit 1; }
+	@$(DOCKER_COMPOSE) exec api go run $(SEED_SCRIPT)
 	@echo "✅ Database seeded"
 
 ## db-shell: Open PostgreSQL shell

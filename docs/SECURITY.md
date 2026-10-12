@@ -91,5 +91,4 @@ Vulnerabilidades conocidas: Ninguna (código de producción limpio)
 ### Exclusiones documentadas
 
 - **Código generado** (`internal/adapters/gql/generated/`): Generado automáticamente por gqlgen
-- **Datos de prueba** (`test/unit/testutils/fake_data.go`): Uso de `math/rand` (semilla fija, datos deterministas) es aceptable; gosec no lo marca
 - **File operations** (`pkg/monitoring/memory.go`): Rutas controladas y validadas
