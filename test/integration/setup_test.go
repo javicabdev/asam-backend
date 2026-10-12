@@ -23,6 +23,11 @@ var testMutex sync.Mutex
 func setupTestDB(t *testing.T) (*gorm.DB, func()) {
 	// Adquirir mutex para asegurar que solo un test corra a la vez
 	testMutex.Lock()
+	// Release via t.Cleanup, not the returned cleanup func: a t.Fatal below
+	// would otherwise return with the mutex held and hang every later test
+	// until the package timeout. t.Cleanup runs after the test's own
+	// `defer cleanup()`, so the lock is still held while tables are truncated.
+	t.Cleanup(testMutex.Unlock)
 
 	// Leer configuración desde variables de entorno
 	// Por defecto usa las credenciales del CI (asam_test)
@@ -100,9 +105,6 @@ func setupTestDB(t *testing.T) (*gorm.DB, func()) {
 
 	// Función de limpieza
 	cleanup := func() {
-		// Liberar mutex para permitir que el siguiente test corra
-		defer testMutex.Unlock()
-
 		// Limpiar todas las tablas después del test también
 		cleanTables()
 
