@@ -8,7 +8,9 @@ wastes a review if you don't know it.
 
 - **`gorm.io/gorm` is pinned to 1.31.0.** 1.31.1 breaks Preload
   (go-gorm/gorm#7686). It is deliberately ignored in `.github/dependabot.yml`.
-  Do not bump it.
+  Do not bump it. Watch the driver too: `gorm.io/driver/postgres` >= 1.6.2
+  requires gorm >= 1.31.2, so it is ignored as well (1.6.1 is the newest
+  driver compatible with the pin).
 - **Floor for `google.golang.org/grpc`: >= 1.83.2** (GHSA-vp52-pcj8-j9qc,
   GHSA-2v4p-qf9q-27wj; previous floor 1.82.1 for GHSA-hrxh-6v49-42gf). Any
   PR that lowers it is a security regression, not a bump.
