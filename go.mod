@@ -11,7 +11,7 @@ require (
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/joho/godotenv v1.5.1
-	github.com/mailersend/mailersend-go v1.6.6
+	github.com/mailersend/mailersend-go v1.8.0
 	github.com/prometheus/client_golang v1.25.0
 	github.com/sethvargo/go-envconfig v1.3.0
 	github.com/stretchr/testify v1.12.1
