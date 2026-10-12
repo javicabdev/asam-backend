@@ -7,10 +7,9 @@ import (
 	"time"
 
 	"github.com/javicabdev/asam-backend/internal/domain/models"
-	"github.com/javicabdev/asam-backend/test/seed/generators"
 )
 
-// TestDataBuilder provides methods to build test data using the existing generators
+// TestDataBuilder provides methods to build test data from the fake-data helpers in fake_data.go
 type TestDataBuilder struct {
 	rand *rand.Rand
 }
@@ -21,38 +20,38 @@ func (b *TestDataBuilder) randomFirstName() string {
 	if b.rand.Intn(2) == 0 {
 		gender = "female"
 	}
-	firstName, _ := generators.GenerateRandomName(b.rand, gender)
+	firstName, _ := randomName(b.rand, gender)
 	return firstName
 }
 
 // randomSurnames generates random surnames
 func (b *TestDataBuilder) randomSurnames() string {
-	_, lastName1 := generators.GenerateRandomName(b.rand, "male")
-	_, lastName2 := generators.GenerateRandomName(b.rand, "male")
+	_, lastName1 := randomName(b.rand, "male")
+	_, lastName2 := randomName(b.rand, "male")
 	return lastName1 + " " + lastName2
 }
 
 // randomAddress generates a random address
 func (b *TestDataBuilder) randomAddress() string {
-	address, _, _, _ := generators.GenerateRandomAddress(b.rand)
+	address, _, _ := randomAddress(b.rand)
 	return address
 }
 
 // randomPostcode generates a random postcode
 func (b *TestDataBuilder) randomPostcode() string {
-	_, postcode, _, _ := generators.GenerateRandomAddress(b.rand)
+	_, postcode, _ := randomAddress(b.rand)
 	return postcode
 }
 
 // randomCity generates a random city
 func (b *TestDataBuilder) randomCity() string {
-	_, _, city, _ := generators.GenerateRandomAddress(b.rand)
+	_, _, city := randomAddress(b.rand)
 	return city
 }
 
 // randomEmail generates a random email
 func (b *TestDataBuilder) randomEmail() string {
-	firstName, lastName := generators.GenerateRandomName(b.rand, "male")
+	firstName, lastName := randomName(b.rand, "male")
 	firstName = strings.ToLower(strings.ReplaceAll(firstName, " ", ""))
 	lastName = strings.ToLower(strings.ReplaceAll(lastName, " ", ""))
 	domains := []string{"gmail.com", "yahoo.com", "hotmail.com", "outlook.com"}
@@ -113,8 +112,8 @@ func (b *TestDataBuilder) BuildInactiveMember() *models.Member {
 
 // BuildValidFamily creates a valid family with all required fields
 func (b *TestDataBuilder) BuildValidFamily() *models.Family {
-	esposoNombre, esposoApellidos := generators.GenerateRandomName(b.rand, "male")
-	esposaNombre, esposaApellidos := generators.GenerateRandomName(b.rand, "female")
+	esposoNombre, esposoApellidos := randomName(b.rand, "male")
+	esposaNombre, esposaApellidos := randomName(b.rand, "female")
 
 	return &models.Family{
 		NumeroSocio:              GenerateMemberNumber("A", b.rand.Intn(99999)+1),
@@ -204,7 +203,7 @@ func (b *TestDataBuilder) BuildAnnualMembershipFee(year int) *models.MembershipF
 
 // randomUsername generates a random username
 func (b *TestDataBuilder) randomUsername() string {
-	firstName, lastName := generators.GenerateRandomName(b.rand, "male")
+	firstName, lastName := randomName(b.rand, "male")
 	firstName = strings.ToLower(strings.ReplaceAll(firstName, " ", ""))
 	lastName = strings.ToLower(strings.ReplaceAll(lastName, " ", ""))
 	return fmt.Sprintf("%s.%s%d", firstName, lastName, b.rand.Intn(999))

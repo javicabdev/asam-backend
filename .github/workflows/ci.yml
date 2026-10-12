@@ -111,9 +111,8 @@ jobs:
           # silently type-checks nothing and reports 0 issues. Running it here makes the
           # scan real. -no-fail keeps the SCAN non-blocking; the gate step below is what
           # fails the job, so the full report is always produced.
-          # Excluded: test/seed (fake-data generators — math/rand there is not a
-          # security concern, G404) and generated code (gqlgen output we don't edit).
-          gosec -no-fail -exclude-dir=test/seed -exclude-generated -fmt json -out gosec-results.json ./...
+          # Excluded: generated code (gqlgen output we don't edit).
+          gosec -no-fail -exclude-generated -fmt json -out gosec-results.json ./...
 
       - name: Display full gosec report
         if: always()

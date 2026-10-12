@@ -21,7 +21,7 @@ El sistema puede apuntar a distintas instancias de PostgreSQL según el entorno;
 
 ### Scripts PowerShell y perfiles locales
 
-Los scripts (`migrate.ps1`, `seed.ps1`, etc.) pueden aceptar un entorno (`local`, `aiven`, `all`). Si en tu máquina usas archivos adicionales (por ejemplo copias de `.env` con otro nombre), son **opcionales y locales**: no sustituyen el contrato estándar del repo, que sigue siendo **variables de entorno** + [CONFIGURATION.md](CONFIGURATION.md).
+Los scripts (`migrate.ps1`, etc.) pueden aceptar un entorno (`local`, `aiven`, `all`). Si en tu máquina usas archivos adicionales (por ejemplo copias de `.env` con otro nombre), son **opcionales y locales**: no sustituyen el contrato estándar del repo, que sigue siendo **variables de entorno** + [CONFIGURATION.md](CONFIGURATION.md).
 
 ## Migraciones de Base de Datos
 
@@ -120,90 +120,20 @@ Internamente, el sistema utiliza la biblioteca `github.com/golang-migrate/migrat
 
 ## Generación de Datos de Prueba (Seeding)
 
-El sistema de seeding permite poblar la base de datos con datos de prueba para desarrollo y testing.
+No hay un generador de datos masivos versionado en el repositorio. El antiguo paquete `test/seed` se eliminó en octubre de 2026: estaba escrito contra un esquema anterior (tablas en español, la columna `cash_flows.family_id` ya eliminada, tipos de operación que el dominio no reconoce) y nada lo usaba.
 
-### Scripts de Seeding
+- **Tests de integración:** crean sus propios datos a través de los modelos de dominio, por ejemplo `test/integration/preload_relations_test.go`.
+- **Tests unitarios:** usan los builders de `test/unit/testutils`.
+- **Desarrollo local:** crea los datos que necesites a través de la API GraphQL o de los modelos de GORM, para que se apliquen las validaciones del dominio (`BeforeCreate`).
 
-Usamos un script PowerShell para generar datos de prueba:
-
-```powershell
-.\seed.ps1 [entorno] [tipo] [parámetros]
-```
-
-**Ejemplos:**
-```powershell
-# Seed mínimo en la base de datos local
-.\seed.ps1
-
-# Seed completo en la base de datos Aiven
-.\seed.ps1 aiven full
-
-# Limpiar ambas bases de datos (sin seed)
-.\seed.ps1 -Environment all -Clean
-
-# Seed personalizado
-.\seed.ps1 local custom -Members 100 -Families 30 -Payments 200
-```
-
-#### Desde línea de comandos Go (avanzado)
-
-El paquete de seeding está en `test/seed` (ver [test/seed/README.md](../test/seed/README.md)). No hay un `main` versionado en el repositorio: integra el `Seeder` desde un programa en tu entorno o usa el flujo Docker/Make (`make db-seed`) para datos de prueba básicos.
-
-#### Entornos Disponibles
-
-- `local` - Base de datos local (por defecto)
-- `aiven` - Base de datos en la nube Aiven
-- `all` - Ambas bases de datos secuencialmente
-
-#### Tipos de Dataset
-
-- `minimal` - Dataset mínimo para pruebas rápidas (por defecto)
-  * 10 miembros
-  * 3 familias
-  * 6 familiares
-  * 15 pagos de cuotas
-  * 20 movimientos de caja
-
-- `full` - Dataset completo para pruebas exhaustivas
-  * 70 miembros
-  * 20 familias
-  * 60 familiares
-  * 150 pagos de cuotas
-  * 200 movimientos de caja
-
-- `scenario` - Escenario específico para casos particulares
-  * `payment_overdue` - Miembros con pagos pendientes
-  * `membership_expired` - Miembros con membresías expiradas
-  * `large_family` - Familias con muchos miembros
-  * `financial_emergency` - Casos de emergencias financieras
-
-- `custom` - Dataset personalizado con cantidades específicas
-
-#### Opciones para Dataset Custom
-
-```powershell
-.\seed.ps1 -Environment local -Type custom -Members 100 -Families 30 -Clean
-```
-
-### Implementación Técnica
-
-El sistema de seeding está implementado en el paquete `test/seed` y consiste en:
-
-- `seeder.go` - Coordinador principal del proceso de seeding
-- `generators/` - Generadores de entidades específicas
-- `data/` - Definición de datasets predefinidos
-
-Los generadores utilizan algoritmos que garantizan datos coherentes y respetan las relaciones entre entidades.
+Si en el futuro hace falta seeding masivo, escríbelo sobre los modelos de GORM y no con SQL directo: así las validaciones impiden guardar datos que la aplicación no puede leer.
 
 ## Uso en Entornos CI/CD
 
-Para entornos de integración continua, las migraciones se ejecutan como en CI (por ejemplo `go run ./cmd/migrate/main.go -cmd=up` con las variables de base de datos en el entorno). El seeding masivo usa el paquete `test/seed` desde tests o herramientas internas; no hay un comando único versionado en el repo.
+Para entornos de integración continua, las migraciones se ejecutan como en CI (por ejemplo `go run ./cmd/migrate/main.go -cmd=up` con las variables de base de datos en el entorno).
 
 ## Recomendaciones de Uso
 
 1. **Instalación inicial**: Ejecutar `.\setup_and_migrate.ps1` la primera vez para instalar las dependencias.
-2. **Uso normal**: Usar los scripts PowerShell `.\migrate.ps1` y `.\seed.ps1` para el trabajo diario.
-3. **Entorno local**: Usar durante el desarrollo con dataset minimal o custom.
-4. **Entorno Aiven**: Usar para pruebas de integración con dataset full.
-5. **Escenarios específicos**: Usar datasets de tipo scenario para probar casos particulares.
-6. **Sincronización de entornos**: Mantener los entornos sincronizados ejecutando las migraciones en ambos con `.\migrate.ps1 all up`.
+2. **Uso normal**: Usar el script PowerShell `.\migrate.ps1` para el trabajo diario.
+3. **Sincronización de entornos**: Mantener los entornos sincronizados ejecutando las migraciones en ambos con `.\migrate.ps1 all up`.
