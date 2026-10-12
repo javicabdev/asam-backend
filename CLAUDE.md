@@ -99,3 +99,8 @@ symptom reappears, you'll recognise it.)_
   `docs/dependabot/runbook.md`. So CI is the only gate on those bumps: if an
   update could break something CI doesn't cover, add the test rather than
   reviewing by hand.
+- **Workflows are linted by actionlint**: the `Lint Workflows` job in `ci.yml`
+  (pinned there, `@v1.7.12`), with shellcheck on `run:` scripts. Keep it at zero
+  findings. Pass `inputs.*` and other user-controlled values to scripts through
+  `env:`, never as `${{ }}` inside `run:`. The repo is public, so its Actions logs
+  are too: `::add-mask::` every credential and DB identifier a step reads.

@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       target_url:
-        description: 'URL a escanear (vacío = usar variable del repo DAST_TARGET_URL)'
+        description: 'URL a escanear (vacío = usar variable del repo DAST_BACKEND_URL)'
         required: false
         type: string
       scan_type:
@@ -36,7 +36,7 @@ env:
 jobs:
   dast-scan:
     name: OWASP ZAP Security Scan
-    # Manual: siempre corre. Cron: solo si existe DAST_TARGET_URL (si no, skipped, no failed).
+    # Manual: siempre corre. Cron: solo si existe DAST_BACKEND_URL (si no, skipped, no failed).
     if: ${{ github.event_name == 'workflow_dispatch' || vars.DAST_BACKEND_URL != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -47,24 +47,33 @@ jobs:
 
       - name: Set target URL
         id: set-url
+        env:
+          # Inputs come in through the environment, not by interpolating the
+          # expression into run:, so their values can't run as shell code.
+          INPUT_TARGET_URL: ${{ inputs.target_url }}
+          INPUT_SCAN_TYPE: ${{ inputs.scan_type }}
         run: |
           # Manual: inputs.target_url. Programado: vars.DAST_BACKEND_URL
-          TARGET="${{ inputs.target_url }}"
+          TARGET="$INPUT_TARGET_URL"
           if [ -z "$TARGET" ]; then
-            TARGET="${{ env.DEFAULT_BACKEND_URL }}"
+            TARGET="$DEFAULT_BACKEND_URL"
           fi
           if [ -z "$TARGET" ]; then
             echo "::error::Define la variable del repositorio DAST_BACKEND_URL (URL base del API en Cloud Run, p. ej. https://asam-backend-xxx.a.run.app) o ejecuta el workflow con target_url."
             exit 1
           fi
-          echo "target_url=$TARGET" >> $GITHUB_OUTPUT
-
-          # Use provided scan_type or default to baseline
-          if [ -n "${{ inputs.scan_type }}" ]; then
-            echo "scan_type=${{ inputs.scan_type }}" >> $GITHUB_OUTPUT
-          else
-            echo "scan_type=baseline" >> $GITHUB_OUTPUT
+          # A single-line http(s) URL: anything else (e.g. a newline) could add
+          # extra lines to GITHUB_OUTPUT.
+          if [[ ! "$TARGET" =~ ^https?://[^[:space:]]+$ ]]; then
+            echo "::error::target_url must be a single http(s) URL"
+            exit 1
           fi
+
+          {
+            echo "target_url=$TARGET"
+            # Use provided scan_type or default to baseline
+            echo "scan_type=${INPUT_SCAN_TYPE:-baseline}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Run OWASP ZAP Baseline Scan
         if: steps.set-url.outputs.scan_type == 'baseline'
@@ -110,21 +119,27 @@ jobs:
 
       - name: Create Summary
         if: always()
+        env:
+          # The target URL comes from an input, so it goes through the environment too.
+          TARGET_URL: ${{ steps.set-url.outputs.target_url }}
+          SCAN_TYPE: ${{ steps.set-url.outputs.scan_type }}
         run: |
-          echo "## DAST Security Scan Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Target URL:** ${{ steps.set-url.outputs.target_url }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Scan Type:** ${{ steps.set-url.outputs.scan_type }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Scan Date:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## DAST Security Scan Results"
+            echo ""
+            echo "**Target URL:** $TARGET_URL"
+            echo "**Scan Type:** $SCAN_TYPE"
+            echo "**Scan Date:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+            echo ""
 
-          if [ -f "report_json.json" ]; then
-            echo "✅ Scan completed successfully" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "📊 Check the uploaded artifacts for detailed reports" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️ No scan results found" >> $GITHUB_STEP_SUMMARY
-          fi
+            if [ -f "report_json.json" ]; then
+              echo "✅ Scan completed successfully"
+              echo ""
+              echo "📊 Check the uploaded artifacts for detailed reports"
+            else
+              echo "⚠️ No scan results found"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Comment on PR (if applicable)
         if: github.event_name == 'pull_request'
