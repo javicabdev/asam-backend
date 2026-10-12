@@ -82,3 +82,16 @@ symptom reappears, you'll recognise it.)_
   no push, Buildx + GHA cache. `cache-to` is scoped to `push` events so Dependabot
   / fork PRs (read-only token) don't 403 on cache export — they only read the cache
   warmed from `main`. A green CI now does exercise the Dockerfile.
+- **`main` is protected by a ruleset that names `ci.yml` jobs.** "Protect main"
+  requires these checks: `Setup Environment & Generate Code`, `Lint Code`,
+  `Security Scan (SAST)`, `Run Tests` and `Docker Build`. It also requires the
+  branch to be up to date and allows squash merges only. **Renaming one of those
+  jobs blocks every PR**: the required check never reports. Rename it in the
+  ruleset (Settings → Rules) in the same change. Never make a path-filtered
+  workflow such as `Lychee (offline)` required, because it stays pending forever.
+- **Dependabot minor/patch updates for Go and Docker auto-merge** through
+  `dependabot-automerge.yml` once those checks pass. Go minor/patch updates come
+  as one grouped weekly PR. Majors, gqlgen and GitHub Actions stay manual; see
+  `docs/dependabot/runbook.md`. So CI is the only gate on those bumps: if an
+  update could break something CI doesn't cover, add the test rather than
+  reviewing by hand.
