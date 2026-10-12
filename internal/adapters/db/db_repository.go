@@ -96,16 +96,6 @@ func InitDB(cfg *config.Config, logs ...appLogger.Logger) (*gorm.DB, error) {
 	sqlDB.SetMaxOpenConns(cfg.DBMaxOpenConns)       // Maximum simultaneous connections
 	sqlDB.SetConnMaxLifetime(cfg.DBConnMaxLifetime) // Connection lifetime
 
-	// Reconfigure with optimized settings
-	sqlDB, err = db.DB()
-	if err != nil {
-		return nil, errors.Wrap(err, errors.ErrInternalError, "Failed to get database instance")
-	}
-
-	sqlDB.SetMaxIdleConns(cfg.DBMaxIdleConns)       // Keep idle connections
-	sqlDB.SetMaxOpenConns(cfg.DBMaxOpenConns)       // Maximum simultaneous connections
-	sqlDB.SetConnMaxLifetime(cfg.DBConnMaxLifetime) // Connection lifetime
-
 	// Test connection with timeout for Cloud Run
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

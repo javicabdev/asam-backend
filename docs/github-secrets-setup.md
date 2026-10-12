@@ -1,19 +1,15 @@
 # Configuración de Secretos para CI/CD en GitHub Actions
 
-Para que el flujo de trabajo de CI/CD funcione correctamente, necesitas configurar los siguientes secretos en tu repositorio de GitHub:
+Los secretos viven en dos sitios:
 
-## Secretos necesarios
+- **GitHub (Actions secrets):** solo lo que los workflows necesitan para autenticarse en GCP y en la API de Aiven.
+- **GCP Secret Manager:** los secretos de la aplicación (base de datos, JWT, administrador, email). El despliegue los inyecta en Cloud Run; no son secretos de GitHub.
+
+## Secretos de GitHub
 
 ### Google Cloud Platform
 - `GCP_PROJECT_ID`: El ID de tu proyecto de GCP (el nuevo proyecto creado para asam-backend).
-- `GCP_SA_KEY`: La clave JSON de la cuenta de servicio de GCP con permisos para desplegar en Cloud Run y acceder a Container Registry.
-
-### Base de datos Aiven
-- `AIVEN_DB_HOST`: Hostname del servidor PostgreSQL en Aiven (véase la consola Aiven; no uses un host de ejemplo fijo en documentación pública)
-- `AIVEN_DB_PORT`: Puerto del servidor PostgreSQL (ej. 14276)
-- `AIVEN_DB_USER`: Usuario para conectarse a PostgreSQL (ej. avnadmin)
-- `AIVEN_DB_PASSWORD`: Contraseña para conectarse a PostgreSQL
-- `AIVEN_DB_NAME`: Nombre de la base de datos (según el servicio creado en Aiven)
+- `GCP_SA_KEY`: La clave JSON de la cuenta de servicio de GCP con permisos para desplegar en Cloud Run, acceder a Container Registry y leer Secret Manager.
 
 ### Keep-alive del plan gratuito de Aiven
 Los usa el workflow [`aiven-keepalive.yml`](../.github/workflows/aiven-keepalive.yml), que consulta la API de Aiven dos veces por semana para que el servicio gratuito no se apague por inactividad, y falla (GitHub te avisa por email) si el servicio está apagado o el token deja de valer.
@@ -23,17 +19,32 @@ Los usa el workflow [`aiven-keepalive.yml`](../.github/workflows/aiven-keepalive
 
 Proyecto y servicio van como secretos porque juntos revelan el host de la base de datos. Tras crearlos, lanza el workflow a mano (**Actions → Aiven keep-alive → Run workflow**): el log debe mostrar solo `Service state: RUNNING` (o `REBALANCING`, transitorio).
 
-### Seguridad de la aplicación
-- `JWT_ACCESS_SECRET`: Clave secreta para la generación de tokens JWT de acceso
-- `JWT_REFRESH_SECRET`: Clave secreta para la generación de tokens JWT de actualización
-- `ADMIN_USER`: Usuario administrador para acceder a endpoints de monitoreo en producción
-- `ADMIN_PASSWORD`: Contraseña del administrador (debe ser muy segura)
+## Secretos de la aplicación (GCP Secret Manager)
 
-### Configuración de Email (opcional)
-- `SMTP_SERVER`: Servidor SMTP para envío de correos
-- `SMTP_PORT`: Puerto del servidor SMTP
-- `SMTP_USER`: Usuario SMTP
-- `SMTP_PASSWORD`: Contraseña SMTP
+Viven en Secret Manager, en el proyecto de GCP. [`cloud-run-deploy.yml`](../.github/workflows/cloud-run-deploy.yml) los monta en Cloud Run como variables de entorno (`--set-secrets`, versión `latest`), y su job de migraciones los lee con `gcloud secrets versions access`.
+
+| Secreto en Secret Manager | Variable de entorno en la app |
+|---|---|
+| `db-host` | `DB_HOST` |
+| `db-port` | `DB_PORT` |
+| `db-user` | `DB_USER` |
+| `db-password` | `DB_PASSWORD` |
+| `db-name` | `DB_NAME` |
+| `jwt-access-secret` | `JWT_ACCESS_SECRET` |
+| `jwt-refresh-secret` | `JWT_REFRESH_SECRET` |
+| `admin-user` | `ADMIN_USER` |
+| `admin-password` | `ADMIN_PASSWORD` |
+| `mailersend-api-key` | `MAILERSEND_API_KEY` |
+
+El resto de la configuración de producción no es secreta y va como `--set-env-vars` en el mismo workflow (por ejemplo `DB_SSL_MODE=require` o `DB_MAX_OPEN_CONNS`).
+
+Para cambiar un valor (por ejemplo, al rotar la contraseña de la base de datos), añade una versión nueva sin que el valor quede en pantalla ni en el historial del shell:
+
+```sh
+read -rs VALUE && printf '%s' "$VALUE" | gcloud secrets versions add db-password --data-file=- ; unset VALUE
+```
+
+Después vuelve a desplegar con `cloud-run-deploy.yml`, para que todas las instancias arranquen con la versión nueva.
 
 ## Cómo configurar los secretos en GitHub
 
@@ -62,6 +73,7 @@ Para obtener el archivo de clave JSON necesario para el secreto `GCP_SA_KEY`:
    - Cloud Build Service Account
    - Service Account User
    - Storage Admin (para acceder a Container Registry)
+   - Secret Manager Secret Accessor (el job de migraciones lee los secretos de la base de datos)
 6. Crea una clave para esta cuenta de servicio (JSON)
 7. Descarga el archivo JSON 
 8. Copia todo el contenido del archivo y pégalo como valor del secreto `GCP_SA_KEY`
@@ -73,5 +85,8 @@ Asegúrate de tener habilitadas las siguientes APIs en tu proyecto:
 - Cloud Build API
 - Container Registry API
 - Cloud Resource Manager API
+- Secret Manager API
+
+La cuenta de servicio con la que se ejecuta Cloud Run también necesita el rol **Secret Manager Secret Accessor**, para resolver los `--set-secrets` al arrancar.
 
 Puedes habilitarlas en: https://console.cloud.google.com/apis/dashboard
