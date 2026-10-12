@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -15,6 +16,28 @@ import (
 	"github.com/javicabdev/asam-backend/pkg/errors"
 	appLogger "github.com/javicabdev/asam-backend/pkg/logger"
 )
+
+// dsnValueEscaper escapes a value for a single-quoted libpq keyword/value pair.
+var dsnValueEscaper = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
+
+// buildDSN assembles a libpq keyword/value connection string. Every value is
+// single-quoted and escaped, so credentials containing spaces, quotes,
+// backslashes or '=' reach the server verbatim instead of corrupting the DSN.
+func buildDSN(host, user, password, dbName, port, sslMode string) string {
+	pairs := [...]struct{ key, value string }{
+		{"host", host},
+		{"user", user},
+		{"password", password},
+		{"dbname", dbName},
+		{"port", port},
+		{"sslmode", sslMode},
+	}
+	parts := make([]string, 0, len(pairs))
+	for _, p := range pairs {
+		parts = append(parts, p.key+"='"+dsnValueEscaper.Replace(p.value)+"'")
+	}
+	return strings.Join(parts, " ")
+}
 
 // InitDB initializes the database connection with optional query monitoring.
 // It takes a config.Config instance with loaded environment values and an optional logger.
@@ -40,8 +63,7 @@ func InitDB(cfg *config.Config, logs ...appLogger.Logger) (*gorm.DB, error) {
 	}
 
 	// Construct DSN (Data Source Name) using values in cfg
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
-		cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort, cfg.DBSSLMode)
+	dsn := buildDSN(cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort, cfg.DBSSLMode)
 
 	// Log the DSN with sensitive info masked for debugging
 	maskedDSN := fmt.Sprintf("host=%s user=%s password=***** dbname=%s port=%s sslmode=%s",
