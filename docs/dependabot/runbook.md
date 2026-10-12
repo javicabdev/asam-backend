@@ -1,6 +1,6 @@
 # Dependabot Operations Runbook
 
-Last updated: 2026-06-20
+Last updated: 2026-10-12
 
 This runbook covers the recurring operational patterns when handling Dependabot
 PRs in this repository. The triage history lives alongside this file (e.g.
@@ -93,12 +93,33 @@ After CI passes:
   `Pinned-Dependencies: 10/10`.
 - Cross-check: `git log --oneline -1` should show the security commit on top.
 
+## Auto-merge (since 2026-10)
+
+The `main` ruleset ("Protect main") requires the five `ci.yml` checks to pass
+on a branch that is up to date with `main`, and only allows squash merges.
+[`dependabot-automerge.yml`](../../.github/workflows/dependabot-automerge.yml)
+turns on GitHub's auto-merge for Dependabot PRs. GitHub then merges by itself
+once those checks are green.
+
+| Update | Policy |
+|---|---|
+| Go modules, minor/patch | One grouped weekly PR (`go-minor-patch`), **auto-merged** |
+| Docker, minor/patch | **Auto-merged** (`golang` itself is ignored, see `dependabot.yml`) |
+| Any major | Own PR, **manual** review |
+| gqlgen | Own PR, **manual**: close it and bump the six places by hand (CLAUDE.md) |
+| GitHub Actions | Grouped PR, **manual**: PR CI only runs `ci.yml`, so actions used only by `release.yml` / `cloud-run-deploy.yml` are not exercised |
+
+**A PR waits with "This branch is out-of-date"** when another PR merged first.
+Dependabot only rebases on conflicts. Click **Update branch** on the PR, or
+comment `@dependabot rebase`, and auto-merge continues once CI is green again.
+
 ## Other Dependabot ecosystems
 
 For reference, the following ecosystems behave correctly and do not need this
 runbook:
 
-- `gomod` — Dependabot edits `go.mod`/`go.sum` cleanly; standard PR review.
+- `gomod` — Dependabot edits `go.mod`/`go.sum` cleanly; minor/patch updates are
+  auto-merged (see above).
 - `github-actions` — Dependabot preserves `uses: foo/bar@<sha> # v<version>`
   pins correctly. Verified in PR #102 (2026-05-24 triage).
 - `docker` — Dependabot updates the version tag and `@sha256` digest together, preserving the pin. Verified in PR #114 (2026-06).

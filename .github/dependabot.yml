@@ -9,8 +9,13 @@ updates:
       time: "08:00"
     open-pull-requests-limit: 5
     groups:
-      go-indirect:
-        dependency-type: "development"
+      # One weekly PR with every minor/patch Go update, auto-merged once the
+      # required checks pass (.github/workflows/dependabot-automerge.yml).
+      # Majors get their own PRs and stay manual. gqlgen is left out: its bump
+      # touches six places (CLAUDE.md), so its PR is a signal, not a merge.
+      go-minor-patch:
+        patterns: ["*"]
+        exclude-patterns: ["github.com/99designs/gqlgen"]
         update-types:
           - "minor"
           - "patch"
