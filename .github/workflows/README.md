@@ -27,6 +27,14 @@ Este directorio contiene los workflows de CI/CD para ASAM Backend.
   - Opción de ejecutar migraciones
 - **Duración**: ~2-3 minutos
 
+### 4. `aiven-keepalive.yml` - Keep-alive del plan gratuito de Aiven
+- **Trigger**: Programado (lunes y jueves, 06:17 UTC) o manual (workflow_dispatch)
+- **Acciones**:
+  - Consulta el estado del servicio en la API de Aiven, para que la cuenta registre actividad
+  - Falla si el servicio está apagado (`POWEROFF`) o la llamada falla; no lo vuelve a encender
+- **Secretos**: `AIVEN_API_TOKEN`, `AIVEN_PROJECT`, `AIVEN_SERVICE` (ver [docs/github-secrets-setup.md](../../docs/github-secrets-setup.md))
+- **Duración**: < 1 minuto
+
 ## Flujo de CI/CD
 
 ```mermaid
