@@ -250,7 +250,15 @@ jobs:
 
           # Check current migration status
           echo "📊 Current migration status:"
-          MIGRATION_STATUS=$(go run cmd/migrate/main.go -cmd version 2>&1) || echo "No migrations applied yet"
+          # A fresh DB (migrate.ErrNilVersion) exits 0 in cmd/migrate, so any
+          # non-zero exit is a real failure (connection, TLS, unreadable
+          # schema_migrations). Never run 'up' on an unknown state.
+          if ! MIGRATION_STATUS=$(go run cmd/migrate/main.go -cmd version 2>&1); then
+            echo "$MIGRATION_STATUS"
+            echo "❌ ERROR: Could not read the current migration version."
+            echo "Aborting before 'up': applying migrations on an unknown state could re-run them and leave the database dirty."
+            exit 1
+          fi
           echo "$MIGRATION_STATUS"
 
           # Check if database is in dirty state
