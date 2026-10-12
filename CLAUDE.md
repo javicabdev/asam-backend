@@ -34,9 +34,11 @@ wastes a review if you don't know it.
   twenty versions behind; the repo compiling was luck, not design. Fixed in the
   0.17.93 sync PR.) When bumping gqlgen: change all five, then `gqlgen generate`
   and commit the regenerated code.
-- **`lib/pq` is a direct require that nobody imports,** so every `go mod tidy`
-  wants to relocate it (direct <-> indirect). Revert that noise until PR #122
-  lands.
+- **The only Postgres driver is `pgx/v5`** — GORM uses it, and `cmd/migrate`
+  uses golang-migrate's `database/pgx/v5` driver, so migration URLs use the
+  `pgx5://` scheme (a `postgres://` URL fails with "unknown driver"). `lib/pq`
+  was removed in PR #122; do not reintroduce it. `go.sum` may still list it as
+  part of other deps' module graph — that is expected, nothing compiles it.
 
 ## CI caveats
 
