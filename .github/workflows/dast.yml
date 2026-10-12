@@ -24,8 +24,7 @@ on:
 
 permissions:
   contents: read
-  security-events: write
-  issues: write
+  issues: write  # the ZAP actions open an issue with the findings (allow_issue_writing)
 
 env:
   # URL por defecto: variable del repositorio DAST_BACKEND_URL (Settings → Secrets and variables → Actions → Variables).
@@ -140,38 +139,3 @@ jobs:
               echo "⚠️ No scan results found"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Comment on PR (if applicable)
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
-        with:
-          script: |
-            const fs = require('fs');
-            let reportContent = '## 🔒 DAST Security Scan Results\n\n';
-
-            try {
-              // Try to read the JSON report
-              const report = JSON.parse(fs.readFileSync('report_json.json', 'utf8'));
-              reportContent += `**Target:** ${report.site}\n`;
-              reportContent += `**Alerts:** ${report.alerts.length}\n\n`;
-
-              // Summarize by risk level
-              const highRisk = report.alerts.filter(a => a.risk === 'High').length;
-              const mediumRisk = report.alerts.filter(a => a.risk === 'Medium').length;
-              const lowRisk = report.alerts.filter(a => a.risk === 'Low').length;
-
-              reportContent += `- 🔴 High: ${highRisk}\n`;
-              reportContent += `- 🟡 Medium: ${mediumRisk}\n`;
-              reportContent += `- 🟢 Low: ${lowRisk}\n\n`;
-
-              reportContent += 'See artifacts for full report.';
-            } catch (e) {
-              reportContent += 'Report parsing failed. Check artifacts for details.';
-            }
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: reportContent
-            });

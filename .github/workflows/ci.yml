@@ -11,10 +11,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-# Permisos necesarios para GitHub Security
+# Least privilege: no job writes to the repo. No security-events: write either,
+# because nothing here uploads SARIF (CodeQL runs as GitHub's default setup).
 permissions:
   contents: read
-  security-events: write
   actions: read
 
 env:
@@ -185,7 +185,10 @@ jobs:
           echo "No HIGH findings — gate passes."
 
       - name: Install govulncheck
-        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+        # Pinned like gosec: @latest picked up v1.9.0 the day after its release.
+        # Bump by hand (Dependabot doesn't update go install lines); v1.8.0 uses
+        # x/tools v0.50.0, enough for Go 1.27.
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
 
       - name: Run govulncheck (fails only on REACHABLE vulnerabilities)
         run: |
