@@ -141,3 +141,7 @@ issues:
   max-same-issues: 0
   new: false
   fix: false
+
+formatters:
+  enable:
+    - gofmt
