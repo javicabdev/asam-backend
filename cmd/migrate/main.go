@@ -8,14 +8,16 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres" // PostgreSQL driver
-	_ "github.com/golang-migrate/migrate/v4/source/file"       // File source driver
+	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5" // PostgreSQL driver (pgx/v5)
+	_ "github.com/golang-migrate/migrate/v4/source/file"     // File source driver
 	"github.com/joho/godotenv"
 
 	"github.com/javicabdev/asam-backend/pkg/constants"
@@ -26,6 +28,9 @@ var (
 	environment string
 	command     string
 )
+
+// dbURLScheme is the URL scheme golang-migrate uses to select the database driver.
+const dbURLScheme = "pgx5"
 
 // Environment files
 const (
@@ -150,8 +155,7 @@ func executeMigrationsCI(cmd string, args []string) error {
 	log.Printf("CI Database configuration: Host=%s, Port=%s, User=%s, DB=%s, SSLMode=%s",
 		dbHost, dbPort, dbUser, dbName, sslMode)
 
-	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		dbUser, dbPass, dbHost, dbPort, dbName, sslMode)
+	dbURL := buildDBURL(dbURLScheme, dbUser, dbPass, dbHost, dbPort, dbName, sslMode)
 
 	return runMigrations(dbURL, cmd, args, "CI Environment")
 }
@@ -183,10 +187,22 @@ func executeMigrationsForEnv(envFile string, cmd string, args []string) error {
 	log.Printf("Database configuration from %s: Host=%s, Port=%s, User=%s, DB=%s, SSLMode=%s",
 		envFile, dbHost, dbPort, dbUser, dbName, sslMode)
 
-	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		dbUser, dbPass, dbHost, dbPort, dbName, sslMode)
+	dbURL := buildDBURL(dbURLScheme, dbUser, dbPass, dbHost, dbPort, dbName, sslMode)
 
 	return runMigrations(dbURL, cmd, args, envFile)
+}
+
+// buildDBURL assembles a database URL, escaping credentials and database name so that
+// reserved characters (e.g. '/', '#', '%', '?') in the password don't corrupt the URL.
+func buildDBURL(scheme, user, pass, host, port, name, sslMode string) string {
+	u := url.URL{
+		Scheme:   scheme,
+		User:     url.UserPassword(user, pass),
+		Host:     net.JoinHostPort(host, port),
+		Path:     "/" + name,
+		RawQuery: url.Values{"sslmode": {sslMode}}.Encode(),
+	}
+	return u.String()
 }
 
 // runMigrations contains the common logic to execute migration commands once dbURL is determined.
