@@ -46,7 +46,7 @@ RUN go build -ldflags "-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT}
 # Stable Alpine, not edge (the development branch): 3.24 ships postgresql17-client
 # (17.11), which pg_dump needs to back up the PostgreSQL 17 server. If a future
 # Alpine drops postgresql17, the CI Docker Build fails on the apk add below.
-FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+FROM alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
 
 # Argumentos para metadatos
 ARG VERSION=unknown
